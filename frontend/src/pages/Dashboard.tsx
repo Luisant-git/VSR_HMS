@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck } from 'lucide-react';
+import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [roomFilter, setRoomFilter] = useState('All');
   
   const roomsData = [
-    { id: '101', type: 'double', ac: true, block: 'Block A', floor: 'Floor 1', rent: '5,000.00', mess: '3,500.00', occ: 2, cap: 2 },
-    { id: '102', type: 'double', ac: false, block: 'Block A', floor: 'Floor 1', rent: '4,200.00', mess: '3,500.00', occ: 2, cap: 2 },
-    { id: '103', type: 'single', ac: true, block: 'Block A', floor: 'Floor 1', rent: '7,500.00', mess: '3,500.00', occ: 1, cap: 1 },
-    { id: '104', type: 'triple', ac: false, block: 'Block A', floor: 'Floor 1', rent: '3,800.00', mess: '3,500.00', occ: 3, cap: 3 },
-    { id: '201', type: 'four sharing', ac: false, block: 'Block B', floor: 'Floor 2', rent: '3,200.00', mess: '3,500.00', occ: 0, cap: 4 },
-    { id: '202', type: 'double', ac: false, block: 'Block B', floor: 'Floor 2', rent: '4,500.00', mess: '3,500.00', occ: 0, cap: 2 },
-    { id: '203', type: 'single', ac: true, block: 'Block B', floor: 'Floor 2', rent: '7,000.00', mess: '3,500.00', occ: 0, cap: 1 },
-    { id: '204', type: 'dormitory', ac: false, block: 'Block B', floor: 'Floor 2', rent: '2,800.00', mess: '3,500.00', occ: 0, cap: 6 },
-    { id: '301', type: 'double', ac: true, block: 'Block A', floor: 'Floor 2', rent: '7,500.00', mess: '8,000.00', occ: 0, cap: 2 },
-    { id: '302', type: 'triple', ac: true, block: 'Block A', floor: 'Floor 1', rent: '4,500.00', mess: '3,500.00', occ: 0, cap: 5 },
+    { id: 'A1', type: '5 sharing', ac: false, block: 'Block A', floor: 'Floor 1', rent: '4,500.00', mess: '3,500.00', occ: 5, cap: 5 },
+    { id: 'A7', type: '5 sharing', ac: true, block: 'Block A', floor: 'Floor 1', rent: '6,500.00', mess: '3,500.00', occ: 2, cap: 5 },
+    { id: 'B1', type: '6 sharing', ac: false, block: 'Block B', floor: 'Floor 1', rent: '4,000.00', mess: '3,500.00', occ: 0, cap: 6 },
+    { id: 'C7', type: '5 sharing', ac: true, block: 'Block C', floor: 'Floor 1', rent: '6,500.00', mess: '3,500.00', occ: 1, cap: 5 },
+    { id: 'D12', type: '6 sharing', ac: false, block: 'Block D', floor: 'Floor 2', rent: '4,000.00', mess: '3,500.00', occ: 6, cap: 6 },
+    { id: 'E1', type: 'single', ac: true, block: 'Block E', floor: 'Floor 1', rent: 'N/A', mess: 'N/A', occ: 1, cap: 1 },
+    { id: 'E2', type: '5 sharing', ac: false, block: 'Block E', floor: 'Floor 1', rent: '4,500.00', mess: '3,500.00', occ: 0, cap: 5 },
+    { id: 'W1', type: 'single', ac: true, block: 'Single Rooms', floor: 'Floor 1', rent: '8,500.00', mess: '3,500.00', occ: 1, cap: 1 },
+    { id: 'Dorm', type: 'dormitory', ac: false, block: 'Dormitory', floor: 'Floor 1', rent: '3,000.00', mess: '3,500.00', occ: 10, cap: 28 },
   ];
   
   const filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
@@ -33,7 +34,7 @@ const Dashboard = () => {
               <Users size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Active Students</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>8</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>150</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Enrolled in hostel</div>
           </div>
           
@@ -42,8 +43,8 @@ const Dashboard = () => {
               <Bed size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Vacant Beds</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>20 / 28</div>
-            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>71% Available</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>170 / 320</div>
+            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>53% Available</div>
           </div>
           
           <div className="metric-card metric-card-orange">
@@ -90,21 +91,31 @@ const Dashboard = () => {
         <div className="dashboard-bottom-row" style={{ display: 'flex', gap: '25px', flexWrap: 'wrap' }}>
           
           <div className="content-card" style={{ flex: '2 1 600px' }}>
-            <div className="card-header" style={{ marginBottom: '15px' }}>
-              <div>
-                <div className="card-title">Live Room Occupancy & Pricing</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Real-time room occupancy and predefined rate structures</div>
+            <div className="card-header" style={{ marginBottom: '15px', display: 'flex', flexWrap: 'nowrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ minWidth: 0, flexShrink: 1 }}>
+                <div className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Live Room Occupancy & Pricing</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Real-time room occupancy and predefined rate structures</div>
               </div>
-              <div style={{ display: 'flex', gap: '10px', background: '#f0f2f5', padding: '4px', borderRadius: '20px' }}>
+              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', background: '#f0f2f5', padding: '4px', borderRadius: '20px', alignItems: 'center', flexShrink: 0 }}>
                 <button 
                   onClick={() => setRoomFilter('All')}
-                  style={{ background: roomFilter === 'All' ? 'var(--sidebar-active)' : 'transparent', color: roomFilter === 'All' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 16px', borderRadius: '15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  style={{ background: roomFilter === 'All' ? 'var(--sidebar-active)' : 'transparent', color: roomFilter === 'All' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 14px', borderRadius: '15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
                   All Rooms
                 </button>
                 <button 
                   onClick={() => setRoomFilter('Vacant')}
-                  style={{ background: roomFilter === 'Vacant' ? 'var(--sidebar-active)' : 'transparent', color: roomFilter === 'Vacant' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 16px', borderRadius: '15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  style={{ background: roomFilter === 'Vacant' ? 'var(--sidebar-active)' : 'transparent', color: roomFilter === 'Vacant' ? 'white' : 'var(--text-muted)', border: 'none', padding: '6px 14px', borderRadius: '15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
                   Vacant Only
+                </button>
+                <div style={{ width: '1px', background: '#cbd5e1', height: '20px', margin: '0 4px' }}></div>
+                <button 
+                  onClick={() => {
+                    navigate('/rooms/directory');
+                    // Give a small delay for route transition then switch to table view if needed
+                    setTimeout(() => window.dispatchEvent(new CustomEvent('switch-to-table')), 100);
+                  }}
+                  style={{ background: 'transparent', color: 'var(--text-muted)', border: 'none', padding: '6px 14px', borderRadius: '15px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                  <List size={14} /> Full View Table
                 </button>
               </div>
             </div>

@@ -13,7 +13,7 @@ const Layout = () => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-brand">
-          LOGO
+          HMS
         </div>
         
         <nav className="sidebar-nav">
