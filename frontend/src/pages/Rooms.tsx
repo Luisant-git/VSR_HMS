@@ -1,19 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { RoomAPI } from '../api/room.api';
 import { Bed, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Rooms = () => {
   const navigate = useNavigate();
 
-  const roomBlocks = [
-    { name: 'A Block', count: 12, style: 'metric-card-blue' },
-    { name: 'B Block', count: 12, style: 'metric-card-orange' },
-    { name: 'C Block', count: 12, style: 'metric-card-purple' },
-    { name: 'D Block', count: 12, style: 'metric-card-yellow' },
-    { name: 'E Block', count: 5, style: 'metric-card-green' },
-    { name: 'W Block', count: 3, style: 'metric-card-purple' },
-    { name: 'Dormitory', count: 1, style: 'metric-card-yellow' },
-  ];
+    const [dbRooms, setDbRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    RoomAPI.findAll().then(setDbRooms).catch(console.error);
+  }, []);
+
+  const blocksMap = dbRooms.reduce((acc, room) => {
+    acc[room.block] = (acc[room.block] || 0) + 1;
+    return acc;
+  }, {});
+
+  const styles = ['metric-card-blue', 'metric-card-orange', 'metric-card-purple', 'metric-card-yellow', 'metric-card-green'];
+  
+  const roomBlocks = Object.keys(blocksMap).map((block, i) => ({
+    name: block,
+    count: blocksMap[block],
+    style: styles[i % styles.length]
+  }));
+
 
   return (
     <div>

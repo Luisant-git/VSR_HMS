@@ -1,22 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { RoomAPI } from '../api/room.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [roomFilter, setRoomFilter] = useState('All');
+  const [dbRooms, setDbRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    RoomAPI.findAll().then(setDbRooms).catch(console.error);
+  }, []);
+
+  const roomsData = dbRooms.map(r => ({
+    id: r.id,
+    type: r.type,
+    ac: r.amenities ? r.amenities.includes('AC') : false,
+    block: r.block,
+    floor: `Floor ${r.floor || 1}`,
+    rent: Number(r.rent || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+    mess: Number(r.messFee || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+    occ: r.occupiedCount,
+    cap: r.capacity
+  }));
   
-  const roomsData = [
-    { id: 'A1', type: '5 sharing', ac: false, block: 'Block A', floor: 'Floor 1', rent: '4,500.00', mess: '3,500.00', occ: 5, cap: 5 },
-    { id: 'A7', type: '5 sharing', ac: true, block: 'Block A', floor: 'Floor 1', rent: '6,500.00', mess: '3,500.00', occ: 2, cap: 5 },
-    { id: 'B1', type: '6 sharing', ac: false, block: 'Block B', floor: 'Floor 1', rent: '4,000.00', mess: '3,500.00', occ: 0, cap: 6 },
-    { id: 'C7', type: '5 sharing', ac: true, block: 'Block C', floor: 'Floor 1', rent: '6,500.00', mess: '3,500.00', occ: 1, cap: 5 },
-    { id: 'D12', type: '6 sharing', ac: false, block: 'Block D', floor: 'Floor 2', rent: '4,000.00', mess: '3,500.00', occ: 6, cap: 6 },
-    { id: 'E1', type: 'single', ac: true, block: 'Block E', floor: 'Floor 1', rent: 'N/A', mess: 'N/A', occ: 1, cap: 1 },
-    { id: 'E2', type: '5 sharing', ac: false, block: 'Block E', floor: 'Floor 1', rent: '4,500.00', mess: '3,500.00', occ: 0, cap: 5 },
-    { id: 'W1', type: 'single', ac: true, block: 'Single Rooms', floor: 'Floor 1', rent: '8,500.00', mess: '3,500.00', occ: 1, cap: 1 },
-    { id: 'Dorm', type: 'dormitory', ac: false, block: 'Dormitory', floor: 'Floor 1', rent: '3,000.00', mess: '3,500.00', occ: 10, cap: 28 },
-  ];
+  const totalBeds = dbRooms.reduce((sum, r) => sum + r.capacity, 0);
+  const occupiedBeds = dbRooms.reduce((sum, r) => sum + r.occupiedCount, 0);
+  const vacantBeds = totalBeds - occupiedBeds;
+  const vacantPercent = totalBeds > 0 ? Math.round((vacantBeds / totalBeds) * 100) : 0;
+
   
   const filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
 
@@ -34,7 +46,7 @@ const Dashboard = () => {
               <Users size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Active Students</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>150</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{occupiedBeds}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Enrolled in hostel</div>
           </div>
           
@@ -43,8 +55,8 @@ const Dashboard = () => {
               <Bed size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Vacant Beds</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>170 / 320</div>
-            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>53% Available</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{vacantBeds} / {totalBeds}</div>
+            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>{vacantPercent}% Available</div>
           </div>
           
           <div className="metric-card metric-card-orange">
