@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AlignLeft, Filter, Search, Download, Columns, X, Phone, Mail, MapPin, GraduationCap, Bed, Wallet, ArrowRight, Eye, FileText, LogOut, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 const Hostellers = () => {
   const navigate = useNavigate();
@@ -36,6 +37,29 @@ const Hostellers = () => {
   }, []);
 
   const rooms = ['-- All Rooms --', 'Room 101', 'Room 102', 'Room 103', 'Room 104', 'Room 201', 'Room 202', 'Room 203', 'Room 204', 'Room 301', 'Room 302'];
+  const roomOptions = rooms.map(r => ({ value: r, label: r }));
+
+  const selectStyles = {
+    control: (base: any, state: any) => ({
+      ...base,
+      padding: '2px',
+      borderRadius: '8px',
+      borderColor: state.isFocused ? 'var(--sidebar-active)' : 'var(--border-color)',
+      boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+      '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1' },
+      fontSize: '13px',
+      cursor: 'pointer',
+      width: '200px',
+      background: 'white'
+    }),
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '13px',
+      backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+      color: state.isSelected ? 'white' : '#334155',
+      cursor: 'pointer'
+    })
+  };
 
   const filteredHostellers = hostellers.filter(h => {
     const matchesRoom = roomFilter === '-- All Rooms --' || `Room ${h.room}` === roomFilter;
@@ -57,64 +81,71 @@ const Hostellers = () => {
           subtitle="Filter by room to view enrolled students"
           rightContent={
             <>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
-                <input 
-                  type="text"
-                  placeholder="Search by name, ID, mobile, or college..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    padding: '8px 12px 8px 36px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    fontSize: '13px',
-                    outline: 'none',
-                    width: '280px'
-                  }}
-                />
-              </div>
-              
-              <select 
-                value={roomFilter} 
-                onChange={(e) => setRoomFilter(e.target.value)}
-                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
-              >
-                {rooms.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-              
-              <button onClick={() => navigate('/gate-logs')} style={{ 
-                background: 'white', 
-                color: 'var(--text-main)', 
-                border: '1px solid var(--border-color)', 
-                padding: '8px 16px', 
-                borderRadius: '8px', 
-                fontSize: '13px', 
-                fontWeight: 600, 
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-              }}>
-                Gate Logs
-              </button>
-
               <button 
                 onClick={() => navigate('/register')}
                 style={{ 
                 background: 'var(--sidebar-active)', 
                 color: 'white', 
                 border: 'none', 
-                padding: '8px 16px', 
+                padding: '12px 24px', 
                 borderRadius: '8px', 
-                fontSize: '13px', 
+                fontSize: '15px', 
                 fontWeight: 600, 
                 cursor: 'pointer',
-                boxShadow: '0 4px 8px rgba(74, 114, 250, 0.2)'
+                boxShadow: '0 4px 12px rgba(74, 114, 250, 0.25)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}>
                 + Register New Student
               </button>
             </>
           }
         />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+            <input 
+              type="text"
+              placeholder="Search by name, ID, mobile, or college..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                padding: '8px 12px 8px 36px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                fontSize: '13px',
+                outline: 'none',
+                width: '280px'
+              }}
+            />
+          </div>
+          
+          <Select 
+            options={roomOptions}
+            value={roomOptions.find(o => o.value === roomFilter)}
+            onChange={(opt) => setRoomFilter(opt?.value || '-- All Rooms --')}
+            styles={selectStyles}
+            placeholder="Search room..."
+            isSearchable={true}
+          />
+          
+          <button onClick={() => navigate('/gate-logs')} style={{ 
+            background: '#0f172a', 
+            color: 'white', 
+            border: 'none', 
+            padding: '8px 16px', 
+            borderRadius: '8px', 
+            fontSize: '13px', 
+            fontWeight: 600, 
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
+            Gate Logs
+          </button>
+        </div>
 
         <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
