@@ -13,18 +13,18 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req) {
+  async login(@Request() req: any) {
     return this.authService.login(req.user);
   }
 
   @Post('signup')
-  async signup(@Body() body) {
+  async signup(@Body() body: any) {
     return this.usersService.create(body);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
+  getProfile(@Request() req: any) {
     return req.user;
   }
 }
