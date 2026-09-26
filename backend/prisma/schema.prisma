@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ---------------------------------------------------------
+// User (Authentication & Admins)
+// ---------------------------------------------------------
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("ADMIN") // "ADMIN", "WARDEN"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
+// Room & Bed Management
+// ---------------------------------------------------------
+model Room {
+  id            String    @id // e.g. A1, E1, W1, 101, 102
+  block         String
+  floor         Int       @default(1)
+  capacity      Int       // Total beds in the room
+  type          String    // "Single", "Double", "Triple", "Four Sharing", "Dormitory"
+  rent          Float     @default(0.0)
+  messFee       Float     @default(0.0)
+  amenities     String?   // Comma separated string e.g. "AC, Attached Bath"
+  occupiedCount Int       @default(0)
+  
+  students      Student[]
+  ebBills       EbBill[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------
+// Student Management
+// ---------------------------------------------------------
+model Student {
+  id             String   @id @default(uuid())
+  regNo          String   @unique // e.g. HST-2026-001
+  name           String
+  dob            DateTime?
+  age            Int?
+  gender         String?
+  bloodGroup     String?
+  
+  // Contact & KYC
+  emailId        String?  @unique
+  mobileNo       String?
+  phMobNoFM      String?  // Family member / Father mobile
+  fatherName     String?
+  motherName     String?
+  aadharNo       String?  @unique
+  address        String?
+  
+  // Academic info
+  college        String?
+  educationalQua String?
+  courseDuration String?
+  category       String?
+  
+  // Hostel details
+  foodType       String?  // "Veg", "Non-Veg"
+  roomNo         String?
+  bedNo          String?  // e.g. "Bed 1", "Bed 2"
+  advance        Float?   @default(0.0)
+  rent           Float?   @default(0.0)
+  
+  // Status tracking
+  status         String   @default("In") // "In", "Out", "Missing", "Vacated"
+  feeStatus      String   @default("Un-Paid") // "Paid", "Un-Paid", "Partial"
+  
+  // Relations
+  room           Room?    @relation(fields: [roomNo], references: [id])
+  gateLogs       GateLog[]
+  transactions   FeeTransaction[]
+  clearance      ClearanceRecord?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
+// Gate Logs & Movements
+// ---------------------------------------------------------
+model GateLog {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  
+  movementType   String    // "EXIT", "ENTRY"
+  reason         String?
+  outTime        DateTime?
+  expectedInTime DateTime?
+  inTime         DateTime?
+  
+  isLate         Boolean   @default(false)
+  lateRemarks    String?
+
+  createdAt      DateTime  @default(now())
+}
+
+// ---------------------------------------------------------
+// Fees & Transactions
+// ---------------------------------------------------------
+model FeeTransaction {
+  id             String    @id @default(uuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  
+  transactionType String    // "RENT", "MESS", "EB_BILL", "ADVANCE", "FINE", "PAYMENT"
+  amount         Float
+  description    String?
+  status         String    // "PENDING", "COMPLETED", "FAILED"
+  paymentMode    String?   // "CASH", "UPI", "BANK_TRANSFER"
+  
+  dueDate        DateTime?
+  paidDate       DateTime?
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------
+// EB Bills (Electricity)
+// ---------------------------------------------------------
+model EbBill {
+  id             String    @id @default(uuid())
+  roomNo         String
+  room           Room      @relation(fields: [roomNo], references: [id])
+  
+  billingCycle   String    // e.g. "2026-08"
+  prevReading    Float
+  currReading    Float
+  unitsConsumed  Float
+  tariffRate     Float
+  totalAmount    Float
+  
+  perStudentShare Float    // Computed based on number of active students in the room
+  
+  createdAt      DateTime  @default(now())
+}
+
+// ---------------------------------------------------------
+// Clearance & Discontinuation
+// ---------------------------------------------------------
+model ClearanceRecord {
+  id             String    @id @default(uuid())
+  studentId      String    @unique
+  student        Student   @relation(fields: [studentId], references: [id])
+  
+  reason         String    // "Completed Course", "Disciplinary Action", "Personal"
+  advanceHeld    Float
+  pendingDues    Float
+  deductions     Float     @default(0.0)
+  netRefund      Float
+  
+  remarks        String?
+  clearanceDate  DateTime  @default(now())
+
+  createdAt      DateTime  @default(now())
+}
