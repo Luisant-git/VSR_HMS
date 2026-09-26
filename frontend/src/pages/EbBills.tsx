@@ -39,6 +39,15 @@ const EbBills = () => {
     })
   };
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCycle, setFilterCycle] = useState('');
+
+  const filteredHistory = billingHistory.filter(bill => {
+    const matchesSearch = !searchTerm || bill.room.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCycle = !filterCycle || bill.cycle === filterCycle;
+    return matchesSearch && matchesCycle;
+  });
+
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader
@@ -119,9 +128,12 @@ const EbBills = () => {
               <History size={18} color="var(--sidebar-active)" />
               <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>Room EB Billing History</h3>
             </div>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" placeholder="Search EB..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '180px' }} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input type="month" value={filterCycle} onChange={e => setFilterCycle(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '140px', color: '#64748b', cursor: 'pointer' }} />
+              <div style={{ position: 'relative' }}>
+                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input type="text" placeholder="Search Room..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '160px' }} />
+              </div>
             </div>
           </div>
           
@@ -139,7 +151,7 @@ const EbBills = () => {
                 </tr>
               </thead>
               <tbody>
-                {billingHistory.map((bill) => (
+                {filteredHistory.map((bill) => (
                   <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ fontWeight: 600, color: '#1e293b' }}>{bill.room}</td>
                     <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>{bill.cycle}</span></td>
