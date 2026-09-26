@@ -437,3 +437,17 @@ input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr !important;
   }
 }
+
+/* React Toastify Overrides */
+.Toastify__toast {
+  position: relative !important;
+}
+
+.Toastify__close-button {
+  position: absolute !important;
+  top: 50% !important;
+  right: 14px !important;
+  transform: translateY(-50%) !important;
+  align-self: unset !important;
+  margin: 0 !important;
+}

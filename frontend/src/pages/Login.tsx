@@ -1,15 +1,31 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { UserAPI } from '../api/user.api';
 
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    setIsLoading(true);
+    
+    try {
+      const response = await UserAPI.login({ email, password });
+      if (response.access_token) {
+        localStorage.setItem('access_token', response.access_token);
+      }
+      toast.success('Login successful!');
+      navigate('/');
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -120,10 +136,12 @@ const Login = () => {
               justifyContent: 'center',
               alignItems: 'center',
               gap: '8px',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              opacity: isLoading ? 0.7 : 1,
+              pointerEvents: isLoading ? 'none' : 'auto'
             }}
           >
-            <LogIn size={18} /> Sign In
+            <LogIn size={18} /> {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 

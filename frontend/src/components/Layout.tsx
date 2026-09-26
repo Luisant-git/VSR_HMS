@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Users, Search, Bell, Settings, FileText, Grid, MessageSquare, Briefcase, Menu, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, Coffee, List } from 'lucide-react';
 
@@ -7,6 +7,19 @@ const Layout = () => {
   const navigate = useNavigate();
   const isDashboard = location.pathname === '/';
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [user, setUser] = useState<{name?: string, email?: string} | null>(null);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser(payload);
+      }
+    } catch (e) {
+      console.error('Failed to parse token');
+    }
+  }, []);
 
   return (
     <div className="app-layout">
@@ -109,7 +122,7 @@ const Layout = () => {
                 }}
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
               >
-                A
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
               </div>
               
               {/* Dropdown Menu (Click to open, click away to close) */}
@@ -136,12 +149,15 @@ const Layout = () => {
                     }}
                   >
                     <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', backgroundColor: '#f8f9fa' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px' }}>Admin User</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>admin@hostel.com</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px' }}>{user?.name || 'Admin User'}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user?.email || 'admin@hostel.com'}</div>
                     </div>
                     <div style={{ padding: '8px' }}>
                       <button 
-                        onClick={() => navigate('/login')}
+                        onClick={() => {
+                          localStorage.removeItem('access_token');
+                          navigate('/login');
+                        }}
                         style={{ 
                           width: '100%', 
                           padding: '10px 15px', 
