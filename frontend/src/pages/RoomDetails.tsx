@@ -7,13 +7,54 @@ const RoomDetails = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
 
-  // Mock data for rooms in a block
-  const rooms = Array.from({ length: 12 }, (_, i) => ({
-    id: `${id?.[0]}${i + 1}`,
-    capacity: 5,
-    occupied: Math.floor(Math.random() * 6),
-    isAC: [7, 8, 9].includes(i + 1)
-  }));
+  const getRoomsForBlock = (blockId: string) => {
+    if (!blockId) return [];
+    const prefix = blockId[0];
+    
+    if (blockId === 'Dormitory') {
+      return [{ id: 'Dorm', capacity: 28, occupied: 10, isAC: false }];
+    }
+    
+    if (prefix === 'A' || prefix === 'C') {
+      return Array.from({ length: 12 }, (_, i) => ({
+        id: `${prefix}${i + 1}`,
+        capacity: 5,
+        occupied: Math.floor(Math.random() * 6),
+        isAC: [7, 8, 9].includes(i + 1)
+      }));
+    }
+    
+    if (prefix === 'B' || prefix === 'D') {
+      return Array.from({ length: 12 }, (_, i) => ({
+        id: `${prefix}${i + 1}`,
+        capacity: 6,
+        occupied: Math.floor(Math.random() * 7),
+        isAC: false
+      }));
+    }
+
+    if (prefix === 'E') {
+      return Array.from({ length: 5 }, (_, i) => ({
+        id: `${prefix}${i + 1}`,
+        capacity: i === 0 ? 1 : 5, // E1 is Warden (single), others 5
+        occupied: i === 0 ? 1 : Math.floor(Math.random() * 6),
+        isAC: i === 0 // Assuming Warden has AC
+      }));
+    }
+
+    if (prefix === 'W') {
+      return Array.from({ length: 3 }, (_, i) => ({
+        id: `${prefix}${i + 1}`,
+        capacity: 1,
+        occupied: Math.floor(Math.random() * 2),
+        isAC: true
+      }));
+    }
+
+    return [];
+  };
+
+  const rooms = getRoomsForBlock(id || '');
 
   return (
     <div>

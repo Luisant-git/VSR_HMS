@@ -1,44 +1,181 @@
 import React, { useState } from 'react';
-import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, User, ArrowLeft } from 'lucide-react';
+import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, User, ArrowLeft, LayoutGrid, List, Wind } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 
 const RoomsDirectory = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('grid');
+  const [filterStatus, setFilterStatus] = useState('All');
+
+  React.useEffect(() => {
+    const handleSwitch = () => setViewMode('table');
+    window.addEventListener('switch-to-table', handleSwitch);
+  
+  const filteredGridData = roomsData.filter(room => {
+    if (filterStatus === 'Available') return room.filled < room.total;
+    if (filterStatus === 'Fully Vacant') return room.filled === 0;
+    if (filterStatus === 'Full') return room.filled === room.total;
+    return true;
+  });
+
+  const filteredTableData = tableData.filter(row => {
+    const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filterStatus === 'Available') return row.vac > 0;
+    if (filterStatus === 'Fully Vacant') return row.occ === 0;
+    if (filterStatus === 'Full') return row.vac === 0;
+    return true;
+  });
+
+  return () => window.removeEventListener('switch-to-table', handleSwitch);
+  }, []);
 
   const metrics = [
-    { label: 'Total Hostel Rooms', value: '10 Rooms', color: '#3b82f6', icon: <Home size={20} /> },
-    { label: 'Total Bed Capacity', value: '28 Beds', color: '#8b5cf6', icon: <Bed size={20} /> },
-    { label: 'Occupied Beds', value: '8 Beds', color: '#10b981', icon: <Users size={20} /> },
-    { label: 'Vacant Beds', value: '20 Available', color: '#f59e0b', icon: <CheckCircle size={20} /> }
+    { label: 'Total Hostel Rooms', value: '57 Rooms', color: '#3b82f6', icon: <Home size={20} /> },
+    { label: 'Total Bed Capacity', value: '320 Beds', color: '#8b5cf6', icon: <Bed size={20} /> },
+    { label: 'Occupied Beds', value: '150 Beds', color: '#10b981', icon: <Users size={20} /> },
+    { label: 'Vacant Beds', value: '170 Available', color: '#f59e0b', icon: <CheckCircle size={20} /> }
   ];
 
   const roomsData = [
-    { id: '101', block: 'Block A | Floor 1', status: 'Full', price: '₹5,000.00/mo', type: 'double', amenities: ['AC', 'Bath'], filled: 2, total: 2, occupants: 'Aarav Sharma (HST-2026-001), Rohan Verma (HST-2026-003)' },
-    { id: '102', block: 'Block A | Floor 1', status: 'Full', price: '₹4,200.00/mo', type: 'double', amenities: ['Bath'], filled: 2, total: 2, occupants: 'Kavya Patel (HST-2026-002), Meera Nair (HST-2026-006)' },
-    { id: '103', block: 'Block A | Floor 1', status: 'Full', price: '₹7,500.00/mo', type: 'single', amenities: ['AC', 'Bath'], filled: 1, total: 1, occupants: 'Ananya Iyer (HST-2026-004)' },
-    { id: '104', block: 'Block A | Floor 1', status: 'Full', price: '₹3,800.00/mo', type: 'triple', amenities: ['Bath'], filled: 3, total: 3, occupants: 'Vikramaditya Rao (HST-2026-005), Arunkarthick (HST-2026-008), Baskar (HST-2026-009)' },
-    { id: '302', block: 'Block A | Floor 1', status: 'Fully Vacant', price: '₹4,500.00/mo', type: 'triple', amenities: ['AC', 'Bath'], filled: 0, total: 5, occupants: 'Ready for allocation' },
-    { id: '201', block: 'Block B | Floor 2', status: 'Fully Vacant', price: '₹3,200.00/mo', type: 'four sharing', amenities: [], filled: 0, total: 4, occupants: 'Ready for allocation' },
-    { id: '202', block: 'Block B | Floor 2', status: 'Fully Vacant', price: '₹4,500.00/mo', type: 'double', amenities: ['Bath'], filled: 0, total: 2, occupants: 'Ready for allocation' },
-    { id: '203', block: 'Block B | Floor 2', status: 'Fully Vacant', price: '₹7,000.00/mo', type: 'single', amenities: ['AC', 'Bath'], filled: 0, total: 1, occupants: 'Ready for allocation' },
-    { id: '204', block: 'Block B | Floor 2', status: 'Fully Vacant', price: '₹2,800.00/mo', type: 'dormitory', amenities: [], filled: 0, total: 6, occupants: 'Ready for allocation' },
-    { id: '301', block: 'Block A | Floor 2', status: 'Fully Vacant', price: '₹7,500.00/mo', type: 'double', amenities: ['AC', 'Bath'], filled: 0, total: 2, occupants: 'Ready for allocation' },
+    { id: 'A1', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A2', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A3', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A4', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A5', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A6', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A7', block: 'Block A | 5 Sharing', status: 'Full', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A8', block: 'Block A | 5 Sharing', status: 'Full', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A9', block: 'Block A | 5 Sharing', status: 'Full', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A10', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A11', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'A12', block: 'Block A | 5 Sharing', status: 'Full', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 5, total: 5, occupants: 'HST-001, HST-002, HST-003, HST-004, HST-005' },
+    { id: 'B1', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B2', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B3', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B4', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B5', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B6', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B7', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B8', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B9', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B10', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B11', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'B12', block: 'Block B | 6 Sharing', status: 'Fully Vacant', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 0, total: 6, occupants: 'Ready for allocation' },
+    { id: 'C1', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C2', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C3', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C4', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C5', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C6', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C7', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C8', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C9', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹6,500.00/mo', type: '5 sharing', amenities: ['AC', 'Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C10', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C11', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'C12', block: 'Block C | 5 Sharing', status: 'Partially Filled', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 2, total: 5, occupants: 'HST-050, HST-051' },
+    { id: 'D1', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D2', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D3', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D4', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D5', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D6', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D7', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D8', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D9', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D10', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D11', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'D12', block: 'Block D | 6 Sharing', status: 'Full', price: '₹4,000.00/mo', type: '6 sharing', amenities: ['Bath'], filled: 6, total: 6, occupants: '6 Students' },
+    { id: 'E1', block: 'Block E | Warden', status: 'Full', price: 'N/A', type: 'single', amenities: ['AC', 'Bath'], filled: 1, total: 1, occupants: 'Warden' },
+    { id: 'E2', block: 'Block E | 5 Sharing', status: 'Fully Vacant', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 0, total: 5, occupants: 'Ready for allocation' },
+    { id: 'E3', block: 'Block E | 5 Sharing', status: 'Fully Vacant', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 0, total: 5, occupants: 'Ready for allocation' },
+    { id: 'E4', block: 'Block E | 5 Sharing', status: 'Fully Vacant', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 0, total: 5, occupants: 'Ready for allocation' },
+    { id: 'E5', block: 'Block E | 5 Sharing', status: 'Fully Vacant', price: '₹4,500.00/mo', type: '5 sharing', amenities: ['Bath'], filled: 0, total: 5, occupants: 'Ready for allocation' },
+    { id: 'W1', block: 'Single Room', status: 'Full', price: '₹8,500.00/mo', type: 'single', amenities: ['AC', 'Bath'], filled: 1, total: 1, occupants: '1 Student' },
+    { id: 'W2', block: 'Single Room', status: 'Full', price: '₹8,500.00/mo', type: 'single', amenities: ['AC', 'Bath'], filled: 1, total: 1, occupants: '1 Student' },
+    { id: 'W3', block: 'Single Room', status: 'Full', price: '₹8,500.00/mo', type: 'single', amenities: ['AC', 'Bath'], filled: 1, total: 1, occupants: '1 Student' },
+    { id: 'Dorm', block: 'Dormitory', status: 'Partially Filled', price: '₹3,000.00/mo', type: 'dormitory', amenities: [], filled: 10, total: 28, occupants: '10 Students currently allocated' }
   ];
 
   const tableData = [
-    { room: 'Room 101', loc: 'Block A (Floor 1)', type: 'double', cap: '2 Beds', occ: 2, vac: 0, rent: 5000, mess: 3500, tot: 8500, amen: 'AC Attached Bath', live: 'Aarav Sharma (HST-2026-001), Rohan Verma (HST-2026-003)' },
-    { room: 'Room 102', loc: 'Block A (Floor 1)', type: 'double', cap: '2 Beds', occ: 2, vac: 0, rent: 4200, mess: 3500, tot: 7700, amen: 'Attached Bath', live: 'Kavya Patel (HST-2026-002), Meera Nair (HST-2026-006)' },
-    { room: 'Room 103', loc: 'Block A (Floor 1)', type: 'single', cap: '1 Beds', occ: 1, vac: 0, rent: 7500, mess: 3500, tot: 11000, amen: 'AC Attached Bath', live: 'Ananya Iyer (HST-2026-004)' },
-    { room: 'Room 104', loc: 'Block A (Floor 1)', type: 'triple', cap: '3 Beds', occ: 3, vac: 0, rent: 3800, mess: 3500, tot: 7300, amen: 'Attached Bath', live: 'Vikramaditya Rao (HST-2026-005), Arunkarthick (HST-2026-008), Baskar (HST-2026-009)' },
-    { room: 'Room 302', loc: 'Block A (Floor 1)', type: 'triple', cap: '5 Beds', occ: 0, vac: 5, rent: 4500, mess: 3500, tot: 8000, amen: 'AC Attached Bath', live: 'None (Vacant)' },
-    { room: 'Room 201', loc: 'Block B (Floor 2)', type: 'four sharing', cap: '4 Beds', occ: 0, vac: 4, rent: 3200, mess: 3500, tot: 6700, amen: 'None', live: 'None (Vacant)' },
-    { room: 'Room 202', loc: 'Block B (Floor 2)', type: 'double', cap: '2 Beds', occ: 0, vac: 2, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: 'None (Vacant)' },
-    { room: 'Room 203', loc: 'Block B (Floor 2)', type: 'single', cap: '1 Beds', occ: 0, vac: 1, rent: 7000, mess: 3500, tot: 10500, amen: 'AC Attached Bath', live: 'None (Vacant)' },
-    { room: 'Room 204', loc: 'Block B (Floor 2)', type: 'dormitory', cap: '6 Beds', occ: 0, vac: 6, rent: 2800, mess: 3500, tot: 6300, amen: 'None', live: 'None (Vacant)' },
-    { room: 'Room 301', loc: 'Block A (Floor 2)', type: 'double', cap: '2 Beds', occ: 0, vac: 2, rent: 7500, mess: 8000, tot: 15500, amen: 'AC Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room A1', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A2', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A3', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A4', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A5', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A6', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A7', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '5 Students' },
+    { room: 'Room A8', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '5 Students' },
+    { room: 'Room A9', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '5 Students' },
+    { room: 'Room A10', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A11', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room A12', loc: 'Block A', type: '5 sharing', cap: '5 Beds', occ: 5, vac: 0, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '5 Students' },
+    { room: 'Room B1', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B2', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B3', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B4', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B5', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B6', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B7', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B8', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B9', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B10', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B11', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room B12', loc: 'Block B', type: '6 sharing', cap: '6 Beds', occ: 0, vac: 6, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room C1', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C2', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C3', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C4', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C5', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C6', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C7', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '2 Students' },
+    { room: 'Room C8', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '2 Students' },
+    { room: 'Room C9', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 6500, mess: 3500, tot: 10000, amen: 'AC Attached Bath', live: '2 Students' },
+    { room: 'Room C10', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C11', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room C12', loc: 'Block C', type: '5 sharing', cap: '5 Beds', occ: 2, vac: 3, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: '2 Students' },
+    { room: 'Room D1', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D2', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D3', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D4', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D5', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D6', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D7', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D8', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D9', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D10', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D11', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room D12', loc: 'Block D', type: '6 sharing', cap: '6 Beds', occ: 6, vac: 0, rent: 4000, mess: 3500, tot: 7500, amen: 'Attached Bath', live: '6 Students' },
+    { room: 'Room E1', loc: 'Block E', type: 'single', cap: '1 Beds', occ: 1, vac: 0, rent: 0, mess: 0, tot: 0, amen: 'AC Attached Bath', live: 'Warden' },
+    { room: 'Room E2', loc: 'Block E', type: '5 sharing', cap: '5 Beds', occ: 0, vac: 5, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room E3', loc: 'Block E', type: '5 sharing', cap: '5 Beds', occ: 0, vac: 5, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room E4', loc: 'Block E', type: '5 sharing', cap: '5 Beds', occ: 0, vac: 5, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room E5', loc: 'Block E', type: '5 sharing', cap: '5 Beds', occ: 0, vac: 5, rent: 4500, mess: 3500, tot: 8000, amen: 'Attached Bath', live: 'None (Vacant)' },
+    { room: 'Room W1', loc: 'Single Rooms', type: 'single', cap: '1 Beds', occ: 1, vac: 0, rent: 8500, mess: 3500, tot: 12000, amen: 'AC Attached Bath', live: '1 Student' },
+    { room: 'Room W2', loc: 'Single Rooms', type: 'single', cap: '1 Beds', occ: 1, vac: 0, rent: 8500, mess: 3500, tot: 12000, amen: 'AC Attached Bath', live: '1 Student' },
+    { room: 'Room W3', loc: 'Single Rooms', type: 'single', cap: '1 Beds', occ: 1, vac: 0, rent: 8500, mess: 3500, tot: 12000, amen: 'AC Attached Bath', live: '1 Student' },
+    { room: 'Dorm', loc: 'Dormitory', type: 'dormitory', cap: '28 Beds', occ: 10, vac: 18, rent: 3000, mess: 3500, tot: 6500, amen: 'None', live: '10 Students' }
   ];
+
+
+  const filteredGridData = roomsData.filter(room => {
+    if (filterStatus === 'Available') return room.filled < room.total;
+    if (filterStatus === 'Fully Vacant') return room.filled === 0;
+    if (filterStatus === 'Full') return room.filled === room.total;
+    return true;
+  });
+
+  const filteredTableData = tableData.filter(row => {
+    const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filterStatus === 'Available') return row.vac > 0;
+    if (filterStatus === 'Fully Vacant') return row.occ === 0;
+    if (filterStatus === 'Full') return row.vac === 0;
+    return true;
+  });
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -47,10 +184,14 @@ const RoomsDirectory = () => {
         subtitle="Dynamic room bed status strictly reflecting active resident hostellers"
         rightContent={
           <>
+            <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', marginRight: '10px' }}>
+              <button onClick={() => setViewMode('grid')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, background: viewMode === 'grid' ? 'white' : 'transparent', color: viewMode === 'grid' ? '#0f172a' : '#64748b', boxShadow: viewMode === 'grid' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}><LayoutGrid size={16} /> Grid</button>
+              <button onClick={() => setViewMode('table')} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600, background: viewMode === 'table' ? 'white' : 'transparent', color: viewMode === 'table' ? '#0f172a' : '#64748b', boxShadow: viewMode === 'table' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none' }}><List size={16} /> Table</button>
+            </div>
             <button onClick={() => navigate('/rooms/eb-bills')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#eab308', color: '#1e293b', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(234, 179, 8, 0.3)' }}>
               <Zap size={16} color="#1e293b" /> Room EB Bills
             </button>
-            <button style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
+            <button onClick={() => setIsModalOpen(true)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
               <Plus size={16} /> Add New Room
             </button>
           </>
@@ -71,56 +212,132 @@ const RoomsDirectory = () => {
         ))}
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '10px 15px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', width: 'fit-content' }}>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', color: '#64748b' }}>
+          <Filter size={16} style={{ marginRight: '6px' }} />
+          <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>Filter:</span>
+        </div>
+        {['All', 'Available', 'Fully Vacant', 'Full'].map(f => (
+          <button
+            key={f}
+            onClick={() => setFilterStatus(f)}
+            style={{
+              padding: '6px 16px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              border: 'none',
+              background: filterStatus === f ? 'var(--sidebar-active)' : 'transparent',
+              color: filterStatus === f ? 'white' : '#64748b',
+              transition: 'all 0.2s'
+            }}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+
+      {viewMode === 'grid' && (
       <div style={{ marginBottom: '30px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-          {roomsData.map((r, i) => (
-            <div key={i} style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)', overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.12)'} onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.08)'}>
-              <div style={{ padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <h4 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', margin: '0 0 4px 0' }}>Room {r.id}</h4>
-                  <div style={{ fontSize: '13px', color: '#6b7280' }}>{r.block}</div>
+          {filteredGridData.map((r, i) => (
+
+            <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+              {r.amenities.includes('AC') ? (
+                <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <Wind size={14} /> AC
+                </span>
+              ) : (
+                <span className="status-pill" style={{ position: 'absolute', top: '16px', right: '16px', border: '1px solid var(--text-muted)', color: 'var(--text-muted)' }}>
+                  Non-AC
+                </span>
+              )}
+              
+              <h3 className="card-title" style={{ marginBottom: '8px' }}>Room {r.id}</h3>
+              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2 text-muted">
+                  <Users size={16} />
+                  <span style={{ fontSize: '14px', fontWeight: 500 }}>Occupied</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                  <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, background: r.status === 'Full' ? '#dc3545' : '#198754', color: 'white' }}>
-                    {r.status}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  background: '#f8f9fa', 
+                  padding: '4px 10px', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <span style={{ fontSize: '16px', fontWeight: 700, color: r.filled === r.total ? '#dc3545' : 'var(--sidebar-active)' }}>
+                    {r.filled}
                   </span>
-                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0d6efd' }}>{r.price}</span>
+                  <span className="text-muted" style={{ fontSize: '13px', fontWeight: 600 }}>/ {r.total}</span>
                 </div>
               </div>
-              
-              <div style={{ padding: '0 20px', display: 'flex', gap: '8px', marginBottom: '15px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#111827', border: '1px solid #e5e7eb', background: 'white', padding: '4px 10px', borderRadius: '6px', textTransform: 'capitalize' }}>{r.type}</span>
-                {r.amenities.includes('AC') && <span style={{ fontSize: '13px', fontWeight: 500, color: '#0369a1', background: '#cffafe', padding: '4px 10px', borderRadius: '6px' }}>AC</span>}
-                {r.amenities.includes('Bath') && <span style={{ fontSize: '13px', fontWeight: 500, color: '#111827', background: '#e5e7eb', padding: '4px 10px', borderRadius: '6px' }}>Bath</span>}
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                {Array.from({ length: r.total }).map((_, idx) => {
+                  const isOccupied = idx < r.filled;
+                  const isFull = r.filled === r.total;
+                
+  const filteredGridData = roomsData.filter(room => {
+    if (filterStatus === 'Available') return room.filled < room.total;
+    if (filterStatus === 'Fully Vacant') return room.filled === 0;
+    if (filterStatus === 'Full') return room.filled === room.total;
+    return true;
+  });
+
+  const filteredTableData = tableData.filter(row => {
+    const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!matchesSearch) return false;
+    if (filterStatus === 'Available') return row.vac > 0;
+    if (filterStatus === 'Fully Vacant') return row.occ === 0;
+    if (filterStatus === 'Full') return row.vac === 0;
+    return true;
+  });
+
+  return (
+                    <div key={idx} style={{ 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '38px', height: '38px', borderRadius: '10px',
+                      backgroundColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.1)' : 'rgba(74, 114, 250, 0.1)') : '#f4f6f8',
+                      color: isOccupied ? (isFull ? '#dc3545' : 'var(--sidebar-active)') : '#adb5bd',
+                      border: '1px solid',
+                      borderColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.2)' : 'rgba(74, 114, 250, 0.2)') : '#e9ecef'
+                    }}>
+                      <Bed size={20} strokeWidth={isOccupied ? 2.5 : 2} />
+                    </div>
+                  );
+                })}
               </div>
               
-              <div style={{ padding: '0 20px', marginBottom: '15px' }}>
-                <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#4b5563', marginBottom: '10px' }}>
-                    <span>Bed Allocation:</span>
-                    <span style={{ fontWeight: 700, color: '#111827' }}>{r.filled} / {r.total} Filled</span>
+              <div style={{ marginTop: 'auto' }}>
+                {r.filled > 0 && (
+                  <div style={{ fontSize: '12px', color: '#64748b', background: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>CURRENT OCCUPANTS:</div>
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.occupants}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {Array.from({ length: r.total }).map((_, idx) => (
-                      <div key={idx} style={{ width: '14px', height: '14px', borderRadius: '4px', background: idx < r.filled ? '#dc3545' : '#22c55e' }}></div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ padding: '0 20px 20px 20px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', marginBottom: '6px' }}>CURRENT OCCUPANTS:</div>
-                <div style={{ fontSize: '13px', color: r.filled > 0 ? '#111827' : '#0d9488', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {r.filled > 0 ? <User size={14} color="#0d6efd" style={{ flexShrink: 0 }} /> : <CheckCircle size={14} color="#0d9488" style={{ flexShrink: 0 }} />}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }} title={r.occupants}>{r.occupants}</span>
-                </div>
+                )}
+                
+                <button 
+                  style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
+                >
+                  {r.filled === r.total ? 'View Students' : 'Assign Student'}
+                </button>
               </div>
             </div>
           ))}
         </div>
       </div>
+      )}
 
+      {viewMode === 'table' && (
       <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Rooms Master Directory</h3>
@@ -146,7 +363,7 @@ const RoomsDirectory = () => {
               </tr>
             </thead>
             <tbody>
-              {tableData.map((row, i) => (
+              {filteredTableData.map((row, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
                   <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
                   <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
@@ -167,6 +384,73 @@ const RoomsDirectory = () => {
           </table>
         </div>
       </div>
+      )}
+      {/* Add Room Modal */}
+      {isModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '500px', padding: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', paddingBottom: '15px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-heading)' }}>Add New Room</h3>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <XCircle size={24} />
+              </button>
+            </div>
+            
+            <form style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Room Number</label>
+                  <input type="text" placeholder="e.g. 101" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Block & Floor</label>
+                  <input type="text" placeholder="e.g. Block A | Floor 1" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Room Type</label>
+                  <select style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}>
+                    <option>Single</option>
+                    <option>Double</option>
+                    <option>Triple</option>
+                    <option>Four Sharing</option>
+                    <option>Dormitory</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Total Beds</label>
+                  <input type="number" placeholder="2" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Monthly Rent (₹)</label>
+                <input type="number" placeholder="5000" style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Amenities</label>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#334155', cursor: 'pointer' }}>
+                    <input type="checkbox" /> AC
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#334155', cursor: 'pointer' }}>
+                    <input type="checkbox" /> Attached Bath
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>Save Room</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

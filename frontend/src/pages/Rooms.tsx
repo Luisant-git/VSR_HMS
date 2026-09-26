@@ -10,6 +10,9 @@ const Rooms = () => {
     { name: 'B Block', count: 12, style: 'metric-card-orange' },
     { name: 'C Block', count: 12, style: 'metric-card-purple' },
     { name: 'D Block', count: 12, style: 'metric-card-yellow' },
+    { name: 'E Block', count: 5, style: 'metric-card-green' },
+    { name: 'W Block', count: 3, style: 'metric-card-purple' },
+    { name: 'Dormitory', count: 1, style: 'metric-card-yellow' },
   ];
 
   return (
