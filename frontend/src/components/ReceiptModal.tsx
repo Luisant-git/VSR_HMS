@@ -53,10 +53,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '20px', marginBottom: '30px', background: '#fafafa' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: '12px', fontSize: '13px' }}>
               <div style={{ color: '#64748b' }}>Received From:</div>
-              <div style={{ fontWeight: 700, color: '#0f172a' }}>{fee.student?.name || 'Unknown'} <span style={{ color: '#64748b', fontWeight: 500 }}>({fee.student?.regNo || 'N/A'})</span></div>
+              <div style={{ fontWeight: 700, color: '#0f172a' }}>{fee.student?.name || 'Unknown'} <span style={{ color: '#64748b', fontWeight: 500 }}>({fee.student?.regNo || fee.student?.id || 'N/A'})</span></div>
               
               <div style={{ color: '#64748b' }}>Room Allotment:</div>
-              <div style={{ color: '#334155', fontWeight: 500 }}>Room {fee.student?.roomNo || 'N/A'}</div>
+              <div style={{ color: '#334155', fontWeight: 500 }}>Room {fee.student?.roomNo || fee.student?.room || 'N/A'}</div>
 
               <div style={{ color: '#64748b' }}>Reference / Trans ID:</div>
               <div style={{ color: '#334155', fontWeight: 500 }}>{fee.description?.includes('Ref:') ? fee.description.split('Ref:')[1]?.trim() : (fee.paymentMode === 'CASH' ? 'Direct / Cash' : 'N/A')}</div>

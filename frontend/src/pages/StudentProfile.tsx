@@ -18,9 +18,6 @@ const StudentProfile = () => {
   });
   const [student, setStudent] = useState<any>(null);
   const [fees, setFees] = useState<any[]>([]);
-  const [showFeeModal, setShowFeeModal] = useState(false);
-  const [newFee, setNewFee] = useState({ transactionType: 'RENT', amount: 0, description: '', status: 'COMPLETED', paymentMode: 'UPI', referenceNumber: '' });
-  const [isSubmittingFee, setIsSubmittingFee] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
 
@@ -101,21 +98,6 @@ const StudentProfile = () => {
   useEffect(() => {
     fetchStudentData();
   }, [id]);
-
-  const handleAddFee = async () => {
-    if (!student?.uuid || newFee.amount <= 0) return alert('Enter valid amount');
-    setIsSubmittingFee(true);
-    try {
-      const finalDescription = `${newFee.description} | Ref: ${newFee.referenceNumber || '-'}`.trim();
-      const added = await FeesAPI.create({ ...newFee, studentId: student.uuid, amount: Number(newFee.amount), description: finalDescription });
-      setFees([added, ...fees]);
-      setShowFeeModal(false);
-      setNewFee({ transactionType: 'RENT', amount: 0, description: '', status: 'COMPLETED', paymentMode: 'UPI', referenceNumber: '' });
-    } catch (e: any) {
-      alert('Failed to add fee: ' + e.message);
-    }
-    setIsSubmittingFee(false);
-  };
 
   if (!student) {
     return <div style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>Loading Profile...</div>;
@@ -376,9 +358,6 @@ const StudentProfile = () => {
                 <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
                   <CreditCard size={20} color="#10b981" /> Fee Transactions
                 </h3>
-                <button onClick={() => setShowFeeModal(true)} style={{ background: 'var(--sidebar-active)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
-                  + Record Payment / Due
-                </button>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
@@ -435,7 +414,7 @@ const StudentProfile = () => {
                           </td>
                           <td style={{ textAlign: 'right', padding: '15px' }}>
                             {fee.status === 'PENDING' ? (
-                              <button onClick={() => setFeeToCollect(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => setFeeToCollect({ ...fee, student })} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <Wallet size={14} /> Collect Payment
                               </button>
                             ) : (
@@ -493,65 +472,8 @@ const StudentProfile = () => {
           </div>
         </div>
       )}
-      {showFeeModal && student && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', padding: '0', borderRadius: '12px', width: '450px', maxWidth: '90%', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
-            <div style={{ background: '#198754', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Record Fee Payment</h3>
-              <button onClick={() => setShowFeeModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
-            </div>
-            
-            <div style={{ padding: '20px' }}>
-              <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px' }}>
-                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{student.name} ({student.id})</div>
-                <div style={{ color: '#64748b', fontSize: '13px' }}>Invoice: INV-{newFee.transactionType}-{new Date().getFullYear()}{student.id?.replace(/\D/g, '') || ''} | Due: ₹{newFee.amount || '0.00'}</div>
-              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Type <span style={{color: '#dc3545'}}>*</span></label>
-                  <select value={newFee.transactionType} onChange={e => setNewFee({...newFee, transactionType: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
-                    <option value="RENT">Rent</option>
-                    <option value="MESS">Mess Fee</option>
-                    <option value="EB_BILL">EB Bill</option>
-                    <option value="FINE">Fine</option>
-                    <option value="ADVANCE">Advance Deposit</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Amount Paid (₹) <span style={{color: '#dc3545'}}>*</span></label>
-                  <input type="number" value={newFee.amount || ''} onChange={e => setNewFee({...newFee, amount: Number(e.target.value)})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Payment Mode</label>
-                  <select value={newFee.paymentMode} onChange={e => setNewFee({...newFee, paymentMode: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
-                    <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
-                    <option value="CASH">Cash</option>
-                    <option value="BANK_TRANSFER">Bank Transfer</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Transaction Reference Number</label>
-                  <input type="text" placeholder="UPI Ref ID, Cheque #, or Cash Voucher" value={newFee.referenceNumber} onChange={e => setNewFee({...newFee, referenceNumber: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Notes</label>
-                  <input type="text" placeholder="Optional notes" value={newFee.description} onChange={e => setNewFee({...newFee, description: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ background: '#f8f9fa', padding: '15px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e2e8f0' }}>
-              <button onClick={() => setShowFeeModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: '#6c757d', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-              <button onClick={handleAddFee} disabled={isSubmittingFee} style={{ padding: '8px 16px', borderRadius: '6px', background: '#198754', color: 'white', border: 'none', cursor: isSubmittingFee ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
-                {isSubmittingFee ? 'Saving...' : 'Save Record'}
-              </button>
-            </div>
-          </div>
         </div>
-      )}
-
-</div>
       </div>
 
       {/* Receipt Modal */}
