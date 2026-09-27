@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Info, CheckCircle2, Upload, ArrowLeft } from 'lucide-react';
+import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { toast } from 'react-toastify';
 import { StudentAPI } from '../api/student.api';
 import { UploadAPI } from '../api/upload.api';
+import { RoomAPI } from '../api/room.api';
 import Swal from 'sweetalert2';
 
 const Register = () => {
@@ -93,6 +94,7 @@ const Register = () => {
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
 
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -157,7 +159,10 @@ const Register = () => {
         await StudentAPI.create({
           ...formData,
           roomNo: selectedRoom?.value || selectedRoom?.id,
-          advance: Number(formData.advance),
+          advance: Number(formData.advance) || 0,
+          rent: selectedRoom?.room?.rent || 0,
+          messFee: selectedRoom?.room?.messFee || 0,
+          autoGenerateInvoice,
           photoUrl: capturedImage,
           doc1Url,
           doc2Url
@@ -189,8 +194,7 @@ const Register = () => {
   const [roomOptions, setRoomOptions] = useState<any[]>([]);
 
   React.useEffect(() => {
-    import('../api/room.api').then(({ RoomAPI }) => {
-      RoomAPI.findAll().then((rooms) => {
+    RoomAPI.findAll().then((rooms) => {
         const options = rooms.map((room) => {
           const freeBeds = room.capacity - (room.occupiedBeds || 0);
           const formatPrice = (p) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
@@ -202,8 +206,7 @@ const Register = () => {
         });
         setRoomOptions(options);
       }).catch(console.error);
-    });
-  }, [])
+  }, []);
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -531,6 +534,34 @@ const Register = () => {
                   isClearable={true}
                 />
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only rooms with vacant capacity are listed.</div>
+                
+                {selectedRoom && selectedRoom.room && (
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontWeight: 600, fontSize: '13px', marginBottom: '12px' }}>
+                      <Calculator size={16} color="#3b82f6" /> Predefined Monthly Room Rates:
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '8px' }}>
+                      <span>Base Room Rent:</span>
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>₹{(selectedRoom.room.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+                      <span>Standard Mess Fee:</span>
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>₹{(selectedRoom.room.messFee || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                      <span>Total Monthly Charge:</span>
+                      <span style={{ color: '#0d6efd' }}>₹{((selectedRoom.room.rent || 0) + (selectedRoom.room.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={autoGenerateInvoice} onChange={(e) => setAutoGenerateInvoice(e.target.checked)} style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#0d6efd' }} />
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Auto-generate Month 1 Invoices (Rent & Mess)</div>
+                  </div>
+                </label>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Bed Tag / Number</label>
@@ -539,15 +570,6 @@ const Register = () => {
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date *</label>
                 <input type="date" defaultValue="2026-09-25" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 500, color: '#334155', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Auto-generate Month 1 Invoices (Rent & Mess)</div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Creates recurring unpaid invoices automatically based on above room rates.</div>
-                  </div>
-                </label>
               </div>
             </div>
           </div>

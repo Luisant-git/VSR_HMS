@@ -1,24 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IndianRupee, Search, Filter, FileText, Download, Wallet, Plus, FileSpreadsheet, ArrowLeft } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { FeesAPI } from '../api/fees.api';
+import { ReceiptModal } from '../components/ReceiptModal';
+import { CollectPaymentModal } from '../components/CollectPaymentModal';
+
+const formatInvoiceNumber = (fee: any) => {
+  const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
+  const typeStr = fee.transactionType.substring(0,3).toUpperCase();
+  const studentStr = fee.student?.regNo?.replace(/[^a-zA-Z0-9]/g, '') || 'UNKN';
+  return `INV-${typeStr}-${ymStr}-${studentStr}-${fee.id.substring(fee.id.length - 2).toUpperCase()}`;
+};
 
 const Fees = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('ALL');
+  const [fees, setFees] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<any>({ value: 'ALL', label: '-- All Students --' });
+  const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  const [feeToCollect, setFeeToCollect] = useState<any>(null);
 
-  const studentOptions = [
-    { value: 'ALL', label: '-- All Students --' },
-    { value: 'HST-2026-001', label: 'Aarav Sharma (HST-2026-001)' },
-    { value: 'HST-2026-004', label: 'Ananya Iyer (HST-2026-004)' },
-    { value: 'HST-2026-008', label: 'Arunkarthick (HST-2026-008)' },
-    { value: 'HST-2026-009', label: 'Baskar (HST-2026-009)' },
-    { value: 'HST-2026-002', label: 'Kavya Patel (HST-2026-002)' },
-    { value: 'HST-2026-006', label: 'Meera Nair (HST-2026-006)' },
-    { value: 'HST-2026-003', label: 'Rohan Verma (HST-2026-003)' },
-    { value: 'HST-2026-005', label: 'Vikramaditya Rao (HST-2026-005)' }
-  ];
+  const fetchFees = () => {
+    FeesAPI.findAll().then(data => {
+      setFees(data);
+    }).catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchFees();
+  }, []);
+
+  const studentOptions = useMemo(() => {
+    const students = new Map();
+    fees.forEach(fee => {
+      if (fee.student) {
+        students.set(fee.student.regNo, {
+          value: fee.student.regNo,
+          label: `${fee.student.name} (${fee.student.regNo})`
+        });
+      }
+    });
+    return [{ value: 'ALL', label: '-- All Students --' }, ...Array.from(students.values())];
+  }, [fees]);
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -28,6 +54,29 @@ const Fees = () => {
       ...base, fontSize: '13px', backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white', color: state.isSelected ? 'white' : '#334155', cursor: 'pointer', padding: '10px 14px'
     })
   };
+
+  const totalInvoiced = fees.reduce((sum, fee) => sum + fee.amount, 0);
+  const totalCollected = fees.filter(f => f.status === 'COMPLETED').reduce((sum, fee) => sum + fee.amount, 0);
+  const pendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, fee) => sum + fee.amount, 0);
+
+  const filteredFees = fees.filter(fee => {
+    let match = true;
+    if (filter === 'UNPAID') match = fee.status === 'PENDING';
+    if (filter === 'PAID') match = fee.status === 'COMPLETED';
+    if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
+    
+    if (selectedStudent.value !== 'ALL' && fee.student?.regNo !== selectedStudent.value) match = false;
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      match = match && (
+        fee.id.toLowerCase().includes(q) ||
+        fee.transactionType.toLowerCase().includes(q) ||
+        (fee.student?.name || '').toLowerCase().includes(q)
+      );
+    }
+    return match;
+  });
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -53,7 +102,7 @@ const Fees = () => {
           </div>
           <div>
             <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Total Invoiced</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹253,900.00</div>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -62,7 +111,7 @@ const Fees = () => {
           </div>
           <div>
             <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Total Fees Collected</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹41,500.00</div>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
         <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -71,7 +120,7 @@ const Fees = () => {
           </div>
           <div>
             <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Pending Unpaid Fees</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹208,400.00</div>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{pendingFees.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
       </div>
@@ -93,11 +142,11 @@ const Fees = () => {
               ))}
             </div>
             
-            <Select options={studentOptions} defaultValue={studentOptions[0]} styles={selectStyles} isSearchable={true} />
+            <Select options={studentOptions} value={selectedStudent} onChange={setSelectedStudent} styles={selectStyles} isSearchable={true} />
             
             <div style={{ position: 'relative' }}>
               <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
             </div>
           </div>
         </div>
@@ -106,116 +155,69 @@ const Fees = () => {
           <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 12px' }}>Invoice #</th>
+                <th style={{ padding: '16px 12px' }}>Invoice No</th>
                 <th style={{ padding: '16px 12px' }}>Student & Room</th>
                 <th style={{ padding: '16px 12px' }}>Fee Type</th>
                 <th style={{ padding: '16px 12px' }}>Period</th>
                 <th style={{ padding: '16px 12px' }}>Amount</th>
-                <th style={{ padding: '16px 12px' }}>Due Date</th>
                 <th style={{ padding: '16px 12px' }}>Status</th>
                 <th style={{ textAlign: 'right', padding: '16px 12px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '16px 12px' }}>
-                  <a href="#" style={{ color: '#0d6efd', fontWeight: 700, textDecoration: 'none' }}>INV-MSS-202612-HST2026009-26</a>
-                </td>
-                <td style={{ padding: '16px 12px' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>Baskar</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>HST-2026-009 | Room 104</div>
-                </td>
-                <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>Mess Fee</span></td>
-                <td style={{ padding: '16px 12px', color: '#334155' }}>2026-12</td>
-                <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹3,500.00</td>
-                <td style={{ padding: '16px 12px', color: '#475569' }}>10 Dec 2026</td>
-                <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>Unpaid</span></td>
-                <td style={{ textAlign: 'right', padding: '16px 12px' }}>
-                  <button style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Wallet size={14} /> Collect Payment
-                  </button>
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '16px 12px' }}>
-                  <a href="#" style={{ color: '#0d6efd', fontWeight: 700, textDecoration: 'none' }}>INV-RNT-202612-HST2026008-68</a>
-                </td>
-                <td style={{ padding: '16px 12px' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>Arunkarthick</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>HST-2026-008 | Room 104</div>
-                </td>
-                <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>Room Rent</span></td>
-                <td style={{ padding: '16px 12px', color: '#334155' }}>2026-12</td>
-                <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹3,800.00</td>
-                <td style={{ padding: '16px 12px', color: '#475569' }}>10 Dec 2026</td>
-                <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: '#198754', color: 'white', fontWeight: 600, fontSize: '12px' }}>Paid</span></td>
-                <td style={{ textAlign: 'right', padding: '16px 12px' }}>
-                  <button style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={14} color="#64748b" /> View Receipt
-                  </button>
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '16px 12px' }}>
-                  <a href="#" style={{ color: '#0d6efd', fontWeight: 700, textDecoration: 'none' }}>INV-RNT-202612-HST2026006-48</a>
-                </td>
-                <td style={{ padding: '16px 12px' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>Meera Nair</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>HST-2026-006 | Room 102</div>
-                </td>
-                <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>Room Rent</span></td>
-                <td style={{ padding: '16px 12px', color: '#334155' }}>2026-12</td>
-                <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹4,200.00</td>
-                <td style={{ padding: '16px 12px', color: '#475569' }}>10 Dec 2026</td>
-                <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>Unpaid</span></td>
-                <td style={{ textAlign: 'right', padding: '16px 12px' }}>
-                  <button style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Wallet size={14} /> Collect Payment
-                  </button>
-                </td>
-              </tr>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <td style={{ padding: '16px 12px' }}>
-                  <a href="#" style={{ color: '#0d6efd', fontWeight: 700, textDecoration: 'none' }}>INV-2026-0906</a>
-                </td>
-                <td style={{ padding: '16px 12px' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>Ananya Iyer</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>HST-2026-004 | Room 103</div>
-                </td>
-                <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>Room Rent</span></td>
-                <td style={{ padding: '16px 12px', color: '#334155' }}>2026-09</td>
-                <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹7,500.00</td>
-                <td style={{ padding: '16px 12px', color: '#d93025', fontWeight: 600 }}>10 Sep 2026 (Overdue)</td>
-                <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>Unpaid</span></td>
-                <td style={{ textAlign: 'right', padding: '16px 12px' }}>
-                  <button style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Wallet size={14} /> Collect Payment
-                  </button>
-                </td>
-              </tr>
-              <tr>
-                <td style={{ padding: '16px 12px' }}>
-                  <a href="#" style={{ color: '#0d6efd', fontWeight: 700, textDecoration: 'none' }}>INV-2026-0902</a>
-                </td>
-                <td style={{ padding: '16px 12px' }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b' }}>Aarav Sharma</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>HST-2026-001 | Room 101</div>
-                </td>
-                <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>Mess Fee</span></td>
-                <td style={{ padding: '16px 12px', color: '#334155' }}>2026-09</td>
-                <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹3,500.00</td>
-                <td style={{ padding: '16px 12px', color: '#475569' }}>10 Sep 2026</td>
-                <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: '#198754', color: 'white', fontWeight: 600, fontSize: '12px' }}>Paid</span></td>
-                <td style={{ textAlign: 'right', padding: '16px 12px' }}>
-                  <button style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={14} color="#64748b" /> View Receipt
-                  </button>
-                </td>
-              </tr>
+              {filteredFees.map(fee => (
+                <tr key={fee.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '16px 12px' }}>
+                    <div style={{ fontWeight: 700, color: '#0d6efd' }}>{formatInvoiceNumber(fee)}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>{new Date(fee.createdAt).toLocaleDateString()}</div>
+                  </td>
+                  <td style={{ padding: '16px 12px' }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{fee.student?.regNo || 'N/A'} | Room {fee.student?.roomNo || 'N/A'}</div>
+                  </td>
+                  <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>{fee.transactionType}</span></td>
+                  <td style={{ padding: '16px 12px', color: '#334155' }}>-</td>
+                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹{fee.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>{fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}</span></td>
+                  <td style={{ textAlign: 'right', padding: '16px 12px' }}>
+                    {fee.status === 'PENDING' ? (
+                      <button onClick={() => setFeeToCollect(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Wallet size={14} /> Collect Payment
+                      </button>
+                    ) : (
+                      <button onClick={() => setSelectedReceipt(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <FileText size={14} color="#64748b" /> View Receipt
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filteredFees.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No fee transactions found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+      
+      {/* Receipt Modal */}
+      {selectedReceipt && (
+        <ReceiptModal fee={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
+      )}
+
+      {/* Collect Payment Modal */}
+      {feeToCollect && (
+        <CollectPaymentModal 
+          fee={feeToCollect} 
+          onClose={() => setFeeToCollect(null)} 
+          onSuccess={() => {
+            setFeeToCollect(null);
+            fetchFees();
+          }} 
+        />
+      )}
     </div>
   );
 };

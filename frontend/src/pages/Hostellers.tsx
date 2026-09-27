@@ -3,30 +3,34 @@ import { AlignLeft, Filter, Search, Download, Columns, X, Phone, Mail, MapPin, G
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { StudentAPI } from '../api/student.api';
+import { FeesAPI } from '../api/fees.api';
 const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
 
   useEffect(() => {
-    import('../api/student.api').then(({ StudentAPI }) => {
-      StudentAPI.findAll().then(data => {
-        const mapped = data.map((h: any) => ({
-          id: h.regNo,
-          name: h.name,
-          contact: h.mobileNo,
-          room: h.roomNo || 'N/A',
-          bed: h.bedNo || 'N/A',
-          college: h.college || 'N/A',
-          dept: h.educationalQua || 'N/A',
-          advance: `₹${h.advance || 0}`,
-          pending: `₹${h.rent || 0}`, // Placeholder logic
-          date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          avatar: h.name.substring(0, 2).toUpperCase(),
-          raw: h
-        }));
+    StudentAPI.findAll().then(data => {
+        const mapped = data.map((h: any) => {
+          const pendingFeesAmount = h.transactions?.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0) || 0;
+          return {
+            id: h.regNo,
+            name: h.name,
+            contact: h.mobileNo,
+            room: h.roomNo || 'N/A',
+            bed: h.bedNo || 'N/A',
+            college: h.college || 'N/A',
+            dept: h.educationalQua || 'N/A',
+            advance: `₹${h.advance || 0}`,
+            pending: `₹${pendingFeesAmount}`,
+            feeStatus: pendingFeesAmount > 0 ? 'Un-Paid' : 'Paid',
+            date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            avatar: h.name.substring(0, 2).toUpperCase(),
+            raw: h
+          };
+        });
         setHostellers(mapped);
       }).catch(console.error);
-    });
   }, []);
 
   const location = useLocation();
@@ -35,6 +39,26 @@ const Hostellers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [showFeeModal, setShowFeeModal] = useState(false);
+  const [feeStudent, setFeeStudent] = useState<any>(null);
+  const [newFee, setNewFee] = useState({ transactionType: 'RENT', amount: 0, description: '', status: 'COMPLETED', paymentMode: 'UPI', referenceNumber: '' });
+  const [isSubmittingFee, setIsSubmittingFee] = useState(false);
+
+  const handleAddFee = async () => {
+    if (!feeStudent || newFee.amount <= 0) return alert('Enter valid amount');
+    setIsSubmittingFee(true);
+    try {
+      const uuid = feeStudent.raw.id;
+      const finalDescription = `${newFee.description} | Ref: ${newFee.referenceNumber || '-'}`.trim();
+      await FeesAPI.create({ ...newFee, studentId: uuid, amount: Number(newFee.amount), description: finalDescription });
+      alert('Fee recorded successfully!');
+      setShowFeeModal(false);
+    } catch (e: any) {
+      alert('Failed to add fee: ' + e.message);
+    }
+    setIsSubmittingFee(false);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -169,6 +193,7 @@ const Hostellers = () => {
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room & Bed</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>College / Dept</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Advance Held</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fee Status</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pending Fees</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Joining Date</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</th>
@@ -177,7 +202,7 @@ const Hostellers = () => {
             <tbody>
               {filteredHostellers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
                     No enrolled students found in this room.
                   </td>
                 </tr>
@@ -216,6 +241,15 @@ const Hostellers = () => {
                   </td>
                   <td style={{ padding: '15px 20px', color: '#198754', fontWeight: 600, fontSize: '14px' }}>
                     {h.advance}
+                  </td>
+                  <td style={{ padding: '15px 20px' }}>
+                    <span style={{ 
+                      background: h.feeStatus === 'Paid' ? '#dcfce7' : h.feeStatus === 'Un-Paid' ? '#fee2e2' : '#fef3c7',
+                      color: h.feeStatus === 'Paid' ? '#166534' : h.feeStatus === 'Un-Paid' ? '#991b1b' : '#92400e',
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 
+                    }}>
+                      {h.feeStatus}
+                    </span>
                   </td>
                   <td style={{ padding: '15px 20px' }}>
                     <span style={{ background: '#dc3545', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
@@ -273,6 +307,10 @@ const Hostellers = () => {
                           <Eye size={16} color="#0d6efd" /> View 360 Profile
                         </button>
                         <button 
+                          onClick={() => {
+                            navigate(`/fees`);
+                            setActiveDropdown(null);
+                          }}
                           style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
                           onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
@@ -410,6 +448,63 @@ const Hostellers = () => {
                 style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', border: 'none', color: 'white', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
               >
                 Edit Student
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showFeeModal && feeStudent && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', padding: '0', borderRadius: '12px', width: '450px', maxWidth: '90%', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div style={{ background: '#198754', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Record Fee Payment</h3>
+              <button onClick={() => setShowFeeModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
+            </div>
+            
+            <div style={{ padding: '20px' }}>
+              <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px' }}>
+                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{feeStudent.name} ({feeStudent.id}) | {feeStudent.contact}</div>
+                <div style={{ color: '#64748b', fontSize: '13px' }}>Invoice: INV-{newFee.transactionType}-{new Date().getFullYear()}{feeStudent.id?.replace(/\D/g, '') || ''} | Due: ₹{newFee.amount || '0.00'}</div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Type <span style={{color: '#dc3545'}}>*</span></label>
+                  <select value={newFee.transactionType} onChange={e => setNewFee({...newFee, transactionType: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
+                    <option value="RENT">Rent</option>
+                    <option value="MESS">Mess Fee</option>
+                    <option value="EB_BILL">EB Bill</option>
+                    <option value="FINE">Fine</option>
+                    <option value="ADVANCE">Advance Deposit</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Amount Paid (₹) <span style={{color: '#dc3545'}}>*</span></label>
+                  <input type="number" value={newFee.amount || ''} onChange={e => setNewFee({...newFee, amount: Number(e.target.value)})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Payment Mode</label>
+                  <select value={newFee.paymentMode} onChange={e => setNewFee({...newFee, paymentMode: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
+                    <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
+                    <option value="CASH">Cash</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Transaction Reference Number</label>
+                  <input type="text" placeholder="UPI Ref ID, Cheque #, or Cash Voucher" value={newFee.referenceNumber} onChange={e => setNewFee({...newFee, referenceNumber: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Notes</label>
+                  <input type="text" placeholder="Optional notes" value={newFee.description} onChange={e => setNewFee({...newFee, description: e.target.value})} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: '#f8f9fa', padding: '15px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e2e8f0' }}>
+              <button onClick={() => setShowFeeModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: '#6c757d', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+              <button onClick={handleAddFee} disabled={isSubmittingFee} style={{ padding: '8px 16px', borderRadius: '6px', background: '#198754', color: 'white', border: 'none', cursor: isSubmittingFee ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+                {isSubmittingFee ? 'Saving...' : 'Save Record'}
               </button>
             </div>
           </div>

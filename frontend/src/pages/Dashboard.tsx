@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RoomAPI } from '../api/room.api';
+import { FeesAPI } from '../api/fees.api';
+import { StudentAPI } from '../api/student.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -7,9 +9,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [roomFilter, setRoomFilter] = useState('All');
   const [dbRooms, setDbRooms] = useState<any[]>([]);
+  const [fees, setFees] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
 
   useEffect(() => {
     RoomAPI.findAll().then(setDbRooms).catch(console.error);
+    FeesAPI.findAll().then(setFees).catch(console.error);
+    StudentAPI.findAll().then(setStudents).catch(console.error);
   }, []);
 
   const roomsData = dbRooms.map(r => ({
@@ -32,6 +38,9 @@ const Dashboard = () => {
   
   const filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
 
+  const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
+  const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
+
   return (
     <div>
       <div className="content-card" style={{ padding: '25px' }}>
@@ -46,7 +55,7 @@ const Dashboard = () => {
               <Users size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Active Students</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{occupiedBeds}</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{students.length}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Enrolled in hostel</div>
           </div>
           
@@ -82,7 +91,7 @@ const Dashboard = () => {
               <CreditCard size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Pending Fees</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>₹208,400</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>₹{totalPendingFees.toLocaleString('en-IN')}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Unpaid dues</div>
           </div>
           
@@ -91,7 +100,7 @@ const Dashboard = () => {
               <ShieldCheck size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Advance Held</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>₹73,000</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>₹{totalAdvanceHeld.toLocaleString('en-IN')}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Security deposits</div>
           </div>
         </div>
