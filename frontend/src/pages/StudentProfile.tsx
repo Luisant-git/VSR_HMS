@@ -152,7 +152,7 @@ const StudentProfile = () => {
           <button onClick={() => navigate(`/register?edit=${student.id}`)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #334155', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Camera size={16} /> Update Photo & KYC
           </button>
-          <button style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
+          <button onClick={() => navigate('/fees')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
             <Wallet size={16} /> Collect Fee
           </button>
           <button style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -379,6 +379,17 @@ const StudentProfile = () => {
                 <button onClick={() => setShowFeeModal(true)} style={{ background: 'var(--sidebar-active)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>
                   + Record Payment / Due
                 </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
+                <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', borderLeft: '4px solid #10b981' }}>
+                  <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Paid (Receipts)</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                </div>
+                <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0', borderLeft: '4px solid #ef4444' }}>
+                  <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Pending Dues</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                </div>
               </div>
 
               {fees.length === 0 ? (
