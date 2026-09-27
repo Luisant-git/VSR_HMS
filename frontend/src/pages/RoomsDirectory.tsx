@@ -67,14 +67,14 @@ const RoomsDirectory = () => {
     { label: 'Vacant Beds', value: `${vacantBeds} Available`, color: '#f59e0b', icon: <CheckCircle size={20} /> }
   ];
 
-  
+
   const roomsData = dbRooms.map(r => ({
     id: r.id,
     block: `${r.block} | ${r.type}`,
     status: r.occupiedCount === r.capacity ? 'Full' : r.occupiedCount === 0 ? 'Fully Vacant' : 'Partially Filled',
-    price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo`,
+    price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
     type: r.type,
-    amenities: r.amenities ? r.amenities.split(',').map((a)=>a.trim()) : [],
+    amenities: r.amenities ? r.amenities.split(',').map((a) => a.trim()) : [],
     filled: r.occupiedCount,
     total: r.capacity,
     occupants: r.occupiedCount > 0 ? `${r.occupiedCount} Students` : 'Ready for allocation'
@@ -175,150 +175,150 @@ const RoomsDirectory = () => {
 
 
       {viewMode === 'grid' && (
-      <div style={{ marginBottom: '30px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-          {filteredGridData.map((r, i) => (
+        <div style={{ marginBottom: '30px' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+            {filteredGridData.map((r, i) => (
 
-            <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-              {r.amenities.includes('AC') ? (
-                <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <Wind size={14} /> AC
-                </span>
-              ) : (
-                <span className="status-pill" style={{ position: 'absolute', top: '16px', right: '16px', border: '1px solid var(--text-muted)', color: 'var(--text-muted)' }}>
-                  Non-AC
-                </span>
-              )}
-              
-              <h3 className="card-title" style={{ marginBottom: '8px' }}>Room {r.id}</h3>
-              <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
-              
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center gap-2 text-muted">
-                  <Users size={16} />
-                  <span style={{ fontSize: '14px', fontWeight: 500 }}>Occupied</span>
-                </div>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px',
-                  background: '#f8f9fa', 
-                  padding: '4px 10px', 
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)'
-                }}>
-                  <span style={{ fontSize: '16px', fontWeight: 700, color: r.filled === r.total ? '#dc3545' : 'var(--sidebar-active)' }}>
-                    {r.filled}
+              <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                {r.amenities.includes('AC') ? (
+                  <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <Wind size={14} /> AC
                   </span>
-                  <span className="text-muted" style={{ fontSize: '13px', fontWeight: 600 }}>/ {r.total}</span>
+                ) : (
+                  <span className="status-pill" style={{ position: 'absolute', top: '16px', right: '16px', border: '1px solid var(--text-muted)', color: 'var(--text-muted)' }}>
+                    Non-AC
+                  </span>
+                )}
+
+                <h3 className="card-title" style={{ marginBottom: '8px' }}>Room {r.id}</h3>
+                <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
+
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2 text-muted">
+                    <Users size={16} />
+                    <span style={{ fontSize: '14px', fontWeight: 500 }}>Occupied</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: '#f8f9fa',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: r.filled === r.total ? '#dc3545' : 'var(--sidebar-active)' }}>
+                      {r.filled}
+                    </span>
+                    <span className="text-muted" style={{ fontSize: '13px', fontWeight: 600 }}>/ {r.total}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                  {Array.from({ length: r.total }).map((_, idx) => {
+                    const isOccupied = idx < r.filled;
+                    const isFull = r.filled === r.total;
+
+                    const filteredGridData = roomsData.filter(room => {
+                      if (filterStatus === 'Available') return room.filled < room.total;
+                      if (filterStatus === 'Fully Vacant') return room.filled === 0;
+                      if (filterStatus === 'Full') return room.filled === room.total;
+                      return true;
+                    });
+
+                    const filteredTableData = tableData.filter(row => {
+                      const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
+                      if (!matchesSearch) return false;
+                      if (filterStatus === 'Available') return row.vac > 0;
+                      if (filterStatus === 'Fully Vacant') return row.occ === 0;
+                      if (filterStatus === 'Full') return row.vac === 0;
+                      return true;
+                    });
+
+                    return (
+                      <div key={idx} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '38px', height: '38px', borderRadius: '10px',
+                        backgroundColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.1)' : 'rgba(74, 114, 250, 0.1)') : '#f4f6f8',
+                        color: isOccupied ? (isFull ? '#dc3545' : 'var(--sidebar-active)') : '#adb5bd',
+                        border: '1px solid',
+                        borderColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.2)' : 'rgba(74, 114, 250, 0.2)') : '#e9ecef'
+                      }}>
+                        <Bed size={20} strokeWidth={isOccupied ? 2.5 : 2} />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: 'auto' }}>
+                  {r.filled > 0 && (
+                    <div style={{ fontSize: '12px', color: '#64748b', background: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
+                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>CURRENT OCCUPANTS:</div>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.occupants}</div>
+                    </div>
+                  )}
+
+                  <button
+                    style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
+                    onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
+                  >
+                    {r.filled === r.total ? 'View Students' : 'Assign Student'}
+                  </button>
                 </div>
               </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                {Array.from({ length: r.total }).map((_, idx) => {
-                  const isOccupied = idx < r.filled;
-                  const isFull = r.filled === r.total;
-                
-  const filteredGridData = roomsData.filter(room => {
-    if (filterStatus === 'Available') return room.filled < room.total;
-    if (filterStatus === 'Fully Vacant') return room.filled === 0;
-    if (filterStatus === 'Full') return room.filled === room.total;
-    return true;
-  });
-
-  const filteredTableData = tableData.filter(row => {
-    const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
-    if (!matchesSearch) return false;
-    if (filterStatus === 'Available') return row.vac > 0;
-    if (filterStatus === 'Fully Vacant') return row.occ === 0;
-    if (filterStatus === 'Full') return row.vac === 0;
-    return true;
-  });
-
-  return (
-                    <div key={idx} style={{ 
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: '38px', height: '38px', borderRadius: '10px',
-                      backgroundColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.1)' : 'rgba(74, 114, 250, 0.1)') : '#f4f6f8',
-                      color: isOccupied ? (isFull ? '#dc3545' : 'var(--sidebar-active)') : '#adb5bd',
-                      border: '1px solid',
-                      borderColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.2)' : 'rgba(74, 114, 250, 0.2)') : '#e9ecef'
-                    }}>
-                      <Bed size={20} strokeWidth={isOccupied ? 2.5 : 2} />
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div style={{ marginTop: 'auto' }}>
-                {r.filled > 0 && (
-                  <div style={{ fontSize: '12px', color: '#64748b', background: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>CURRENT OCCUPANTS:</div>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.occupants}</div>
-                  </div>
-                )}
-                
-                <button 
-                  style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
-                >
-                  {r.filled === r.total ? 'View Students' : 'Assign Student'}
-                </button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
       )}
 
       {viewMode === 'table' && (
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Rooms Master Directory</h3>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-            <input type="text" placeholder="Filter rooms..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Rooms Master Directory</h3>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input type="text" placeholder="Filter rooms..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
+            </div>
+          </div>
+
+          <div className="table-responsive" style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                  <th style={{ padding: '16px 20px' }}>Room #</th>
+                  <th style={{ padding: '16px 20px' }}>Location</th>
+                  <th style={{ padding: '16px 20px' }}>Type</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Capacity</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Occupied</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Vacant</th>
+                  <th style={{ padding: '16px 20px' }}>Monthly Fee Rates</th>
+                  <th style={{ padding: '16px 20px' }}>Amenities</th>
+                  <th style={{ padding: '16px 20px' }}>Live Occupants</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTableData.map((row, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
+                    <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
+                    <td style={{ padding: '16px 20px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: '#475569', fontWeight: 600 }}>{row.type}</span></td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 600 }}>{row.cap}</td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.occ > 0 ? '#0f172a' : '#94a3b8' }}>{row.occ}</td>
+                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.vac > 0 ? '#22c55e' : '#ef4444' }}>{row.vac}</td>
+                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12px' }}>
+                      <div>Rent: ₹{Number(row.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div>Mess: ₹{Number(row.mess || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>Total: ₹{Number(row.tot || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</div>
+                    </td>
+                    <td style={{ padding: '16px 20px', color: '#475569' }}>{row.amen}</td>
+                    <td style={{ padding: '16px 20px', color: row.occ > 0 ? '#334155' : '#94a3b8' }}>{row.live}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-        
-        <div className="table-responsive" style={{ overflowX: 'auto' }}>
-          <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 20px' }}>Room #</th>
-                <th style={{ padding: '16px 20px' }}>Location</th>
-                <th style={{ padding: '16px 20px' }}>Type</th>
-                <th style={{ padding: '16px 20px', textAlign: 'center' }}>Capacity</th>
-                <th style={{ padding: '16px 20px', textAlign: 'center' }}>Occupied</th>
-                <th style={{ padding: '16px 20px', textAlign: 'center' }}>Vacant</th>
-                <th style={{ padding: '16px 20px' }}>Monthly Fee Rates</th>
-                <th style={{ padding: '16px 20px' }}>Amenities</th>
-                <th style={{ padding: '16px 20px' }}>Live Occupants</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTableData.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
-                  <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
-                  <td style={{ padding: '16px 20px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: '#475569', fontWeight: 600 }}>{row.type}</span></td>
-                  <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 600 }}>{row.cap}</td>
-                  <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.occ > 0 ? '#0f172a' : '#94a3b8' }}>{row.occ}</td>
-                  <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.vac > 0 ? '#22c55e' : '#ef4444' }}>{row.vac}</td>
-                  <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12px' }}>
-                    <div>Rent: ₹{Number(row.rent || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                    <div>Mess: ₹{Number(row.mess || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-                    <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>Total: ₹{Number(row.tot || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/mo</div>
-                  </td>
-                  <td style={{ padding: '16px 20px', color: '#475569' }}>{row.amen}</td>
-                  <td style={{ padding: '16px 20px', color: row.occ > 0 ? '#334155' : '#94a3b8' }}>{row.live}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
       )}
       {/* Add Room Modal */}
       {isModalOpen && (
@@ -330,18 +330,18 @@ const RoomsDirectory = () => {
                 <XCircle size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddRoom} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Room Number</label>
-                  <input type="text" placeholder="e.g. 101" required value={newRoom.id} onChange={e => setNewRoom({...newRoom, id: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" placeholder="e.g. 101" required value={newRoom.id} onChange={e => setNewRoom({ ...newRoom, id: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Block & Floor</label>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <input type="text" placeholder="Block (e.g. A)" required value={newRoom.block} onChange={e => setNewRoom({...newRoom, block: e.target.value})} style={{ width: '60%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
-                    <input type="number" placeholder="Floor" value={newRoom.floor} onChange={e => setNewRoom({...newRoom, floor: e.target.value === '' ? '' : parseInt(e.target.value)})} style={{ width: '40%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                    <input type="text" placeholder="Block (e.g. A)" required value={newRoom.block} onChange={e => setNewRoom({ ...newRoom, block: e.target.value })} style={{ width: '60%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                    <input type="number" placeholder="Floor" value={newRoom.floor} onChange={e => setNewRoom({ ...newRoom, floor: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '40%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                   </div>
                 </div>
               </div>
@@ -349,7 +349,7 @@ const RoomsDirectory = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Room Type</label>
-                  <select value={newRoom.type} onChange={e => setNewRoom({...newRoom, type: e.target.value})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}>
+                  <select value={newRoom.type} onChange={e => setNewRoom({ ...newRoom, type: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: 'white' }}>
                     <option value="Single">Single</option>
                     <option value="Double">Double</option>
                     <option value="Triple">Triple</option>
@@ -359,18 +359,18 @@ const RoomsDirectory = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Total Beds</label>
-                  <input type="number" required value={newRoom.capacity} onChange={e => setNewRoom({...newRoom, capacity: e.target.value === '' ? '' : parseInt(e.target.value)})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.capacity} onChange={e => setNewRoom({ ...newRoom, capacity: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Monthly Rent (₹)</label>
-                  <input type="number" required value={newRoom.rent} onChange={e => setNewRoom({...newRoom, rent: e.target.value === '' ? '' : parseInt(e.target.value)})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.rent} onChange={e => setNewRoom({ ...newRoom, rent: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mess Fee (₹)</label>
-                  <input type="number" required value={newRoom.messFee} onChange={e => setNewRoom({...newRoom, messFee: e.target.value === '' ? '' : parseInt(e.target.value)})} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.messFee} onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
 
@@ -378,27 +378,27 @@ const RoomsDirectory = () => {
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Amenities</label>
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#334155', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={newRoom.amenities.includes('AC')}
                       onChange={(e) => {
                         let ams = newRoom.amenities ? newRoom.amenities.split(',').map(a => a.trim()).filter(Boolean) : [];
                         if (e.target.checked && !ams.includes('AC')) ams.push('AC');
                         else if (!e.target.checked) ams = ams.filter(a => a !== 'AC');
-                        setNewRoom({...newRoom, amenities: ams.join(', ')});
-                      }} 
+                        setNewRoom({ ...newRoom, amenities: ams.join(', ') });
+                      }}
                     /> AC
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', color: '#334155', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={newRoom.amenities.includes('Attached Bath')}
                       onChange={(e) => {
                         let ams = newRoom.amenities ? newRoom.amenities.split(',').map(a => a.trim()).filter(Boolean) : [];
                         if (e.target.checked && !ams.includes('Attached Bath')) ams.push('Attached Bath');
                         else if (!e.target.checked) ams = ams.filter(a => a !== 'Attached Bath');
-                        setNewRoom({...newRoom, amenities: ams.join(', ')});
-                      }} 
+                        setNewRoom({ ...newRoom, amenities: ams.join(', ') });
+                      }}
                     /> Attached Bath
                   </label>
                 </div>

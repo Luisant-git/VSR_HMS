@@ -5,16 +5,29 @@ import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 const Hostellers = () => {
   const navigate = useNavigate();
-  const [hostellers] = useState([
-    { id: 'HST-2026-009', name: 'Baskar', contact: '9876543256', room: '104', bed: 'Bed 1', college: 'Luisant', dept: 'SE', advance: '₹10,000', pending: '₹21,900', date: '20 Sep 2026', avatar: 'BA' },
-    { id: 'HST-2026-008', name: 'Arunkarthick', contact: '9994683263', room: '104', bed: 'N/A', college: 'JKKN College', dept: 'MBA', advance: '₹0', pending: '₹18,400', date: '20 Sep 2026', avatar: 'AR' },
-    { id: 'HST-2026-006', name: 'Meera Nair', contact: '9876543215', room: '102', bed: '102-B', college: 'Medical University', dept: 'MBBS 2nd Yr', advance: '₹10,000', pending: '₹23,100', date: '05 Mar 2026', avatar: 'ME' },
-    { id: 'HST-2026-005', name: 'Vikramaditya Rao', contact: '9876543214', room: '104', bed: '104-A', college: 'City Tech College', dept: 'B.Tech ECE', advance: '₹8,000', pending: '₹21,900', date: '01 Mar 2026', avatar: 'VI' },
-    { id: 'HST-2026-004', name: 'Ananya Iyer', contact: '9876543213', room: '103', bed: '103-A', college: 'Arts & Science', dept: 'B.Com CA', advance: '₹15,000', pending: '₹40,500', date: '10 Feb 2026', avatar: 'AN' },
-    { id: 'HST-2026-003', name: 'Rohan Verma', contact: '9876543212', room: '101', bed: '101-B', college: 'City Tech College', dept: 'B.Tech Mech', advance: '₹10,000', pending: '₹34,000', date: '01 Feb 2026', avatar: 'RO' },
-    { id: 'HST-2026-002', name: 'Kavya Patel', contact: '9876543211', room: '102', bed: '102-A', college: 'Natl Inst Design', dept: 'UX Design', advance: '₹10,000', pending: '₹23,100', date: '15 Jan 2026', avatar: 'KA' },
-    { id: 'HST-2026-001', name: 'Aarav Sharma', contact: '9876543210', room: '101', bed: '101-A', college: 'City Tech College', dept: 'B.Tech CSE', advance: '₹10,000', pending: '₹25,500', date: '10 Jan 2026', avatar: 'AA' },
-  ]);
+  const [hostellers, setHostellers] = useState<any[]>([]);
+
+  useEffect(() => {
+    import('../api/student.api').then(({ StudentAPI }) => {
+      StudentAPI.findAll().then(data => {
+        const mapped = data.map((h: any) => ({
+          id: h.regNo,
+          name: h.name,
+          contact: h.mobileNo,
+          room: h.roomNo || 'N/A',
+          bed: h.bedNo || 'N/A',
+          college: h.college || 'N/A',
+          dept: h.educationalQua || 'N/A',
+          advance: `₹${h.advance || 0}`,
+          pending: `₹${h.rent || 0}`, // Placeholder logic
+          date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          avatar: h.name.substring(0, 2).toUpperCase(),
+          raw: h
+        }));
+        setHostellers(mapped);
+      }).catch(console.error);
+    });
+  }, []);
 
   const location = useLocation();
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
@@ -176,8 +189,12 @@ const Hostellers = () => {
                   </td>
                   <td style={{ padding: '15px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#0d6efd', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600 }}>
-                        {h.avatar}
+                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#0d6efd', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, overflow: 'hidden' }}>
+                        {h.raw.photoUrl ? (
+                          <img src={h.raw.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          h.avatar
+                        )}
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{h.name}</div>
@@ -325,12 +342,16 @@ const Hostellers = () => {
               </button>
               
               <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'white', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700 }}>
-                  {selectedHosteller.name.charAt(0)}
+                <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'white', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, overflow: 'hidden' }}>
+                  {selectedHosteller.raw.photoUrl ? (
+                    <img src={selectedHosteller.raw.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    selectedHosteller.name.charAt(0)
+                  )}
                 </div>
                 <div>
                   <h2 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 5px 0' }}>{selectedHosteller.name}</h2>
-                  <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>{selectedHosteller.regNo} • {selectedHosteller.course}</p>
+                  <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>{selectedHosteller.id} • {selectedHosteller.dept}</p>
                 </div>
               </div>
             </div>
@@ -344,8 +365,8 @@ const Hostellers = () => {
                 </div>
                 <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Status</div>
-                  <div style={{ fontSize: '16px', fontWeight: 600, color: selectedHosteller.status === 'In' ? '#188038' : '#d93025' }}>
-                    {selectedHosteller.status} Campus
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: selectedHosteller.raw?.status === 'In' ? '#188038' : '#d93025' }}>
+                    {selectedHosteller.raw?.status || 'In'} Campus
                   </div>
                 </div>
               </div>
@@ -356,21 +377,21 @@ const Hostellers = () => {
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Phone size={16} /></div>
                   <div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Phone Number</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.phone}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.contact}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Mail size={16} /></div>
                   <div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Email Address</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.email}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.emailId || 'N/A'}</div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MapPin size={16} /></div>
                   <div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Home Address</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.address}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.address || 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -385,6 +406,7 @@ const Hostellers = () => {
                 Close
               </button>
               <button 
+                onClick={() => navigate(`/register?edit=${selectedHosteller.id}`)}
                 style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', border: 'none', color: 'white', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
               >
                 Edit Student

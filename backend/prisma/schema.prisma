@@ -50,15 +50,24 @@ model Student {
   dob            DateTime?
   age            Int?
   gender         String?
+  maritalStatus  String?
   bloodGroup     String?
   
   // Contact & KYC
   emailId        String?  @unique
   mobileNo       String?
-  phMobNoFM      String?  // Family member / Father mobile
-  fatherName     String?
-  motherName     String?
+  fatherName       String?
+  fatherMobileNo   String?
+  motherName       String?
+  motherMobileNo   String?
+  guardianName     String?
+  guardianMobileNo String?
+  emergencyContact String?
+  photoUrl         String?
+  doc1Url          String?
+  doc2Url          String?
   aadharNo       String?  @unique
+  secondaryIdNo  String?
   address        String?
   
   // Academic info
