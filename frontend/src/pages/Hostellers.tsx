@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AlignLeft, Filter, Search, Download, Columns, X, Phone, Mail, MapPin, GraduationCap, Bed, Wallet, ArrowRight, Eye, FileText, LogOut, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
@@ -73,7 +73,15 @@ const Hostellers = () => {
     };
   }, []);
 
-  const rooms = ['-- All Rooms --', 'Room 101', 'Room 102', 'Room 103', 'Room 104', 'Room 201', 'Room 202', 'Room 203', 'Room 204', 'Room 301', 'Room 302'];
+  const rooms = useMemo(() => {
+    const uniqueRooms = new Set<string>();
+    hostellers.forEach(h => {
+      if (h.room && h.room !== 'N/A') {
+        uniqueRooms.add(`Room ${h.room}`);
+      }
+    });
+    return ['-- All Rooms --', ...Array.from(uniqueRooms).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))];
+  }, [hostellers]);
   const roomOptions = rooms.map(r => ({ value: r, label: r }));
 
   const selectStyles = {
