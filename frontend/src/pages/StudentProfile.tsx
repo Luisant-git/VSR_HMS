@@ -145,7 +145,7 @@ const StudentProfile = () => {
             <FileText size={16} /> Issue Outpass
           </button>
           <button
-            onClick={() => navigate(`/hostellers/clearance/${student.id}`)}
+            onClick={() => navigate(`/hostellers/clearance/${student.uuid}`)}
             style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #dc3545', color: '#dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <LogOut size={16} /> Checkout Student
