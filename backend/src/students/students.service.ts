@@ -33,6 +33,17 @@ export class StudentsService {
       },
     });
 
+    if (student.roomNo) {
+      await this.prisma.room.update({
+        where: { id: student.roomNo },
+        data: {
+          occupiedCount: {
+            increment: 1,
+          },
+        },
+      });
+    }
+
     if (student.advance && student.advance > 0) {
       await this.prisma.feeTransaction.create({
         data: {
@@ -100,9 +111,48 @@ export class StudentsService {
       cleanData.dob = new Date(cleanData.dob);
     }
 
-    return this.prisma.student.update({
+    const existingStudent = await this.prisma.student.findUnique({
+      where: { regNo: id },
+      select: { roomNo: true, status: true }
+    });
+
+    const updatedStudent = await this.prisma.student.update({
       where: { regNo: id },
       data: cleanData
     });
+
+    const oldRoom = existingStudent?.roomNo;
+    const newRoom = updatedStudent.roomNo;
+    const oldStatus = existingStudent?.status;
+    const newStatus = updatedStudent.status;
+
+    // Check if room or status changed
+    if (oldRoom !== newRoom || oldStatus !== newStatus) {
+      // Decrease from old room if they had one and were not 'Vacated'
+      if (oldRoom && oldStatus !== 'Vacated') {
+        await this.prisma.room.update({
+          where: { id: oldRoom },
+          data: {
+            occupiedCount: {
+              decrement: 1
+            }
+          }
+        });
+      }
+
+      // Increase for new room if they have one and are not 'Vacated'
+      if (newRoom && newStatus !== 'Vacated') {
+        await this.prisma.room.update({
+          where: { id: newRoom },
+          data: {
+            occupiedCount: {
+              increment: 1
+            }
+          }
+        });
+      }
+    }
+
+    return updatedStudent;
   }
 }
