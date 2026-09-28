@@ -95,7 +95,7 @@ export class StudentsService {
   async findOne(id: string) {
     return this.prisma.student.findUnique({
       where: { regNo: id },
-      include: { room: true } // Include room relation if needed
+      include: { room: true, clearance: true } // Include room and clearance relation
     });
   }
 

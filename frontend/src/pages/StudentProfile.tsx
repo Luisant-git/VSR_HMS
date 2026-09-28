@@ -88,7 +88,7 @@ const StudentProfile = () => {
             photoUrl: data.photoUrl,
             doc1Url: data.doc1Url,
             doc2Url: data.doc2Url
-          , aadharNo: data.aadharNo, secondaryIdNo: data.secondaryIdNo });
+          , aadharNo: data.aadharNo, secondaryIdNo: data.secondaryIdNo, clearance: data.clearance });
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
         }
@@ -138,18 +138,22 @@ const StudentProfile = () => {
           <button onClick={() => navigate(`/register?edit=${student.id}`)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #334155', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Camera size={16} /> Update Photo & KYC
           </button>
-          <button onClick={() => navigate('/fees')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
-            <Wallet size={16} /> Collect Fee
-          </button>
-          <button style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <FileText size={16} /> Issue Outpass
-          </button>
-          <button
-            onClick={() => navigate(`/hostellers/clearance/${student.uuid}`)}
-            style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #dc3545', color: '#dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <LogOut size={16} /> Checkout Student
-          </button>
+          {student.status !== 'Vacated' && (
+            <>
+              <button onClick={() => navigate('/fees')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
+                <Wallet size={16} /> Collect Fee
+              </button>
+              <button style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileText size={16} /> Issue Outpass
+              </button>
+              <button
+                onClick={() => navigate(`/hostellers/clearance/${student.uuid}`)}
+                style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #dc3545', color: '#dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <LogOut size={16} /> Checkout Student
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -310,6 +314,40 @@ const StudentProfile = () => {
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{student.monthlyRent}</div>
                 </div>
               </div>
+
+              {student.status === 'Vacated' && student.clearance && (
+                <div style={{ background: '#fef2f2', padding: '25px', borderRadius: '12px', border: '1px solid #fca5a5', marginTop: '25px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#991b1b', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 15px 0' }}>
+                    <LogOut size={20} color="#dc2626" /> Exit & Clearance Details
+                  </h3>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Date</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#450a0a' }}>{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Exit Reason</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#450a0a' }}>{student.clearance.reason}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Deductions</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626' }}>₹{student.clearance.deductions.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Net Refund Settled</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#059669' }}>₹{student.clearance.netRefund.toFixed(2)}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Remarks</div>
+                    <div style={{ fontSize: '14px', color: '#450a0a', background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                      {student.clearance.remarks || 'No remarks provided.'}
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
           )}

@@ -44,7 +44,8 @@ const Dashboard = () => {
   const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
   const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
 
-  const currentlyOut = students.filter(s => s.status === 'Out').length;
+  const activeStudents = students.filter(s => s.status !== 'Vacated');
+  const currentlyOut = activeStudents.filter(s => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
 
   return (
@@ -61,7 +62,7 @@ const Dashboard = () => {
               <Users size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Active Students</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{students.length}</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{activeStudents.length}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Enrolled in hostel</div>
           </div>
           
