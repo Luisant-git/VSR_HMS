@@ -4,6 +4,7 @@ import { ArrowLeft, User, Calendar, ShieldCheck, MapPin, Phone, FileText, Credit
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
+import { gateLogApi } from '../api/gatelog.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 
@@ -18,10 +19,9 @@ const StudentProfile = () => {
   });
   const [student, setStudent] = useState<any>(null);
   const [fees, setFees] = useState<any[]>([]);
+  const [gateLogs, setGateLogs] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
-
-  
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
@@ -91,6 +91,9 @@ const StudentProfile = () => {
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
         }
+        if (data.regNo) {
+          gateLogApi.getAll(1, 100, data.regNo).then(res => setGateLogs(res.data || [])).catch(console.error);
+        }
       }).catch(console.error);
     }
   };
@@ -105,7 +108,7 @@ const StudentProfile = () => {
 
   const tabs = [
     { name: 'Master Profile', icon: <User size={16} /> },
-    { name: 'Gate Logs (0)', icon: <Clock size={16} /> },
+    { name: 'Gate Logs', icon: <Clock size={16} /> },
     { name: 'Fees & Receipts', icon: <CreditCard size={16} /> },
     { name: 'Advance Deposit', icon: <ShieldCheck size={16} /> },
     { name: 'Outpasses & Travel', icon: <MapPin size={16} /> },
@@ -205,7 +208,7 @@ const StudentProfile = () => {
                   transition: 'all 0.2s'
                 }}
               >
-                {tab.icon} {tab.name}
+                {tab.icon} <span style={{ flex: 1 }}>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
               </button>
             ))}
           </div>
@@ -432,7 +435,69 @@ const StudentProfile = () => {
             </div>
           )}
 
-          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && (
+          {activeTab === 'Gate Logs' && (
+            <div style={{ animation: 'fadeIn 0.3s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <Clock size={20} color="#0d6efd" /> Gate Movement History
+                </h3>
+              </div>
+
+              {gateLogs.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  No gate movements found for this student.
+                </div>
+              ) : (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
+                      <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
+                        <th style={{ padding: '12px 15px' }}>Movement Status</th>
+                        <th style={{ padding: '12px 15px' }}>Purpose</th>
+                        <th style={{ padding: '12px 15px' }}>Exit Time</th>
+                        <th style={{ padding: '12px 15px' }}>Expected Return</th>
+                        <th style={{ padding: '12px 15px' }}>Entry Time</th>
+                        <th style={{ padding: '12px 15px' }}>Return Note</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gateLogs.map(log => {
+                        const status = log.movementType === 'ENTRY' || log.inTime ? 'Entry' : 'Exit';
+                        const formatDateTime = (dateStr: string | null) => {
+                          if (!dateStr) return '—';
+                          const d = new Date(dateStr);
+                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br/>{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
+                        };
+
+                        return (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '15px' }}>
+                              {status === 'Entry' ? (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#0d6efd', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600, minWidth: '50px' }}>
+                                  Entry
+                                </div>
+                              ) : (
+                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#64748b', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600, minWidth: '50px' }}>
+                                  Exit
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '15px', color: '#475569', textTransform: 'capitalize' }}>{log.reason || '—'}</td>
+                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.outTime)}</td>
+                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.expectedInTime)}</td>
+                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.inTime)}</td>
+                            <td style={{ padding: '15px', color: '#475569' }}>{log.lateRemarks || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: '#94a3b8' }}>
               <Lock size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
               <div style={{ fontSize: '16px', fontWeight: 600 }}>{activeTab} Data</div>
