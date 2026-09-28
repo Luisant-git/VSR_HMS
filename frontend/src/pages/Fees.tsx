@@ -9,7 +9,7 @@ import { CollectPaymentModal } from '../components/CollectPaymentModal';
 
 const formatInvoiceNumber = (fee: any) => {
   const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
-  const typeStr = fee.transactionType.substring(0,3).toUpperCase();
+  const typeStr = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
   const studentStr = fee.student?.regNo?.replace(/[^a-zA-Z0-9]/g, '') || 'UNKN';
   return `INV-${typeStr}-${ymStr}-${studentStr}-${fee.id.substring(fee.id.length - 2).toUpperCase()}`;
 };
