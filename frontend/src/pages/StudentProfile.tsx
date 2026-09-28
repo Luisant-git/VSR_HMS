@@ -7,6 +7,7 @@ import { FeesAPI } from '../api/fees.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { toast } from 'react-toastify';
 
 const StudentProfile = () => {
   const navigate = useNavigate();
@@ -49,11 +50,11 @@ const StudentProfile = () => {
         if (id) await StudentAPI.update(id, updateData);
         // Refresh local state to show changes instantly
         setStudent({ ...student, ...updateData });
-        alert('Successfully updated documents!');
+        toast.success('Successfully updated documents!');
       }
       setShowUpdateModal(false);
-    } catch (e) {
-      alert('Failed to update: ' + e.message);
+    } catch (e: any) {
+      toast.error('Failed to update: ' + e.message);
     }
     setIsUpdating(false);
   };

@@ -5,6 +5,7 @@ import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
+import { toast } from 'react-toastify';
 const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
@@ -46,16 +47,19 @@ const Hostellers = () => {
   const [isSubmittingFee, setIsSubmittingFee] = useState(false);
 
   const handleAddFee = async () => {
-    if (!feeStudent || newFee.amount <= 0) return alert('Enter valid amount');
+    if (!feeStudent || newFee.amount <= 0) {
+      toast.error('Enter valid amount');
+      return;
+    }
     setIsSubmittingFee(true);
     try {
       const uuid = feeStudent.raw.id;
       const finalDescription = `${newFee.description} | Ref: ${newFee.referenceNumber || '-'}`.trim();
       await FeesAPI.create({ ...newFee, studentId: uuid, amount: Number(newFee.amount), description: finalDescription });
-      alert('Fee recorded successfully!');
+      toast.success('Fee recorded successfully!');
       setShowFeeModal(false);
     } catch (e: any) {
-      alert('Failed to add fee: ' + e.message);
+      toast.error('Failed to add fee: ' + e.message);
     }
     setIsSubmittingFee(false);
   };

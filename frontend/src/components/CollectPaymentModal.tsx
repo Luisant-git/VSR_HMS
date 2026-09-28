@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { FeesAPI } from '../api/fees.api';
+import { toast } from 'react-toastify';
 
 interface CollectPaymentModalProps {
   fee: any;
@@ -33,9 +34,10 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, o
         paymentMode,
         description: finalDesc
       });
+      toast.success('Payment collected successfully!');
       onSuccess();
     } catch (e: any) {
-      alert('Failed to collect payment: ' + e.message);
+      toast.error('Failed to collect payment: ' + e.message);
     }
     setIsSubmitting(false);
   };

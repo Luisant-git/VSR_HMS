@@ -42,7 +42,7 @@ const Register = () => {
       }
     } catch (err) {
       console.error("Error accessing camera", err);
-      alert("Unable to access camera. Please allow permissions.");
+      toast.error("Unable to access camera. Please allow permissions.");
     }
   };
 
