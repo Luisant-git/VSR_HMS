@@ -168,7 +168,7 @@ export class GateLogsService {
       take: 200
     });
 
-    const historicalLateLogs = returnedLogs.filter(log => log.inTime > log.expectedInTime);
+    const historicalLateLogs = returnedLogs.filter(log => log.inTime && log.expectedInTime && log.inTime > log.expectedInTime);
 
     return [...activeLateLogs, ...historicalLateLogs];
   }
