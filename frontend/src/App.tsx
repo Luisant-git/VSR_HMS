@@ -17,6 +17,11 @@ import Clearance from './pages/Clearance';
 import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 
+import BiometricDashboard from './pages/biometrics/BiometricDashboard';
+import BiometricRegistration from './pages/biometrics/BiometricRegistration';
+import BiometricIdentify from './pages/biometrics/BiometricIdentify';
+import BiometricRecords from './pages/biometrics/BiometricRecords';
+
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center" style={{ height: '60vh', color: 'var(--text-muted)' }}>
     <h1 className="text-3xl font-bold mb-4">{title} Module</h1>
@@ -57,6 +62,12 @@ function App() {
           <Route path="directory" element={<RoomsDirectory />} />
           <Route path="eb-bills" element={<EbBills />} />
           <Route path=":id" element={<RoomDetails />} />
+        </Route>
+        <Route path="biometrics">
+          <Route index element={<BiometricDashboard />} />
+          <Route path="register" element={<BiometricRegistration />} />
+          <Route path="identify" element={<BiometricIdentify />} />
+          <Route path="records" element={<BiometricRecords />} />
         </Route>
         <Route path="canteen" element={<ComingSoon title="Canteen" />} />
         <Route path="staff" element={<ComingSoon title="Staff" />} />

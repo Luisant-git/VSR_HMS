@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Search, Bell, Settings, FileText, Grid, MessageSquare, Briefcase, Menu, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, Coffee, List } from 'lucide-react';
+import { Home, Users, Search, Bell, Settings, FileText, Grid, MessageSquare, Briefcase, Menu, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, Coffee, List, Fingerprint, ScanFace, Database, Focus } from 'lucide-react';
 
 const Layout = () => {
   const location = useLocation();
@@ -70,6 +70,25 @@ const Layout = () => {
             Room EB Bill Sharing
           </NavLink>
           
+          {/* BIOMETRICS */}
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>BIOMETRICS</div>
+          <NavLink to="/biometrics" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Database size={18} /></div>
+            Dashboard
+          </NavLink>
+          <NavLink to="/biometrics/register" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><UserPlus size={18} /></div>
+            Register Biometric
+          </NavLink>
+          <NavLink to="/biometrics/identify" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><ScanFace size={18} /></div>
+            Scan & Identify
+          </NavLink>
+          <NavLink to="/biometrics/records" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Fingerprint size={18} /></div>
+            Biometric Records
+          </NavLink>
+
           {/* 
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>CANTEEN</div>
           <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
