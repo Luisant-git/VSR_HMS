@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IndianRupee, Search, Filter, FileText, Download, Wallet, Plus, FileSpreadsheet, ArrowLeft } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -16,10 +16,16 @@ const formatInvoiceNumber = (fee: any) => {
 
 const Fees = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const studentParam = searchParams.get('student');
+
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<any>({ value: 'ALL', label: '-- All Students --' });
+  const [selectedStudent, setSelectedStudent] = useState<any>({ 
+    value: studentParam || 'ALL', 
+    label: studentParam ? `${studentParam}` : '-- All Students --' 
+  });
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
 
@@ -45,6 +51,25 @@ const Fees = () => {
     });
     return [{ value: 'ALL', label: '-- All Students --' }, ...Array.from(students.values())];
   }, [fees]);
+
+  useEffect(() => {
+    if (studentParam && studentOptions.length > 1) {
+      const option = studentOptions.find((opt: any) => opt.value === studentParam);
+      if (option) {
+        setSelectedStudent(option);
+      }
+    }
+  }, [studentParam, studentOptions]);
+
+  const feeIdParam = searchParams.get('feeId');
+  useEffect(() => {
+    if (feeIdParam && fees.length > 0 && !feeToCollect) {
+      const fee = fees.find(f => f.id === feeIdParam);
+      if (fee && fee.status === 'PENDING') {
+        setFeeToCollect(fee);
+      }
+    }
+  }, [feeIdParam, fees, feeToCollect]);
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -77,6 +102,14 @@ const Fees = () => {
     }
     return match;
   });
+
+  const closePaymentModal = () => {
+    setFeeToCollect(null);
+    if (feeIdParam) {
+      searchParams.delete('feeId');
+      navigate(`?${searchParams.toString()}`, { replace: true });
+    }
+  };
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -211,9 +244,9 @@ const Fees = () => {
       {feeToCollect && (
         <CollectPaymentModal 
           fee={feeToCollect} 
-          onClose={() => setFeeToCollect(null)} 
+          onClose={closePaymentModal} 
           onSuccess={() => {
-            setFeeToCollect(null);
+            closePaymentModal();
             fetchFees();
           }} 
         />

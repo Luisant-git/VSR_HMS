@@ -418,7 +418,7 @@ const StudentProfile = () => {
                           </td>
                           <td style={{ textAlign: 'right', padding: '15px' }}>
                             {fee.status === 'PENDING' ? (
-                              <button onClick={() => setFeeToCollect({ ...fee, student })} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => navigate(`/fees?student=${student?.regNo || student?.id}&feeId=${fee.id}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <Wallet size={14} /> Collect Payment
                               </button>
                             ) : (
