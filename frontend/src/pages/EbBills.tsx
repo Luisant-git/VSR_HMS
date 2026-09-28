@@ -1,34 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calculator, Search, History, Zap, IndianRupee, ArrowLeft } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { RoomAPI } from '../api/room.api';
+import { EbBillsAPI } from '../api/eb-bill.api';
+import { toast } from 'react-toastify';
 
 const EbBills = () => {
   const navigate = useNavigate();
-  const [prevReading, setPrevReading] = useState(1240.0);
-  const [currReading, setCurrReading] = useState(1385.0);
+  const [prevReading, setPrevReading] = useState(0);
+  const [currReading, setCurrReading] = useState(0);
   const [tariff, setTariff] = useState(8.50);
-  const studentCount = 4; // Mock student count for a full room
+  const [billingCycle, setBillingCycle] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
   
-  const billingHistory = [
-    { id: 1, room: 'Room 101', cycle: '2026-08', prev: 1100.0, curr: 1240.0, units: 140.0, total: 1190.00, students: 2, perHead: 595.00 },
-    { id: 2, room: 'Room 102', cycle: '2026-08', prev: 850.0, curr: 925.0, units: 75.0, total: 637.50, students: 2, perHead: 318.75 },
-    { id: 3, room: 'Room 103', cycle: '2026-08', prev: 2100.0, curr: 2320.0, units: 220.0, total: 1870.00, students: 1, perHead: 1870.00 },
-    { id: 4, room: 'Room 201', cycle: '2026-08', prev: 400.0, curr: 490.0, units: 90.0, total: 765.00, students: 4, perHead: 191.25 },
-    { id: 5, room: 'Room 104', cycle: '2026-08', prev: 1540.0, curr: 1680.0, units: 140.0, total: 1190.00, students: 3, perHead: 396.67 }
-  ];
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    fetchRooms();
+    fetchBillingHistory();
+  }, []);
+
+  const fetchRooms = async () => {
+    try {
+      const data = await RoomAPI.findAll();
+      setRooms(data);
+    } catch (error) {
+      toast.error('Failed to load rooms');
+    }
+  };
+
+  const fetchBillingHistory = async () => {
+    try {
+      setIsLoading(true);
+      const data = await EbBillsAPI.findAll();
+      setBillingHistory(data);
+    } catch (error) {
+      toast.error('Failed to load EB bills history');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const activeStudentsInRoom = selectedRoom?.value?.students?.filter((s: any) => s.status === 'In') || [];
+  const studentCount = activeStudentsInRoom.length;
+  
   const unitsConsumed = currReading >= prevReading ? currReading - prevReading : 0;
   const totalCost = unitsConsumed * tariff;
   const splitPerStudent = studentCount > 0 ? totalCost / studentCount : 0;
 
-  const roomOptions = [
-    { value: '101', label: 'Room 101 (4/4 Occupied)' },
-    { value: '102', label: 'Room 102 (3/4 Occupied)' },
-    { value: '103', label: 'Room 103 (2/4 Occupied)' },
-    { value: '104', label: 'Room 104 (4/4 Occupied)' }
-  ];
+  const roomOptions = rooms.map(room => {
+    const activeCount = room.students?.filter((s: any) => s.status === 'In').length || 0;
+    return {
+      value: room,
+      label: `Room ${room.id} (${activeCount} active hosteller${activeCount === 1 ? '' : 's'})`
+    };
+  });
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -43,10 +74,43 @@ const EbBills = () => {
   const [filterCycle, setFilterCycle] = useState('');
 
   const filteredHistory = billingHistory.filter(bill => {
-    const matchesSearch = !searchTerm || bill.room.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCycle = !filterCycle || bill.cycle === filterCycle;
+    const matchesSearch = !searchTerm || bill.roomNo.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCycle = !filterCycle || bill.billingCycle === filterCycle;
     return matchesSearch && matchesCycle;
   });
+
+  const handleGenerateInvoice = async () => {
+    if (!selectedRoom) {
+      toast.error('Please select a room');
+      return;
+    }
+    if (currReading < prevReading) {
+      toast.error('Current reading cannot be less than previous reading');
+      return;
+    }
+    if (studentCount === 0) {
+      toast.warning('No active students in this room to split the bill');
+    }
+
+    try {
+      setIsSubmitting(true);
+      await EbBillsAPI.create({
+        roomNo: selectedRoom.value.id,
+        billingCycle,
+        prevReading,
+        currReading,
+        tariffRate: tariff
+      });
+      toast.success('EB Bill created successfully and split among students');
+      fetchBillingHistory();
+      setPrevReading(currReading);
+      setCurrReading(0);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create EB bill');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -68,6 +132,8 @@ const EbBills = () => {
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Select Room</label>
               <Select 
                 options={roomOptions}
+                value={selectedRoom}
+                onChange={setSelectedRoom}
                 placeholder="-- Choose Occupied Room --"
                 styles={selectStyles}
                 isSearchable={true}
@@ -77,7 +143,7 @@ const EbBills = () => {
 
             <div style={{ marginBottom: '15px' }}>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Billing Month / Cycle</label>
-              <input type="month" defaultValue="2026-09" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
+              <input type="month" value={billingCycle} onChange={e => setBillingCycle(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
@@ -110,13 +176,17 @@ const EbBills = () => {
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #e2e8f0', fontSize: '14px' }}>
-                <span style={{ color: '#0f172a', fontWeight: 600 }}>Split Per Student:</span>
+                <span style={{ color: '#0f172a', fontWeight: 600 }}>Split Per Student ({studentCount}):</span>
                 <span style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{splitPerStudent.toFixed(2)}</span>
               </div>
             </div>
             
-            <button style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
-              Generate Student Invoices
+            <button 
+              onClick={handleGenerateInvoice}
+              disabled={isSubmitting}
+              style={{ width: '100%', marginTop: '20px', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: isSubmitting ? '#94a3b8' : 'var(--sidebar-active)', border: 'none', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}
+            >
+              {isSubmitting ? 'Generating...' : 'Generate Student Invoices'}
             </button>
           </div>
         </div>
@@ -138,6 +208,9 @@ const EbBills = () => {
           </div>
           
           <div className="table-responsive" style={{ flex: 1, overflowX: 'auto' }}>
+            {isLoading ? (
+               <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
+            ) : (
             <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr>
@@ -146,24 +219,28 @@ const EbBills = () => {
                   <th>Meter Readings</th>
                   <th>Units</th>
                   <th>Total Bill</th>
-                  <th>Students</th>
                   <th>Per Head Share</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredHistory.map((bill) => (
                   <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ fontWeight: 600, color: '#1e293b' }}>{bill.room}</td>
-                    <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>{bill.cycle}</span></td>
-                    <td style={{ color: '#64748b', fontSize: '12px' }}>{bill.prev.toFixed(1)} &rarr; {bill.curr.toFixed(1)}</td>
-                    <td style={{ fontWeight: 600 }}>{bill.units.toFixed(1)}</td>
-                    <td style={{ fontWeight: 700, color: '#ef4444' }}>₹{bill.total.toFixed(2)}</td>
-                    <td>{bill.students}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{bill.perHead.toFixed(2)}</td>
+                    <td style={{ fontWeight: 600, color: '#1e293b' }}>{bill.roomNo}</td>
+                    <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>{bill.billingCycle}</span></td>
+                    <td style={{ color: '#64748b', fontSize: '12px' }}>{bill.prevReading.toFixed(1)} &rarr; {bill.currReading.toFixed(1)}</td>
+                    <td style={{ fontWeight: 600 }}>{bill.unitsConsumed.toFixed(1)}</td>
+                    <td style={{ fontWeight: 700, color: '#ef4444' }}>₹{bill.totalAmount.toFixed(2)}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{bill.perStudentShare.toFixed(2)}</td>
                   </tr>
                 ))}
+                {filteredHistory.length === 0 && (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No billing history found</td>
+                  </tr>
+                )}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </div>

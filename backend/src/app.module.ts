@@ -6,9 +6,10 @@ import { RoomsModule } from './rooms/rooms.module';
 import { StudentsModule } from './students/students.module';
 import { FeesModule } from './fees/fees.module';
 import { GateLogsModule } from './gate-logs/gate-logs.module';
+import { EbBillsModule } from './eb-bills/eb-bills.module';
 
 @Module({
-  imports: [UploadModule, AuthModule, UsersModule, RoomsModule, StudentsModule, FeesModule, GateLogsModule],
+  imports: [UploadModule, AuthModule, UsersModule, RoomsModule, StudentsModule, FeesModule, GateLogsModule, EbBillsModule],
   controllers: [],
   providers: [],
 })
