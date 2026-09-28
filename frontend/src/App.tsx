@@ -15,6 +15,7 @@ import EbBills from './pages/EbBills';
 import Login from './pages/Login';
 import Clearance from './pages/Clearance';
 import StudentProfile from './pages/StudentProfile';
+import NotFound from './pages/NotFound';
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center" style={{ height: '60vh', color: 'var(--text-muted)' }}>
@@ -60,6 +61,7 @@ function App() {
         <Route path="canteen" element={<ComingSoon title="Canteen" />} />
         <Route path="staff" element={<ComingSoon title="Staff" />} />
         <Route path="admin" element={<ComingSoon title="Admin" />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
     </>
