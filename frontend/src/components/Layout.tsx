@@ -111,16 +111,9 @@ const Layout = () => {
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         
         {/* Top Header (Dark, separate from white body) */}
-        <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div className="search-container" style={{ background: 'rgba(255,255,255,0.1)' }}>
-            <Search size={16} color="rgba(255,255,255,0.7)" />
-            <input type="text" placeholder="Search content..." style={{ color: 'white' }} />
-          </div>
+        <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           
           <div className="topbar-icons" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <button className="icon-btn" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }}><Bell size={18} /></button>
-            <button className="icon-btn" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none' }}><Settings size={18} /></button>
-            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)', margin: '0 5px' }}></div>
             
             {/* Profile Dropdown Container */}
             <div style={{ position: 'relative' }}>
