@@ -144,7 +144,7 @@ export class GateLogsService {
       where: { status: 'Out' }
     });
 
-    const lateLogs = [];
+    const activeLateLogs = [];
     for (const student of outStudents) {
       const lastExit = await this.prisma.gateLog.findFirst({
         where: { studentId: student.id, movementType: 'EXIT' },
@@ -152,10 +152,24 @@ export class GateLogsService {
         include: { student: { include: { room: true } } }
       });
 
-      if (lastExit && lastExit.expectedInTime && new Date() > lastExit.expectedInTime) {
-        lateLogs.push(lastExit);
+      if (lastExit && lastExit.expectedInTime && new Date() > lastExit.expectedInTime && !lastExit.inTime) {
+        activeLateLogs.push(lastExit);
       }
     }
-    return lateLogs;
+
+    // Find historical late returns (where inTime > expectedInTime)
+    const returnedLogs = await this.prisma.gateLog.findMany({
+      where: {
+        inTime: { not: null },
+        expectedInTime: { not: null }
+      },
+      include: { student: { include: { room: true } } },
+      orderBy: { inTime: 'desc' },
+      take: 200
+    });
+
+    const historicalLateLogs = returnedLogs.filter(log => log.inTime > log.expectedInTime);
+
+    return [...activeLateLogs, ...historicalLateLogs];
   }
 }

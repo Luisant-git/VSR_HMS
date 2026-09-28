@@ -31,13 +31,14 @@ const LateWarnings = () => {
     }
   };
 
-  const getDelayString = (expectedInTime: string) => {
-    const diffMs = new Date().getTime() - new Date(expectedInTime).getTime();
+  const getDelayString = (expectedInTime: string, inTime?: string) => {
+    const end = inTime ? new Date(inTime).getTime() : new Date().getTime();
+    const diffMs = end - new Date(expectedInTime).getTime();
     if (diffMs <= 0) return '';
     const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    if (diffHrs > 0) return `Overdue by ${diffHrs}h ${diffMins}m`;
-    return `Overdue by ${diffMins}m`;
+    if (diffHrs > 0) return `Late by ${diffHrs}h ${diffMins}m`;
+    return `Late by ${diffMins}m`;
   };
 
   const submitLateReason = async () => {
@@ -75,15 +76,15 @@ const LateWarnings = () => {
         onBack={() => navigate('/gate-logs')}
       />
 
-      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: missingLogs.length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div style={{ background: missingLogs.length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: missingLogs.length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {missingLogs.length > 0 ? (
+      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ background: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {missingLogs.filter((l: any) => !l.inTime).length > 0 ? (
             <AlertTriangle size={20} color="#e11d48" />
           ) : (
             <CheckCircle2 size={20} color="#10b981" />
           )}
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: missingLogs.length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
-            {missingLogs.length} Critical Alerts Active
+          <h3 style={{ fontSize: '16px', fontWeight: 700, color: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
+            {missingLogs.filter((l: any) => !l.inTime).length} Critical Alerts Active
           </h3>
         </div>
         
@@ -109,29 +110,38 @@ const LateWarnings = () => {
                   </td>
                 </tr>
               ) : (
-                missingLogs.map((log: any) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', background: '#fffcfc' }}>
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ fontWeight: 700, color: '#1e293b' }}>{log.student.name}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.regNo} | Room {log.student.room?.id || '-'}</div>
-                    </td>
-                    <td style={{ padding: '16px 20px', color: '#334155', textTransform: 'capitalize' }}>{log.reason || '-'}</td>
-                    <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{new Date(log.expectedInTime).toLocaleString()}</td>
-                    <td style={{ padding: '16px 20px' }}><span style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: '4px', background: '#e11d48', color: 'white', fontWeight: 700, fontSize: '12px' }}>{getDelayString(log.expectedInTime)}</span></td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <div style={{ color: '#0d6efd', fontWeight: 500 }}>{log.student.mobileNo || '-'} (Self)</div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.fatherMobileNo || '-'} (Parent)</div>
-                    </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                      <button 
-                        onClick={() => { setSelectedStudentId(log.studentId); setIsModalOpen(true); }} 
-                        style={{ padding: '8px 16px', fontSize: '13px', background: '#e11d48', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                      >
-                        Mark Reached
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                missingLogs.map((log: any) => {
+                  const isHistorical = !!log.inTime;
+                  return (
+                    <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', background: isHistorical ? '#f8fafc' : '#fffcfc' }}>
+                      <td style={{ padding: '16px 20px' }}>
+                        <div style={{ fontWeight: 700, color: '#1e293b' }}>{log.student.name}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.regNo} | Room {log.student.room?.id || '-'}</div>
+                      </td>
+                      <td style={{ padding: '16px 20px', color: '#334155', textTransform: 'capitalize' }}>{log.reason || '-'}</td>
+                      <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{new Date(log.expectedInTime).toLocaleString()}</td>
+                      <td style={{ padding: '16px 20px' }}><span style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: '4px', background: isHistorical ? '#f59e0b' : '#e11d48', color: 'white', fontWeight: 700, fontSize: '12px' }}>{getDelayString(log.expectedInTime, log.inTime)}</span></td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <div style={{ color: '#0d6efd', fontWeight: 500 }}>{log.student.mobileNo || '-'} (Self)</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.fatherMobileNo || '-'} (Parent)</div>
+                      </td>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        {isHistorical ? (
+                          <span style={{ display: 'inline-flex', padding: '6px 12px', borderRadius: '4px', background: '#ecfdf5', color: '#10b981', fontWeight: 600, fontSize: '12px', border: '1px solid #10b981' }}>
+                            Returned
+                          </span>
+                        ) : (
+                          <button 
+                            onClick={() => { setSelectedStudentId(log.studentId); setIsModalOpen(true); }} 
+                            style={{ padding: '8px 16px', fontSize: '13px', background: '#e11d48', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            Mark Reached
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

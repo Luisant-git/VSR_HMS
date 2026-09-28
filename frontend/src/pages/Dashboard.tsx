@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RoomAPI } from '../api/room.api';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
+import { gateLogApi } from '../api/gatelog.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,11 +12,13 @@ const Dashboard = () => {
   const [dbRooms, setDbRooms] = useState<any[]>([]);
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [missingLogs, setMissingLogs] = useState<any[]>([]);
 
   useEffect(() => {
     RoomAPI.findAll().then(setDbRooms).catch(console.error);
     FeesAPI.findAll().then(setFees).catch(console.error);
     StudentAPI.findAll().then(setStudents).catch(console.error);
+    gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
   }, []);
 
   const roomsData = dbRooms.map(r => ({
@@ -41,6 +44,9 @@ const Dashboard = () => {
   const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
   const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
 
+  const currentlyOut = students.filter(s => s.status === 'Out').length;
+  const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
+
   return (
     <div>
       <div className="content-card" style={{ padding: '25px' }}>
@@ -50,7 +56,7 @@ const Dashboard = () => {
         </div>
 
         <div className="cards-row">
-          <div className="metric-card metric-card-blue">
+          <div className="metric-card metric-card-blue" onClick={() => navigate('/hostellers')} style={{ cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Users size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Active Students</span>
@@ -59,7 +65,7 @@ const Dashboard = () => {
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Enrolled in hostel</div>
           </div>
           
-          <div className="metric-card metric-card-green">
+          <div className="metric-card metric-card-green" onClick={() => navigate('/rooms/directory')} style={{ cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Bed size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Vacant Beds</span>
@@ -68,25 +74,25 @@ const Dashboard = () => {
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>{vacantPercent}% Available</div>
           </div>
           
-          <div className="metric-card metric-card-orange">
+          <div className="metric-card metric-card-orange" onClick={() => navigate('/gate-logs')} style={{ cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <LogOut size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Currently Out</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>0</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{currentlyOut}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Checked out at gate</div>
           </div>
           
-          <div className="metric-card metric-card-yellow">
+          <div className="metric-card metric-card-yellow" onClick={() => navigate('/late-warnings')} style={{ cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <AlertTriangle size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Late Return Warning</span>
             </div>
-            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>0</div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{activeLateWarnings}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Late return students</div>
           </div>
 
-          <div className="metric-card metric-card-purple">
+          <div className="metric-card metric-card-purple" onClick={() => navigate('/fees')} style={{ cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <CreditCard size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Pending Fees</span>
@@ -95,7 +101,7 @@ const Dashboard = () => {
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Unpaid dues</div>
           </div>
           
-          <div className="metric-card" style={{ backgroundColor: '#20c997' }}>
+          <div className="metric-card" style={{ backgroundColor: '#20c997', cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onClick={() => navigate('/fees')} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
             <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <ShieldCheck size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
               <span style={{ fontWeight: 600 }}>Advance Held</span>
