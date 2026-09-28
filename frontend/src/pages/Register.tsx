@@ -91,7 +91,7 @@ const Register = () => {
     name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
     emergencyContact: '', college: '', educationalQua: '', advance: '',
-    maritalStatus: 'Single', aadharNo: '', secondaryIdNo: ''
+    maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
@@ -121,7 +121,8 @@ const Register = () => {
           advance: data.advance || '',
           maritalStatus: data.maritalStatus || 'Single',
           aadharNo: data.aadharNo || '',
-          secondaryIdNo: data.secondaryIdNo || ''
+          secondaryIdNo: data.secondaryIdNo || '',
+          bedNo: data.bedNo || ''
         });
         if (data.photoUrl) setCapturedImage(data.photoUrl);
         if (data.doc1Url) setDoc1Url(data.doc1Url);
@@ -149,8 +150,8 @@ const Register = () => {
       if (editId) {
         await StudentAPI.update(editId, {
           ...formData,
-          roomNo: selectedRoom.id,
-          bedNo: selectedRoom.bed || null,
+          roomNo: selectedRoom.id || selectedRoom.value,
+          bedNo: formData.bedNo || null,
           photoUrl: capturedImage,
           doc1Url,
           doc2Url
@@ -159,6 +160,7 @@ const Register = () => {
         await StudentAPI.create({
           ...formData,
           roomNo: selectedRoom?.value || selectedRoom?.id,
+          bedNo: formData.bedNo || null,
           advance: Number(formData.advance) || 0,
           rent: selectedRoom?.room?.rent || 0,
           messFee: selectedRoom?.room?.messFee || 0,
@@ -236,6 +238,23 @@ const Register = () => {
     singleValue: (base: any) => ({ ...base, color: '#1e293b' }),
     menu: (base: any) => ({ ...base, zIndex: 50, borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' })
   };
+
+  const availableBeds = React.useMemo(() => {
+    if (!selectedRoom?.room) return [];
+    const capacity = selectedRoom.room.capacity || 1;
+    const occupiedBeds = (selectedRoom.room.students || [])
+      .filter((s: any) => (s.status === 'In' || s.status === 'Present') && s.id !== editId)
+      .map((s: any) => s.bedNo);
+      
+    const beds = [];
+    for (let i = 1; i <= capacity; i++) {
+      const bedName = `Bed ${i}`;
+      if (!occupiedBeds.includes(bedName)) {
+        beds.push(bedName);
+      }
+    }
+    return beds;
+  }, [selectedRoom, editId]);
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -565,7 +584,17 @@ const Register = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Bed Tag / Number</label>
-                <input type="text" placeholder="e.g. 101-A, Bed-1" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <select 
+                  value={formData.bedNo} 
+                  onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })} 
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}
+                  disabled={!selectedRoom}
+                >
+                  <option value="">-- Select Available Bed --</option>
+                  {availableBeds.map(bed => (
+                    <option key={bed} value={bed}>{bed}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date *</label>

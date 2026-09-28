@@ -12,7 +12,9 @@ export class RoomsService {
   }
 
   async findAll() {
-    return this.prisma.room.findMany();
+    return this.prisma.room.findMany({
+      include: { students: true }
+    });
   }
 
   async findOne(id: string) {
