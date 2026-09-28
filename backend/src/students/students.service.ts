@@ -88,7 +88,7 @@ export class StudentsService {
   async findAll() {
     return this.prisma.student.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { transactions: true }
+      include: { transactions: true, room: true }
     });
   }
 
