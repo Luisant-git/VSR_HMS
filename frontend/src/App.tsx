@@ -16,6 +16,7 @@ import Login from './pages/Login';
 import Clearance from './pages/Clearance';
 import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
+import Outpass from './pages/Outpass';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -56,6 +57,7 @@ function App() {
         <Route path="gate-logs" element={<GateLogs />} />
         <Route path="late-warnings" element={<LateWarnings />} />
         <Route path="fees" element={<Fees />} />
+        <Route path="outpass" element={<Outpass />} />
         <Route path="register" element={<Register />} />
         <Route path="rooms">
           <Route index element={<Rooms />} />

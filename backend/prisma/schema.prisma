@@ -92,6 +92,7 @@ model Student {
   gateLogs       GateLog[]
   transactions   FeeTransaction[]
   clearance      ClearanceRecord?
+  outpasses      Outpass[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -176,4 +177,26 @@ model ClearanceRecord {
   clearanceDate  DateTime  @default(now())
 
   createdAt      DateTime  @default(now())
+}
+
+// ---------------------------------------------------------
+// Outpass Management
+// ---------------------------------------------------------
+model Outpass {
+  id             String    @id @default(uuid())
+  outpassId      String    @unique // e.g. OP-20260928-871
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id])
+  
+  destination    String
+  reason         String
+  leaveDate      DateTime
+  returnDate     DateTime
+  parentConsent  Boolean   @default(false)
+  
+  status         String    @default("Pending") // "Pending", "Approved", "Closed Returned", "Rejected"
+  gateAction     String    @default("Verify Exit") // "Verify Exit", "Done"
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

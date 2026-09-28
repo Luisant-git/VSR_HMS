@@ -1,0 +1,269 @@
+import React, { useState, useEffect } from 'react';
+import { Search, FileText, CheckCircle2, X, Calendar, LogOut, Check } from 'lucide-react';
+import { StudentAPI } from '../api/student.api';
+import { OutpassAPI } from '../api/outpass.api';
+
+const Outpass = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [students, setStudents] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [outpasses, setOutpasses] = useState<any[]>([]);
+  
+  // Form State
+  const [formData, setFormData] = useState({
+    studentId: '',
+    destination: '',
+    reason: '',
+    leaveDate: '',
+    returnDate: '',
+    parentConsent: true
+  });
+
+  const fetchOutpasses = () => {
+    OutpassAPI.findAll().then(data => {
+      setOutpasses(data);
+    }).catch(console.error);
+  };
+
+  useEffect(() => {
+    StudentAPI.findAll().then(data => {
+      setStudents(data.filter((s: any) => s.status !== 'Vacated'));
+    }).catch(console.error);
+    
+    fetchOutpasses();
+  }, []);
+
+  const handleIssueOutpass = async () => {
+    try {
+      await OutpassAPI.create({
+        studentId: formData.studentId,
+        destination: formData.destination,
+        reason: formData.reason,
+        leaveDate: new Date(formData.leaveDate).toISOString(),
+        returnDate: new Date(formData.returnDate).toISOString(),
+        parentConsent: formData.parentConsent
+      });
+      setIsModalOpen(false);
+      setFormData({ studentId: '', destination: '', reason: '', leaveDate: '', returnDate: '', parentConsent: true });
+      fetchOutpasses();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to issue outpass');
+    }
+  };
+
+  const updateGateAction = async (id: string, currentAction: string) => {
+    try {
+      if (currentAction === 'Verify Exit') {
+        await OutpassAPI.updateStatus(id, { status: 'Closed Returned', gateAction: 'Done' });
+      }
+      fetchOutpasses();
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  const formatDateTime = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) throw new Error();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dateStr = `${d.getDate().toString().padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+      const hours = d.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12;
+      const timeStr = `${hours12.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ${ampm}`;
+      return { dateStr, timeStr };
+    } catch {
+      return { dateStr: 'Invalid Date', timeStr: '' };
+    }
+  };
+
+  const filteredOutpasses = outpasses.filter(op => 
+    op.outpassId?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    op.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    op.destination?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div style={{ paddingBottom: '40px' }}>
+      <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-heading)' }}>Digital Outpass Management</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '5px' }}>
+            Issue, approve, and verify gate movement for student outpasses
+          </p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          style={{ padding: '10px 20px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
+        >
+          <FileText size={18} /> Issue Digital Outpass
+        </button>
+      </div>
+
+      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b' }}>Outpasses Master Register</h3>
+          <div style={{ position: 'relative' }}>
+            <input 
+              type="text" 
+              placeholder="Search outpasses..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ padding: '10px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '250px', outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <tr>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Outpass #</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student & Room</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason & Destination</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled Leave</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expected Return</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parent Consent</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Gate Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOutpasses.map((op, idx) => {
+                const leave = formatDateTime(op.leaveDate);
+                const ret = formatDateTime(op.returnDate);
+                return (
+                  <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#f8fafc'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                    <td style={{ padding: '15px 20px', fontSize: '14px', fontWeight: 700, color: '#0284c7' }}>
+                      {op.outpassId}
+                    </td>
+                    <td style={{ padding: '15px 20px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.student?.name}</div>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.student?.regNo} | <br/>{op.student?.room?.id}</div>
+                    </td>
+                    <td style={{ padding: '15px 20px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.destination}</div>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.reason}</div>
+                    </td>
+                    <td style={{ padding: '15px 20px', fontSize: '13px', color: '#1e293b' }}>
+                      {leave.dateStr}<br/>{leave.timeStr}
+                    </td>
+                    <td style={{ padding: '15px 20px', fontSize: '13px', color: '#1e293b' }}>
+                      {ret.dateStr}<br/>{ret.timeStr}
+                    </td>
+                    <td style={{ padding: '15px 20px' }}>
+                      {op.parentConsent && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
+                          <CheckCircle2 size={12} /> Verified
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '15px 20px' }}>
+                      {op.status === 'Approved' && (
+                        <span style={{ display: 'inline-block', background: '#22c55e', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                          Approved
+                        </span>
+                      )}
+                      {op.status === 'Closed Returned' && (
+                        <span style={{ display: 'inline-block', background: '#166534', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                          Closed Returned
+                        </span>
+                      )}
+                      {op.status === 'Pending' && (
+                        <span style={{ display: 'inline-block', background: '#facc15', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                          Pending
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '15px 20px', textAlign: 'center' }}>
+                      {op.gateAction === 'Verify Exit' ? (
+                        <button onClick={() => updateGateAction(op.id, op.gateAction)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                          <LogOut size={14} /> Verify Exit
+                        </button>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', fontWeight: 500 }}>
+                          <Check size={14} /> Done
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: '8px', width: '500px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div style={{ background: '#0d6efd', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 600, margin: 0 }}>Create & Approve Outpass</h3>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Hosteller</label>
+                <select value={formData.studentId} onChange={(e) => setFormData({...formData, studentId: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', background: 'white', color: '#334155' }}>
+                  <option value="">-- Choose Hosteller --</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.regNo})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Destination</label>
+                <input value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} type="text" placeholder="City, Event, or Home" style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Reason</label>
+                <textarea value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} placeholder="Explain purpose..." rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', resize: 'vertical', color: '#334155' }}></textarea>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Leave Date & Time</label>
+                  <div style={{ position: 'relative' }}>
+                    <input type="datetime-local" value={formData.leaveDate} onChange={(e) => setFormData({...formData, leaveDate: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Expected Return</label>
+                  <div style={{ position: 'relative' }}>
+                    <input type="datetime-local" value={formData.returnDate} onChange={(e) => setFormData({...formData, returnDate: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input type="checkbox" checked={formData.parentConsent} onChange={(e) => setFormData({...formData, parentConsent: e.target.checked})} id="parent-consent" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#0d6efd' }} />
+                <label htmlFor="parent-consent" style={{ fontSize: '14px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                  Parent / Guardian consent verified via call or message
+                </label>
+              </div>
+            </div>
+
+            <div style={{ padding: '15px 20px', borderTop: '1px solid #e2e8f0', background: 'white', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setIsModalOpen(false)} style={{ padding: '10px 20px', background: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={handleIssueOutpass} style={{ padding: '10px 20px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                Approve & Issue Outpass
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Outpass;

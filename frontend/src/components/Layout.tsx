@@ -47,6 +47,10 @@ const Layout = () => {
             <div className="nav-icon"><FileText size={18} /></div>
             Gate Logs
           </NavLink>
+          <NavLink to="/outpass" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><FileText size={18} /></div>
+            Outpasses
+          </NavLink>
           <NavLink to="/late-warnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><AlertTriangle size={18} /></div>
             Late Warnings

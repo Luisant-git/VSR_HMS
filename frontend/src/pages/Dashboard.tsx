@@ -3,7 +3,8 @@ import { RoomAPI } from '../api/room.api';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
-import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List } from 'lucide-react';
+import { OutpassAPI } from '../api/outpass.api';
+import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -13,12 +14,14 @@ const Dashboard = () => {
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [missingLogs, setMissingLogs] = useState<any[]>([]);
+  const [outpasses, setOutpasses] = useState<any[]>([]);
 
   useEffect(() => {
     RoomAPI.findAll().then(setDbRooms).catch(console.error);
     FeesAPI.findAll().then(setFees).catch(console.error);
     StudentAPI.findAll().then(setStudents).catch(console.error);
     gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
+    OutpassAPI.findAll().then(setOutpasses).catch(console.error);
   }, []);
 
   const roomsData = dbRooms.map(r => ({
@@ -47,6 +50,7 @@ const Dashboard = () => {
   const activeStudents = students.filter(s => s.status !== 'Vacated');
   const currentlyOut = activeStudents.filter(s => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
+  const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending').length;
 
   return (
     <div>
@@ -109,6 +113,15 @@ const Dashboard = () => {
             </div>
             <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>₹{totalAdvanceHeld.toLocaleString('en-IN')}</div>
             <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Security deposits</div>
+          </div>
+
+          <div className="metric-card" style={{ backgroundColor: '#0ea5e9', cursor: 'pointer', transition: 'transform 0.2s', ...({} as any) }} onClick={() => navigate('/outpass')} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+            <div className="title" style={{ fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <FileText size={24} color="rgba(255,255,255,1)" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+              <span style={{ fontWeight: 600 }}>Active Outpasses</span>
+            </div>
+            <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{activeOutpassesCount}</div>
+            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Pending or Approved</div>
           </div>
         </div>
       </div>
