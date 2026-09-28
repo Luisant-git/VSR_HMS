@@ -107,6 +107,15 @@ const StudentProfile = () => {
     return <div style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>Loading Profile...</div>;
   }
 
+  const renderDocPreview = (url: string, alt: string) => {
+    if (url.toLowerCase().endsWith('.pdf')) {
+      return (
+        <iframe src={`${url}#toolbar=0`} title={alt} style={{ width: '100%', height: '100%', border: 'none', objectFit: 'contain' }} />
+      );
+    }
+    return <img src={url} alt={alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+  };
+
   const tabs = [
     { name: 'Master Profile', icon: <User size={16} /> },
     { name: 'Gate Logs', icon: <Clock size={16} /> },
@@ -359,34 +368,84 @@ const StudentProfile = () => {
               </h3>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                {/* Document 1 Card */}
                 {student.doc1Url ? (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Primary ID Proof</span>
-                      {student.aadharNo && <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>ID: {student.aadharNo}</span>}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                    <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
+                        <FileText size={18} color="#0ea5e9" />
+                        <span>Document 1: Aadhar Card</span>
+                      </div>
+                      <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
-                    <a href={student.doc1Url} target="_blank" rel="noreferrer" style={{ display: 'block', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden', background: '#e2e8f0' }}>
-                      <img src={student.doc1Url} alt="Document 1" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </a>
+                    
+                    <div style={{ padding: '20px' }}>
+                      <div style={{ marginBottom: '15px' }}>
+                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> Aadhar Card
+                        </div>
+                        <div style={{ fontSize: '14px' }}>
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.aadharNo || 'Not Provided'}
+                        </div>
+                      </div>
+
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
+                        {renderDocPreview(student.doc1Url, "Aadhar Card")}
+                      </div>
+
+                      <a 
+                        href={student.doc1Url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
+                      >
+                        <Upload size={16} style={{ transform: 'rotate(180deg)' }} /> Open / Download Full Document
+                      </a>
+                    </div>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '245px', color: '#64748b' }}>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '350px', color: '#64748b' }}>
                     No Primary ID Uploaded
                   </div>
                 )}
 
+                {/* Document 2 Card */}
                 {student.doc2Url ? (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Secondary ID Proof</span>
-                      {student.secondaryIdNo && <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>ID: {student.secondaryIdNo}</span>}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                    <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
+                        <FileText size={18} color="#0ea5e9" />
+                        <span>Document 2: Secondary ID</span>
+                      </div>
+                      <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
-                    <a href={student.doc2Url} target="_blank" rel="noreferrer" style={{ display: 'block', width: '100%', height: '200px', borderRadius: '8px', overflow: 'hidden', background: '#e2e8f0' }}>
-                      <img src={student.doc2Url} alt="Document 2" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </a>
+                    
+                    <div style={{ padding: '20px' }}>
+                      <div style={{ marginBottom: '15px' }}>
+                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> Secondary ID
+                        </div>
+                        <div style={{ fontSize: '14px' }}>
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.secondaryIdNo || 'Not Provided'}
+                        </div>
+                      </div>
+
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
+                        {renderDocPreview(student.doc2Url, "Secondary ID")}
+                      </div>
+
+                      <a 
+                        href={student.doc2Url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
+                      >
+                        <Upload size={16} style={{ transform: 'rotate(180deg)' }} /> Open / Download Full Document
+                      </a>
+                    </div>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '245px', color: '#64748b' }}>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '350px', color: '#64748b' }}>
                     No Secondary ID Uploaded
                   </div>
                 )}
