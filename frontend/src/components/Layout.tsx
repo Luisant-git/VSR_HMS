@@ -7,7 +7,7 @@ const Layout = () => {
   const navigate = useNavigate();
   const isDashboard = location.pathname === '/';
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [user, setUser] = useState<{name?: string, email?: string} | null>(null);
+  const [user, setUser] = useState<{ name?: string, email?: string } | null>(null);
 
   useEffect(() => {
     try {
@@ -28,7 +28,7 @@ const Layout = () => {
         <div className="sidebar-brand">
           HMS
         </div>
-        
+
         <nav className="sidebar-nav">
           <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
             <div className="nav-icon"><Home size={18} /></div>
@@ -73,7 +73,7 @@ const Layout = () => {
             <div className="nav-icon"><Zap size={18} /></div>
             Room EB Bill Sharing
           </NavLink>
-          
+
           {/* BIOMETRICS
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>BIOMETRICS</div>
           <NavLink to="/biometrics" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -114,26 +114,26 @@ const Layout = () => {
 
       {/* Right Side (Header + Content Wrapper) */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-        
+
         {/* Top Header (Dark, separate from white body) */}
         <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          
+
           <div className="topbar-icons" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            
+
             {/* Profile Dropdown Container */}
             <div style={{ position: 'relative' }}>
-              <div 
-                style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '50%', 
-                  background: 'var(--sidebar-active)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  color: 'white', 
-                  fontWeight: 600, 
-                  fontSize: '14px', 
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'var(--sidebar-active)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '14px',
                   cursor: 'pointer',
                   border: '2px solid rgba(255,255,255,0.2)'
                 }}
@@ -141,18 +141,18 @@ const Layout = () => {
               >
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
               </div>
-              
+
               {/* Dropdown Menu (Click to open, click away to close) */}
               {isProfileOpen && (
                 <>
                   {/* Invisible Overlay for click-outside */}
-                  <div 
+                  <div
                     style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
                     onClick={() => setIsProfileOpen(false)}
                   ></div>
-                  
-                  <div 
-                    style={{ 
+
+                  <div
+                    style={{
                       position: 'absolute',
                       top: '40px',
                       right: '0',
@@ -170,22 +170,22 @@ const Layout = () => {
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user?.email || 'admin@hostel.com'}</div>
                     </div>
                     <div style={{ padding: '8px' }}>
-                      <button 
+                      <button
                         onClick={() => {
                           localStorage.removeItem('access_token');
                           navigate('/login');
                         }}
-                        style={{ 
-                          width: '100%', 
-                          padding: '10px 15px', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '10px', 
-                          background: 'transparent', 
-                          border: 'none', 
-                          color: '#d93025', 
-                          fontSize: '13px', 
-                          fontWeight: 500, 
+                        style={{
+                          width: '100%',
+                          padding: '10px 15px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#d93025',
+                          fontSize: '13px',
+                          fontWeight: 500,
                           cursor: 'pointer',
                           borderRadius: '6px',
                           textAlign: 'left'
@@ -205,16 +205,16 @@ const Layout = () => {
 
         {/* Main Wrapper (White card with rounded corner) */}
         <div className="main-wrapper" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          
+
           {/* Main Content Area */}
           <main className="main-content">
-          
-          {/* Render Pages */}
-          <Outlet />
-        </main>
+
+            {/* Render Pages */}
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
-  </div>
   );
 };
 
