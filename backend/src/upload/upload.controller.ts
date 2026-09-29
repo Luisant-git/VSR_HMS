@@ -54,8 +54,9 @@ export class UploadController {
     const filePath = join('./uploads', filename);
     await writeFile(filePath, buffer);
 
-    const requestHost = req.get('host');
-    const requestBase = req.protocol && requestHost ? `${req.protocol}://${requestHost}` : undefined;
+    const requestHost = req.get('X-Forwarded-Host') || req.get('host');
+    const protocol = req.get('X-Forwarded-Proto') || req.protocol;
+    const requestBase = protocol && requestHost ? `${protocol}://${requestHost}` : undefined;
     const configuredBase = process.env.UPLOAD_URL || process.env.API_BASE_URL || process.env.APP_URL || process.env.PUBLIC_URL || requestBase || 'http://localhost:3000';
     const baseUrl = configuredBase.replace(/\/$/, '').replace(/\/uploads$/, '');
     const uploadsBaseUrl = `${baseUrl}/uploads`;
