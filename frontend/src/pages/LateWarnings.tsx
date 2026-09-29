@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { gateLogApi } from '../api/gatelog.api';
