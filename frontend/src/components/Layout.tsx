@@ -74,7 +74,7 @@ const Layout = () => {
             Room EB Bill Sharing
           </NavLink>
           
-          {/* BIOMETRICS */}
+          {/* BIOMETRICS
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>BIOMETRICS</div>
           <NavLink to="/biometrics" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Database size={18} /></div>
@@ -92,6 +92,7 @@ const Layout = () => {
             <div className="nav-icon"><Fingerprint size={18} /></div>
             Biometric Records
           </NavLink>
+          */}
 
           {/* 
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>CANTEEN</div>

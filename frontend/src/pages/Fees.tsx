@@ -8,8 +8,8 @@ import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 
 const formatInvoiceNumber = (fee: any) => {
-  const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
-  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
+  const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
+  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
   const studentStr = fee.student?.regNo || 'UNKN';
   return `INV-${purpose}-${ymStr}-${studentStr}`;
 };
@@ -22,9 +22,9 @@ const Fees = () => {
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<any>({ 
-    value: studentParam || 'ALL', 
-    label: studentParam ? `${studentParam}` : '-- All Students --' 
+  const [selectedStudent, setSelectedStudent] = useState<any>({
+    value: studentParam || 'ALL',
+    label: studentParam ? `${studentParam}` : '-- All Students --'
   });
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
@@ -89,9 +89,9 @@ const Fees = () => {
     if (filter === 'UNPAID') match = fee.status === 'PENDING';
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
-    
+
     if (selectedStudent.value !== 'ALL' && fee.student?.regNo !== selectedStudent.value) match = false;
-    
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = match && (
@@ -159,11 +159,11 @@ const Fees = () => {
       <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>Hostel Fee Invoices</h3>
-          
+
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
             <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
               {['ALL', 'UNPAID', 'PAID', 'PARTIAL'].map(f => (
-                <button 
+                <button
                   key={f}
                   onClick={() => setFilter(f)}
                   style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: 'none', background: filter === f ? 'var(--sidebar-active)' : 'transparent', color: filter === f ? 'white' : '#64748b', boxShadow: filter === f ? '0 2px 6px rgba(74, 114, 250, 0.3)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
@@ -172,9 +172,9 @@ const Fees = () => {
                 </button>
               ))}
             </div>
-            
+
             <Select options={studentOptions} value={selectedStudent} onChange={setSelectedStudent} styles={selectStyles} isSearchable={true} />
-            
+
             <div style={{ position: 'relative' }}>
               <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
@@ -232,7 +232,7 @@ const Fees = () => {
           </table>
         </div>
       </div>
-      
+
       {/* Receipt Modal */}
       {selectedReceipt && (
         <ReceiptModal fee={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
@@ -240,13 +240,13 @@ const Fees = () => {
 
       {/* Collect Payment Modal */}
       {feeToCollect && (
-        <CollectPaymentModal 
-          fee={feeToCollect} 
-          onClose={closePaymentModal} 
+        <CollectPaymentModal
+          fee={feeToCollect}
+          onClose={closePaymentModal}
           onSuccess={() => {
             closePaymentModal();
             fetchFees();
-          }} 
+          }}
         />
       )}
     </div>
