@@ -38,7 +38,7 @@ const StudentProfile = () => {
         if (!file) return null;
         return await UploadAPI.uploadImage(file);
       };
-      
+
       const photoUrl = await upload(photoFile);
       const doc1Url = await upload(doc1File);
       const doc2Url = await upload(doc2File);
@@ -65,32 +65,33 @@ const StudentProfile = () => {
     if (id) {
       StudentAPI.findOne(id).then(data => {
         setStudent({
-            id: data.regNo,
-            uuid: data.id,
-            name: data.name,
-            status: data.status || 'Active',
-            room: `${data.roomNo || 'N/A'}`,
-            joined: new Date(data.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-            gender: data.gender || 'N/A',
-            dob: data.dob ? new Date(data.dob).toLocaleDateString('en-GB') : 'N/A',
-            mobile: data.mobileNo,
-            email: data.emailId || 'N/A',
-            address: data.address || 'N/A',
-            college: `${data.college || 'N/A'} (${data.educationalQua || 'N/A'})`,
-            fatherName: data.fatherName,
-            fatherMobileNo: data.fatherMobileNo,
-            motherName: data.motherName,
-            motherMobileNo: data.motherMobileNo,
-            guardianName: data.guardianName || 'N/A',
-            guardianPhone: data.guardianMobileNo || 'N/A',
-            emergencyContact: data.emergencyContact || 'N/A',
-            roomType: data.room?.type || 'N/A',
-            blockFloor: `Block ${data.room?.block || '-'} - Floor ${data.room?.floor || '-'}`,
-            monthlyRent: `₹${data.rent || 0}`,
-            photoUrl: data.photoUrl,
-            doc1Url: data.doc1Url,
-            doc2Url: data.doc2Url
-          , aadharNo: data.aadharNo, secondaryIdNo: data.secondaryIdNo, clearance: data.clearance });
+          id: data.regNo,
+          uuid: data.id,
+          name: data.name,
+          status: data.status || 'Active',
+          room: `${data.roomNo || 'N/A'}`,
+          joined: new Date(data.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          gender: data.gender || 'N/A',
+          dob: data.dob ? new Date(data.dob).toLocaleDateString('en-GB') : 'N/A',
+          mobile: data.mobileNo,
+          email: data.emailId || 'N/A',
+          address: data.address || 'N/A',
+          college: `${data.college || 'N/A'} (${data.educationalQua || 'N/A'})`,
+          fatherName: data.fatherName,
+          fatherMobileNo: data.fatherMobileNo,
+          motherName: data.motherName,
+          motherMobileNo: data.motherMobileNo,
+          guardianName: data.guardianName || 'N/A',
+          guardianPhone: data.guardianMobileNo || 'N/A',
+          emergencyContact: data.emergencyContact || 'N/A',
+          roomType: data.room?.type || 'N/A',
+          blockFloor: `Block ${data.room?.block || '-'} - Floor ${data.room?.floor || '-'}`,
+          monthlyRent: `₹${data.rent || 0}`,
+          photoUrl: data.photoUrl,
+          doc1Url: data.doc1Url,
+          doc2Url: data.doc2Url
+          , aadharNo: data.aadharNo, secondaryIdNo: data.secondaryIdNo, clearance: data.clearance
+        });
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
         }
@@ -290,7 +291,7 @@ const StudentProfile = () => {
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '30px' }}>
                 <User size={20} color="#3b82f6" /> Parent Information
               </h3>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Father's Name</div>
@@ -334,7 +335,7 @@ const StudentProfile = () => {
                   <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#991b1b', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 15px 0' }}>
                     <LogOut size={20} color="#dc2626" /> Exit & Clearance Details
                   </h3>
-                  
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
                     <div>
                       <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Date</div>
@@ -371,7 +372,7 @@ const StudentProfile = () => {
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FileText size={20} color="var(--sidebar-active)" /> KYC Documents
               </h3>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
                 {/* Document 1 Card */}
                 {student.doc1Url ? (
@@ -383,7 +384,7 @@ const StudentProfile = () => {
                       </div>
                       <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
-                    
+
                     <div style={{ padding: '20px' }}>
                       <div style={{ marginBottom: '15px' }}>
                         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
@@ -398,9 +399,9 @@ const StudentProfile = () => {
                         {renderDocPreview(student.doc1Url, "Aadhar Card")}
                       </div>
 
-                      <a 
-                        href={student.doc1Url} 
-                        target="_blank" 
+                      <a
+                        href={student.doc1Url}
+                        target="_blank"
                         rel="noreferrer"
                         style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
                       >
@@ -424,7 +425,7 @@ const StudentProfile = () => {
                       </div>
                       <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
-                    
+
                     <div style={{ padding: '20px' }}>
                       <div style={{ marginBottom: '15px' }}>
                         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
@@ -439,9 +440,9 @@ const StudentProfile = () => {
                         {renderDocPreview(student.doc2Url, "Secondary ID")}
                       </div>
 
-                      <a 
-                        href={student.doc2Url} 
-                        target="_blank" 
+                      <a
+                        href={student.doc2Url}
+                        target="_blank"
                         rel="noreferrer"
                         style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
                       >
@@ -469,11 +470,11 @@ const StudentProfile = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
                 <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Paid (Receipts)</div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
                 <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Pending Dues</div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
@@ -510,7 +511,7 @@ const StudentProfile = () => {
                             ₹{fee.amount}
                           </td>
                           <td style={{ padding: '15px', fontSize: '12px' }}>
-                            <span style={{ 
+                            <span style={{
                               padding: '4px 8px', borderRadius: '4px', fontWeight: 600,
                               background: fee.status === 'COMPLETED' ? '#dcfce7' : fee.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
                               color: fee.status === 'COMPLETED' ? '#166534' : fee.status === 'PENDING' ? '#92400e' : '#991b1b'
@@ -569,7 +570,7 @@ const StudentProfile = () => {
                         const formatDateTime = (dateStr: string | null) => {
                           if (!dateStr) return '—';
                           const d = new Date(dateStr);
-                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br/>{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
+                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br />{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
                         };
 
                         return (
@@ -631,7 +632,7 @@ const StudentProfile = () => {
                           <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.leaveDate).toLocaleDateString('en-GB')}</td>
                           <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.returnDate).toLocaleDateString('en-GB')}</td>
                           <td style={{ padding: '15px' }}>
-                            <span style={{ 
+                            <span style={{
                               padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px',
                               background: op.status === 'Approved' ? '#dcfce7' : op.status === 'Active Out' ? '#fef3c7' : op.status === 'Closed Returned' ? '#e2e8f0' : '#fee2e2',
                               color: op.status === 'Approved' ? '#166534' : op.status === 'Active Out' ? '#92400e' : op.status === 'Closed Returned' ? '#475569' : '#991b1b'
@@ -655,39 +656,39 @@ const StudentProfile = () => {
               <div style={{ fontSize: '14px', marginTop: '5px' }}>This module will be connected to the database soon.</div>
             </div>
           )}
-        
-      {showUpdateModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0 }}>Update Photo & KYC</h3>
-              <button onClick={() => setShowUpdateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Profile Photo</label>
-                <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Primary ID Proof</label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Secondary ID Proof</label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '25px' }}>
-              <button onClick={() => setShowUpdateModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleUpdateKyc} disabled={isUpdating} style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', color: 'white', border: 'none', cursor: isUpdating ? 'not-allowed' : 'pointer' }}>
-                {isUpdating ? 'Uploading...' : 'Upload & Save'}
-              </button>
+          {showUpdateModal && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+              <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0 }}>Update Photo & KYC</h3>
+                  <button onClick={() => setShowUpdateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Profile Photo</label>
+                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Primary ID Proof</label>
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Secondary ID Proof</label>
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '25px' }}>
+                  <button onClick={() => setShowUpdateModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={handleUpdateKyc} disabled={isUpdating} style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', color: 'white', border: 'none', cursor: isUpdating ? 'not-allowed' : 'pointer' }}>
+                    {isUpdating ? 'Uploading...' : 'Upload & Save'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
         </div>
       </div>
@@ -699,13 +700,13 @@ const StudentProfile = () => {
 
       {/* Collect Payment Modal */}
       {feeToCollect && (
-        <CollectPaymentModal 
-          fee={{ ...feeToCollect, student }} 
-          onClose={() => setFeeToCollect(null)} 
+        <CollectPaymentModal
+          fee={{ ...feeToCollect, student }}
+          onClose={() => setFeeToCollect(null)}
           onSuccess={() => {
             setFeeToCollect(null);
             fetchStudentData(); // Refresh data
-          }} 
+          }}
         />
       )}
     </div>

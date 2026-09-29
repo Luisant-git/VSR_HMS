@@ -9,8 +9,14 @@ interface ReceiptModalProps {
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   if (!fee) return null;
 
+  const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
+  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
+  const studentStr = fee.student?.regNo || 'UNKN';
+  const invoiceNo = `INV-${purpose}-${ymStr}-${studentStr}`;
+  
   const dateStr = new Date(fee.createdAt).toISOString().slice(0,10).replace(/-/g, '');
-  const receiptNo = `REC-${dateStr}-${fee.id.substring(fee.id.length - 4).toUpperCase()}`;
+  const count = parseInt(fee.id.substring(0, 8), 16) % 10000;
+  const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
@@ -37,6 +43,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           {/* Top Details */}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '13px' }}>
             <div>
+              <div style={{ marginBottom: '6px' }}><span style={{ fontWeight: 700, color: '#0f172a' }}>Invoice No:</span> <span style={{ color: '#334155', fontWeight: 500 }}>{invoiceNo}</span></div>
               <div style={{ marginBottom: '6px' }}><span style={{ fontWeight: 700, color: '#0f172a' }}>Receipt No:</span> <span style={{ color: '#334155', fontWeight: 500 }}>{receiptNo}</span></div>
               <div><span style={{ fontWeight: 700, color: '#0f172a' }}>Date:</span> <span style={{ color: '#334155', fontWeight: 500 }}>{new Date(fee.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
             </div>
@@ -59,7 +66,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               <div style={{ color: '#334155', fontWeight: 500 }}>Room {fee.student?.roomNo || fee.student?.room || 'N/A'}</div>
 
               <div style={{ color: '#64748b' }}>Reference / Trans ID:</div>
-              <div style={{ color: '#334155', fontWeight: 500 }}>{fee.description?.includes('Ref:') ? fee.description.split('Ref:')[1]?.trim() : (fee.paymentMode === 'CASH' ? 'Direct / Cash' : 'N/A')}</div>
+              <div style={{ color: '#334155', fontWeight: 500 }}>
+                {(() => {
+                  const refId = fee.description?.includes('Ref:') ? fee.description.split('Ref:')[1]?.trim() : '';
+                  return (refId === '' || refId === '-') ? 'Direct / Cash' : refId;
+                })()}
+              </div>
 
               <div style={{ color: '#64748b' }}>Notes / Purpose:</div>
               <div style={{ color: '#334155', fontWeight: 500 }}>{fee.description?.split('|')[0]?.trim() || 'Hostel accommodation & amenities'}</div>

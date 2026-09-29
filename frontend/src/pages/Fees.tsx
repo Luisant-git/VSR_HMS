@@ -9,9 +9,9 @@ import { CollectPaymentModal } from '../components/CollectPaymentModal';
 
 const formatInvoiceNumber = (fee: any) => {
   const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
-  const typeStr = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
-  const studentStr = fee.student?.regNo?.replace(/[^a-zA-Z0-9]/g, '') || 'UNKN';
-  return `INV-${typeStr}-${ymStr}-${studentStr}-${fee.id.substring(fee.id.length - 2).toUpperCase()}`;
+  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
+  const studentStr = fee.student?.regNo || 'UNKN';
+  return `INV-${purpose}-${ymStr}-${studentStr}`;
 };
 
 const Fees = () => {
@@ -95,9 +95,10 @@ const Fees = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = match && (
-        fee.id.toLowerCase().includes(q) ||
+        formatInvoiceNumber(fee).toLowerCase().includes(q) ||
         fee.transactionType.toLowerCase().includes(q) ||
-        (fee.student?.name || '').toLowerCase().includes(q)
+        (fee.student?.name || '').toLowerCase().includes(q) ||
+        (fee.student?.regNo || '').toLowerCase().includes(q)
       );
     }
     return match;
@@ -118,11 +119,8 @@ const Fees = () => {
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
         rightContent={
           <>
-            <button style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+            <button onClick={() => setFilter('PAID')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               <FileSpreadsheet size={16} color="#64748b" /> All Receipts
-            </button>
-            <button style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
-              <Plus size={16} /> Bulk Generate Invoices
             </button>
           </>
         }
@@ -201,7 +199,7 @@ const Fees = () => {
               {filteredFees.map(fee => (
                 <tr key={fee.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                   <td style={{ padding: '16px 12px' }}>
-                    <div style={{ fontWeight: 700, color: '#0d6efd' }}>{formatInvoiceNumber(fee)}</div>
+                    <div style={{ fontWeight: 700, color: '#0d6efd' }}>{fee.status === 'COMPLETED' ? formatInvoiceNumber(fee) : '—'}</div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>{new Date(fee.createdAt).toLocaleDateString()}</div>
                   </td>
                   <td style={{ padding: '16px 12px' }}>
@@ -209,7 +207,7 @@ const Fees = () => {
                     <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{fee.student?.regNo || 'N/A'} | Room {fee.student?.roomNo || 'N/A'}</div>
                   </td>
                   <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>{fee.transactionType}</span></td>
-                  <td style={{ padding: '16px 12px', color: '#334155' }}>-</td>
+                  <td style={{ padding: '16px 12px', color: '#334155' }}>{new Date(fee.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
                   <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹{fee.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                   <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>{fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}</span></td>
                   <td style={{ textAlign: 'right', padding: '16px 12px' }}>

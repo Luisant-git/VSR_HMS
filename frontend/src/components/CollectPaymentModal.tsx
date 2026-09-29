@@ -9,12 +9,6 @@ interface CollectPaymentModalProps {
   onSuccess: () => void;
 }
 
-const formatInvoiceNumber = (fee: any) => {
-  const ymStr = new Date(fee.createdAt).toISOString().slice(0,7).replace('-', '');
-  const typeStr = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
-  const studentStr = (fee.student?.regNo || fee.student?.id)?.replace(/[^a-zA-Z0-9]/g, '') || 'UNKN';
-  return `INV-${typeStr}-${ymStr}-${studentStr}-${fee.id.substring(fee.id.length - 2).toUpperCase()}`;
-};
 
 export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, onClose, onSuccess }) => {
   const [paymentMode, setPaymentMode] = useState('UPI');
@@ -54,8 +48,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, o
         
         <div style={{ padding: '20px' }}>
           <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px' }}>
-            <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{fee.student?.name || 'Unknown'} ({fee.student?.regNo || 'N/A'})</div>
-            <div style={{ color: '#64748b', fontSize: '13px' }}>Invoice: {formatInvoiceNumber(fee)} | Due: ₹{fee.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{fee.student?.name || 'Unknown'} ({fee.student?.regNo || 'N/A'}){fee.student?.roomNo ? ` - Room ${fee.student.roomNo}` : ''}</div>
+            <div style={{ color: '#64748b', fontSize: '13px' }}>Due: ₹{fee.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>

@@ -475,8 +475,8 @@ const Hostellers = () => {
             
             <div style={{ padding: '20px' }}>
               <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px' }}>
-                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{feeStudent.name} ({feeStudent.id}) | {feeStudent.contact}</div>
-                <div style={{ color: '#64748b', fontSize: '13px' }}>Invoice: INV-{newFee.transactionType}-{new Date().getFullYear()}{feeStudent.id?.replace(/\D/g, '') || ''} | Due: ₹{newFee.amount || '0.00'}</div>
+                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{feeStudent.name} ({feeStudent.id}){feeStudent.room && feeStudent.room !== 'N/A' ? ` - Room ${feeStudent.room}` : ''} | {feeStudent.contact}</div>
+                <div style={{ color: '#64748b', fontSize: '13px' }}>Due: ₹{newFee.amount || '0.00'}</div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
