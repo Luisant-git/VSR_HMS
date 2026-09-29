@@ -4,7 +4,7 @@ import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
-import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText } from 'lucide-react';
+import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
@@ -51,6 +51,20 @@ const Dashboard = () => {
   const currentlyOut = activeStudents.filter(s => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
   const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending').length;
+  const handleCheckIn = async (studentId: string) => {
+    try {
+      await gateLogApi.create({
+        studentId: studentId,
+        movementType: 'ENTRY',
+        time: new Date().toISOString()
+      });
+      gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
+      StudentAPI.findAll().then(setStudents).catch(console.error);
+    } catch (error: any) {
+      console.error("Check-in failed", error);
+      alert(error.message || "Failed to check in");
+    }
+  };
 
   return (
     <div>
@@ -242,6 +256,54 @@ const Dashboard = () => {
             </div>
             */}
 
+            {/* Late Return Warnings */}
+            <div className="content-card">
+              <div className="card-header" style={{ marginBottom: '15px' }}>
+                <div className="card-title" style={{ color: '#ef4444' }}>Late Return Warnings</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                {missingLogs.filter(log => !log.inTime).slice(0, 5).map((log, idx) => (
+                  <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '15px', color: '#991b1b' }}>{log.student?.name} ({log.student?.regNo})</div>
+                        <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px', fontWeight: 600 }}>Room: {log.student?.room?.id || 'N/A'} | Mob: {log.student?.mobileNo || 'N/A'}</div>
+                        <div style={{ fontSize: '13px', color: '#b91c1c', marginTop: '4px' }}>{log.reason || 'No reason provided'}</div>
+                      </div>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        background: '#fee2e2', 
+                        color: '#ef4444', 
+                        padding: '4px 8px', borderRadius: '4px', fontWeight: 600 
+                      }}>
+                        Late
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                        <div>
+                          <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Exit Time:</div>
+                          <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.outTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Expected In:</div>
+                          <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.expectedInTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      </div>
+                      <button onClick={() => handleCheckIn(log.studentId)} style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '8px', background: '#ef4444', border: 'none', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'} onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}>
+                        <LogIn size={16} /> Mark as Returned
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {missingLogs.filter(log => !log.inTime).length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                    No late returns
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Active Outpasses */}
             <div className="content-card">
               <div className="card-header" style={{ marginBottom: '15px' }}>
@@ -252,8 +314,9 @@ const Dashboard = () => {
                   <div key={idx} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '15px' }}>{op.student?.name} ({op.student?.room?.id || 'N/A'})</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{op.destination}</div>
+                        <div style={{ fontWeight: 600, fontSize: '15px' }}>{op.student?.name} ({op.student?.regNo})</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>Room: {op.student?.room?.id || 'N/A'} | Mob: {op.student?.mobileNo || 'N/A'}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{op.destination}</div>
                       </div>
                       <span style={{ 
                         fontSize: '11px', 
