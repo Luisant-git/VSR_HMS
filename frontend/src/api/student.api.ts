@@ -28,6 +28,8 @@ export interface CreateStudentDto {
   bedNo?: string;
   advance?: number;
   rent?: number;
+  messFee?: number;
+  autoGenerateInvoice?: boolean;
   photoUrl?: string;
   doc1Url?: string;
   doc2Url?: string;
