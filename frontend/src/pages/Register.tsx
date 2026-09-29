@@ -163,7 +163,7 @@ const Register = () => {
           bedNo: formData.bedNo || undefined,
           advance: Number(formData.advance) || 0,
           rent: selectedRoom?.room?.rent || 0,
-          autoGenerateInvoice,
+
           photoUrl: capturedImage || undefined,
           doc1Url: doc1Url || undefined,
           doc2Url: doc2Url || undefined
@@ -238,22 +238,7 @@ const Register = () => {
     menu: (base: any) => ({ ...base, zIndex: 50, borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' })
   };
 
-  const availableBeds = React.useMemo(() => {
-    if (!selectedRoom?.room) return [];
-    const capacity = selectedRoom.room.capacity || 1;
-    const occupiedBeds = (selectedRoom.room.students || [])
-      .filter((s: any) => (s.status === 'In' || s.status === 'Present') && s.id !== editId)
-      .map((s: any) => s.bedNo);
 
-    const beds = [];
-    for (let i = 1; i <= capacity; i++) {
-      const bedName = `Bed ${i}`;
-      if (!occupiedBeds.includes(bedName)) {
-        beds.push(bedName);
-      }
-    }
-    return beds;
-  }, [selectedRoom, editId]);
 
   return (
     <div style={{ paddingBottom: '40px' }}>
