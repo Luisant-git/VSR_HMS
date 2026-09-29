@@ -24,38 +24,38 @@ model User {
 // Room & Bed Management
 // ---------------------------------------------------------
 model Room {
-  id            String    @id // e.g. A1, E1, W1, 101, 102
+  id            String  @id // e.g. A1, E1, W1, 101, 102
   block         String
-  floor         Int       @default(1)
-  capacity      Int       // Total beds in the room
-  type          String    // "Single", "Double", "Triple", "Four Sharing", "Dormitory"
-  rent          Float     @default(0.0)
-  messFee       Float     @default(0.0)
-  amenities     String?   // Comma separated string e.g. "AC, Attached Bath"
-  occupiedCount Int       @default(0)
-  
-  students      Student[]
-  ebBills       EbBill[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  floor         Int     @default(1)
+  capacity      Int // Total beds in the room
+  type          String // "Single", "Double", "Triple", "Four Sharing", "Dormitory"
+  rent          Float   @default(0.0)
+  messFee       Float   @default(0.0)
+  amenities     String? // Comma separated string e.g. "AC, Attached Bath"
+  occupiedCount Int     @default(0)
+
+  students  Student[]
+  ebBills   EbBill[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 // ---------------------------------------------------------
 // Student Management
 // ---------------------------------------------------------
 model Student {
-  id             String   @id @default(uuid())
-  regNo          String   @unique // e.g. HST-2026-001
-  name           String
-  dob            DateTime?
-  age            Int?
-  gender         String?
-  maritalStatus  String?
-  bloodGroup     String?
-  
+  id            String    @id @default(uuid())
+  regNo         String    @unique // e.g. HST-2026-001
+  name          String
+  dob           DateTime?
+  age           Int?
+  gender        String?
+  maritalStatus String?
+  bloodGroup    String?
+
   // Contact & KYC
-  emailId        String?  @unique
-  mobileNo       String?
+  emailId          String? @unique
+  mobileNo         String?
   fatherName       String?
   fatherMobileNo   String?
   motherName       String?
@@ -66,137 +66,151 @@ model Student {
   photoUrl         String?
   doc1Url          String?
   doc2Url          String?
-  aadharNo       String?  @unique
-  secondaryIdNo  String?
-  address        String?
-  
+  aadharNo         String? @unique
+  secondaryIdNo    String?
+  address          String?
+
   // Academic info
   college        String?
   educationalQua String?
   courseDuration String?
   category       String?
-  
-  // Hostel details
-  foodType       String?  // "Veg", "Non-Veg"
-  roomNo         String?
-  bedNo          String?  // e.g. "Bed 1", "Bed 2"
-  advance        Float?   @default(0.0)
-  rent           Float?   @default(0.0)
-  
-  // Status tracking
-  status         String   @default("In") // "In", "Out", "Missing", "Vacated"
-  feeStatus      String   @default("Un-Paid") // "Paid", "Un-Paid", "Partial"
-  
-  // Relations
-  room           Room?    @relation(fields: [roomNo], references: [id])
-  gateLogs       GateLog[]
-  transactions   FeeTransaction[]
-  clearance      ClearanceRecord?
-  outpasses      Outpass[]
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Hostel details
+  foodType String? // "Veg", "Non-Veg"
+  roomNo   String?
+  bedNo    String? // e.g. "Bed 1", "Bed 2"
+  advance  Float?  @default(0.0)
+  rent     Float?  @default(0.0)
+
+  // Status tracking
+  status    String @default("In") // "In", "Out", "Missing", "Vacated"
+  feeStatus String @default("Un-Paid") // "Paid", "Un-Paid", "Partial"
+
+  // Relations
+  room         Room?            @relation(fields: [roomNo], references: [id])
+  gateLogs     GateLog[]
+  transactions FeeTransaction[]
+  clearance    ClearanceRecord?
+  outpasses    Outpass[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ---------------------------------------------------------
 // Gate Logs & Movements
 // ---------------------------------------------------------
 model GateLog {
-  id             String    @id @default(uuid())
-  studentId      String
-  student        Student   @relation(fields: [studentId], references: [id])
-  
-  movementType   String    // "EXIT", "ENTRY"
+  id        String  @id @default(uuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  movementType   String // "EXIT", "ENTRY"
   reason         String?
   outTime        DateTime?
   expectedInTime DateTime?
   inTime         DateTime?
-  
-  isLate         Boolean   @default(false)
-  lateRemarks    String?
 
-  createdAt      DateTime  @default(now())
+  isLate      Boolean @default(false)
+  lateRemarks String?
+
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------
 // Fees & Transactions
 // ---------------------------------------------------------
 model FeeTransaction {
-  id             String    @id @default(uuid())
-  studentId      String
-  student        Student   @relation(fields: [studentId], references: [id])
-  
-  transactionType String    // "RENT", "MESS", "EB_BILL", "ADVANCE", "FINE", "PAYMENT"
-  amount         Float
-  description    String?
-  status         String    // "PENDING", "COMPLETED", "FAILED"
-  paymentMode    String?   // "CASH", "UPI", "BANK_TRANSFER"
-  
-  dueDate        DateTime?
-  paidDate       DateTime?
+  id        String  @id @default(uuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  transactionType String // "RENT", "MESS", "EB_BILL", "ADVANCE", "FINE", "PAYMENT"
+  amount          Float
+  description     String?
+  status          String // "PENDING", "COMPLETED", "FAILED"
+  paymentMode     String? // "CASH", "UPI", "BANK_TRANSFER"
+
+  dueDate  DateTime?
+  paidDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ---------------------------------------------------------
 // EB Bills (Electricity)
 // ---------------------------------------------------------
 model EbBill {
-  id             String    @id @default(uuid())
-  roomNo         String
-  room           Room      @relation(fields: [roomNo], references: [id])
-  
-  billingCycle   String    // e.g. "2026-08"
-  prevReading    Float
-  currReading    Float
-  unitsConsumed  Float
-  tariffRate     Float
-  totalAmount    Float
-  
-  perStudentShare Float    // Computed based on number of active students in the room
-  
-  createdAt      DateTime  @default(now())
+  id     String @id @default(uuid())
+  roomNo String
+  room   Room   @relation(fields: [roomNo], references: [id])
+
+  billingCycle  String // e.g. "2026-08"
+  prevReading   Float
+  currReading   Float
+  unitsConsumed Float
+  tariffRate    Float
+  totalAmount   Float
+
+  perStudentShare Float // Computed based on number of active students in the room
+
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------
 // Clearance & Discontinuation
 // ---------------------------------------------------------
 model ClearanceRecord {
-  id             String    @id @default(uuid())
-  studentId      String    @unique
-  student        Student   @relation(fields: [studentId], references: [id])
-  
-  reason         String    // "Completed Course", "Disciplinary Action", "Personal"
-  advanceHeld    Float
-  pendingDues    Float
-  deductions     Float     @default(0.0)
-  netRefund      Float
-  
-  remarks        String?
-  clearanceDate  DateTime  @default(now())
+  id        String  @id @default(uuid())
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id])
 
-  createdAt      DateTime  @default(now())
+  reason      String // "Completed Course", "Disciplinary Action", "Personal"
+  advanceHeld Float
+  pendingDues Float
+  deductions  Float  @default(0.0)
+  netRefund   Float
+
+  remarks       String?
+  clearanceDate DateTime @default(now())
+
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------
 // Outpass Management
 // ---------------------------------------------------------
 model Outpass {
-  id             String    @id @default(uuid())
-  outpassId      String    @unique // e.g. OP-20260928-871
-  studentId      String
-  student        Student   @relation(fields: [studentId], references: [id])
-  
-  destination    String
-  reason         String
-  leaveDate      DateTime
-  returnDate     DateTime
-  parentConsent  Boolean   @default(false)
-  
-  status         String    @default("Pending") // "Pending", "Approved", "Closed Returned", "Rejected"
-  gateAction     String    @default("Verify Exit") // "Verify Exit", "Done"
+  id        String  @id @default(uuid())
+  outpassId String  @unique // e.g. OP-20260928-871
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
 
+  destination   String
+  reason        String
+  leaveDate     DateTime
+  returnDate    DateTime
+  parentConsent Boolean  @default(false)
+
+  status     String @default("Pending") // "Pending", "Approved", "Closed Returned", "Rejected"
+  gateAction String @default("Verify Exit") // "Verify Exit", "Done"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
+// College Master
+// ---------------------------------------------------------
+model College {
+  id             String    @id @default(uuid())
+  name           String    @unique
+  shortName      String?
+  address        String?
+  lastDate       String?   // Full date string e.g., YYYY-MM-DD
+  finePerDay     Float     @default(50.0) // Fine amount per day
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 }

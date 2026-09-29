@@ -37,6 +37,7 @@ const Hostellers = () => {
   const location = useLocation();
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
+  const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -88,6 +89,17 @@ const Hostellers = () => {
   }, [hostellers]);
   const roomOptions = rooms.map(r => ({ value: r, label: r }));
 
+  const colleges = useMemo(() => {
+    const uniqueColleges = new Set<string>();
+    hostellers.forEach(h => {
+      if (h.college && h.college !== 'N/A') {
+        uniqueColleges.add(h.college);
+      }
+    });
+    return ['-- All Colleges --', ...Array.from(uniqueColleges).sort()];
+  }, [hostellers]);
+  const collegeOptions = colleges.map(c => ({ value: c, label: c }));
+
   const selectStyles = {
     control: (base: any, state: any) => ({
       ...base,
@@ -112,6 +124,7 @@ const Hostellers = () => {
 
   const filteredHostellers = hostellers.filter(h => {
     const matchesRoom = roomFilter === '-- All Rooms --' || `Room ${h.room}` === roomFilter;
+    const matchesCollege = collegeFilter === '-- All Colleges --' || h.college === collegeFilter;
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q || 
       h.name.toLowerCase().includes(q) || 
@@ -119,7 +132,7 @@ const Hostellers = () => {
       h.contact.includes(q) || 
       h.college.toLowerCase().includes(q);
       
-    return matchesRoom && matchesSearch;
+    return matchesRoom && matchesCollege && matchesSearch;
   });
 
   return (
@@ -178,6 +191,15 @@ const Hostellers = () => {
             onChange={(opt) => setRoomFilter(opt?.value || '-- All Rooms --')}
             styles={selectStyles}
             placeholder="Search room..."
+            isSearchable={true}
+          />
+          
+          <Select 
+            options={collegeOptions}
+            value={collegeOptions.find(o => o.value === collegeFilter)}
+            onChange={(opt) => setCollegeFilter(opt?.value || '-- All Colleges --')}
+            styles={selectStyles}
+            placeholder="Search college..."
             isSearchable={true}
           />
           

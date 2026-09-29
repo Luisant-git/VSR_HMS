@@ -9,9 +9,10 @@ import { GateLogsModule } from './gate-logs/gate-logs.module';
 import { EbBillsModule } from './eb-bills/eb-bills.module';
 import { ClearanceModule } from './clearance/clearance.module';
 import { OutpassModule } from './outpass/outpass.module';
+import { CollegesModule } from './colleges/colleges.module';
 
 @Module({
-  imports: [UploadModule, AuthModule, UsersModule, RoomsModule, StudentsModule, FeesModule, GateLogsModule, EbBillsModule, ClearanceModule, OutpassModule],
+  imports: [UploadModule, AuthModule, UsersModule, RoomsModule, StudentsModule, FeesModule, GateLogsModule, EbBillsModule, ClearanceModule, OutpassModule, CollegesModule],
   controllers: [],
   providers: [],
 })

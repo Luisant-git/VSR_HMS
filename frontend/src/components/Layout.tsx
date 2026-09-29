@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2 } from 'lucide-react';
 
 const Layout = () => {
 
@@ -72,6 +72,12 @@ const Layout = () => {
           <NavLink to="/rooms/eb-bills" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Zap size={18} /></div>
             Room EB Bill Sharing
+          </NavLink>
+          
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ADMINISTRATION</div>
+          <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Building2 size={18} /></div>
+            College Master
           </NavLink>
 
           {/* BIOMETRICS

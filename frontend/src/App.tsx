@@ -17,6 +17,7 @@ import Clearance from './pages/Clearance';
 import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
+import CollegeMaster from './pages/CollegeMaster';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -66,6 +67,7 @@ function App() {
         <Route path="late-warnings" element={<LateWarnings />} />
         <Route path="fees" element={<Fees />} />
         <Route path="outpass" element={<Outpass />} />
+        <Route path="colleges" element={<CollegeMaster />} />
         <Route path="register" element={<Register />} />
         <Route path="rooms">
           <Route index element={<Rooms />} />

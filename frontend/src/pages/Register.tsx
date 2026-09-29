@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { StudentAPI } from '../api/student.api';
 import { UploadAPI } from '../api/upload.api';
 import { RoomAPI } from '../api/room.api';
+import { CollegeAPI } from '../api/college.api';
 import Swal from 'sweetalert2';
 
 const Register = () => {
@@ -95,11 +96,13 @@ const Register = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
+  const [collegesList, setCollegesList] = useState<any[]>([]);
 
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
 
   React.useEffect(() => {
+    CollegeAPI.findAll().then(data => setCollegesList(data)).catch(() => {});
     if (editId) {
       StudentAPI.findOne(editId).then(data => {
         setFormData({
@@ -408,7 +411,14 @@ const Register = () => {
               <div style={{ gridColumn: 'span 2', height: '1px', background: 'var(--border-color)', margin: '5px 0' }}></div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>College or Workplace Name</label>
-                <input value={formData.college} onChange={e => setFormData({ ...formData, college: e.target.value })} type="text" placeholder="e.g. City Engineering College" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <Select
+                  options={collegesList.map(c => ({ value: c.name, label: c.name }))}
+                  value={formData.college ? { value: formData.college, label: formData.college } : null}
+                  onChange={(option: any) => setFormData({ ...formData, college: option ? option.value : '' })}
+                  isClearable
+                  placeholder="Select college"
+                  styles={{ control: (base) => ({ ...base, borderRadius: '6px', borderColor: '#cbd5e1', fontSize: '14px' }) }}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Course / Department / Designation</label>

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -26,12 +26,21 @@ export class StudentsService {
     delete cleanData.autoGenerateInvoice;
     delete cleanData.messFee;
 
-    const student = await this.prisma.student.create({
-      data: {
-        ...cleanData,
-        regNo,
-      },
-    });
+    let student;
+    try {
+      student = await this.prisma.student.create({
+        data: {
+          ...cleanData,
+          regNo,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        const target = error.meta?.target?.[0] || 'field';
+        throw new BadRequestException(`A student with this ${target} already exists.`);
+      }
+      throw error;
+    }
 
     if (student.roomNo) {
       await this.prisma.room.update({
