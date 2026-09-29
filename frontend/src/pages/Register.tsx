@@ -163,6 +163,8 @@ const Register = () => {
           bedNo: formData.bedNo || undefined,
           advance: Number(formData.advance) || 0,
           rent: selectedRoom?.room?.rent || 0,
+          messFee: selectedRoom?.room?.messFee || 0,
+          autoGenerateInvoice: autoGenerateInvoice,
 
           photoUrl: capturedImage || undefined,
           doc1Url: doc1Url || undefined,
