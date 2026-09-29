@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { gateLogApi } from '../api/gatelog.api';
 import { toast } from 'react-toastify';
@@ -73,7 +73,7 @@ const LateWarnings = () => {
         title="Late Return Warnings & Missing Alerts"
         subtitle="Automatic real-time alerts for hostellers who failed to return by the standard deadline or their stated check-in time"
         showBack={true}
-        onBack={() => navigate('/gate-logs')}
+
       />
 
       <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>

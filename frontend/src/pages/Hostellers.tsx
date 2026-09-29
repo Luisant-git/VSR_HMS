@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AlignLeft, Filter, Search, Download, Columns, X, Phone, Mail, MapPin, GraduationCap, Bed, Wallet, ArrowRight, Eye, FileText, LogOut, ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';

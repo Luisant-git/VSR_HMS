@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, Search, History, Zap, IndianRupee, ArrowLeft } from 'lucide-react';
+import { Calculator, Search, History } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
@@ -8,7 +8,7 @@ import { EbBillsAPI } from '../api/eb-bill.api';
 import { toast } from 'react-toastify';
 
 const EbBills = () => {
-  const navigate = useNavigate();
+
   const [prevReading, setPrevReading] = useState(0);
   const [currReading, setCurrReading] = useState(0);
   const [tariff, setTariff] = useState(8.50);

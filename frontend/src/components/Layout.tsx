@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, Search, Bell, Settings, FileText, Grid, MessageSquare, Briefcase, Menu, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, Coffee, List, Fingerprint, ScanFace, Database, Focus } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List } from 'lucide-react';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const isDashboard = location.pathname === '/';
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState<{ name?: string, email?: string } | null>(null);
 

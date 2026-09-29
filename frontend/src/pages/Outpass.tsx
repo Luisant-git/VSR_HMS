@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, FileText, CheckCircle2, X, Calendar, LogOut, Check, LogIn } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, CheckCircle2, X, LogOut, Check, LogIn } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { OutpassAPI } from '../api/outpass.api';
 

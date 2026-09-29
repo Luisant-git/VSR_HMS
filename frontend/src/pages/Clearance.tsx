@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, UserMinus, AlertCircle, CheckCircle2, IndianRupee, FileText, Info } from 'lucide-react';
+import { UserMinus, AlertCircle, CheckCircle2, IndianRupee, FileText } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';

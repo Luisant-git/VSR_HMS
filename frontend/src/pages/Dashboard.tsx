@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { RoomAPI } from '../api/room.api';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';

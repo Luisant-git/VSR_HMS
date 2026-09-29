@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, Calendar, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -27,9 +27,9 @@ const StudentProfile = () => {
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [photoFile, setPhotoFile] = useState(null);
-  const [doc1File, setDoc1File] = useState(null);
-  const [doc2File, setDoc2File] = useState(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [doc1File, setDoc1File] = useState<File | null>(null);
+  const [doc2File, setDoc2File] = useState<File | null>(null);
 
   const handleUpdateKyc = async () => {
     setIsUpdating(true);
@@ -43,7 +43,7 @@ const StudentProfile = () => {
       const doc1Url = await upload(doc1File);
       const doc2Url = await upload(doc2File);
 
-      const updateData = {};
+      const updateData: any = {};
       if (photoUrl) updateData.photoUrl = photoUrl;
       if (doc1Url) updateData.doc1Url = doc1Url;
       if (doc2Url) updateData.doc2Url = doc2Url;
@@ -668,15 +668,15 @@ const StudentProfile = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Profile Photo</label>
-                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Primary ID Proof</label>
-                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Secondary ID Proof</label>
-                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
                   </div>
                 </div>
 

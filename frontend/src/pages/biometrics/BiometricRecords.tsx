@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, MoreVertical, ScanFace, Fingerprint, Check, X, ShieldAlert, Eye, Settings, RefreshCw, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Filter, Check, X, RefreshCw, Trash2, User } from 'lucide-react';
 import { StudentAPI } from '../../api/student.api';
 
 const BiometricRecords = () => {
@@ -13,7 +13,7 @@ const BiometricRecords = () => {
       const activeStudents = data.filter((s: any) => s.status !== 'Vacated');
       
       // Inject mock biometric data for UI demonstration
-      const withBiometrics = activeStudents.map((s: any, idx: number) => {
+      const withBiometrics = activeStudents.map((s: any) => {
         // Randomly assign some to be pending, some fully registered, some partial
         const r = Math.random();
         let faceStatus = true;

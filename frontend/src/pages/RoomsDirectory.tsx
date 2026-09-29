@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, User, ArrowLeft, LayoutGrid, List, Wind } from 'lucide-react';
+import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, LayoutGrid, List, Wind } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
@@ -74,7 +74,7 @@ const RoomsDirectory = () => {
     status: r.occupiedCount === r.capacity ? 'Full' : r.occupiedCount === 0 ? 'Fully Vacant' : 'Partially Filled',
     price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
     type: r.type,
-    amenities: r.amenities ? r.amenities.split(',').map((a) => a.trim()) : [],
+    amenities: r.amenities ? r.amenities.split(',').map((a: string) => a.trim()) : [],
     filled: r.occupiedCount,
     total: r.capacity,
     occupants: r.occupiedCount > 0 ? `${r.occupiedCount} Students` : 'Ready for allocation'
@@ -220,21 +220,6 @@ const RoomsDirectory = () => {
                     const isOccupied = idx < r.filled;
                     const isFull = r.filled === r.total;
 
-                    const filteredGridData = roomsData.filter(room => {
-                      if (filterStatus === 'Available') return room.filled < room.total;
-                      if (filterStatus === 'Fully Vacant') return room.filled === 0;
-                      if (filterStatus === 'Full') return room.filled === room.total;
-                      return true;
-                    });
-
-                    const filteredTableData = tableData.filter(row => {
-                      const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase());
-                      if (!matchesSearch) return false;
-                      if (filterStatus === 'Available') return row.vac > 0;
-                      if (filterStatus === 'Fully Vacant') return row.occ === 0;
-                      if (filterStatus === 'Full') return row.vac === 0;
-                      return true;
-                    });
 
                     return (
                       <div key={idx} style={{
@@ -341,7 +326,7 @@ const RoomsDirectory = () => {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Block & Floor</label>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <input type="text" placeholder="Block (e.g. A)" required value={newRoom.block} onChange={e => setNewRoom({ ...newRoom, block: e.target.value })} style={{ width: '60%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
-                    <input type="number" placeholder="Floor" value={newRoom.floor} onChange={e => setNewRoom({ ...newRoom, floor: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '40%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                    <input type="number" placeholder="Floor" value={newRoom.floor} onChange={e => setNewRoom({ ...newRoom, floor: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '40%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                   </div>
                 </div>
               </div>
@@ -359,18 +344,18 @@ const RoomsDirectory = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Total Beds</label>
-                  <input type="number" required value={newRoom.capacity} onChange={e => setNewRoom({ ...newRoom, capacity: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.capacity} onChange={e => setNewRoom({ ...newRoom, capacity: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Monthly Rent (₹)</label>
-                  <input type="number" required value={newRoom.rent} onChange={e => setNewRoom({ ...newRoom, rent: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.rent} onChange={e => setNewRoom({ ...newRoom, rent: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mess Fee (₹)</label>
-                  <input type="number" required value={newRoom.messFee} onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value === '' ? '' : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="number" required value={newRoom.messFee} onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
 

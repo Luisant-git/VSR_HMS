@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Clock, LogIn, LogOut, CheckCircle2, Search, Filter, AlertTriangle, User, Eye, MoreVertical, XCircle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IndianRupee, Search, Filter, FileText, Download, Wallet, Plus, FileSpreadsheet, ArrowLeft } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';

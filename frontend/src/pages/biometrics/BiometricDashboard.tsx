@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Database, ScanFace, Fingerprint, Activity, Wifi, ShieldCheck, Clock, Users, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

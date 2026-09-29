@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ScanFace, Fingerprint, RefreshCw, CheckCircle2, User, Eye, LogIn, LogOut, X, Smartphone, Camera } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ScanFace, Fingerprint, RefreshCw, CheckCircle2, User, Eye, LogIn, LogOut, X, Camera } from 'lucide-react';
 import { StudentAPI } from '../../api/student.api';
 import { useNavigate } from 'react-router-dom';
 

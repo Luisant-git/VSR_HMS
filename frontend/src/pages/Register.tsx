@@ -63,7 +63,7 @@ const Register = () => {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUri = canvas.toBlob(async (blob) => {
+        canvas.toBlob(async (blob) => {
           if (blob) {
             stopCamera();
             setIsUploadingPhoto(true);
@@ -98,7 +98,7 @@ const Register = () => {
 
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
-  
+
   React.useEffect(() => {
     if (editId) {
       StudentAPI.findOne(editId).then(data => {
@@ -151,29 +151,29 @@ const Register = () => {
         await StudentAPI.update(editId, {
           ...formData,
           roomNo: selectedRoom.id || selectedRoom.value,
-          bedNo: formData.bedNo || null,
-          photoUrl: capturedImage,
-          doc1Url,
-          doc2Url
+          bedNo: formData.bedNo || undefined,
+          photoUrl: capturedImage || undefined,
+          doc1Url: doc1Url || undefined,
+          doc2Url: doc2Url || undefined
         });
       } else {
         await StudentAPI.create({
           ...formData,
           roomNo: selectedRoom?.value || selectedRoom?.id,
-          bedNo: formData.bedNo || null,
+          bedNo: formData.bedNo || undefined,
           advance: Number(formData.advance) || 0,
           rent: selectedRoom?.room?.rent || 0,
           messFee: selectedRoom?.room?.messFee || 0,
           autoGenerateInvoice,
-          photoUrl: capturedImage,
-          doc1Url,
-          doc2Url
+          photoUrl: capturedImage || undefined,
+          doc1Url: doc1Url || undefined,
+          doc2Url: doc2Url || undefined
         });
       }
-      
+
       await Swal.fire({
         title: editId ? 'Update Successful!' : 'Admission Successful!',
-        text: editId 
+        text: editId
           ? `Hosteller ${formData.name}'s details have been updated.`
           : `Hosteller ${formData.name} has been assigned to Room ${selectedRoom?.label?.split('(')[0]?.trim() || selectedRoom?.roomNo}.`,
         icon: 'success',
@@ -197,17 +197,17 @@ const Register = () => {
 
   React.useEffect(() => {
     RoomAPI.findAll().then((rooms) => {
-        const options = rooms.map((room) => {
-          const freeBeds = room.capacity - (room.occupiedBeds || 0);
-          const formatPrice = (p) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
-          return {
-            value: room.id,
-            label: `Room ${room.id} (${room.type} • ${freeBeds} bed(s) free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,
-            room
-          };
-        });
-        setRoomOptions(options);
-      }).catch(console.error);
+      const options = rooms.map((room) => {
+        const freeBeds = room.capacity - (room.occupiedBeds || 0);
+        const formatPrice = (p) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
+        return {
+          value: room.id,
+          label: `Room ${room.id} (${room.type} • ${freeBeds} bed(s) free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,
+          room
+        };
+      });
+      setRoomOptions(options);
+    }).catch(console.error);
   }, []);
 
   const selectStyles = {
@@ -245,7 +245,7 @@ const Register = () => {
     const occupiedBeds = (selectedRoom.room.students || [])
       .filter((s: any) => (s.status === 'In' || s.status === 'Present') && s.id !== editId)
       .map((s: any) => s.bedNo);
-      
+
     const beds = [];
     for (let i = 1; i <= capacity; i++) {
       const bedName = `Bed ${i}`;
@@ -553,7 +553,7 @@ const Register = () => {
                   isClearable={true}
                 />
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only rooms with vacant capacity are listed.</div>
-                
+
                 {selectedRoom && selectedRoom.room && (
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginTop: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontWeight: 600, fontSize: '13px', marginBottom: '12px' }}>
