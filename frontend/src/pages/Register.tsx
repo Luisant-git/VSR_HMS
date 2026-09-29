@@ -582,20 +582,7 @@ const Register = () => {
                   </div>
                 </label>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Bed Tag / Number</label>
-                <select 
-                  value={formData.bedNo} 
-                  onChange={(e) => setFormData({ ...formData, bedNo: e.target.value })} 
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}
-                  disabled={!selectedRoom}
-                >
-                  <option value="">-- Select Available Bed --</option>
-                  {availableBeds.map(bed => (
-                    <option key={bed} value={bed}>{bed}</option>
-                  ))}
-                </select>
-              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date *</label>
                 <input type="date" defaultValue="2026-09-25" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />

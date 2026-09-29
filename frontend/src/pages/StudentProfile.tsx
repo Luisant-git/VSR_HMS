@@ -5,6 +5,7 @@ import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { gateLogApi } from '../api/gatelog.api';
+import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { toast } from 'react-toastify';
@@ -21,6 +22,7 @@ const StudentProfile = () => {
   const [student, setStudent] = useState<any>(null);
   const [fees, setFees] = useState<any[]>([]);
   const [gateLogs, setGateLogs] = useState<any[]>([]);
+  const [outpasses, setOutpasses] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -67,7 +69,7 @@ const StudentProfile = () => {
             uuid: data.id,
             name: data.name,
             status: data.status || 'Active',
-            room: `${data.roomNo || 'N/A'} (${data.bedNo || 'N/A'})`,
+            room: `${data.roomNo || 'N/A'}`,
             joined: new Date(data.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             gender: data.gender || 'N/A',
             dob: data.dob ? new Date(data.dob).toLocaleDateString('en-GB') : 'N/A',
@@ -94,6 +96,9 @@ const StudentProfile = () => {
         }
         if (data.regNo) {
           gateLogApi.getAll(1, 100, data.regNo).then(res => setGateLogs(res.data || [])).catch(console.error);
+        }
+        if (data.id) {
+          OutpassAPI.findAll().then(res => setOutpasses(res.filter((op: any) => op.studentId === data.id))).catch(console.error);
         }
       }).catch(console.error);
     }
@@ -152,7 +157,7 @@ const StudentProfile = () => {
               <button onClick={() => navigate('/fees')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
                 <Wallet size={16} /> Collect Fee
               </button>
-              <button style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => navigate('/outpass')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <FileText size={16} /> Issue Outpass
               </button>
               <button
@@ -595,7 +600,55 @@ const StudentProfile = () => {
             </div>
           )}
 
-          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && (
+          {activeTab === 'Outpasses & Travel' && (
+            <div style={{ animation: 'fadeIn 0.3s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <MapPin size={20} color="#0d6efd" /> Outpasses & Travel History
+                </h3>
+              </div>
+              {outpasses.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  No outpasses found for this student.
+                </div>
+              ) : (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
+                      <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
+                        <th style={{ padding: '12px 15px' }}>Destination</th>
+                        <th style={{ padding: '12px 15px' }}>Reason</th>
+                        <th style={{ padding: '12px 15px' }}>From Date</th>
+                        <th style={{ padding: '12px 15px' }}>To Date</th>
+                        <th style={{ padding: '12px 15px' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outpasses.map(op => (
+                        <tr key={op.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '15px', color: '#475569', fontWeight: 600 }}>{op.destination}</td>
+                          <td style={{ padding: '15px', color: '#475569' }}>{op.reason}</td>
+                          <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.leaveDate).toLocaleDateString('en-GB')}</td>
+                          <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.returnDate).toLocaleDateString('en-GB')}</td>
+                          <td style={{ padding: '15px' }}>
+                            <span style={{ 
+                              padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px',
+                              background: op.status === 'Approved' ? '#dcfce7' : op.status === 'Active Out' ? '#fef3c7' : op.status === 'Closed Returned' ? '#e2e8f0' : '#fee2e2',
+                              color: op.status === 'Approved' ? '#166534' : op.status === 'Active Out' ? '#92400e' : op.status === 'Closed Returned' ? '#475569' : '#991b1b'
+                            }}>
+                              {op.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && activeTab !== 'Outpasses & Travel' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: '#94a3b8' }}>
               <Lock size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
               <div style={{ fontSize: '16px', fontWeight: 600 }}>{activeTab} Data</div>

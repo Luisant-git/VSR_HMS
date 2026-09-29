@@ -202,7 +202,7 @@ const Hostellers = () => {
               <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student ID</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Name & Contact</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room & Bed</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>College / Dept</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Advance Held</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fee Status</th>
@@ -244,7 +244,6 @@ const Hostellers = () => {
                   <td style={{ padding: '15px 20px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                       <span style={{ background: '#0d6efd', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'white' }}>Room {h.room}</span>
-                      <span style={{ fontSize: '13px', color: '#64748b' }}>{h.bed}</span>
                     </div>
                   </td>
                   <td style={{ padding: '15px 20px' }}>
@@ -330,6 +329,7 @@ const Hostellers = () => {
                           <Wallet size={16} color="#198754" /> Collect Fees
                         </button>
                         <button 
+                          onClick={() => navigate('/outpass')}
                           style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
                           onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
