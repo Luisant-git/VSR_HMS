@@ -248,28 +248,41 @@ const Dashboard = () => {
                 <div className="card-title">Active Outpasses</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '15px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '15px' }}>Ananya Iyer (103)</div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Chennai</div>
+                {outpasses.filter(op => op.status === 'Pending' || op.status === 'Approved' || op.status === 'Active Out').slice(0, 5).map((op, idx) => (
+                  <div key={idx} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '15px' }}>{op.student?.name} ({op.student?.room?.id || 'N/A'})</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{op.destination}</div>
+                      </div>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        background: op.status === 'Approved' ? 'rgba(32, 201, 151, 0.1)' : op.status === 'Active Out' ? '#ffc107' : 'rgba(242, 153, 0, 0.1)', 
+                        color: op.status === 'Approved' ? '#20c997' : op.status === 'Active Out' ? '#000' : '#f29900', 
+                        padding: '4px 8px', borderRadius: '4px', fontWeight: 600 
+                      }}>
+                        {op.status}
+                      </span>
                     </div>
-                    <span style={{ fontSize: '11px', background: 'rgba(242, 153, 0, 0.1)', color: '#f29900', padding: '4px 8px', borderRadius: '4px', fontWeight: 600 }}>Pending</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', background: '#f8f9fa', padding: '10px', borderRadius: '6px', fontSize: '12px' }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)' }}>Leave:</div>
+                        <div style={{ fontWeight: 500 }}>{new Date(op.leaveDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ color: 'var(--text-muted)' }}>Return:</div>
+                        <div style={{ fontWeight: 500 }}>{new Date(op.returnDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', background: '#f8f9fa', padding: '10px', borderRadius: '6px', fontSize: '12px' }}>
-                    <div>
-                      <div style={{ color: 'var(--text-muted)' }}>Leave:</div>
-                      <div style={{ fontWeight: 500 }}>21 Sep 2026</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: 'var(--text-muted)' }}>Return:</div>
-                      <div style={{ fontWeight: 500 }}>24 Sep 2026</div>
-                    </div>
+                ))}
+                {outpasses.filter(op => op.status === 'Pending' || op.status === 'Approved' || op.status === 'Active Out').length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
+                    No active outpasses
                   </div>
-                </div>
+                )}
               </div>
             </div>
-
           </div>
         </div>
       </div>

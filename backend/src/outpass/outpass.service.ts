@@ -18,7 +18,8 @@ export class OutpassService {
         reason: createOutpassDto.reason,
         leaveDate: new Date(createOutpassDto.leaveDate),
         returnDate: new Date(createOutpassDto.returnDate),
-        parentConsent: createOutpassDto.parentConsent
+        parentConsent: createOutpassDto.parentConsent,
+        status: 'Approved'
       },
     });
   }

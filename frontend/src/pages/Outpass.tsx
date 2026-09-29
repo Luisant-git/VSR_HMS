@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, CheckCircle2, X, Calendar, LogOut, Check } from 'lucide-react';
+import { Search, FileText, CheckCircle2, X, Calendar, LogOut, Check, LogIn } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { OutpassAPI } from '../api/outpass.api';
 
@@ -55,6 +55,8 @@ const Outpass = () => {
   const updateGateAction = async (id: string, currentAction: string) => {
     try {
       if (currentAction === 'Verify Exit') {
+        await OutpassAPI.updateStatus(id, { status: 'Active Out', gateAction: 'Verify Return' });
+      } else if (currentAction === 'Verify Return') {
         await OutpassAPI.updateStatus(id, { status: 'Closed Returned', gateAction: 'Done' });
       }
       fetchOutpasses();
@@ -166,6 +168,11 @@ const Outpass = () => {
                           Approved
                         </span>
                       )}
+                      {op.status === 'Active Out' && (
+                        <span style={{ display: 'inline-block', background: '#ffc107', color: '#000', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                          Active Out
+                        </span>
+                      )}
                       {op.status === 'Closed Returned' && (
                         <span style={{ display: 'inline-block', background: '#166534', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
                           Closed Returned
@@ -181,6 +188,10 @@ const Outpass = () => {
                       {op.gateAction === 'Verify Exit' ? (
                         <button onClick={() => updateGateAction(op.id, op.gateAction)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
                           <LogOut size={14} /> Verify Exit
+                        </button>
+                      ) : op.gateAction === 'Verify Return' ? (
+                        <button onClick={() => updateGateAction(op.id, op.gateAction)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#198754', border: '1px solid #198754', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                          <LogIn size={14} /> Verify Return
                         </button>
                       ) : (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', fontWeight: 500 }}>
