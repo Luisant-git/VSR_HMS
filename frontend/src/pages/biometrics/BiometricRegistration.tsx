@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, User, CheckCircle2, ScanFace, Fingerprint, AlertCircle, RefreshCw, Camera, X } from 'lucide-react';
+import { Search, User, CheckCircle2, ScanFace, Fingerprint, AlertCircle, RefreshCw, Camera, X, Smartphone } from 'lucide-react';
 import { StudentAPI } from '../../api/student.api';
 
 const BiometricRegistration = () => {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X } from 'lucide-react';
+import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -463,10 +463,7 @@ const GateLogs = () => {
                         return <>{datePart}<br/>{timePart}</>;
                       };
                       
-                      const formatTimeInline = (dateStr: string | null) => {
-                        if (!dateStr) return '—';
-                        return new Date(dateStr).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                      };
+
 
                       return (
                         <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9', background: 'white', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>

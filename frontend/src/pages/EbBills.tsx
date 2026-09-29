@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { Calculator, Search, History } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';

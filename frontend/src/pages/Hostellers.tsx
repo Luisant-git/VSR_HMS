@@ -42,7 +42,7 @@ const Hostellers = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [showFeeModal, setShowFeeModal] = useState(false);
-  const [feeStudent, setFeeStudent] = useState<any>(null);
+  const [feeStudent] = useState<any>(null);
   const [newFee, setNewFee] = useState({ transactionType: 'RENT', amount: 0, description: '', status: 'COMPLETED', paymentMode: 'UPI', referenceNumber: '' });
   const [isSubmittingFee, setIsSubmittingFee] = useState(false);
 

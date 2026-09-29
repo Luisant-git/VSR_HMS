@@ -163,7 +163,6 @@ const Register = () => {
           bedNo: formData.bedNo || undefined,
           advance: Number(formData.advance) || 0,
           rent: selectedRoom?.room?.rent || 0,
-          messFee: selectedRoom?.room?.messFee || 0,
           autoGenerateInvoice,
           photoUrl: capturedImage || undefined,
           doc1Url: doc1Url || undefined,
@@ -197,9 +196,9 @@ const Register = () => {
 
   React.useEffect(() => {
     RoomAPI.findAll().then((rooms) => {
-      const options = rooms.map((room) => {
+      const options = rooms.map((room: any) => {
         const freeBeds = room.capacity - (room.occupiedBeds || 0);
-        const formatPrice = (p) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
+        const formatPrice = (p: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
         return {
           value: room.id,
           label: `Room ${room.id} (${room.type} • ${freeBeds} bed(s) free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List } from 'lucide-react';
 
 const Layout = () => {
-  const location = useLocation();
+
   const navigate = useNavigate();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);

@@ -6,7 +6,6 @@ import { gateLogApi } from '../api/gatelog.api';
 import { toast } from 'react-toastify';
 
 const LateWarnings = () => {
-  const navigate = useNavigate();
   const [missingLogs, setMissingLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
