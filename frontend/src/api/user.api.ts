@@ -1,44 +1,43 @@
+import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL;
 
-export interface CreateUserDto {
-  email: string;
-  password?: string;
-  name: string;
-  role?: string;
-}
+const api = axios.create({
+  baseURL: `${API_URL}/users`,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 export const UserAPI = {
-  signup: async (data: CreateUserDto) => {
-    const response = await fetch(`${API_URL}/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
+  login: async (credentials: any) => {
+    const response = await api.post('/auth/login', credentials, {
+      baseURL: API_URL
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || 'Failed to sign up');
-    }
-    
-    return response.json();
+    return response.data;
   },
 
-  login: async (data: Omit<CreateUserDto, 'name' | 'role'>) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      throw new Error(errorData?.message || 'Failed to login');
-    }
-    
-    return response.json();
+  getAll: async () => {
+    const response = await api.get('/');
+    return response.data;
+  },
+
+  create: async (data: any) => {
+    const response = await api.post('/', data);
+    return response.data;
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await api.patch(`/${id}`, data);
+    return response.data;
+  },
+
+  toggleActive: async (id: string) => {
+    const response = await api.patch(`/${id}/toggle-active`);
+    return response.data;
   }
 };

@@ -22,4 +22,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   role?: string;
+
+  @ApiPropertyOptional({ example: true, description: 'Whether the user is active' })
+  @IsOptional()
+  isActive?: boolean;
 }

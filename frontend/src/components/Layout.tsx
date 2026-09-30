@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, Upload } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, Upload, Settings, ShieldAlert, Shield } from 'lucide-react';
+import { MenuPermissionAPI } from '../api/menuPermission.api';
 
 const Layout = () => {
 
   const navigate = useNavigate();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [user, setUser] = useState<{ name?: string, email?: string } | null>(null);
+  const [user, setUser] = useState<{ name?: string, email?: string, role?: string } | null>(null);
+  const [permissions, setPermissions] = useState<any>(null);
 
   useEffect(() => {
     try {
@@ -15,6 +17,13 @@ const Layout = () => {
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUser(payload);
+        if (payload.role) {
+          MenuPermissionAPI.getByRole(payload.role).then(res => {
+            if (res) {
+              setPermissions(res.permissions || res);
+            }
+          }).catch(console.error);
+        }
       }
     } catch (e) {
       console.error('Failed to parse token');
@@ -30,55 +39,101 @@ const Layout = () => {
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
-            <div className="nav-icon"><Home size={18} /></div>
-            Dashboard
-          </NavLink>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>HOSTELLERS</div>
-          <NavLink to="/hostellers" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Users size={18} /></div>
-            Hostellers
-          </NavLink>
-          <NavLink to="/register" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><UserPlus size={18} /></div>
-            Student Register
-          </NavLink>
-          <NavLink to="/gate-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><FileText size={18} /></div>
-            Gate Logs
-          </NavLink>
-          <NavLink to="/outpass" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><FileText size={18} /></div>
-            Outpasses
-          </NavLink>
+          {(!permissions || permissions.dashboard !== false) && (
+            <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
+              <div className="nav-icon"><Home size={18} /></div>
+              Dashboard
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.hostellers !== false || permissions.student_register !== false) && (
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>HOSTELLERS</div>
+          )}
+          
+          {(!permissions || permissions.hostellers !== false) && (
+            <NavLink to="/hostellers" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Users size={18} /></div>
+              Hostellers
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.student_register !== false) && (
+            <NavLink to="/register" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><UserPlus size={18} /></div>
+              Student Register
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.gate_logs !== false) && (
+            <NavLink to="/gate-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><FileText size={18} /></div>
+              Gate Logs
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.outpass !== false) && (
+            <NavLink to="/outpass" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><FileText size={18} /></div>
+              Outpasses
+            </NavLink>
+          )}
+
           <NavLink to="/late-warnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><AlertTriangle size={18} /></div>
             Late Warnings
           </NavLink>
-          <NavLink to="/fees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><CreditCard size={18} /></div>
-            Fees
-          </NavLink>
 
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ROOMS</div>
-          <NavLink to="/rooms" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Grid size={18} /></div>
-            Hostel Blocks
-          </NavLink>
-          <NavLink to="/rooms/directory" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><List size={18} /></div>
-            Rooms Master Directory
-          </NavLink>
-          <NavLink to="/rooms/eb-bills" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Zap size={18} /></div>
-            Room EB Bill Sharing
-          </NavLink>
+          {(!permissions || permissions.fees !== false) && (
+            <NavLink to="/fees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><CreditCard size={18} /></div>
+              Fees
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.rooms !== false) && (
+            <>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ROOMS</div>
+              <NavLink to="/rooms" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><Grid size={18} /></div>
+                Hostel Blocks
+              </NavLink>
+              <NavLink to="/rooms/directory" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><List size={18} /></div>
+                Rooms Master Directory
+              </NavLink>
+            </>
+          )}
+
+          {(!permissions || permissions.eb_bills !== false) && (
+            <NavLink to="/rooms/eb-bills" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Zap size={18} /></div>
+              Room EB Bill Sharing
+            </NavLink>
+          )}
           
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ADMINISTRATION</div>
-          <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Building2 size={18} /></div>
-            College Master
-          </NavLink>
+          {(!permissions || permissions.colleges !== false) && (
+            <>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ADMINISTRATION</div>
+              <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><Building2 size={18} /></div>
+                College Master
+              </NavLink>
+            </>
+          )}
+
+          {(!permissions || permissions.settings !== false) && (
+            <>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>SETTINGS</div>
+              <NavLink to="/settings/user-management" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><Shield size={18} /></div>
+                User Management
+              </NavLink>
+              <NavLink to="/settings/menu-permission" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><ShieldAlert size={18} /></div>
+                Menu Permissions
+              </NavLink>
+            </>
+          )}
 
           {/* BIOMETRICS
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>BIOMETRICS</div>

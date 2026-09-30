@@ -11,7 +11,7 @@ import { EbBillsModule } from './eb-bills/eb-bills.module';
 import { ClearanceModule } from './clearance/clearance.module';
 import { OutpassModule } from './outpass/outpass.module';
 import { CollegesModule } from './colleges/colleges.module';
-
+import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -25,7 +25,8 @@ import { CollegesModule } from './colleges/colleges.module';
     EbBillsModule, 
     ClearanceModule, 
     OutpassModule, 
-    CollegesModule
+    CollegesModule,
+    MenuPermissionModule
   ],
   controllers: [],
   providers: [],

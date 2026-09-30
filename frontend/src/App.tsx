@@ -19,6 +19,8 @@ import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
 import CollegeMaster from './pages/CollegeMaster';
 import StudentImport from './pages/StudentImport';
+import MenuPermission from './pages/MenuPermission';
+import UserManagement from './pages/UserManagement';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -81,6 +83,10 @@ function App() {
           <Route path="register" element={<BiometricRegistration />} />
           <Route path="identify" element={<BiometricIdentify />} />
           <Route path="records" element={<BiometricRecords />} />
+        </Route>
+        <Route path="settings">
+          <Route path="menu-permission" element={<MenuPermission />} />
+          <Route path="user-management" element={<UserManagement />} />
         </Route>
         <Route path="canteen" element={<ComingSoon title="Canteen" />} />
         <Route path="staff" element={<ComingSoon title="Staff" />} />
