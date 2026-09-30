@@ -11,7 +11,7 @@ export class CreateCollegeDto {
   address?: string;
 
   @ApiPropertyOptional({ description: 'Full date (YYYY-MM-DD)' })
-  lastDate?: string;
+  dueDate?: string;
 
   @ApiProperty({ description: 'Fine amount per day for late fee payment', default: 50.0 })
   finePerDay?: number;

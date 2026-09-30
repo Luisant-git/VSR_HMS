@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, RotateCcw } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -9,8 +9,9 @@ import { toast } from 'react-toastify';
 const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
+  const [isCalculatingFines, setIsCalculatingFines] = useState(false);
 
-  useEffect(() => {
+  const fetchHostellers = () => {
     StudentAPI.findAll().then(data => {
         const mapped = data.map((h: any) => {
           const pendingFeesAmount = h.transactions?.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0) || 0;
@@ -20,8 +21,8 @@ const Hostellers = () => {
             contact: h.mobileNo,
             room: h.roomNo || 'N/A',
             bed: h.bedNo || 'N/A',
-            college: h.college || 'N/A',
-            dept: h.educationalQua || 'N/A',
+            college: h.college?.name ? h.college.name.trim() : typeof h.college === 'string' ? h.college.trim() : 'N/A',
+            dept: h.educationalQua ? h.educationalQua.trim() : 'N/A',
             advance: `₹${h.advance || 0}`,
             pending: `₹${pendingFeesAmount}`,
             feeStatus: pendingFeesAmount > 0 ? 'Un-Paid' : 'Paid',
@@ -32,6 +33,10 @@ const Hostellers = () => {
         });
         setHostellers(mapped);
       }).catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchHostellers();
   }, []);
 
   const location = useLocation();
@@ -203,6 +208,36 @@ const Hostellers = () => {
             isSearchable={true}
           />
           
+          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --') && (
+            <button 
+              onClick={() => {
+                setSearchQuery('');
+                setRoomFilter('-- All Rooms --');
+                setCollegeFilter('-- All Colleges --');
+              }}
+              title="Clear all filters"
+              style={{ 
+                background: '#f1f5f9', 
+                color: '#64748b', 
+                border: 'none', 
+                padding: '8px 16px', 
+                borderRadius: '8px', 
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+            >
+              <X size={14} strokeWidth={3} /> Clear All
+            </button>
+          )}
+          <div style={{ flex: 1 }}></div>
+
           <button onClick={() => navigate('/gate-logs')} style={{ 
             background: '#0f172a', 
             color: 'white', 
@@ -269,7 +304,7 @@ const Hostellers = () => {
                     </div>
                   </td>
                   <td style={{ padding: '15px 20px' }}>
-                    <div style={{ fontWeight: 500, color: '#1e293b', fontSize: '14px' }}>{h.college}</div>
+                    <div style={{ fontWeight: 500, color: '#1e293b', fontSize: '14px' }}>{h.college?.name || h.college || '-'}</div>
                     <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{h.dept}</div>
                   </td>
                   <td style={{ padding: '15px 20px', color: '#198754', fontWeight: 600, fontSize: '14px' }}>

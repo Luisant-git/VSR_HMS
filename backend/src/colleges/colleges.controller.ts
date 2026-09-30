@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { CollegesService } from './colleges.service';
 import { CreateCollegeDto } from './dto/create-college.dto';
 import { UpdateCollegeDto } from './dto/update-college.dto';
@@ -18,8 +18,18 @@ export class CollegesController {
 
   @Get()
   @ApiOperation({ summary: 'Get all colleges' })
-  findAll() {
-    return this.collegesService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('dueDate') dueDate?: string,
+  ) {
+    return this.collegesService.findAll(
+      page ? parseInt(page) : 1, 
+      limit ? parseInt(limit) : 10, 
+      search, 
+      dueDate
+    );
   }
 
   @Get(':id')

@@ -97,14 +97,14 @@ export class StudentsService {
   async findAll() {
     return this.prisma.student.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { transactions: true, room: true }
+      include: { transactions: true, room: true, college: true }
     });
   }
 
   async findOne(id: string) {
     return this.prisma.student.findUnique({
       where: { regNo: id },
-      include: { room: true, clearance: true } // Include room and clearance relation
+      include: { room: true, clearance: true, college: true } // Include room, clearance, and college
     });
   }
 

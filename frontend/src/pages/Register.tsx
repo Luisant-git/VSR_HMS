@@ -91,7 +91,7 @@ const Register = () => {
   const [formData, setFormData] = useState({
     name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
-    emergencyContact: '', college: '', educationalQua: '', advance: '',
+    emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,7 +102,7 @@ const Register = () => {
   const editId = searchParams.get('edit');
 
   React.useEffect(() => {
-    CollegeAPI.findAll().then(data => setCollegesList(data)).catch(() => {});
+    CollegeAPI.findAll({ limit: 1000 }).then(response => setCollegesList(response.data || [])).catch(() => {});
     if (editId) {
       StudentAPI.findOne(editId).then(data => {
         setFormData({
@@ -119,7 +119,7 @@ const Register = () => {
           guardianName: data.guardianName || '',
           guardianMobileNo: data.guardianMobileNo || '',
           emergencyContact: data.emergencyContact || '',
-          college: data.college || '',
+          collegeId: data.collegeId || '',
           educationalQua: data.educationalQua || '',
           advance: data.advance || '',
           maritalStatus: data.maritalStatus || 'Single',
@@ -142,12 +142,12 @@ const Register = () => {
 
 
   const submitAdmission = async () => {
-    if (!formData.name || !formData.mobileNo) {
-      return toast.error('Please fill mandatory fields (Name, Mobile)');
-    }
-    if (!selectedRoom) {
-      return toast.error('Please assign a vacant room');
-    }
+    if (!formData.name.trim()) return toast.error('Please enter the Full Name');
+    if (!formData.mobileNo.trim()) return toast.error('Please enter the Mobile Number');
+    if (!formData.gender) return toast.error('Please select a Gender');
+    if (!formData.emergencyContact.trim()) return toast.error('Please enter the Emergency Contact Number');
+    if (!selectedRoom) return toast.error('Please assign a vacant room to the student');
+    
     setIsSubmitting(true);
     try {
       if (editId) {
@@ -331,16 +331,16 @@ const Register = () => {
               {/* Form Fields */}
               <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Student ID *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Student ID <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="text" defaultValue="HST-2026-015" readOnly style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8f9fa', color: '#64748b', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Full Name *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Full Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="text" placeholder="e.g. Ramesh Kumar" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Gender *</label>
-                  <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} defaultValue="Female" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Gender <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
                     <option>Female</option>
                     <option>Male</option>
                     <option>Other</option>
@@ -348,7 +348,7 @@ const Register = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Marital Status</label>
-                  <select value={formData.maritalStatus} onChange={e => setFormData({ ...formData, maritalStatus: e.target.value })} defaultValue="Single" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                  <select value={formData.maritalStatus} onChange={e => setFormData({ ...formData, maritalStatus: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
                     <option>Single</option>
                     <option>Married</option>
                   </select>
@@ -358,7 +358,7 @@ const Register = () => {
                   <input value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} type="date" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Mobile Number *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Mobile Number <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="text" placeholder="10-digit mobile" value={formData.mobileNo} onChange={e => setFormData({ ...formData, mobileNo: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
@@ -404,7 +404,7 @@ const Register = () => {
                 <input value={formData.guardianMobileNo} onChange={e => setFormData({ ...formData, guardianMobileNo: e.target.value })} type="text" placeholder="Optional" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Emergency Contact Number *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Emergency Contact Number <span style={{ color: '#ef4444' }}>*</span></label>
                 <input value={formData.emergencyContact} onChange={e => setFormData({ ...formData, emergencyContact: e.target.value })} type="text" placeholder="Mandatory contact" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
               <div></div>
@@ -412,9 +412,9 @@ const Register = () => {
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>College or Workplace Name</label>
                 <Select
-                  options={collegesList.map(c => ({ value: c.name, label: c.name }))}
-                  value={formData.college ? { value: formData.college, label: formData.college } : null}
-                  onChange={(option: any) => setFormData({ ...formData, college: option ? option.value : '' })}
+                  options={collegesList.map(c => ({ value: c.id, label: c.name }))}
+                  value={formData.collegeId ? { value: formData.collegeId, label: collegesList.find(c => c.id === formData.collegeId)?.name || '' } : null}
+                  onChange={(option: any) => setFormData({ ...formData, collegeId: option ? option.value : '' })}
                   isClearable
                   placeholder="Select college"
                   styles={{ control: (base) => ({ ...base, borderRadius: '6px', borderColor: '#cbd5e1', fontSize: '14px' }) }}
@@ -538,7 +538,7 @@ const Register = () => {
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Assign Vacant Room *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Assign Vacant Room <span style={{ color: '#ef4444' }}>*</span></label>
                 <Select
                   options={roomOptions}
                   value={selectedRoom}
@@ -580,7 +580,7 @@ const Register = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date *</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date <span style={{ color: '#ef4444' }}>*</span></label>
                 <input type="date" defaultValue="2026-09-25" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
             </div>

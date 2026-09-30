@@ -72,5 +72,13 @@ export const StudentAPI = {
       throw new Error(error.message || 'Failed to update student');
     }
     return res.json();
+  },
+
+  async triggerFines() {
+    const res = await fetch(`${API_URL}/students/actions/trigger-fines`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Failed to trigger fines');
+    return res.json();
   }
 };

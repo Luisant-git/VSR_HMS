@@ -71,7 +71,8 @@ model Student {
   address          String?
 
   // Academic info
-  college        String?
+  collegeId      String?
+  college        College? @relation(fields: [collegeId], references: [id])
   educationalQua String?
   courseDuration String?
   category       String?
@@ -202,15 +203,30 @@ model Outpass {
 }
 
 // ---------------------------------------------------------
+// Fine Master
+// ---------------------------------------------------------
+model FineMaster {
+  id         String   @id @default(uuid())
+  collegeId  String   @unique
+  college    College  @relation(fields: [collegeId], references: [id])
+  finePerDay Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
 // College Master
 // ---------------------------------------------------------
 model College {
-  id             String    @id @default(uuid())
-  name           String    @unique
-  shortName      String?
-  address        String?
-  lastDate       String?   // Full date string e.g., YYYY-MM-DD
-  finePerDay     Float     @default(50.0) // Fine amount per day
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id        String    @id @default(uuid())
+  name      String    @unique
+  shortName String?
+  address   String?
+  dueDate   DateTime? 
+
+  students   Student[]
+  fineMaster FineMaster?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

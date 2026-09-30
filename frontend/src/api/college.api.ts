@@ -4,7 +4,7 @@ export interface CreateCollegeDto {
   name: string;
   shortName?: string;
   address?: string;
-  lastDate?: string;
+  dueDate?: string;
   finePerDay?: number;
 }
 
@@ -22,8 +22,15 @@ export const CollegeAPI = {
     return res.json();
   },
 
-  async findAll() {
-    const res = await fetch(`${API_URL}/colleges`);
+  async findAll(params?: { page?: number; limit?: number; search?: string; dueDate?: string }) {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.dueDate) query.append('dueDate', params.dueDate);
+    
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`${API_URL}/colleges${queryString}`);
     if (!res.ok) throw new Error('Failed to fetch colleges');
     return res.json();
   },
