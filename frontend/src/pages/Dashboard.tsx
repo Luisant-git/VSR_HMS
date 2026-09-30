@@ -142,6 +142,54 @@ const Dashboard = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '25px', marginBottom: '25px' }}>
         
+        {/* Late Return Warnings */}
+        <div className="content-card">
+          <div className="card-header" style={{ marginBottom: '15px' }}>
+            <div className="card-title" style={{ color: '#ef4444' }}>Late Return Warnings</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+            {missingLogs.filter(log => !log.inTime).slice(0, 5).map((log, idx) => (
+              <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '15px', color: '#991b1b' }}>{log.student?.name} ({log.student?.regNo})</div>
+                    <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px', fontWeight: 600 }}>Room: {log.student?.room?.id || 'N/A'} | Mob: {log.student?.mobileNo || 'N/A'}</div>
+                    <div style={{ fontSize: '13px', color: '#b91c1c', marginTop: '4px' }}>{log.reason || 'No reason provided'}</div>
+                  </div>
+                  <span style={{ 
+                    fontSize: '11px', 
+                    background: '#fee2e2', 
+                    color: '#ef4444', 
+                    padding: '4px 8px', borderRadius: '4px', fontWeight: 600 
+                  }}>
+                    Late
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                    <div>
+                      <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Exit Time:</div>
+                      <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.outTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Expected In:</div>
+                      <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.expectedInTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+                  <button onClick={() => handleCheckIn(log.studentId)} style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '8px', background: '#ef4444', border: 'none', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'} onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}>
+                    <LogIn size={16} /> Mark as Returned
+                  </button>
+                </div>
+              </div>
+            ))}
+            {missingLogs.filter(log => !log.inTime).length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', gridColumn: '1 / -1' }}>
+                No late returns
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* On large screens, this grid will be styled via CSS to 2fr 1fr. For inline simplicity, I'll use a media query in CSS later, but let's just do flex here. */}
         <div className="dashboard-bottom-row" style={{ display: 'flex', gap: '25px', flexWrap: 'wrap' }}>
           
@@ -229,81 +277,6 @@ const Dashboard = () => {
 
           <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
             
-            {/* Today's Meal In/Out */}
-            {/* 
-            <div className="content-card">
-              <div className="card-header" style={{ marginBottom: '15px' }}>
-                <div className="card-title">Today's Meal In/Out</div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div style={{ background: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--card-blue)' }}>0</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '5px' }}>Breakfast</div>
-                </div>
-                <div style={{ background: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--card-orange)' }}>0</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '5px' }}>Lunch</div>
-                </div>
-                <div style={{ background: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--card-yellow)' }}>0</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '5px' }}>Snacks</div>
-                </div>
-                <div style={{ background: 'white', padding: '15px', borderRadius: '10px', textAlign: 'center', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--card-purple)' }}>0</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '5px' }}>Dinner</div>
-                </div>
-              </div>
-            </div>
-            */}
-
-            {/* Late Return Warnings */}
-            <div className="content-card">
-              <div className="card-header" style={{ marginBottom: '15px' }}>
-                <div className="card-title" style={{ color: '#ef4444' }}>Late Return Warnings</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {missingLogs.filter(log => !log.inTime).slice(0, 5).map((log, idx) => (
-                  <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '15px', color: '#991b1b' }}>{log.student?.name} ({log.student?.regNo})</div>
-                        <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px', fontWeight: 600 }}>Room: {log.student?.room?.id || 'N/A'} | Mob: {log.student?.mobileNo || 'N/A'}</div>
-                        <div style={{ fontSize: '13px', color: '#b91c1c', marginTop: '4px' }}>{log.reason || 'No reason provided'}</div>
-                      </div>
-                      <span style={{ 
-                        fontSize: '11px', 
-                        background: '#fee2e2', 
-                        color: '#ef4444', 
-                        padding: '4px 8px', borderRadius: '4px', fontWeight: 600 
-                      }}>
-                        Late
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                        <div>
-                          <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Exit Time:</div>
-                          <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.outTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Expected In:</div>
-                          <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.expectedInTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                      </div>
-                      <button onClick={() => handleCheckIn(log.studentId)} style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '8px', background: '#ef4444', border: 'none', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'} onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}>
-                        <LogIn size={16} /> Mark as Returned
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {missingLogs.filter(log => !log.inTime).length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0' }}>
-                    No late returns
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Active Outpasses */}
             <div className="content-card">
               <div className="card-header" style={{ marginBottom: '15px' }}>
