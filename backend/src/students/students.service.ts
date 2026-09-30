@@ -37,6 +37,10 @@ export class StudentsService {
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
     }
+    
+    if (cleanData.dateOfJoining) {
+      cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
+    }
 
     const autoGenerateInvoice = cleanData.autoGenerateInvoice;
     const messFee = cleanData.messFee;

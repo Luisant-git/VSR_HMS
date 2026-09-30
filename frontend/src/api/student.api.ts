@@ -22,6 +22,9 @@ export interface CreateStudentDto {
   college?: string;
   educationalQua?: string;
   courseDuration?: string;
+  pursuingYear?: string;
+  vsrLedger1?: string;
+  dateOfJoining?: string;
   category?: string;
   foodType?: string;
   roomNo?: string;

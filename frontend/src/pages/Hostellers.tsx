@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, RotateCcw } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, RotateCcw, Upload } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import StudentImport from './StudentImport';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { toast } from 'react-toastify';
@@ -10,6 +11,7 @@ const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
   const [isCalculatingFines, setIsCalculatingFines] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const fetchHostellers = () => {
     StudentAPI.findAll().then(data => {
@@ -148,6 +150,27 @@ const Hostellers = () => {
           subtitle="Filter by room to view enrolled students"
           rightContent={
             <>
+              <button 
+                onClick={() => setShowImportModal(true)}
+                style={{ 
+                background: 'white', 
+                color: '#334155', 
+                border: '1px solid #cbd5e1', 
+                padding: '12px 24px', 
+                borderRadius: '8px', 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginRight: '12px'
+              }}>
+                <Upload size={18} />
+                Bulk Import
+              </button>
               <button 
                 onClick={() => navigate('/register')}
                 style={{ 
@@ -502,6 +525,73 @@ const Hostellers = () => {
                   </div>
                 </div>
               </div>
+
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Personal Details</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Aadhar Number</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Blood Group</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.bloodGroup || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>DOB</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
+                    {selectedHosteller.raw?.dob ? new Date(selectedHosteller.raw.dob).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Marital Status</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.maritalStatus || 'N/A'}</div>
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Family & Guardian</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Father's Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.fatherName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.fatherMobileNo || 'No Mobile'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mother's Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.motherName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.motherMobileNo || 'No Mobile'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Guardian Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.guardianName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.guardianMobileNo || 'No Mobile'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Emergency Contact</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#dc3545' }}>{selectedHosteller.raw?.emergencyContact || 'N/A'}</div>
+                </div>
+              </div>
+
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Academic & Additional Info</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>VSR Ledger-1</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Date of Joining</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
+                    {selectedHosteller.raw?.dateOfJoining ? new Date(selectedHosteller.raw.dateOfJoining).toLocaleDateString() : 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Pursuing Year</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.pursuingYear || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>College/Institute</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.dept || 'N/A'}</div>
+                </div>
+              </div>
             </div>
             
             {/* Modal Footer */}
@@ -578,6 +668,13 @@ const Hostellers = () => {
             </div>
           </div>
         </div>
+      )}
+      
+      {showImportModal && (
+        <StudentImport onClose={() => {
+          setShowImportModal(false);
+          fetchHostellers();
+        }} />
       )}
     </div>
   );

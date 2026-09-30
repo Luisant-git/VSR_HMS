@@ -31,3 +31,4 @@ import { CollegesModule } from './colleges/colleges.module';
   providers: [],
 })
 export class AppModule {}
+

@@ -63,7 +63,6 @@ function App() {
           <Route index element={<Hostellers />} />
           <Route path="clearance/:id" element={<Clearance />} />
           <Route path="profile/:id" element={<StudentProfile />} />
-          <Route path="import" element={<StudentImport />} />
         </Route>
         <Route path="gate-logs" element={<GateLogs />} />
         <Route path="late-warnings" element={<LateWarnings />} />

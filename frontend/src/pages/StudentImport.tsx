@@ -25,7 +25,7 @@ const parseDate = (dateVal: any) => {
   return undefined;
 };
 
-const StudentImport = () => {
+const StudentImport = ({ onClose }: { onClose?: () => void }) => {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [previewData, setPreviewData] = useState<any[]>([]);
@@ -86,11 +86,24 @@ const StudentImport = () => {
       const row = dataToImport[i];
       try {
         // Find matching college
-        const collegeName = row['EDUCATIONAL INS']?.toString().trim();
-        const matchedCollege = colleges.find(c => 
+        const collegeName = (row['EDUCATIONAL INSTITUTION'] || row['EDUCATIONAL INS'] || row['COLLEGE'] || row['INSTITUTION'])?.toString().trim();
+        let matchedCollege = colleges.find(c => 
           c.name.toLowerCase() === collegeName?.toLowerCase() || 
           c.shortName?.toLowerCase() === collegeName?.toLowerCase()
         );
+
+        if (collegeName && !matchedCollege) {
+          try {
+            matchedCollege = await CollegeAPI.create({ 
+              name: collegeName, 
+              shortName: collegeName.substring(0, 10).toUpperCase() 
+            });
+            colleges.push(matchedCollege);
+            setColleges([...colleges]);
+          } catch (e) {
+            console.error('Failed to auto-create college:', e);
+          }
+        }
 
         // Prepare student DTO
         const studentData = {
@@ -101,21 +114,24 @@ const StudentImport = () => {
           collegeId: matchedCollege?.id, // Send the UUID instead of string
           educationalQua: row['COURSE']?.toString(),
           courseDuration: row['COURSE DURATION']?.toString(),
-          emailId: row['E-MAIL ID']?.toString(),
-          aadharNo: row['ADHAAR NUM']?.toString(),
-          bloodGroup: row['BLOOD GROUP']?.toString(),
-          fatherName: row['FATHER NAME']?.toString(),
-          fatherMobileNo: row['MOBILE NO_1']?.toString(), // Excel appends _1 for duplicates
-          motherName: row['MOTHER NAME']?.toString(),
-          motherMobileNo: row['MOBILE NO_2']?.toString(),
+          emailId: row['E-MAIL ID']?.toString() || row['EMAIL ID']?.toString() || row['EMAIL']?.toString(),
+          aadharNo: row['ADHAAR NUM']?.toString() || row['AADHAR NO']?.toString() || row['AADHAR NUMBER']?.toString() || row['AADHAAR']?.toString() || row['AADHAAR NO']?.toString(),
+          bloodGroup: row['BLOOD GROUP']?.toString() || row['BLOOD GRP']?.toString(),
+          fatherName: row['FATHER NAME']?.toString() || row["FATHER'S NAME"]?.toString(),
+          fatherMobileNo: row['MOBILE NO_1']?.toString() || row['FATHER MOBILE']?.toString() || row['FATHER PHONE']?.toString(),
+          motherName: row['MOTHER NAME']?.toString() || row["MOTHER'S NAME"]?.toString(),
+          motherMobileNo: row['MOBILE NO_2']?.toString() || row['MOTHER MOBILE']?.toString() || row['MOTHER PHONE']?.toString(),
           guardianName: row['GURDIAN NAME']?.toString() || row['GUARDIAN NAME']?.toString(),
-          guardianMobileNo: row['MOBILE NO_3']?.toString(),
-          maritalStatus: row['MARTIAL STS']?.toString(),
-          roomNo: row['ROOM']?.toString() || row['BLOCK']?.toString(),
+          guardianMobileNo: row['MOBILE NO_3']?.toString() || row['GUARDIAN MOBILE']?.toString() || row['GUARDIAN PHONE']?.toString(),
+          maritalStatus: row['MARTIAL STS']?.toString() || row['MARITAL STATUS']?.toString(),
+          roomNo: row['ROOM']?.toString() || row['BLOCK']?.toString() || row['ROOM NO']?.toString(),
           rent: row['RENT'] ? Number(row['RENT']) : undefined,
           advance: row['ADVANCE'] ? Number(row['ADVANCE']) : undefined,
           category: row['CATEGORY']?.toString(),
-          foodType: row['FOOD TYPE']?.toString()
+          foodType: row['FOOD TYPE']?.toString() || row['FOOD']?.toString(),
+          vsrLedger1: row['VSR LEDGER-1']?.toString() || row['VSR SPOON 1']?.toString() || row['VSR LEDGER']?.toString(),
+          dateOfJoining: parseDate(row['DOJ'])?.toISOString() || parseDate(row['DATE OF JOINING'])?.toISOString(),
+          pursuingYear: row['PURSUING YEAR']?.toString() || row['PURSUING YEAR ']?.toString() || row['PASSING YEAR']?.toString()
         };
 
         // If name exists, create
@@ -140,7 +156,12 @@ const StudentImport = () => {
   };
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '30px', width: '95vw', maxWidth: '1400px', height: '90vh', overflowY: 'auto', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 25, right: 25, background: 'white', border: '1px solid #e2e8f0', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          <XCircle size={20} />
+        </button>
+        <div style={{ paddingBottom: '40px' }}>
       {importResults && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: 'white', borderRadius: '12px', padding: '30px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
@@ -182,7 +203,10 @@ const StudentImport = () => {
               }} style={{ padding: '10px 20px', background: 'white', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
                 Close
               </button>
-              <button onClick={() => navigate('/hostellers')} style={{ padding: '10px 20px', background: 'var(--sidebar-active)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+              <button onClick={() => {
+                if (onClose) onClose();
+                else navigate('/hostellers');
+              }} style={{ padding: '10px 20px', background: 'var(--sidebar-active)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
                 Go to Directory
               </button>
             </div>
@@ -341,6 +365,8 @@ const StudentImport = () => {
           </div>
         </div>
       )}
+    </div>
+      </div>
     </div>
   );
 };

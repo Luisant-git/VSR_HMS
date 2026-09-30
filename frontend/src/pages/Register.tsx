@@ -92,7 +92,8 @@ const Register = () => {
     name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
     emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
-    maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: ''
+    maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
+    bloodGroup: '', dateOfJoining: '', vsrLedger1: '', pursuingYear: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
@@ -125,7 +126,11 @@ const Register = () => {
           maritalStatus: data.maritalStatus || 'Single',
           aadharNo: data.aadharNo || '',
           secondaryIdNo: data.secondaryIdNo || '',
-          bedNo: data.bedNo || ''
+          bedNo: data.bedNo || '',
+          bloodGroup: data.bloodGroup || '',
+          dateOfJoining: data.dateOfJoining ? data.dateOfJoining.split('T')[0] : '',
+          vsrLedger1: data.vsrLedger1 || '',
+          pursuingYear: data.pursuingYear || ''
         });
         if (data.photoUrl) setCapturedImage(data.photoUrl);
         if (data.doc1Url) setDoc1Url(data.doc1Url);
@@ -365,6 +370,20 @@ const Register = () => {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Email Address</label>
                   <input value={formData.emailId} onChange={e => setFormData({ ...formData, emailId: e.target.value })} type="email" placeholder="student@example.com" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Blood Group</label>
+                  <select value={formData.bloodGroup} onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                    <option value="">Select</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Permanent Home Address</label>
                   <textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Street, City, State, Pincode" rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', resize: 'vertical' }}></textarea>
@@ -423,6 +442,14 @@ const Register = () => {
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Course / Department / Designation</label>
                 <input value={formData.educationalQua} onChange={e => setFormData({ ...formData, educationalQua: e.target.value })} type="text" placeholder="e.g. B.Tech IT / Junior Developer" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Pursuing Year / Passing Year</label>
+                <input value={formData.pursuingYear} onChange={e => setFormData({ ...formData, pursuingYear: e.target.value })} type="text" placeholder="e.g. 1st Year / 2026" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>VSR Ledger-1</label>
+                <input value={formData.vsrLedger1} onChange={e => setFormData({ ...formData, vsrLedger1: e.target.value })} type="text" placeholder="e.g. Ledger ref" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
             </div>
           </div>
@@ -581,7 +608,7 @@ const Register = () => {
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Joining Date <span style={{ color: '#ef4444' }}>*</span></label>
-                <input type="date" defaultValue="2026-09-25" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <input type="date" value={formData.dateOfJoining} onChange={e => setFormData({ ...formData, dateOfJoining: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
             </div>
           </div>

@@ -43,10 +43,6 @@ const Layout = () => {
             <div className="nav-icon"><UserPlus size={18} /></div>
             Student Register
           </NavLink>
-          <NavLink to="/hostellers/import" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Upload size={18} /></div>
-            Bulk Import
-          </NavLink>
           <NavLink to="/gate-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><FileText size={18} /></div>
             Gate Logs

@@ -76,6 +76,12 @@ model Student {
   educationalQua String?
   courseDuration String?
   category       String?
+  passingYear    String? // Retain passingYear just in case, or rename to pursuingYear
+  pursuingYear   String?
+
+  // Additional tracking
+  vsrLedger1     String?
+  dateOfJoining  DateTime?
 
   // Hostel details
   foodType String? // "Veg", "Non-Veg"
@@ -222,7 +228,7 @@ model College {
   name      String    @unique
   shortName String?
   address   String?
-  dueDate   DateTime? 
+  dueDate   DateTime?
 
   students   Student[]
   fineMaster FineMaster?

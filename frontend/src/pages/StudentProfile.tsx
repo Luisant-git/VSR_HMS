@@ -89,8 +89,18 @@ const StudentProfile = () => {
           monthlyRent: `₹${data.rent || 0}`,
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
-          doc2Url: data.doc2Url
-          , aadharNo: data.aadharNo, secondaryIdNo: data.secondaryIdNo, clearance: data.clearance
+          doc2Url: data.doc2Url,
+          aadharNo: data.aadharNo, 
+          secondaryIdNo: data.secondaryIdNo, 
+          clearance: data.clearance,
+          bloodGroup: data.bloodGroup || 'N/A',
+          maritalStatus: data.maritalStatus || 'N/A',
+          vsrLedger1: data.vsrLedger1 || 'N/A',
+          dateOfJoining: data.dateOfJoining ? new Date(data.dateOfJoining).toLocaleDateString('en-GB') : 'N/A',
+          pursuingYear: data.pursuingYear || 'N/A',
+          advance: data.advance || 0,
+          category: data.category || 'N/A',
+          foodType: data.foodType || 'N/A'
         });
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
@@ -244,12 +254,24 @@ const StudentProfile = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Aadhar Number</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.aadharNo || 'N/A'}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Blood Group</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.bloodGroup}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Gender</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.gender}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Date of Birth</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.dob}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Marital Status</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.maritalStatus}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Mobile Phone</div>
@@ -263,9 +285,32 @@ const StudentProfile = () => {
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Address</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.address}</div>
                 </div>
+              </div>
+
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={20} color="#8b5cf6" /> Academic & Additional Info
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>VSR Ledger-1</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.vsrLedger1}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Date of Joining</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.dateOfJoining}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Pursuing Year</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.pursuingYear}</div>
+                </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>College / Dept</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.college}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Category</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.category}</div>
                 </div>
               </div>
 
@@ -327,6 +372,14 @@ const StudentProfile = () => {
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Rent</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{student.monthlyRent}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Advance Paid</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{student.advance}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Food Type</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.foodType}</div>
                 </div>
               </div>
 
