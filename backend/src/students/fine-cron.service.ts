@@ -52,25 +52,43 @@ export class FineCronService {
           const hasPendingBaseFees = student.transactions.some(t => t.transactionType !== 'FINE');
           
           if (hasPendingBaseFees) {
-            // Sum all currently pending fines
-            const existingPendingFines = student.transactions
-              .filter(t => t.transactionType === 'FINE')
-              .reduce((sum, t) => sum + t.amount, 0);
+            const pendingFines = student.transactions.filter(t => t.transactionType === 'FINE');
+            const existingPendingFinesTotal = pendingFines.reduce((sum, t) => sum + t.amount, 0);
 
-            if (expectedTotalFine > existingPendingFines) {
-              const difference = expectedTotalFine - existingPendingFines;
+            if (expectedTotalFine > existingPendingFinesTotal) {
+              const difference = expectedTotalFine - existingPendingFinesTotal;
               const description = `Late fine accumulation for ${daysOverdue} days overdue (₹${college.fineMaster.finePerDay}/day)`;
               
-              await this.prisma.feeTransaction.create({
-                data: {
-                  studentId: student.id,
-                  transactionType: 'FINE',
-                  amount: difference,
-                  status: 'PENDING',
-                  description: description
+              if (pendingFines.length > 0) {
+                // Consolidate into the first pending fine record
+                const primaryFine = pendingFines[0];
+                const newAmount = primaryFine.amount + difference;
+                
+                await this.prisma.feeTransaction.update({
+                  where: { id: primaryFine.id },
+                  data: { amount: newAmount, description: description }
+                });
+
+                // Remove any duplicate pending fine rows to keep UI clean
+                if (pendingFines.length > 1) {
+                  for (let i = 1; i < pendingFines.length; i++) {
+                    await this.prisma.feeTransaction.delete({ where: { id: pendingFines[i].id } });
+                  }
                 }
-              });
-              this.logger.log(`Added catch-up fine of ₹${difference} to student ${student.regNo}`);
+                this.logger.log(`Consolidated fine to ₹${newAmount} for student ${student.regNo}`);
+              } else {
+                // No pending fines, create a fresh one
+                await this.prisma.feeTransaction.create({
+                  data: {
+                    studentId: student.id,
+                    transactionType: 'FINE',
+                    amount: difference,
+                    status: 'PENDING',
+                    description: description
+                  }
+                });
+                this.logger.log(`Added catch-up fine of ₹${difference} to student ${student.regNo}`);
+              }
             }
           }
         }
