@@ -18,7 +18,7 @@ const Hostellers = () => {
           return {
             id: h.regNo,
             name: h.name,
-            contact: h.mobileNo,
+            contact: h.mobileNo || 'N/A',
             room: h.roomNo || 'N/A',
             bed: h.bedNo || 'N/A',
             college: h.college?.name ? h.college.name.trim() : typeof h.college === 'string' ? h.college.trim() : 'N/A',

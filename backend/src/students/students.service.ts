@@ -6,11 +6,28 @@ export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createStudentDto: any) {
-    const totalStudents = await this.prisma.student.count();
-    const year = new Date().getFullYear();
-    const regNo = `HST-${year}-${(totalStudents + 1).toString().padStart(3, '0')}`;
-
     const cleanData = { ...createStudentDto };
+    
+    let regNo = cleanData.regNo;
+    if (!regNo) {
+      const lastStudent = await this.prisma.student.findFirst({
+        orderBy: { createdAt: 'desc' }
+      });
+      let nextNumber: number | undefined;
+      if (lastStudent && lastStudent.regNo) {
+        const parts = lastStudent.regNo.split('-');
+        if (parts.length === 3) {
+          nextNumber = parseInt(parts[2], 10) + 1;
+        }
+      }
+      if (!nextNumber || isNaN(nextNumber)) {
+        const totalStudents = await this.prisma.student.count();
+        nextNumber = totalStudents + 1;
+      }
+      const year = new Date().getFullYear();
+      regNo = `HST-${year}-${nextNumber.toString().padStart(3, '0')}`;
+    }
+
     Object.keys(cleanData).forEach(key => {
       if (cleanData[key] === '') {
         cleanData[key] = null;
@@ -26,6 +43,13 @@ export class StudentsService {
     delete cleanData.autoGenerateInvoice;
     delete cleanData.messFee;
 
+    if (cleanData.roomNo) {
+      const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
+      if (!roomExists) {
+        cleanData.roomNo = null;
+      }
+    }
+
     let student;
     try {
       student = await this.prisma.student.create({
@@ -38,8 +62,16 @@ export class StudentsService {
       if (error.code === 'P2002') {
         const target = error.meta?.target?.[0] || 'field';
         throw new BadRequestException(`A student with this ${target} already exists.`);
+      } else if (error.code === 'P2003') {
+        const fieldName = error.meta?.field_name || 'relation';
+        if (typeof fieldName === 'string' && fieldName.includes('roomNo')) {
+          throw new BadRequestException(`Invalid Room Number provided. The room does not exist.`);
+        } else if (typeof fieldName === 'string' && fieldName.includes('collegeId')) {
+          throw new BadRequestException(`Invalid College provided. The college does not exist.`);
+        }
+        throw new BadRequestException(`Foreign key constraint failed on ${fieldName}.`);
       }
-      throw error;
+      throw new BadRequestException(error.message || 'Failed to create student');
     }
 
     if (student.roomNo) {

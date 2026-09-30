@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2 } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, Upload } from 'lucide-react';
 
 const Layout = () => {
 
@@ -35,13 +35,17 @@ const Layout = () => {
             Dashboard
           </NavLink>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>HOSTELLERS</div>
-          <NavLink to="/hostellers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/hostellers" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Users size={18} /></div>
             Hostellers
           </NavLink>
           <NavLink to="/register" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><UserPlus size={18} /></div>
             Student Register
+          </NavLink>
+          <NavLink to="/hostellers/import" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Upload size={18} /></div>
+            Bulk Import
           </NavLink>
           <NavLink to="/gate-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><FileText size={18} /></div>

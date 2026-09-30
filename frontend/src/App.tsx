@@ -18,6 +18,7 @@ import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
 import CollegeMaster from './pages/CollegeMaster';
+import StudentImport from './pages/StudentImport';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -62,6 +63,7 @@ function App() {
           <Route index element={<Hostellers />} />
           <Route path="clearance/:id" element={<Clearance />} />
           <Route path="profile/:id" element={<StudentProfile />} />
+          <Route path="import" element={<StudentImport />} />
         </Route>
         <Route path="gate-logs" element={<GateLogs />} />
         <Route path="late-warnings" element={<LateWarnings />} />
