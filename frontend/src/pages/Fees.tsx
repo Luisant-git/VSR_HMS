@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -99,9 +100,13 @@ const Fees = () => {
     })
   };
 
-  const totalInvoiced = fees.reduce((sum, fee) => sum + fee.amount, 0);
-  const totalCollected = fees.filter(f => f.status === 'COMPLETED').reduce((sum, fee) => sum + fee.amount, 0);
-  const pendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, fee) => sum + fee.amount, 0);
+
+
+  const statusOptions = [
+    { value: 'ALL', label: '-- All Status --' },
+    { value: 'PAID', label: 'Paid' },
+    { value: 'UNPAID', label: 'Unpaid' }
+  ];
 
   const filteredFees = fees.filter(fee => {
     let match = true;
@@ -136,6 +141,10 @@ const Fees = () => {
     }
     return match;
   });
+
+  const totalInvoiced = filteredFees.reduce((sum, fee) => sum + fee.amount, 0);
+  const totalCollected = filteredFees.filter(f => f.status === 'COMPLETED').reduce((sum, fee) => sum + fee.amount, 0);
+  const pendingFeesAmt = filteredFees.filter(f => f.status === 'PENDING').reduce((sum, fee) => sum + fee.amount, 0);
 
   const displayFees = useMemo(() => {
     const pendingByStudent = new Map();
@@ -218,17 +227,62 @@ const Fees = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const data = displayFees.map(fee => ({
+      'Receipt No': fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—',
+      'Reg. No': fee.student?.regNo || 'N/A',
+      'Student Name': fee.student?.name || 'Unknown',
+      'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
+      'Payment Date': fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—',
+      'Advance': fee.advance || 0,
+      'Rent': fee.rent || 0,
+      'EB': fee.eb || 0,
+      'Mess': fee.mess || 0,
+      'Fine': fee.fine || 0,
+      'Total Paid': fee.totalAmount || 0,
+      'Payment Method': fee.status === 'COMPLETED' ? (fee.paymentMode || '-') : '—',
+      'Status': fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'
+    }));
+
+    // Calculate totals
+    const totalRow = {
+      'Receipt No': 'TOTAL',
+      'Reg. No': '',
+      'Student Name': '',
+      'Room': '',
+      'Payment Date': '',
+      'Advance': displayFees.reduce((sum, f) => sum + f.advance, 0),
+      'Rent': displayFees.reduce((sum, f) => sum + f.rent, 0),
+      'EB': displayFees.reduce((sum, f) => sum + f.eb, 0),
+      'Mess': displayFees.reduce((sum, f) => sum + f.mess, 0),
+      'Fine': displayFees.reduce((sum, f) => sum + f.fine, 0),
+      'Total Paid': displayFees.reduce((sum, f) => sum + f.totalAmount, 0),
+      'Payment Method': '',
+      'Status': ''
+    };
+
+    data.push(totalRow as any);
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Fees");
+    XLSX.writeFile(workbook, "Fees_Report.xlsx");
+  };
+
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader
         title="Fees Paid / Unpaid"
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
         rightContent={
-          <>
-            <button onClick={() => setFilter('PAID')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <FileSpreadsheet size={16} color="#64748b" /> All Receipts
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={handleExportExcel} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
+              <FileSpreadsheet size={16} /> Export Excel
             </button>
-          </>
+            <button onClick={() => setFilter('ALL')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <FileText size={16} color="#64748b" /> View All
+            </button>
+          </div>
         }
       />
 
@@ -257,7 +311,7 @@ const Fees = () => {
           </div>
           <div>
             <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Pending Unpaid Fees</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{pendingFees.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{pendingFeesAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
       </div>
@@ -271,6 +325,7 @@ const Fees = () => {
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
             <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
             <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
+            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '150px'})}} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>From:</span>
@@ -286,6 +341,7 @@ const Fees = () => {
               onClick={() => {
                 setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
                 setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
+                setFilter('ALL');
                 setFromDate('');
                 setToDate('');
                 setSearchQuery('');
