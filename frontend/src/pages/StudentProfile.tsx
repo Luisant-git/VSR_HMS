@@ -255,8 +255,8 @@ const StudentProfile = () => {
             </div>
             <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', margin: '0 0 5px 0' }}>{student.name}</h3>
             <span style={{ 
-              background: student.status === 'In' ? '#dcfce7' : '#f1f5f9', 
-              color: student.status === 'In' ? '#166534' : '#475569', 
+              background: student.status === 'Vacated' ? '#f87171' : student.status === 'Out' ? '#fef3c7' : '#dcfce7', 
+              color: student.status === 'Vacated' ? 'white' : student.status === 'Out' ? '#92400e' : '#166534', 
               padding: '4px 12px', 
               borderRadius: '20px', 
               fontSize: '12px', 
@@ -266,7 +266,7 @@ const StudentProfile = () => {
               gap: '4px', 
               marginBottom: '15px' 
             }}>
-              <CheckCircle2 size={14} /> {student.status === 'In' ? 'Active' : student.status === 'Out' ? 'Inactive' : student.status}
+              <CheckCircle2 size={14} /> {student.status === 'Vacated' ? 'Inactive' : student.status === 'Out' ? 'Active (Out)' : 'Active'}
             </span>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#475569', textAlign: 'left', background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>

@@ -64,10 +64,24 @@ export class OutpassService {
   }
 
   async updateStatus(id: string, status: string, gateAction: string) {
-    return this.prisma.outpass.update({
+    const op = await this.prisma.outpass.update({
       where: { id },
       data: { status, gateAction },
     });
+    
+    if (status === 'Active Out') {
+      await this.prisma.student.update({
+        where: { id: op.studentId },
+        data: { status: 'Out' }
+      });
+    } else if (status === 'Closed Returned') {
+      await this.prisma.student.update({
+        where: { id: op.studentId },
+        data: { status: 'In' }
+      });
+    }
+    
+    return op;
   }
 
   async remove(id: string) {
