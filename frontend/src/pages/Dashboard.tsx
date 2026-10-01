@@ -51,7 +51,7 @@ const Dashboard = () => {
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
   const currentlyOut = activeStudents.filter((s: any) => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
-  const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending').length;
+  const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending' || op.status === 'Active Out').length;
   const handleCheckIn = async (studentId: string) => {
     try {
       await gateLogApi.create({
@@ -136,7 +136,7 @@ const Dashboard = () => {
               <span style={{ fontWeight: 600 }}>Active Outpasses</span>
             </div>
             <div className="value" style={{ fontSize: '28px', fontWeight: 800 }}>{activeOutpassesCount}</div>
-            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Pending or Approved</div>
+            <div style={{ fontSize: '12px', opacity: 0.8, marginTop: '8px' }}>Pending, Approved or Active</div>
           </div>
         </div>
       </div>
