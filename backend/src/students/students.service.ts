@@ -180,6 +180,13 @@ export class StudentsService {
     };
   }
 
+  async findByMobile(mobileNo: string) {
+    return this.prisma.student.findFirst({
+      where: { mobileNo },
+      include: { transactions: true, room: true, college: true }
+    });
+  }
+
   async findOne(id: string) {
     return this.prisma.student.findUnique({
       where: { regNo: id },

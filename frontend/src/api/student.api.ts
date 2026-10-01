@@ -52,6 +52,12 @@ export const StudentAPI = {
     return res.json();
   },
 
+  async findByMobile(mobileNo: string) {
+    const res = await fetch(`${API_URL}/students/mobile/${mobileNo}`);
+    if (!res.ok) throw new Error('Failed to fetch student by mobile');
+    return res.json();
+  },
+
   async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());

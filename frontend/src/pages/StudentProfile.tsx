@@ -637,8 +637,8 @@ const StudentProfile = () => {
                             {fee.status === 'COMPLETED' ? (fee.feesList[0] ? (() => {
                               const f = fee.feesList[0];
                               const ymStr = new Date(f.createdAt).toISOString().slice(0, 7).replace('-', '');
-                              const purpose = fee.feesList.length > 1 ? 'MUL' : f.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
-                              const studentStr = student?.regNo || 'UNKN';
+                              const purpose = fee.feesList.length > 1 ? 'MUL' : (f.transactionType || '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'FEE';
+                              const studentStr = student?.id || 'UNKN';
                               return `INV-${purpose}-${ymStr}-${studentStr}`;
                             })() : '—') : '—'}
                           </td>
@@ -666,11 +666,11 @@ const StudentProfile = () => {
                           </td>
                           <td style={{ textAlign: 'right', padding: '15px' }}>
                             {fee.status === 'PENDING' ? (
-                              <button onClick={() => navigate(`/fees?student=${student?.regNo || student?.id}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <Wallet size={14} /> Pay Now
                               </button>
                             ) : (
-                              <button onClick={() => setSelectedReceipt({...fee, student})} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => setSelectedReceipt({...fee, student: { name: student.name, regNo: student.id, roomNo: student.room }})} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <FileText size={14} color="#64748b" /> View Receipt
                               </button>
                             )}

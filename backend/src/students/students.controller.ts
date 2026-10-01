@@ -31,6 +31,11 @@ export class StudentsController {
     });
   }
 
+  @Get('mobile/:mobileNo')
+  findByMobile(@Param('mobileNo') mobileNo: string) {
+    return this.studentsService.findByMobile(mobileNo);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.studentsService.findOne(id);

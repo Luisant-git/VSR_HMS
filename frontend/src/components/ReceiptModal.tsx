@@ -40,6 +40,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             .no-print { display: none !important; }
             .print-exact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
+          @media (max-width: 640px) {
+            .receipt-header, .receipt-footer { flex-direction: column !important; align-items: flex-start !important; gap: 15px; }
+            .receipt-header > div:last-child { text-align: left !important; margin-left: 0 !important; }
+            .receipt-header table { margin-left: 0 !important; text-align: left !important; }
+            .receipt-header h1 { font-size: 22px !important; }
+            .receipt-header .title-text { font-size: 24px !important; letter-spacing: 2px !important; margin-bottom: 10px !important; }
+            .receipt-pad { padding: 20px !important; min-height: 0 !important; }
+            .watermark { font-size: 60px !important; letter-spacing: 5px !important; }
+            .action-bar { padding: 15px !important; flex-direction: column-reverse; }
+            .action-bar button { width: 100%; justify-content: center; }
+          }
         `}
       </style>
       <div id="receipt-printable-area" style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '750px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '95vh', fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif' }}>
@@ -47,22 +58,22 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         {/* Top Accent Bar */}
         <div className="print-exact" style={{ height: '8px', background: 'linear-gradient(90deg, #1e293b, #334155)', width: '100%' }}></div>
 
-        <div style={{ padding: '40px 50px', flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <div className="receipt-pad" style={{ padding: '40px 50px', flex: 1, overflowY: 'auto', position: 'relative', minHeight: 0 }}>
           
           {/* PAID Watermark */}
-          <div className="print-exact" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: '120px', fontWeight: 900, color: 'rgba(22, 163, 74, 0.05)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
+          <div className="watermark print-exact" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: '120px', fontWeight: 900, color: 'rgba(22, 163, 74, 0.05)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
             PAID
           </div>
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             {/* Header Section */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
+            <div className="receipt-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
               <div>
                 <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>VSR HOSTEL</h1>
                 <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>123 University Road, City Campus<br/>State, ZIP 12345<br/>Phone: +91 98765 43210<br/>GSTIN: 22AAAAA0000A1Z5</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '32px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px', lineHeight: 1, marginBottom: '15px' }}>RECEIPT</div>
+                <div className="title-text" style={{ fontSize: '32px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px', lineHeight: 1, marginBottom: '15px' }}>RECEIPT</div>
                 <table style={{ fontSize: '13px', textAlign: 'right', marginLeft: 'auto', color: '#334155' }}>
                   <tbody>
                     <tr><td style={{ paddingBottom: '4px', paddingRight: '12px', fontWeight: 600 }}>Receipt No:</td><td style={{ paddingBottom: '4px', fontWeight: 700, color: '#0f172a' }}>{receiptNo}</td></tr>
@@ -124,7 +135,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             </div>
 
             {/* Signature & Footer Section */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
+            <div className="receipt-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
               <div style={{ maxWidth: '300px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
                   <strong style={{ color: '#334155' }}>Note:</strong> This is a computer generated receipt. Payments are non-refundable and subject to hostel terms and conditions. Keep this receipt for your records.
@@ -140,7 +151,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         </div>
 
         {/* Actions (No Print) */}
-        <div className="no-print" style={{ padding: '20px 40px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
+        <div className="action-bar no-print" style={{ padding: '20px 40px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
           <button onClick={onClose} style={{ background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer', padding: '10px 24px', borderRadius: '8px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <X size={18} /> Close
           </button>
