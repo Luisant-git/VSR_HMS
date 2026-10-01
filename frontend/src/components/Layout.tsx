@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, Upload, Settings, ShieldAlert, Shield } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 
 const Layout = () => {

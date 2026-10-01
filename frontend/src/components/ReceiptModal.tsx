@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer, CheckCircle } from 'lucide-react';
+import { X, Printer } from 'lucide-react';
 
 interface ReceiptModalProps {
   fee: any;
@@ -17,7 +17,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   
   const totalAmount = isGrouped ? fee.totalAmount : firstFee?.amount;
   const paymentMode = isGrouped ? fee.paymentMode : firstFee?.paymentMode;
-  const description = isGrouped ? (feesList.find((f: any) => f.description)?.description || '') : firstFee?.description;
+  // unused description
 
   const ymStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,7).replace('-', '');
   const purpose = isGrouped && feesList.length > 1 ? 'MUL' : (firstFee?.transactionType || 'FEE').replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
@@ -108,7 +108,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {feesList.map((f: any, idx: number) => (
+                  {feesList.map((f: any) => (
                     <tr key={f.id}>
                       <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
                         {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}

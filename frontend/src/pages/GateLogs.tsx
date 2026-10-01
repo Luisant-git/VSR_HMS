@@ -60,14 +60,14 @@ const GateLogs = () => {
     }
   };
 
-  const safeStudents = Array.isArray(students) ? students : (students.data || []);
+  const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
   // If EXIT, only show students who are 'In'. If ENTRY, only 'Out' or 'Missing'.
-  const availableStudents = activeStudents.filter(s => 
+  const availableStudents = activeStudents.filter((s: any) => 
     movementType === 'EXIT' ? s.status === 'In' : (s.status === 'Out' || s.status === 'Missing')
   );
 
-  const studentOptions = availableStudents.map(s => ({
+  const studentOptions = availableStudents.map((s: any) => ({
     value: s.id,
     label: `${s.name} (${s.regNo} - Room ${s.room?.id || 'N/A'})`
   }));

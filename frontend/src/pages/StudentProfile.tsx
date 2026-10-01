@@ -48,7 +48,7 @@ const StudentProfile = () => {
 
       if (f.status === 'PENDING') {
         pendingGroup.totalAmount += f.amount;
-        pendingGroup[category] += f.amount;
+        (pendingGroup as any)[category] += f.amount;
         pendingGroup.feesList.push(f);
         if (!pendingGroup.createdAt || new Date(f.createdAt) < new Date(pendingGroup.createdAt)) {
           pendingGroup.createdAt = f.createdAt;

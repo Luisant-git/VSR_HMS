@@ -27,7 +27,7 @@ const parseDate = (dateVal: any) => {
 };
 
 const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void }) => {
-  const [colleges, setColleges] = useState<any[]>([]);
+  
 
   // We will fetch colleges inside handleImport to avoid stale closure issues
 

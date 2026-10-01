@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, SquarePen, Trash2, Shield, UserCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, SquarePen, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
-import Swal from 'sweetalert2';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -40,7 +39,7 @@ const UserManagement = () => {
     try {
       if (editingId) {
         const payload = { ...formData };
-        if (!payload.password) delete payload.password;
+        if (!payload.password) delete (payload as any).password;
         await UserAPI.update(editingId, payload);
         toast.success('User updated successfully');
       } else {
@@ -82,7 +81,7 @@ const UserManagement = () => {
         title="User Management"
         subtitle="Manage administrators and wardens"
         showBack={true}
-        icon={<Shield size={28} color="#4f46e5" />}
+        
         rightContent={
           <button
             onClick={() => {

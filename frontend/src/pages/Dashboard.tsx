@@ -47,7 +47,7 @@ const Dashboard = () => {
   const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
   const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
 
-  const safeStudents = Array.isArray(students) ? students : (students.data || []);
+  const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
   const currentlyOut = activeStudents.filter((s: any) => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;

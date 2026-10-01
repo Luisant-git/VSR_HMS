@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
@@ -78,7 +78,7 @@ const MenuPermission = () => {
         title="Menu Permissions"
         subtitle="Configure access control for different roles"
         showBack={true}
-        icon={<ShieldAlert size={28} color="#f59e0b" />}
+        
       />
 
       <div style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '20px' }}>
