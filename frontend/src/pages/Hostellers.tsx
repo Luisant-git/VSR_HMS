@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -146,6 +147,46 @@ const Hostellers = () => {
 
   const filteredHostellers = hostellers; // Filtering is now server-side
 
+  const handleExportExcel = () => {
+    const data = filteredHostellers.map(h => {
+      const raw = h.raw || {};
+      return {
+        'REGIS NO': raw.regNo || '',
+        'NAME': raw.name || '',
+        'GENDER': raw.gender || '',
+        'MOBILE NO': raw.mobileNo || '',
+        'DOB': raw.dob ? new Date(raw.dob).toLocaleDateString('en-GB') : '',
+        'COLLEGE': typeof raw.college === 'string' ? raw.college : (raw.college?.name || ''),
+        'COURSE': raw.educationalQua || '',
+        'COURSE DURATION': raw.courseDuration || '',
+        'EMAIL ID': raw.emailId || '',
+        'AADHAR NUMBER': raw.aadharNo || '',
+        'BLOOD GROUP': raw.bloodGroup || '',
+        'FATHER NAME': raw.fatherName || '',
+        'FATHER MOBILE': raw.fatherMobileNo || '',
+        'MOTHER NAME': raw.motherName || '',
+        'MOTHER MOBILE': raw.motherMobileNo || '',
+        'GUARDIAN NAME': raw.guardianName || '',
+        'GUARDIAN MOBILE': raw.guardianMobileNo || '',
+        'MARITAL STATUS': raw.maritalStatus || '',
+        'ROOM NO': raw.roomNo || raw.room || '',
+        'RENT': raw.rent || 0,
+        'ADVANCE': raw.advance || 0,
+        'CATEGORY': raw.category || '',
+        'FOOD TYPE': raw.foodType || '',
+        'VSR LEDGER-1': raw.vsrLedger1 || '',
+        'DATE OF JOINING': raw.dateOfJoining ? new Date(raw.dateOfJoining).toLocaleDateString('en-GB') : '',
+        'PURSUING YEAR': raw.pursuingYear || raw.passingYear || '',
+        'STATUS': raw.status || 'In'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Hostellers");
+    XLSX.writeFile(workbook, "Hostellers_Export.xlsx");
+  };
+
   return (
     <div>
       <div className="content-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
@@ -154,6 +195,27 @@ const Hostellers = () => {
           subtitle="Filter by room to view enrolled students"
           rightContent={
             <>
+              <button 
+                onClick={handleExportExcel}
+                style={{ 
+                background: '#10b981', 
+                color: 'white', 
+                border: 'none', 
+                padding: '12px 24px', 
+                borderRadius: '8px', 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(16,185,129,0.2)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginRight: '12px'
+              }}>
+                <FileSpreadsheet size={18} />
+                Export Excel
+              </button>
               <label 
                 style={{ 
                 background: 'white', 
