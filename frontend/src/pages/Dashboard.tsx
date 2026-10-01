@@ -19,7 +19,7 @@ const Dashboard = () => {
   useEffect(() => {
     RoomAPI.findAll().then(setDbRooms).catch(console.error);
     FeesAPI.findAll().then(setFees).catch(console.error);
-    StudentAPI.findAll().then(setStudents).catch(console.error);
+    StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error);
     gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
     OutpassAPI.findAll().then(setOutpasses).catch(console.error);
   }, []);
@@ -47,8 +47,9 @@ const Dashboard = () => {
   const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
   const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
 
-  const activeStudents = students.filter(s => s.status !== 'Vacated');
-  const currentlyOut = activeStudents.filter(s => s.status === 'Out').length;
+  const safeStudents = Array.isArray(students) ? students : (students.data || []);
+  const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
+  const currentlyOut = activeStudents.filter((s: any) => s.status === 'Out').length;
   const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
   const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending').length;
   const handleCheckIn = async (studentId: string) => {

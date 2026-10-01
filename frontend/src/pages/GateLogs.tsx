@@ -60,8 +60,8 @@ const GateLogs = () => {
     }
   };
 
-  const activeStudents = students.filter(s => s.status !== 'Vacated');
-  
+  const safeStudents = Array.isArray(students) ? students : (students.data || []);
+  const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
   // If EXIT, only show students who are 'In'. If ENTRY, only 'Out' or 'Missing'.
   const availableStudents = activeStudents.filter(s => 
     movementType === 'EXIT' ? s.status === 'In' : (s.status === 'Out' || s.status === 'Missing')

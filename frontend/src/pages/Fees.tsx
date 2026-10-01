@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
@@ -26,8 +26,16 @@ const Fees = () => {
     value: studentParam || 'ALL',
     label: studentParam ? `${studentParam}` : '-- All Students --'
   });
+  const [collegeFilter, setCollegeFilter] = useState<any>({ value: 'ALL', label: '-- All Colleges --' });
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [page, setPage] = useState(1);
+  
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
+  const [feesToCollect, setFeesToCollect] = useState<any[]>([]);
+
+
 
   const fetchFees = () => {
     FeesAPI.findAll().then(data => {
@@ -50,6 +58,17 @@ const Fees = () => {
       }
     });
     return [{ value: 'ALL', label: '-- All Students --' }, ...Array.from(students.values())];
+  }, [fees]);
+
+  const collegeOptions = useMemo(() => {
+    const colleges = new Set<string>();
+    fees.forEach(fee => {
+      if (fee.student?.college) {
+        const c = typeof fee.student.college === 'string' ? fee.student.college : fee.student.college.name;
+        if (c) colleges.add(c);
+      }
+    });
+    return [{ value: 'ALL', label: '-- All Colleges --' }, ...Array.from(colleges).map(c => ({ value: c, label: c }))];
   }, [fees]);
 
   useEffect(() => {
@@ -92,6 +111,20 @@ const Fees = () => {
 
     if (selectedStudent.value !== 'ALL' && fee.student?.regNo !== selectedStudent.value) match = false;
 
+    if (collegeFilter.value !== 'ALL') {
+      const c = typeof fee.student?.college === 'string' ? fee.student.college : fee.student?.college?.name;
+      if (c !== collegeFilter.value) match = false;
+    }
+
+    if (fromDate) {
+       if (new Date(fee.createdAt) < new Date(fromDate)) match = false;
+    }
+    if (toDate) {
+       const endOfDay = new Date(toDate);
+       endOfDay.setHours(23, 59, 59, 999);
+       if (new Date(fee.createdAt) > endOfDay) match = false;
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = match && (
@@ -104,8 +137,81 @@ const Fees = () => {
     return match;
   });
 
+  const displayFees = useMemo(() => {
+    const pendingByStudent = new Map();
+    const paidByBatch = new Map();
+
+    filteredFees.forEach(f => {
+      const studentId = f.student?.regNo || 'unknown';
+      
+      const type = (f.transactionType || '').toUpperCase();
+      let category = 'other';
+      if (type.includes('RENT')) category = 'rent';
+      else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
+      else if (type.includes('MESS')) category = 'mess';
+      else if (type.includes('FINE')) category = 'fine';
+      else if (type.includes('ADVANCE')) category = 'advance';
+
+      if (f.status === 'PENDING') {
+        if (!pendingByStudent.has(studentId)) {
+          pendingByStudent.set(studentId, {
+            isGrouped: true,
+            id: `pending-${studentId}`,
+            student: f.student,
+            status: 'PENDING',
+            createdAt: f.createdAt,
+            paymentMode: '-',
+            totalAmount: 0,
+            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+            feesList: []
+          });
+        }
+        const group = pendingByStudent.get(studentId);
+        group.totalAmount += f.amount;
+        group[category] += f.amount;
+        group.feesList.push(f);
+        if (new Date(f.createdAt) < new Date(group.createdAt)) {
+          group.createdAt = f.createdAt;
+        }
+      } else {
+        const paidTime = f.updatedAt || f.createdAt;
+        // Group by student + minute of payment so batch payments appear as one receipt
+        const batchKey = `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
+        if (!paidByBatch.has(batchKey)) {
+          paidByBatch.set(batchKey, {
+            isGrouped: true,
+            id: `paid-${batchKey}`,
+            student: f.student,
+            status: f.status,
+            createdAt: f.createdAt,
+            paidDate: paidTime,
+            paymentMode: f.paymentMode || 'N/A',
+            totalAmount: 0,
+            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+            feesList: []
+          });
+        }
+        const group = paidByBatch.get(batchKey);
+        group.totalAmount += f.amount;
+        group[category] += f.amount;
+        group.feesList.push(f);
+      }
+    });
+
+    const result = [...Array.from(pendingByStudent.values()), ...Array.from(paidByBatch.values())];
+    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return result;
+  }, [filteredFees]);
+
+  const paginatedFees = useMemo(() => {
+    return displayFees.slice((page - 1) * 10, page * 10);
+  }, [displayFees, page]);
+  
+  const totalPages = Math.ceil(displayFees.length / 10);
+
   const closePaymentModal = () => {
     setFeeToCollect(null);
+    setFeesToCollect([]);
     if (feeIdParam) {
       searchParams.delete('feeId');
       navigate(`?${searchParams.toString()}`, { replace: true });
@@ -157,27 +263,42 @@ const Fees = () => {
       </div>
 
       <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>Hostel Fee Invoices</h3>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Hostel Fee Invoices</h3>
+          </div>
 
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
-              {['ALL', 'UNPAID', 'PAID', 'PARTIAL'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, border: 'none', background: filter === f ? 'var(--sidebar-active)' : 'transparent', color: filter === f ? 'white' : '#64748b', boxShadow: filter === f ? '0 2px 6px rgba(74, 114, 250, 0.3)' : 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                >
-                  {f === 'ALL' ? 'All Invoices' : f === 'UNPAID' ? 'Unpaid Only' : f === 'PAID' ? 'Paid Only' : 'Partially Paid'}
-                </button>
-              ))}
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
+            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>From:</span>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>To:</span>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
             </div>
 
-            <Select options={studentOptions} value={selectedStudent} onChange={setSelectedStudent} styles={selectStyles} isSearchable={true} />
+            <button
+              onClick={() => {
+                setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
+                setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
+                setFromDate('');
+                setToDate('');
+                setSearchQuery('');
+                setPage(1);
+              }}
+              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
+            >
+              <X size={14} /> Clear All
+            </button>
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', marginLeft: 'auto' }}>
               <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
+              <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
             </div>
           </div>
         </div>
@@ -186,34 +307,53 @@ const Fees = () => {
           <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 12px' }}>Invoice No</th>
-                <th style={{ padding: '16px 12px' }}>Student & Room</th>
-                <th style={{ padding: '16px 12px' }}>Fee Type</th>
-                <th style={{ padding: '16px 12px' }}>Period</th>
-                <th style={{ padding: '16px 12px' }}>Amount</th>
+                <th style={{ padding: '16px 12px' }}>Receipt No</th>
+                <th style={{ padding: '16px 12px' }}>Reg. No</th>
+                <th style={{ padding: '16px 12px' }}>Student Name</th>
+                <th style={{ padding: '16px 12px' }}>Room</th>
+                <th style={{ padding: '16px 12px' }}>Payment Date</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Advance</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Rent</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>EB</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Mess</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Fine</th>
+                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Total Paid</th>
+                <th style={{ padding: '16px 12px' }}>Payment Method</th>
                 <th style={{ padding: '16px 12px' }}>Status</th>
                 <th style={{ textAlign: 'right', padding: '16px 12px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredFees.map(fee => (
-                <tr key={fee.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '16px 12px' }}>
-                    <div style={{ fontWeight: 700, color: '#0d6efd' }}>{fee.status === 'COMPLETED' ? formatInvoiceNumber(fee) : '—'}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b' }}>{new Date(fee.createdAt).toLocaleDateString()}</div>
+              {paginatedFees.map((fee: any) => (
+                <tr key={fee.id} style={{ borderBottom: '1px solid #e2e8f0', background: fee.status === 'PENDING' ? '#fff1f2' : 'white' }}>
+                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0d6efd' }}>
+                    {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—'}
                   </td>
-                  <td style={{ padding: '16px 12px' }}>
-                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</div>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{fee.student?.regNo || 'N/A'} | Room {fee.student?.roomNo || 'N/A'}</div>
+                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 600 }}>{fee.student?.regNo || 'N/A'}</td>
+                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</td>
+                  <td style={{ padding: '16px 12px', color: '#475569' }}>Room {fee.student?.roomNo || 'N/A'}</td>
+                  <td style={{ padding: '16px 12px', color: '#334155' }}>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
+                  
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#198754', fontWeight: 600 }}>₹{fee.advance.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.rent.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.mess.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
+                  
+                  <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 800, color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontSize: '14px' }}>
+                    ₹{fee.totalAmount.toLocaleString('en-IN')}
                   </td>
-                  <td style={{ padding: '16px 12px' }}><span style={{ border: '1px solid #cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', color: '#475569', fontWeight: 600 }}>{fee.transactionType}</span></td>
-                  <td style={{ padding: '16px 12px', color: '#334155' }}>{new Date(fee.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
-                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0f172a' }}>₹{fee.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td style={{ padding: '16px 12px' }}><span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>{fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}</span></td>
+                  
+                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 500 }}>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
+                  <td style={{ padding: '16px 12px' }}>
+                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>
+                      {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                    </span>
+                  </td>
                   <td style={{ textAlign: 'right', padding: '16px 12px' }}>
                     {fee.status === 'PENDING' ? (
-                      <button onClick={() => setFeeToCollect(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <Wallet size={14} /> Collect Payment
+                      <button onClick={() => setFeesToCollect(fee.feesList)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(13, 110, 253, 0.2)' }}>
+                        <Wallet size={14} /> Pay Now
                       </button>
                     ) : (
                       <button onClick={() => setSelectedReceipt(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -223,14 +363,57 @@ const Fees = () => {
                   </td>
                 </tr>
               ))}
-              {filteredFees.length === 0 && (
+              {paginatedFees.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No fee transactions found.</td>
+                  <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No fee transactions found.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>
+              Showing {((page - 1) * 10) + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: 'white', borderRadius: '6px', fontSize: '13px', color: page === 1 ? '#94a3b8' : '#475569', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Previous
+              </button>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    style={{
+                      width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: p === page ? 'none' : '1px solid #cbd5e1',
+                      background: p === page ? 'var(--sidebar-active)' : 'white',
+                      color: p === page ? 'white' : '#475569',
+                      borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: p === page ? 600 : 400
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: 'white', borderRadius: '6px', fontSize: '13px', color: page === totalPages ? '#94a3b8' : '#475569', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* Receipt Modal */}
@@ -239,9 +422,10 @@ const Fees = () => {
       )}
 
       {/* Collect Payment Modal */}
-      {feeToCollect && (
+      {(feeToCollect || feesToCollect.length > 0) && (
         <CollectPaymentModal
           fee={feeToCollect}
+          fees={feesToCollect}
           onClose={closePaymentModal}
           onSuccess={() => {
             closePaymentModal();

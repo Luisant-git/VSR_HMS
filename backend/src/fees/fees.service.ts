@@ -16,21 +16,34 @@ export class FeesService {
   async findAll() {
     return this.prisma.feeTransaction.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { student: true }
+      include: { 
+        student: {
+          include: { college: true }
+        }
+      }
     });
   }
 
   async findByStudent(studentId: string) {
     return this.prisma.feeTransaction.findMany({
       where: { studentId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        student: {
+          include: { college: true }
+        }
+      }
     });
   }
 
   async findOne(id: string) {
     return this.prisma.feeTransaction.findUnique({
       where: { id },
-      include: { student: true }
+      include: { 
+        student: {
+          include: { college: true }
+        }
+      }
     });
   }
 

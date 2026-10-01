@@ -63,7 +63,14 @@ export const StudentAPI = {
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetch(`${API_URL}/students${queryString}`);
     if (!res.ok) throw new Error('Failed to fetch students');
-    return res.json();
+    const json = await res.json();
+    
+    // Return full paginated object if pagination was requested
+    if (params?.page || params?.limit) {
+      return json;
+    }
+    // Otherwise return just the array for backwards compatibility
+    return json.data || json;
   },
 
   async findOne(id: string) {

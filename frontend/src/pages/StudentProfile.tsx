@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
@@ -24,6 +24,64 @@ const StudentProfile = () => {
   const [gateLogs, setGateLogs] = useState<any[]>([]);
   const [outpasses, setOutpasses] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
+  
+  const displayFees = useMemo(() => {
+    const pendingGroup = {
+      isGrouped: true,
+      id: 'pending-group',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      totalAmount: 0,
+      rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+      feesList: [] as any[]
+    };
+    const paidByBatch = new Map();
+
+    fees.forEach(f => {
+      const type = (f.transactionType || '').toUpperCase();
+      let category = 'other';
+      if (type.includes('RENT')) category = 'rent';
+      else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
+      else if (type.includes('MESS')) category = 'mess';
+      else if (type.includes('FINE')) category = 'fine';
+      else if (type.includes('ADVANCE')) category = 'advance';
+
+      if (f.status === 'PENDING') {
+        pendingGroup.totalAmount += f.amount;
+        pendingGroup[category] += f.amount;
+        pendingGroup.feesList.push(f);
+        if (!pendingGroup.createdAt || new Date(f.createdAt) < new Date(pendingGroup.createdAt)) {
+          pendingGroup.createdAt = f.createdAt;
+        }
+      } else {
+        const paidTime = f.updatedAt || f.createdAt;
+        const batchKey = new Date(paidTime).toISOString().slice(0, 16);
+        if (!paidByBatch.has(batchKey)) {
+          paidByBatch.set(batchKey, {
+            isGrouped: true,
+            id: `paid-${batchKey}`,
+            status: f.status,
+            createdAt: f.createdAt,
+            paidDate: paidTime,
+            paymentMode: f.paymentMode || 'N/A',
+            totalAmount: 0,
+            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+            feesList: []
+          });
+        }
+        const group = paidByBatch.get(batchKey);
+        group.totalAmount += f.amount;
+        group[category] += f.amount;
+        group.feesList.push(f);
+      }
+    });
+
+    const result = [];
+    if (pendingGroup.feesList.length > 0) result.push(pendingGroup);
+    result.push(...Array.from(paidByBatch.values()));
+    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return result;
+  }, [fees]);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -560,45 +618,59 @@ const StudentProfile = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
                       <tr>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Date</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Type</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Description</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Amount</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Receipt No</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Payment Date</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Advance</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Rent</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>EB</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Mess</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Fine</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Total Paid</th>
                         <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Status</th>
                         <th style={{ textAlign: 'right', padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {fees.map(fee => (
-                        <tr key={fee.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      {displayFees.map(fee => (
+                        <tr key={fee.id} style={{ borderBottom: '1px solid #f1f5f9', background: fee.status === 'PENDING' ? '#fff1f2' : 'transparent' }}>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#0d6efd', fontWeight: 700 }}>
+                            {fee.status === 'COMPLETED' ? (fee.feesList[0] ? (() => {
+                              const f = fee.feesList[0];
+                              const ymStr = new Date(f.createdAt).toISOString().slice(0, 7).replace('-', '');
+                              const purpose = fee.feesList.length > 1 ? 'MUL' : f.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
+                              const studentStr = student?.regNo || 'UNKN';
+                              return `INV-${purpose}-${ymStr}-${studentStr}`;
+                            })() : '—') : '—'}
+                          </td>
                           <td style={{ padding: '15px', fontSize: '13px', color: '#334155' }}>
-                            {new Date(fee.createdAt).toLocaleDateString()}
+                            {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
                           </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', fontWeight: 500 }}>
-                            {fee.transactionType}
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#198754', fontWeight: 600, textAlign: 'right' }}>₹{fee.advance.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.rent.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.mess.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
+                          
+                          <td style={{ padding: '15px', fontSize: '14px', color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontWeight: 700, textAlign: 'right' }}>
+                            ₹{fee.totalAmount.toLocaleString('en-IN')}
                           </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#64748b' }}>
-                            {fee.description || '-'}
-                          </td>
-                          <td style={{ padding: '15px', fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>
-                            ₹{fee.amount}
-                          </td>
+                          
                           <td style={{ padding: '15px', fontSize: '12px' }}>
                             <span style={{
                               padding: '4px 8px', borderRadius: '4px', fontWeight: 600,
                               background: fee.status === 'COMPLETED' ? '#dcfce7' : fee.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
                               color: fee.status === 'COMPLETED' ? '#166534' : fee.status === 'PENDING' ? '#92400e' : '#991b1b'
                             }}>
-                              {fee.status}
+                              {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
                             </span>
                           </td>
                           <td style={{ textAlign: 'right', padding: '15px' }}>
                             {fee.status === 'PENDING' ? (
-                              <button onClick={() => navigate(`/fees?student=${student?.regNo || student?.id}&feeId=${fee.id}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#198754', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <Wallet size={14} /> Collect Payment
+                              <button onClick={() => navigate(`/fees?student=${student?.regNo || student?.id}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <Wallet size={14} /> Pay Now
                               </button>
                             ) : (
-                              <button onClick={() => setSelectedReceipt({ ...fee, student })} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => setSelectedReceipt({...fee, student})} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <FileText size={14} color="#64748b" /> View Receipt
                               </button>
                             )}
