@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, RefreshCcw } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
@@ -276,6 +276,21 @@ const Fees = () => {
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
         rightContent={
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={async () => {
+                try {
+                  const StudentAPI = (await import('../api/student.api')).StudentAPI;
+                  await StudentAPI.triggerFines();
+                  fetchFees();
+                  alert('Fine calculation triggered successfully!');
+                } catch (e) {
+                  alert('Failed to trigger fines');
+                }
+              }}
+              style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#dc3545', border: '1px solid #dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <RefreshCcw size={16} /> Run Fines Cron
+            </button>
             <button onClick={handleExportExcel} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
               <FileSpreadsheet size={16} /> Export Excel
             </button>

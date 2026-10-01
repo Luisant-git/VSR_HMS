@@ -16,7 +16,7 @@ export class EbBillsService {
     // Find all active students in the room
     const room = await this.prisma.room.findUnique({
       where: { id: data.roomNo },
-      include: { students: { where: { status: 'In' } } }
+      include: { students: { where: { status: { not: 'Vacated' } } } }
     });
 
     if (!room) {
