@@ -492,7 +492,7 @@ const Hostellers = () => {
                         </button>
                         <button 
                           onClick={() => {
-                            navigate(`/fees`);
+                            navigate(`/fees?student=${h.id}`);
                             setActiveDropdown(null);
                           }}
                           style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
