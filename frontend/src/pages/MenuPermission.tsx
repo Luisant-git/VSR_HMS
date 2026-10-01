@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { ShieldAlert } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { toast } from 'react-toastify';

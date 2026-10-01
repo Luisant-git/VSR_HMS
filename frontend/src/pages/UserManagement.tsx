@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, SquarePen, Shield, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, SquarePen, CheckCircle, XCircle } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
