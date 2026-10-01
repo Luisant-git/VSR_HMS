@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+
+import { UsersService } from './users/users.service';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UploadModule } from './upload/upload.module';
 import { AuthModule } from './auth/auth.module';
@@ -12,6 +14,8 @@ import { ClearanceModule } from './clearance/clearance.module';
 import { OutpassModule } from './outpass/outpass.module';
 import { CollegesModule } from './colleges/colleges.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
+import { DeveloperModule } from './developer/developer.module';
+import { DeveloperSeedService } from './developer/developer.seed.service';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -26,10 +30,11 @@ import { MenuPermissionModule } from './menu-permission/menu-permission.module';
     ClearanceModule, 
     OutpassModule, 
     CollegesModule,
-    MenuPermissionModule
+    MenuPermissionModule,
+    DeveloperModule
   ],
   controllers: [],
-  providers: [],
+  providers: [DeveloperSeedService],
 })
 export class AppModule {}
 

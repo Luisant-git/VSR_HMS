@@ -21,6 +21,7 @@ import CollegeMaster from './pages/CollegeMaster';
 import MenuPermission from './pages/MenuPermission';
 import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
+import DeveloperSettings from './pages/DeveloperSettings';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -88,6 +89,9 @@ function App() {
         <Route path="settings">
           <Route path="menu-permission" element={<MenuPermission />} />
           <Route path="user-management" element={<UserManagement />} />
+        </Route>
+        <Route path="developer">
+          <Route path="settings" element={<DeveloperSettings />} />
         </Route>
         <Route path="canteen" element={<ComingSoon title="Canteen" />} />
         <Route path="staff" element={<ComingSoon title="Staff" />} />

