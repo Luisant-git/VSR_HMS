@@ -451,3 +451,36 @@ input, select, textarea { font-family: inherit; }
   align-self: unset !important;
   margin: 0 !important;
 }
+
+/* ---------- Mobile input styling ---------- */
+.custom-input {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+/* Focus – primary blue ring */
+.custom-input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Valid (exactly 10 digits) */
+.custom-input.valid {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Invalid (not 10 digits) */
+.custom-input.invalid {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Global Focus Styles for all inputs */
+input:focus, select:focus, textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  outline: none;
+}

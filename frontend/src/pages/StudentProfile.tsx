@@ -746,6 +746,16 @@ const StudentProfile = () => {
             </div>
           )}
 
+          {activeTab === 'Advance Deposit' && (
+            <div style={{ animation: 'fadeIn 0.3s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
+              <div style={{ background: 'white', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                <ShieldCheck size={48} color="#10b981" style={{ marginBottom: '15px' }} />
+                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>Total Advance Deposit</div>
+                <div style={{ fontSize: '42px', color: '#0f172a', fontWeight: 800, letterSpacing: '-0.02em' }}>₹{(student.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'Outpasses & Travel' && (
             <div style={{ animation: 'fadeIn 0.3s' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>

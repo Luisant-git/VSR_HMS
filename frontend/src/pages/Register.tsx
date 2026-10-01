@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator } from 'lucide-react';
+import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator, User, BedSingle, Layers } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -11,6 +11,13 @@ import { CollegeAPI } from '../api/college.api';
 import Swal from 'sweetalert2';
 
 const Register = () => {
+  // Helper: keep only digits and limit to 10 characters
+  const sanitizeMobile = (val: string) => val.replace(/\D/g, '').slice(0, 10);
+  // Helper: return class based on length (valid = 10 digits)
+  const mobileClass = (val: string) => {
+    if (!val) return "custom-input";
+    return val.length === 10 ? "custom-input valid" : "custom-input invalid";
+  };
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -210,15 +217,18 @@ const Register = () => {
 
   React.useEffect(() => {
     RoomAPI.findAll().then((rooms) => {
-      const options = rooms.map((room: any) => {
-        const freeBeds = room.capacity - (room.occupiedBeds || 0);
-        const formatPrice = (p: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
-        return {
-          value: room.id,
-          label: `Room ${room.id} (${room.type} • ${freeBeds} bed(s) free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,
-          room
-        };
-      });
+      const options = rooms
+        .filter((room: any) => (room.capacity - (room.occupiedCount || 0)) > 0)
+        .map((room: any) => {
+          const occupied = room.occupiedCount || 0;
+          const freeBeds = room.capacity - occupied;
+          const formatPrice = (p: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
+          return {
+            value: room.id,
+            label: `Room ${room.id} (${room.type} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,
+            room,
+          };
+        });
       setRoomOptions(options);
     }).catch(console.error);
   }, []);
@@ -430,7 +440,7 @@ const Register = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Father's Mobile</label>
-                <input value={formData.fatherMobileNo} onChange={e => setFormData({ ...formData, fatherMobileNo: e.target.value })} type="text" placeholder="Optional" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <input value={formData.fatherMobileNo} onChange={e => setFormData({ ...formData, fatherMobileNo: sanitizeMobile(e.target.value) })} type="text" placeholder="Optional" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.fatherMobileNo)} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Mother's Name</label>
@@ -438,7 +448,7 @@ const Register = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Mother's Mobile</label>
-                <input value={formData.motherMobileNo} onChange={e => setFormData({ ...formData, motherMobileNo: e.target.value })} type="text" placeholder="Optional" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <input value={formData.motherMobileNo} onChange={e => setFormData({ ...formData, motherMobileNo: sanitizeMobile(e.target.value) })} type="text" placeholder="Optional" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.motherMobileNo)} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Guardian's Name</label>
@@ -446,11 +456,11 @@ const Register = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Guardian's Mobile</label>
-                <input value={formData.guardianMobileNo} onChange={e => setFormData({ ...formData, guardianMobileNo: e.target.value })} type="text" placeholder="Optional" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <input value={formData.guardianMobileNo} onChange={e => setFormData({ ...formData, guardianMobileNo: sanitizeMobile(e.target.value) })} type="text" placeholder="Optional" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.guardianMobileNo)} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Emergency Contact Number <span style={{ color: '#ef4444' }}>*</span></label>
-                <input value={formData.emergencyContact} onChange={e => setFormData({ ...formData, emergencyContact: e.target.value })} type="text" placeholder="Mandatory contact" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                <input value={formData.emergencyContact} onChange={e => setFormData({ ...formData, emergencyContact: sanitizeMobile(e.target.value) })} type="text" placeholder="Mandatory contact" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.emergencyContact)} />
               </div>
               <div></div>
               <div style={{ gridColumn: 'span 2', height: '1px', background: 'var(--border-color)', margin: '5px 0' }}></div>
@@ -606,6 +616,13 @@ const Register = () => {
                   isClearable={true}
                 />
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only rooms with vacant capacity are listed.</div>
+{selectedRoom && selectedRoom.room && (
+    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+      <div>Occupied: <strong>{selectedRoom.room.occupiedCount || 0}</strong></div>
+      <div>Free: <strong>{selectedRoom.room.capacity - (selectedRoom.room.occupiedCount || 0)}</strong></div>
+      <div>Total: <strong>{selectedRoom.room.capacity}</strong></div>
+    </div>
+)}
 
                 {selectedRoom && selectedRoom.room && (
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginTop: '10px' }}>
@@ -620,6 +637,7 @@ const Register = () => {
                       <span>Standard Mess Fee:</span>
                       <span style={{ fontWeight: 600, color: '#1e293b' }}>₹{(selectedRoom.room.messFee || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
+
                     <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
                       <span>Total Monthly Charge:</span>
                       <span style={{ color: '#0d6efd' }}>₹{((selectedRoom.room.rent || 0) + (selectedRoom.room.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
