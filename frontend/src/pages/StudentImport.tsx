@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { StudentAPI } from '../api/student.api';
@@ -122,7 +122,6 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
               shortName: collegeName.substring(0, 10).toUpperCase() 
             });
             currentColleges.push(matchedCollege);
-            setColleges([...currentColleges]);
           } catch (e: any) {
             console.error('Failed to auto-create college:', e);
             // If it failed because it exists (maybe a race condition), let's try to fetch it
@@ -133,7 +132,6 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
                 c.name.toLowerCase() === collegeName?.toLowerCase() || 
                 c.shortName?.toLowerCase() === collegeName?.toLowerCase()
               );
-              setColleges([...currentColleges]);
             } catch (innerE) {
               console.error(innerE);
             }

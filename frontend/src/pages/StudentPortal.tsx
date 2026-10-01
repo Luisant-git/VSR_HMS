@@ -83,43 +83,6 @@ export default function StudentPortal() {
     }
   };
 
-  const groupedCompletedFees = React.useMemo(() => {
-    if (!student?.transactions) return [];
-    const paidByBatch = new Map();
-    student.transactions.forEach((f: any) => {
-      if (f.status !== 'COMPLETED') return;
-      const type = (f.transactionType || '').toUpperCase();
-      let category = 'other';
-      if (type.includes('RENT')) category = 'rent';
-      else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
-      else if (type.includes('MESS')) category = 'mess';
-      else if (type.includes('FINE')) category = 'fine';
-      else if (type.includes('ADVANCE')) category = 'advance';
-
-      const paidTime = f.updatedAt || f.createdAt;
-      const batchKey = `${student.id}-${new Date(paidTime).toISOString().slice(0, 16)}`;
-      
-      if (!paidByBatch.has(batchKey)) {
-        paidByBatch.set(batchKey, {
-          isGrouped: true,
-          id: `paid-${batchKey}`,
-          student: student,
-          status: f.status,
-          createdAt: f.createdAt,
-          paidDate: paidTime,
-          paymentMode: f.paymentMode || 'N/A',
-          totalAmount: 0,
-          rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
-          feesList: []
-        });
-      }
-      const group = paidByBatch.get(batchKey);
-      group.totalAmount += f.amount;
-      group[category] += f.amount;
-      group.feesList.push(f);
-    });
-    return Array.from(paidByBatch.values()).sort((a: any, b: any) => new Date(b.paidDate).getTime() - new Date(a.paidDate).getTime());
-  }, [student]);
 
   const pendingFees = student?.transactions?.filter((t: any) => t.status === 'PENDING') || [];
 

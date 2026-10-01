@@ -18,7 +18,6 @@ import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
 import CollegeMaster from './pages/CollegeMaster';
-import StudentImport from './pages/StudentImport';
 import MenuPermission from './pages/MenuPermission';
 import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
