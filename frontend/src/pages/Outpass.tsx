@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, CheckCircle2, X, LogOut, Check, LogIn } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { OutpassAPI } from '../api/outpass.api';
+import Select from 'react-select';
 
 const Outpass = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -221,12 +222,22 @@ const Outpass = () => {
             <div style={{ padding: '20px' }}>
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Hosteller</label>
-                <select value={formData.studentId} onChange={(e) => setFormData({...formData, studentId: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', background: 'white', color: '#334155' }}>
-                  <option value="">-- Choose Hosteller --</option>
-                  {students.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.regNo})</option>
-                  ))}
-                </select>
+                <Select 
+                  options={students.map(s => ({ value: s.id, label: `${s.name} (${s.regNo})` }))}
+                  value={formData.studentId ? { value: formData.studentId, label: students.find(s => s.id === formData.studentId)?.name + ' (' + students.find(s => s.id === formData.studentId)?.regNo + ')' } : null}
+                  onChange={(selected: any) => setFormData({...formData, studentId: selected ? selected.value : ''})}
+                  placeholder="-- Search & Choose Hosteller --"
+                  isSearchable={true}
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      padding: '2px',
+                      borderRadius: '6px',
+                      borderColor: '#cbd5e1',
+                      fontSize: '14px'
+                    })
+                  }}
+                />
               </div>
 
               <div style={{ marginBottom: '15px' }}>
