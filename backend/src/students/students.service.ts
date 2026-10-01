@@ -44,8 +44,10 @@ export class StudentsService {
 
     const autoGenerateInvoice = cleanData.autoGenerateInvoice;
     const messFee = cleanData.messFee;
+    const isImport = cleanData.isImport;
     delete cleanData.autoGenerateInvoice;
     delete cleanData.messFee;
+    delete cleanData.isImport;
 
     if (cleanData.roomNo) {
       const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
@@ -95,14 +97,14 @@ export class StudentsService {
           studentId: student.id,
           transactionType: 'ADVANCE',
           amount: student.advance,
-          status: 'COMPLETED',
-          paymentMode: 'UPI',
-          description: 'Initial Security Deposit Paid',
+          status: isImport ? 'PENDING' : 'COMPLETED',
+          paymentMode: isImport ? undefined : 'UPI',
+          description: isImport ? 'Security Deposit (Imported)' : 'Initial Security Deposit Paid',
         }
       });
     }
 
-    if (autoGenerateInvoice) {
+    if (autoGenerateInvoice || isImport) {
       if (student.rent && student.rent > 0) {
         await this.prisma.feeTransaction.create({
           data: {
@@ -110,7 +112,8 @@ export class StudentsService {
             transactionType: 'RENT',
             amount: student.rent,
             status: 'PENDING',
-            description: 'Month 1 Room Rent',
+            paymentMode: undefined,
+            description: isImport ? 'Month 1 Room Rent (Imported)' : 'Month 1 Room Rent',
           }
         });
       }
@@ -121,7 +124,8 @@ export class StudentsService {
             transactionType: 'MESS',
             amount: messFee,
             status: 'PENDING',
-            description: 'Month 1 Mess Fee',
+            paymentMode: undefined,
+            description: isImport ? 'Month 1 Mess Fee (Imported)' : 'Month 1 Mess Fee',
           }
         });
       }
@@ -130,11 +134,50 @@ export class StudentsService {
     return student;
   }
 
-  async findAll() {
-    return this.prisma.student.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { transactions: true, room: true, college: true }
-    });
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string }) {
+    const page = params?.page || 1;
+    const limit = params?.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (params?.search) {
+      const q = params.search;
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { regNo: { contains: q, mode: 'insensitive' } },
+        { mobileNo: { contains: q, mode: 'insensitive' } }
+      ];
+    }
+    
+    if (params?.roomFilter && params.roomFilter !== '-- All Rooms --') {
+      const r = params.roomFilter.replace('Room ', '').trim();
+      where.roomNo = r;
+    }
+    
+    if (params?.collegeFilter && params.collegeFilter !== '-- All Colleges --') {
+      where.college = {
+        name: params.collegeFilter
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.student.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { transactions: true, room: true, college: true }
+      }),
+      this.prisma.student.count({ where })
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async findOne(id: string) {
@@ -154,6 +197,10 @@ export class StudentsService {
     
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
+    }
+    
+    if (cleanData.dateOfJoining) {
+      cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
 
     const existingStudent = await this.prisma.student.findUnique({

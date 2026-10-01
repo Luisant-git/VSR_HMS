@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, RotateCcw, Upload } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -10,11 +10,29 @@ import { toast } from 'react-toastify';
 const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
-  const [isCalculatingFines, setIsCalculatingFines] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+
+  const location = useLocation();
+  const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
+  const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
+  const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const fetchHostellers = () => {
-    StudentAPI.findAll().then(data => {
+    StudentAPI.findAll({
+      page,
+      limit,
+      search: searchQuery,
+      roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
+      collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined
+    }).then(res => {
+        const data = res.data || [];
         const mapped = data.map((h: any) => {
           const pendingFeesAmount = h.transactions?.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0) || 0;
           return {
@@ -34,18 +52,15 @@ const Hostellers = () => {
           };
         });
         setHostellers(mapped);
+        setTotalPages(res.totalPages || 1);
+        setTotalRecords(res.total || 0);
       }).catch(console.error);
   };
 
   useEffect(() => {
     fetchHostellers();
-  }, []);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter]);
 
-  const location = useLocation();
-  const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
-  const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
-  const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -129,18 +144,7 @@ const Hostellers = () => {
     })
   };
 
-  const filteredHostellers = hostellers.filter(h => {
-    const matchesRoom = roomFilter === '-- All Rooms --' || `Room ${h.room}` === roomFilter;
-    const matchesCollege = collegeFilter === '-- All Colleges --' || h.college === collegeFilter;
-    const q = searchQuery.toLowerCase();
-    const matchesSearch = !q || 
-      h.name.toLowerCase().includes(q) || 
-      h.id.toLowerCase().includes(q) || 
-      h.contact.includes(q) || 
-      h.college.toLowerCase().includes(q);
-      
-    return matchesRoom && matchesCollege && matchesSearch;
-  });
+  const filteredHostellers = hostellers; // Filtering is now server-side
 
   return (
     <div>
@@ -150,8 +154,7 @@ const Hostellers = () => {
           subtitle="Filter by room to view enrolled students"
           rightContent={
             <>
-              <button 
-                onClick={() => setShowImportModal(true)}
+              <label 
                 style={{ 
                 background: 'white', 
                 color: '#334155', 
@@ -170,7 +173,19 @@ const Hostellers = () => {
               }}>
                 <Upload size={18} />
                 Bulk Import
-              </button>
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls, .csv" 
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setImportFile(e.target.files[0]);
+                      setShowImportModal(true);
+                    }
+                    e.target.value = '';
+                  }} 
+                />
+              </label>
               <button 
                 onClick={() => navigate('/register')}
                 style={{ 
@@ -195,6 +210,22 @@ const Hostellers = () => {
         />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+            <select 
+              value={limit} 
+              onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+              style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+          </div>
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
             <input 
@@ -432,6 +463,35 @@ const Hostellers = () => {
               )))}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          {totalPages > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                  Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                  Previous
+                </button>
+                <button 
+                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+                  {page}
+                </button>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || totalPages === 0}
+                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -670,11 +730,15 @@ const Hostellers = () => {
         </div>
       )}
       
-      {showImportModal && (
-        <StudentImport onClose={() => {
-          setShowImportModal(false);
-          fetchHostellers();
-        }} />
+      {showImportModal && importFile && (
+        <StudentImport 
+          file={importFile} 
+          onClose={() => {
+            setShowImportModal(false);
+            setImportFile(null);
+            fetchHostellers();
+          }} 
+        />
       )}
     </div>
   );

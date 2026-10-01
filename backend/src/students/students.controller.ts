@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { FineCronService } from './fine-cron.service';
 
@@ -15,8 +15,20 @@ export class StudentsController {
   }
 
   @Get()
-  findAll() {
-    return this.studentsService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('roomFilter') roomFilter?: string,
+    @Query('collegeFilter') collegeFilter?: string,
+  ) {
+    return this.studentsService.findAll({
+      page: page ? parseInt(page) : undefined,
+      limit: limit ? parseInt(limit) : undefined,
+      search,
+      roomFilter,
+      collegeFilter
+    });
   }
 
   @Get(':id')

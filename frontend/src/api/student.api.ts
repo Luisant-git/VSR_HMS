@@ -52,8 +52,16 @@ export const StudentAPI = {
     return res.json();
   },
 
-  async findAll() {
-    const res = await fetch(`${API_URL}/students`);
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string }) {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.roomFilter) query.append('roomFilter', params.roomFilter);
+    if (params?.collegeFilter) query.append('collegeFilter', params.collegeFilter);
+    
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`${API_URL}/students${queryString}`);
     if (!res.ok) throw new Error('Failed to fetch students');
     return res.json();
   },

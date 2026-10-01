@@ -100,7 +100,8 @@ const StudentProfile = () => {
           pursuingYear: data.pursuingYear || 'N/A',
           advance: data.advance || 0,
           category: data.category || 'N/A',
-          foodType: data.foodType || 'N/A'
+          foodType: data.foodType || 'N/A',
+          courseDuration: data.courseDuration || 'N/A'
         });
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
@@ -195,8 +196,19 @@ const StudentProfile = () => {
               )}
             </div>
             <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', margin: '0 0 5px 0' }}>{student.name}</h3>
-            <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '15px' }}>
-              <CheckCircle2 size={14} /> {student.status}
+            <span style={{ 
+              background: student.status === 'In' ? '#dcfce7' : '#f1f5f9', 
+              color: student.status === 'In' ? '#166534' : '#475569', 
+              padding: '4px 12px', 
+              borderRadius: '20px', 
+              fontSize: '12px', 
+              fontWeight: 700, 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '4px', 
+              marginBottom: '15px' 
+            }}>
+              <CheckCircle2 size={14} /> {student.status === 'In' ? 'Active' : student.status === 'Out' ? 'Inactive' : student.status}
             </span>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#475569', textAlign: 'left', background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -210,6 +222,10 @@ const StudentProfile = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 600 }}>Joined:</span>
                 <span>{student.joined}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600 }}>Category:</span>
+                <span>{student.raw?.category || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -303,6 +319,10 @@ const StudentProfile = () => {
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Pursuing Year</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.pursuingYear}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Course Duration</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.courseDuration || '-'}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>College / Dept</div>

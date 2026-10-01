@@ -88,7 +88,7 @@ const Clearance = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Course / Dept</label>
-                <div style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>{student.college || 'N/A'}</div>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>{student.college?.name || student.college || 'N/A'}</div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Hostel Admission Date</label>

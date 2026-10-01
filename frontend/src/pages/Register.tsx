@@ -93,7 +93,8 @@ const Register = () => {
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
     emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
-    bloodGroup: '', dateOfJoining: '', vsrLedger1: '', pursuingYear: ''
+    bloodGroup: '', dateOfJoining: '', vsrLedger1: '', pursuingYear: '',
+    category: '', foodType: '', courseDuration: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
@@ -130,7 +131,10 @@ const Register = () => {
           bloodGroup: data.bloodGroup || '',
           dateOfJoining: data.dateOfJoining ? data.dateOfJoining.split('T')[0] : '',
           vsrLedger1: data.vsrLedger1 || '',
-          pursuingYear: data.pursuingYear || ''
+          pursuingYear: data.pursuingYear || '',
+          category: data.category || '',
+          foodType: data.foodType || '',
+          courseDuration: data.courseDuration || ''
         });
         if (data.photoUrl) setCapturedImage(data.photoUrl);
         if (data.doc1Url) setDoc1Url(data.doc1Url);
@@ -384,6 +388,28 @@ const Register = () => {
                     <option value="AB-">AB-</option>
                   </select>
                 </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Aadhar Number</label>
+                  <input value={formData.aadharNo} onChange={e => setFormData({ ...formData, aadharNo: e.target.value })} type="text" placeholder="12-digit Aadhar" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Category</label>
+                  <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                    <option value="">Select Category</option>
+                    <option value="Student">Student</option>
+                    <option value="Job Seeker">Job Seeker</option>
+                    <option value="Working Professional">Working Professional</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Food Type</label>
+                  <select value={formData.foodType} onChange={e => setFormData({ ...formData, foodType: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                    <option value="">Select</option>
+                    <option value="Veg">Veg</option>
+                    <option value="Non-Veg">Non-Veg</option>
+                  </select>
+                </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Permanent Home Address</label>
                   <textarea value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Street, City, State, Pincode" rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', resize: 'vertical' }}></textarea>
@@ -442,6 +468,10 @@ const Register = () => {
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Course / Department / Designation</label>
                 <input value={formData.educationalQua} onChange={e => setFormData({ ...formData, educationalQua: e.target.value })} type="text" placeholder="e.g. B.Tech IT / Junior Developer" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Course Duration</label>
+                <input value={formData.courseDuration} onChange={e => setFormData({ ...formData, courseDuration: e.target.value })} type="text" placeholder="e.g. 4 Years" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Pursuing Year / Passing Year</label>

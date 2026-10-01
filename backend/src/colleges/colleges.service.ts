@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateCollegeDto } from './dto/create-college.dto';
 import { UpdateCollegeDto } from './dto/update-college.dto';
@@ -13,16 +13,23 @@ export class CollegesService {
     // Convert YYYY-MM-DD string to ISO DateTime if present
     const formattedDueDate = dueDate ? new Date(dueDate).toISOString() : null;
 
-    return this.prisma.college.create({
-      data: {
-        ...collegeData,
-        ...(formattedDueDate && { dueDate: formattedDueDate }),
-        fineMaster: finePerDay !== undefined ? {
-          create: { finePerDay }
-        } : undefined
-      },
-      include: { fineMaster: true }
-    });
+    try {
+      return await this.prisma.college.create({
+        data: {
+          ...collegeData,
+          ...(formattedDueDate && { dueDate: formattedDueDate }),
+          fineMaster: finePerDay !== undefined ? {
+            create: { finePerDay }
+          } : undefined
+        },
+        include: { fineMaster: true }
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new BadRequestException(`A college with this name or short name already exists.`);
+      }
+      throw error;
+    }
   }
 
   async findAll(page: number = 1, limit: number = 10, search?: string, dueDate?: string) {
