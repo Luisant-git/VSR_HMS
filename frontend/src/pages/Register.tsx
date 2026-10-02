@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator, User, BedSingle, Layers } from 'lucide-react';
+import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';

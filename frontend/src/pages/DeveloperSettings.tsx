@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '../components/PageHeader';
-import { Zap, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { toast } from 'react-toastify';
 import { DeveloperAPI } from '../api/developer.api';
 
 export default function DeveloperSettings() {
