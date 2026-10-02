@@ -34,7 +34,10 @@ export class DeveloperService {
           
         case 'GATELOGS':
           await this.prisma.gateLog.deleteMany({});
-          return { message: 'All Gate Logs have been truncated.' };
+          await this.prisma.student.updateMany({
+            data: { status: 'In' }
+          });
+          return { message: 'All Gate Logs have been truncated and student statuses reset.' };
           
         case 'ALL':
           // Full wipe (except Users/Admin)

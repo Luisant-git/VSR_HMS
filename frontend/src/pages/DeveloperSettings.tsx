@@ -3,6 +3,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Zap, AlertTriangle, ShieldAlert } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
+import { DeveloperAPI } from '../api/developer.api';
 
 export default function DeveloperSettings() {
   const [loading, setLoading] = useState(false);
@@ -41,24 +42,11 @@ export default function DeveloperSettings() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch('http://localhost:3000/developer/truncate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ entity, passwordConfirm: password })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Truncation failed');
-      }
-
-      Swal.fire('Truncated!', data.message, 'success');
+      const res = await DeveloperAPI.truncate({ entity, passwordConfirm: password });
+      Swal.fire('Truncated!', res.message, 'success');
     } catch (e: any) {
-      Swal.fire('Error', e.message, 'error');
+      const errorMsg = e.response?.data?.message || e.message || 'Truncation failed';
+      Swal.fire('Error', errorMsg, 'error');
     } finally {
       setLoading(false);
     }
