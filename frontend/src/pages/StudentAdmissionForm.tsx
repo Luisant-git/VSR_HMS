@@ -348,7 +348,7 @@ export default function StudentAdmissionForm() {
          <div className="sa-topbar-inner">
            <div className="sa-logo">
               <div><IdCard size={20} /></div>
-              <span>VSR Hostels</span>
+              <span>Hostel</span>
            </div>
            <button type="button" className="sa-btn ghost sm" style={{ border: 'none', background: 'transparent' }} onClick={logout} aria-label="Log out">
              <LogOut size={16} /> <span className="sa-lo">Log out</span>
