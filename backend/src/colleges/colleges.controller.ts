@@ -32,6 +32,12 @@ export class CollegesController {
     );
   }
 
+  @Post('bulk-update')
+  @ApiOperation({ summary: 'Bulk update fines for all colleges' })
+  updateBulk(@Body() payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDate?: string | null }) {
+    return this.collegesService.updateBulk(payload);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a college by ID' })
   findOne(@Param('id') id: string) {

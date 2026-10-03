@@ -41,7 +41,7 @@ export const CollegeAPI = {
     return res.json();
   },
 
-  async update(id: string, data: Partial<CreateCollegeDto>) {
+  async update(id: string, data: any) {
     const res = await fetch(`${API_URL}/colleges/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -50,6 +50,19 @@ export const CollegeAPI = {
     if (!res.ok) {
       const error = await res.json();
       throw new Error(error.message || 'Failed to update college');
+    }
+    return res.json();
+  },
+
+  async updateBulk(data: any) {
+    const res = await fetch(`${API_URL}/colleges/bulk-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to bulk update fine configurations');
     }
     return res.json();
   },

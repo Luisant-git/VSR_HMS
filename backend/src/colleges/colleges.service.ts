@@ -8,7 +8,7 @@ export class CollegesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createCollegeDto: CreateCollegeDto) {
-    const { finePerDay, dueDate, ...collegeData } = createCollegeDto;
+    const { rentFine, messFine, ebFine, dueDate, ...collegeData } = createCollegeDto as any;
     
     // Convert YYYY-MM-DD string to ISO DateTime if present
     const formattedDueDate = dueDate ? new Date(dueDate).toISOString() : null;
@@ -18,8 +18,12 @@ export class CollegesService {
         data: {
           ...collegeData,
           ...(formattedDueDate && { dueDate: formattedDueDate }),
-          fineMaster: finePerDay !== undefined ? {
-            create: { finePerDay }
+          fineMaster: (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) ? {
+            create: { 
+              rentFine: rentFine || 0,
+              messFine: messFine || 0,
+              ebFine: ebFine || 0
+            }
           } : undefined
         },
         include: { fineMaster: true }
@@ -82,25 +86,74 @@ export class CollegesService {
   }
 
   async update(id: string, updateCollegeDto: UpdateCollegeDto) {
-    const { finePerDay, dueDate, ...collegeData } = updateCollegeDto as any;
+    const { rentFine, messFine, ebFine, dueDate, ...collegeData } = updateCollegeDto as any;
     
-    // Convert YYYY-MM-DD string to ISO DateTime if present
-    const formattedDueDate = dueDate ? new Date(dueDate).toISOString() : null;
+    // If dueDate is explicitly null, we clear it. If undefined, we leave it.
+    let formattedDueDate: any = undefined;
+    if (dueDate === null) {
+      formattedDueDate = null;
+    } else if (dueDate) {
+      formattedDueDate = new Date(dueDate).toISOString();
+    }
 
     return this.prisma.college.update({
       where: { id },
       data: {
         ...collegeData,
-        ...(formattedDueDate && { dueDate: formattedDueDate }),
-        fineMaster: finePerDay !== undefined ? {
+        ...(formattedDueDate !== undefined && { dueDate: formattedDueDate }),
+        fineMaster: (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) ? {
           upsert: {
-            create: { finePerDay },
-            update: { finePerDay }
+            create: { rentFine: rentFine || 0, messFine: messFine || 0, ebFine: ebFine || 0 },
+            update: { 
+              ...(rentFine !== undefined && { rentFine }),
+              ...(messFine !== undefined && { messFine }),
+              ...(ebFine !== undefined && { ebFine })
+            }
           }
         } : undefined
       },
       include: { fineMaster: true }
     });
+  }
+
+  async updateBulk(payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDate?: string | null }) {
+    const { rentFine, messFine, ebFine, dueDate } = payload;
+    
+    let formattedDueDate: any = undefined;
+    if (dueDate === null) {
+      formattedDueDate = null;
+    } else if (dueDate) {
+      formattedDueDate = new Date(dueDate).toISOString();
+    }
+
+    if (formattedDueDate !== undefined) {
+      await this.prisma.college.updateMany({
+        data: { dueDate: formattedDueDate }
+      });
+    }
+
+    if (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) {
+      const colleges = await this.prisma.college.findMany({ select: { id: true } });
+      
+      for (const college of colleges) {
+        await this.prisma.fineMaster.upsert({
+          where: { collegeId: college.id },
+          create: {
+            collegeId: college.id,
+            rentFine: rentFine || 0,
+            messFine: messFine || 0,
+            ebFine: ebFine || 0
+          },
+          update: {
+            ...(rentFine !== undefined && { rentFine }),
+            ...(messFine !== undefined && { messFine }),
+            ...(ebFine !== undefined && { ebFine })
+          }
+        });
+      }
+    }
+    
+    return { success: true, message: 'Bulk update successful' };
   }
 
   async remove(id: string) {

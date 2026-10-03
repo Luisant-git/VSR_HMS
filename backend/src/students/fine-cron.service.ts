@@ -19,7 +19,11 @@ export class FineCronService {
     });
 
     for (const college of colleges) {
-      if (!college.dueDate || !college.fineMaster || college.fineMaster.finePerDay <= 0) {
+      const rentFine = college.fineMaster?.rentFine || 0;
+      const messFine = college.fineMaster?.messFine || 0;
+      const ebFine = college.fineMaster?.ebFine || 0;
+
+      if (!college.dueDate || (!rentFine && !messFine && !ebFine)) {
         continue;
       }
 
@@ -30,9 +34,8 @@ export class FineCronService {
       if (today > dueDate) {
         const timeDiff = today.getTime() - dueDate.getTime();
         const daysOverdue = Math.floor(timeDiff / (1000 * 3600 * 24));
-        const expectedTotalFine = daysOverdue * college.fineMaster.finePerDay;
 
-        this.logger.log(`College ${college.name} is ${daysOverdue} days overdue. Expected total fine per student: ₹${expectedTotalFine}`);
+        this.logger.log(`College ${college.name} is ${daysOverdue} days overdue.`);
 
         const students = await this.prisma.student.findMany({
           where: {
@@ -48,16 +51,22 @@ export class FineCronService {
         });
 
         for (const student of students) {
-          // Verify they have pending base fees (not just previous fines)
-          const hasPendingBaseFees = student.transactions.some(t => t.transactionType !== 'FINE');
+          const hasPendingRent = student.transactions.some(t => t.transactionType === 'RENT' || t.transactionType === 'ADVANCE');
+          const hasPendingMess = student.transactions.some(t => t.transactionType === 'MESS');
+          const hasPendingEb = student.transactions.some(t => t.transactionType === 'EB_BILL');
           
-          if (hasPendingBaseFees) {
+          if (hasPendingRent || hasPendingMess || hasPendingEb) {
+            const dailyFine = (hasPendingRent ? rentFine : 0) + (hasPendingMess ? messFine : 0) + (hasPendingEb ? ebFine : 0);
+            
+            if (dailyFine <= 0) continue;
+
+            const expectedTotalFine = daysOverdue * dailyFine;
             const pendingFines = student.transactions.filter(t => t.transactionType === 'FINE');
             const existingPendingFinesTotal = pendingFines.reduce((sum, t) => sum + t.amount, 0);
 
             if (expectedTotalFine > existingPendingFinesTotal) {
               const difference = expectedTotalFine - existingPendingFinesTotal;
-              const description = `Late fine accumulation for ${daysOverdue} days overdue (₹${college.fineMaster.finePerDay}/day)`;
+              const description = `Late fine accumulation for ${daysOverdue} days overdue (₹${dailyFine}/day)`;
               
               if (pendingFines.length > 0) {
                 // Consolidate into the first pending fine record

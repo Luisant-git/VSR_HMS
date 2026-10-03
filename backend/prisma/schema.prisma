@@ -229,10 +229,13 @@ model FineMaster {
   id         String   @id @default(uuid())
   collegeId  String   @unique
   college    College  @relation(fields: [collegeId], references: [id])
-  finePerDay Float
+  rentFine   Float    @default(0.0)
+  messFine   Float    @default(0.0)
+  ebFine     Float    @default(0.0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
 
 // ---------------------------------------------------------
 // College Master
