@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, RefreshCcw } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';

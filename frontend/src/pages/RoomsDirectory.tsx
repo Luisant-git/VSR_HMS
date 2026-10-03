@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, LayoutGrid, List, Wind, Edit2, SquarePen } from 'lucide-react';
+import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, LayoutGrid, List, Wind, SquarePen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';

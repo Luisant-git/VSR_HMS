@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
+import { CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';

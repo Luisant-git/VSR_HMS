@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, ChevronRight, Building2 } from 'lucide-react';
+import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, Building2 } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
 import { UploadAPI } from '../api/upload.api';
@@ -338,23 +338,7 @@ export default function StudentAdmissionForm() {
   const done = steps.filter(Boolean).length;
   const busy = saving || uploadingField !== '';
 
-  const details = [
-    { label: 'Registration no', value: student.regNo },
-    { label: 'Full name', value: student.name },
-    { label: 'Date of birth', value: student.dob ? new Date(student.dob).toLocaleDateString() : '' },
-    { label: 'Blood group', value: student.bloodGroup },
-    { label: 'Aadhar number', value: student.aadharNo },
-    { label: 'College', value: student.college?.name },
-    { label: 'Educational qualification', value: student.educationalQua },
-    { label: 'Course duration', value: student.courseDuration },
-    { label: 'Date of joining', value: student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '' },
-    { label: 'Address', value: student.address },
-    { label: 'Student mobile', value: student.mobileNo },
-    { label: "Father's mobile", value: student.fatherMobileNo },
-    { label: "Mother's mobile", value: student.motherMobileNo },
-    { label: "Guardian's mobile", value: student.guardianMobileNo },
-    { label: 'Emergency contact', value: student.emergencyContact },
-  ];
+
 
   return (
     <div className="sa">

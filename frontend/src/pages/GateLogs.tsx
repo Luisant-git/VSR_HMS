@@ -382,7 +382,7 @@ const GateLogs = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentlyOut.map(s => {
+                  {currentlyOut.map((s: any) => {
                     const latestExit = gateLogs.find(log => log.studentId === s.id && log.movementType === 'EXIT');
                     const isOverdue = latestExit && latestExit.expectedInTime && new Date(latestExit.expectedInTime) < new Date();
                     

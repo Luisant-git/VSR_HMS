@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, SquarePen, Trash2, Calendar, IndianRupee, AlertCircle } from 'lucide-react';
+import { Building2, Plus, SquarePen, Trash2, Calendar, AlertCircle } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { CollegeAPI } from '../api/college.api';
 import { toast } from 'react-toastify';
