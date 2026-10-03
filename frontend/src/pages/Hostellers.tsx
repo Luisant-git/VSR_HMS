@@ -7,6 +7,8 @@ import { PageHeader } from '../components/PageHeader';
 import StudentImport from './StudentImport';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
+import { RoomAPI } from '../api/room.api';
+import { CollegeAPI } from '../api/college.api';
 import { toast } from 'react-toastify';
 const Hostellers = () => {
   const navigate = useNavigate();
@@ -24,6 +26,14 @@ const Hostellers = () => {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  const [allRooms, setAllRooms] = useState<string[]>([]);
+  const [allColleges, setAllColleges] = useState<string[]>([]);
+
+  useEffect(() => {
+    RoomAPI.findAll().then(res => setAllRooms(res.map((r: any) => `Room ${r.id}`))).catch(console.error);
+    CollegeAPI.findAll().then(res => setAllColleges(res.map((c: any) => c.name))).catch(console.error);
+  }, []);
 
   const fetchHostellers = () => {
     StudentAPI.findAll({
@@ -102,25 +112,21 @@ const Hostellers = () => {
   }, []);
 
   const rooms = useMemo(() => {
-    const uniqueRooms = new Set<string>();
+    const uniqueRooms = new Set<string>(allRooms);
     hostellers.forEach(h => {
-      if (h.room && h.room !== 'N/A') {
-        uniqueRooms.add(`Room ${h.room}`);
-      }
+      if (h.room && h.room !== 'N/A') uniqueRooms.add(`Room ${h.room}`);
     });
     return ['-- All Rooms --', ...Array.from(uniqueRooms).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))];
-  }, [hostellers]);
+  }, [hostellers, allRooms]);
   const roomOptions = rooms.map(r => ({ value: r, label: r }));
 
   const colleges = useMemo(() => {
-    const uniqueColleges = new Set<string>();
+    const uniqueColleges = new Set<string>(allColleges);
     hostellers.forEach(h => {
-      if (h.college && h.college !== 'N/A') {
-        uniqueColleges.add(h.college);
-      }
+      if (h.college && h.college !== 'N/A') uniqueColleges.add(h.college);
     });
     return ['-- All Colleges --', ...Array.from(uniqueColleges).sort()];
-  }, [hostellers]);
+  }, [hostellers, allColleges]);
   const collegeOptions = colleges.map(c => ({ value: c, label: c }));
 
   const selectStyles = {
