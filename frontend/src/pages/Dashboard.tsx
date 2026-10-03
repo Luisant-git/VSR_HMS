@@ -29,7 +29,7 @@ const Dashboard = () => {
     type: r.type,
     ac: r.amenities ? r.amenities.includes('AC') : false,
     block: r.block,
-    floor: `Floor ${r.floor || 1}`,
+    floor: `Room ${r.id.replace(/^[a-zA-Z\\s_-]+/, '')}`,
     rent: Number(r.rent || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
     mess: Number(r.messFee || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
     occ: r.occupiedCount,
@@ -229,7 +229,7 @@ const Dashboard = () => {
                 <thead>
                   <tr>
                     <th>Room #</th>
-                    <th>Wing & Floor</th>
+                    <th>Wing & Room No</th>
                     <th>Type</th>
                     <th>Monthly Fee Structure</th>
                     <th>Occupancy</th>

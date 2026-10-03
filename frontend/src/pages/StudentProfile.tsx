@@ -143,7 +143,7 @@ const StudentProfile = () => {
           guardianPhone: data.guardianMobileNo || 'N/A',
           emergencyContact: data.emergencyContact || 'N/A',
           roomType: data.room?.type || 'N/A',
-          blockFloor: `Block ${data.room?.block || '-'} - Floor ${data.room?.floor || '-'}`,
+          blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id?.replace(/^[a-zA-Z\\s_-]+/, '') || '-'}`,
           monthlyRent: `₹${data.rent || 0}`,
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
@@ -448,8 +448,8 @@ const StudentProfile = () => {
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.roomType}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Block / Floor</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.blockFloor}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Block / Room No</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.blockRoom}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Rent</div>

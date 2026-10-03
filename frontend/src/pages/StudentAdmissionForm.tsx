@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, ChevronRight } from 'lucide-react';
+import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, ChevronRight, Building2 } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
 import { UploadAPI } from '../api/upload.api';
 import Swal from 'sweetalert2';
 
 const EMPTY_FORM = { 
+  name: '', dob: '', bloodGroup: '', address: '', educationalQua: '', courseDuration: '',
+  gender: '', emailId: '', maritalStatus: '', fatherName: '', motherName: '', guardianName: '',
+  pursuingYear: '', category: '', foodType: '',
   mobileNo: '', fatherMobileNo: '', motherMobileNo: '', guardianMobileNo: '', emergencyContact: '', 
   photoUrl: '', doc1Url: '', doc2Url: '', 
   doc1Type: 'Aadhar Card', doc2Type: 'College Student ID', doc1Number: '', doc2Number: '', aadharNo: '', secondaryIdNo: '' 
@@ -399,19 +402,145 @@ export default function StudentAdmissionForm() {
           </div>
         </div>
 
-        {/* Details */}
+        {/* Personal & Contact Information */}
         <div className="sa-card">
           <div className="sa-head">
             <div className="sa-icon sm"><IdCard size={20} /></div>
-            <div><h2>Student details</h2><p>Registered with the hostel. Contact the office to change these.</p></div>
+            <div><h2>Personal & Contact Information</h2><p>Update your personal and contact details.</p></div>
+          </div>
+          <div className="sa-grid2">
+            <div>
+              <label className="sa-label">Full Name</label>
+              <input className="sa-input" value={formData.name} onChange={e => setField('name', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Gender</label>
+              <select className="sa-input" value={formData.gender} onChange={e => setField('gender', e.target.value)} style={{ paddingLeft: '16px' }}>
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="sa-label">Marital Status</label>
+              <select className="sa-input" value={formData.maritalStatus} onChange={e => setField('maritalStatus', e.target.value)} style={{ paddingLeft: '16px' }}>
+                <option value="">Select Status</option>
+                <option value="Single">Single</option>
+                <option value="Married">Married</option>
+              </select>
+            </div>
+            <div>
+              <label className="sa-label">Date of Birth</label>
+              <input type="date" className="sa-input" value={formData.dob ? new Date(formData.dob).toISOString().split('T')[0] : ''} onChange={e => setField('dob', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Email Address</label>
+              <input type="email" className="sa-input" value={formData.emailId} onChange={e => setField('emailId', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Blood Group</label>
+              <select className="sa-input" value={formData.bloodGroup} onChange={e => setField('bloodGroup', e.target.value)} style={{ paddingLeft: '16px' }}>
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </div>
+            <div>
+              <label className="sa-label">Category</label>
+              <select className="sa-input" value={formData.category} onChange={e => setField('category', e.target.value)} style={{ paddingLeft: '16px' }}>
+                <option value="">Select Category</option>
+                <option value="Student">Student</option>
+                <option value="Job Seeker">Job Seeker</option>
+                <option value="Working Professional">Working Professional</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="sa-label">Food Type</label>
+              <select className="sa-input" value={formData.foodType} onChange={e => setField('foodType', e.target.value)} style={{ paddingLeft: '16px' }}>
+                <option value="">Select Food Type</option>
+                <option value="Veg">Veg</option>
+                <option value="Non-Veg">Non-Veg</option>
+              </select>
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="sa-label">Permanent Home Address</label>
+              <input className="sa-input" value={formData.address} onChange={e => setField('address', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Parents, Guardian & Academic Info */}
+        <div className="sa-card">
+          <div className="sa-head">
+            <div className="sa-icon sm"><Phone size={20} /></div>
+            <div><h2>Parents, Guardian & Academic Info</h2><p>Contact numbers and course details.</p></div>
+          </div>
+          <div className="sa-grid2">
+            <div>
+              <label className="sa-label">Father's Name</label>
+              <input className="sa-input" value={formData.fatherName} onChange={e => setField('fatherName', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Father's Mobile</label>
+              <input className="sa-input" value={formData.fatherMobileNo} onChange={e => setField('fatherMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+            </div>
+            <div>
+              <label className="sa-label">Mother's Name</label>
+              <input className="sa-input" value={formData.motherName} onChange={e => setField('motherName', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Mother's Mobile</label>
+              <input className="sa-input" value={formData.motherMobileNo} onChange={e => setField('motherMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+            </div>
+            <div>
+              <label className="sa-label">Guardian's Name</label>
+              <input className="sa-input" value={formData.guardianName} onChange={e => setField('guardianName', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Guardian's Mobile</label>
+              <input className="sa-input" value={formData.guardianMobileNo} onChange={e => setField('guardianMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+            </div>
+            <div>
+              <label className="sa-label">Emergency Contact Number</label>
+              <input className="sa-input" value={formData.emergencyContact} onChange={e => setField('emergencyContact', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+            </div>
+            <div>
+              <label className="sa-label">Course / Department / Designation</label>
+              <input className="sa-input" value={formData.educationalQua} onChange={e => setField('educationalQua', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Course Duration</label>
+              <input className="sa-input" value={formData.courseDuration} onChange={e => setField('courseDuration', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+            <div>
+              <label className="sa-label">Pursuing Year / Passing Year</label>
+              <input className="sa-input" value={formData.pursuingYear} onChange={e => setField('pursuingYear', e.target.value)} style={{ paddingLeft: '16px' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Hostel details */}
+        <div className="sa-card">
+          <div className="sa-head">
+            <div className="sa-icon sm"><Building2 size={20} /></div>
+            <div><h2>Hostel Registration (Read-only)</h2><p>Registered with the hostel. Contact the office to change these.</p></div>
           </div>
           <dl className="sa-dl">
-            {details.map(d => (
-              <div className={`sa-row ${d.label === 'Address' ? 'wide' : ''}`} key={d.label}>
-                <dt>{d.label}</dt>
-                <dd>{d.value || '-'}</dd>
-              </div>
-            ))}
+            <div className="sa-row"><dt>Registration no</dt><dd>{student.regNo}</dd></div>
+            <div className="sa-row"><dt>College</dt><dd>{student.college?.name || '-'}</dd></div>
+            <div className="sa-row"><dt>Date of joining</dt><dd>{student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '-'}</dd></div>
+            <div className="sa-row"><dt>Student mobile</dt><dd>{student.mobileNo}</dd></div>
+            <div className="sa-row"><dt>Room</dt><dd>{student.room ? `${student.room.block} - Room ${student.room.id.replace(/^[a-zA-Z\\s_-]+/, '')}` : (student.roomNo || '-')} {student.bedNo ? `(${student.bedNo})` : ''}</dd></div>
+            <div className="sa-row"><dt>Monthly Rent</dt><dd>₹{student.rent || 0}</dd></div>
+            <div className="sa-row"><dt>Advance Paid</dt><dd>₹{student.advance || 0}</dd></div>
           </dl>
         </div>
 

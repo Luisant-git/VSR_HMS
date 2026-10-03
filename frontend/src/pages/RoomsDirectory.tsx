@@ -421,10 +421,9 @@ const RoomsDirectory = () => {
                   <input type="text" placeholder="e.g. 101" required value={newRoom.id} onChange={e => setNewRoom({ ...newRoom, id: e.target.value })} disabled={isEditing} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: isEditing ? '#f8f9fa' : 'white', cursor: isEditing ? 'not-allowed' : 'text' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Block & Floor</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Block</label>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <input type="text" placeholder="Block (e.g. A)" required value={newRoom.block} onChange={e => setNewRoom({ ...newRoom, block: e.target.value })} style={{ width: '60%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
-                    <input type="number" placeholder="Floor" value={newRoom.floor} onChange={e => setNewRoom({ ...newRoom, floor: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '40%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                    <input type="text" placeholder="Block (e.g. A)" required value={newRoom.block} onChange={e => setNewRoom({ ...newRoom, block: e.target.value })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
                   </div>
                 </div>
               </div>

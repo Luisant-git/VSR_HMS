@@ -211,8 +211,8 @@ export default function StudentPortal() {
                   <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.room?.type || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Block / Floor</div>
-                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.room ? `Block ${student.room.block} - Floor ${student.room.floor}` : 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Block / Room No</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.room ? `Block ${student.room.block} - Room ${student.room.id.replace(/^[a-zA-Z\\s_-]+/, '')}` : 'N/A'}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Rent</div>
