@@ -509,9 +509,9 @@ const CollegeMaster = () => {
                     <input type="checkbox" checked={isRentFineEnabled} onChange={(e) => setIsRentFineEnabled(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#4f46e5', cursor: 'pointer' }} />
                     <span style={{ fontSize: '14px', fontWeight: 600, color: isRentFineEnabled ? '#1e40af' : '#64748b' }}>Daily Rent Fine</span>
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: isRentFineEnabled ? '#0f172a' : '#94a3b8' }}>₹</span>
-                    <input type="number" step="1" value={rentFine} onChange={e => setRentFine(parseFloat(e.target.value) || 0)} disabled={!isRentFineEnabled} placeholder="0" style={{ width: '100px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px', fontWeight: 600, background: isRentFineEnabled ? 'white' : '#f1f5f9', color: isRentFineEnabled ? '#0f172a' : '#94a3b8', opacity: isRentFineEnabled ? 1 : 0.6, textAlign: 'right' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', width: '140px', background: isRentFineEnabled ? 'white' : '#f1f5f9', opacity: isRentFineEnabled ? 1 : 0.6, boxShadow: isRentFineEnabled ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}>
+                    <div style={{ padding: '8px 14px', background: isRentFineEnabled ? '#f8fafc' : '#f1f5f9', borderRight: '1px solid #cbd5e1', color: isRentFineEnabled ? '#475569' : '#94a3b8', fontWeight: 700, fontSize: '14px' }}>₹</div>
+                    <input type="number" step="1" value={rentFine} onChange={e => setRentFine(parseFloat(e.target.value) || 0)} disabled={!isRentFineEnabled} placeholder="0" style={{ width: '100%', padding: '8px 12px', border: 'none', outline: 'none', fontSize: '14px', fontWeight: 600, background: 'transparent', color: isRentFineEnabled ? '#0f172a' : '#94a3b8', textAlign: 'right' }} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', background: isMessFineEnabled ? '#eff6ff' : '#f8fafc', transition: 'all 0.2s' }}>
@@ -519,9 +519,9 @@ const CollegeMaster = () => {
                     <input type="checkbox" checked={isMessFineEnabled} onChange={(e) => setIsMessFineEnabled(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#4f46e5', cursor: 'pointer' }} />
                     <span style={{ fontSize: '14px', fontWeight: 600, color: isMessFineEnabled ? '#1e40af' : '#64748b' }}>Daily Mess Fine</span>
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: isMessFineEnabled ? '#0f172a' : '#94a3b8' }}>₹</span>
-                    <input type="number" step="1" value={messFine} onChange={e => setMessFine(parseFloat(e.target.value) || 0)} disabled={!isMessFineEnabled} placeholder="0" style={{ width: '100px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px', fontWeight: 600, background: isMessFineEnabled ? 'white' : '#f1f5f9', color: isMessFineEnabled ? '#0f172a' : '#94a3b8', opacity: isMessFineEnabled ? 1 : 0.6, textAlign: 'right' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', width: '140px', background: isMessFineEnabled ? 'white' : '#f1f5f9', opacity: isMessFineEnabled ? 1 : 0.6, boxShadow: isMessFineEnabled ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}>
+                    <div style={{ padding: '8px 14px', background: isMessFineEnabled ? '#f8fafc' : '#f1f5f9', borderRight: '1px solid #cbd5e1', color: isMessFineEnabled ? '#475569' : '#94a3b8', fontWeight: 700, fontSize: '14px' }}>₹</div>
+                    <input type="number" step="1" value={messFine} onChange={e => setMessFine(parseFloat(e.target.value) || 0)} disabled={!isMessFineEnabled} placeholder="0" style={{ width: '100%', padding: '8px 12px', border: 'none', outline: 'none', fontSize: '14px', fontWeight: 600, background: 'transparent', color: isMessFineEnabled ? '#0f172a' : '#94a3b8', textAlign: 'right' }} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', background: isEbFineEnabled ? '#eff6ff' : '#f8fafc', transition: 'all 0.2s' }}>
@@ -529,9 +529,9 @@ const CollegeMaster = () => {
                     <input type="checkbox" checked={isEbFineEnabled} onChange={(e) => setIsEbFineEnabled(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: '#4f46e5', cursor: 'pointer' }} />
                     <span style={{ fontSize: '14px', fontWeight: 600, color: isEbFineEnabled ? '#1e40af' : '#64748b' }}>Daily EB Fine</span>
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: isEbFineEnabled ? '#0f172a' : '#94a3b8' }}>₹</span>
-                    <input type="number" step="1" value={ebFine} onChange={e => setEbFine(parseFloat(e.target.value) || 0)} disabled={!isEbFineEnabled} placeholder="0" style={{ width: '100px', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px', fontWeight: 600, background: isEbFineEnabled ? 'white' : '#f1f5f9', color: isEbFineEnabled ? '#0f172a' : '#94a3b8', opacity: isEbFineEnabled ? 1 : 0.6, textAlign: 'right' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', width: '140px', background: isEbFineEnabled ? 'white' : '#f1f5f9', opacity: isEbFineEnabled ? 1 : 0.6, boxShadow: isEbFineEnabled ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}>
+                    <div style={{ padding: '8px 14px', background: isEbFineEnabled ? '#f8fafc' : '#f1f5f9', borderRight: '1px solid #cbd5e1', color: isEbFineEnabled ? '#475569' : '#94a3b8', fontWeight: 700, fontSize: '14px' }}>₹</div>
+                    <input type="number" step="1" value={ebFine} onChange={e => setEbFine(parseFloat(e.target.value) || 0)} disabled={!isEbFineEnabled} placeholder="0" style={{ width: '100%', padding: '8px 12px', border: 'none', outline: 'none', fontSize: '14px', fontWeight: 600, background: 'transparent', color: isEbFineEnabled ? '#0f172a' : '#94a3b8', textAlign: 'right' }} />
                   </div>
                 </div>
               </div>
