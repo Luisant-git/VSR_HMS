@@ -204,42 +204,43 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
       }
     }
 
-    if (successCount > 0) {
+    if (failedCount === 0) {
+      // 100% success
       toast.success(`${successCount} records imported successfully!`);
+      if (onClose) onClose();
+      Swal.close();
+      return;
     }
 
+    // If there are failures, show the modal
     let resultHtml = `
       <div style="text-align: left; font-size: 15px;">
         <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px;">
           <div style="margin-bottom: 8px;"><strong>Total Records:</strong> ${dataToImport.length}</div>
           <div style="color: #16a34a; margin-bottom: 8px;"><strong>✓ Imported:</strong> ${successCount}</div>
-          <div style="color: ${failedCount > 0 ? '#e11d48' : '#64748b'};"><strong>✗ Failed:</strong> ${failedCount}</div>
+          <div style="color: #e11d48;"><strong>✗ Failed:</strong> ${failedCount}</div>
         </div>
     `;
 
-    if (errors.length > 0) {
+    resultHtml += `
+      <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">Failed Records:</h4>
+      <div style="max-height: 250px; overflow-y: auto; background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3;">
+    `;
+    errors.forEach((e, idx) => {
       resultHtml += `
-        <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">Failed Records:</h4>
-        <div style="max-height: 250px; overflow-y: auto; background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3;">
+        <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: ${idx < errors.length - 1 ? '1px solid #fda4af' : 'none'}; font-size: 13px; color: #be123c;">
+          <strong>Row ${e.row} (${e.name}):</strong> ${e.reason}
+        </div>
       `;
-      errors.forEach((e, idx) => {
-        resultHtml += `
-          <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: ${idx < errors.length - 1 ? '1px solid #fda4af' : 'none'}; font-size: 13px; color: #be123c;">
-            <strong>Row ${e.row} (${e.name}):</strong> ${e.reason}
-          </div>
-        `;
-      });
-      resultHtml += `</div>`;
-    }
-    
-    resultHtml += `</div>`;
+    });
+    resultHtml += `</div></div>`;
 
     Swal.fire({
       title: 'Import Results',
       html: resultHtml,
-      icon: failedCount > 0 ? (successCount > 0 ? 'warning' : 'error') : 'success',
+      icon: successCount > 0 ? 'warning' : 'error',
       confirmButtonText: 'OK',
-      showCancelButton: failedCount > 0,
+      showCancelButton: true,
       cancelButtonText: 'Export Failed Records',
       confirmButtonColor: '#0d6efd',
       cancelButtonColor: '#e11d48',
