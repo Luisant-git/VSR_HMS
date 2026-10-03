@@ -439,6 +439,10 @@ export default function StudentAdmissionForm() {
               <input type="email" className="sa-input" value={formData.emailId} onChange={e => setField('emailId', e.target.value)} style={{ paddingLeft: '16px' }} />
             </div>
             <div>
+              <label className="sa-label">Aadhar Number</label>
+              <input className="sa-input" value={formData.aadharNo} onChange={e => setField('aadharNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={12} placeholder="12-digit Aadhar" />
+            </div>
+            <div>
               <label className="sa-label">Blood Group</label>
               <select className="sa-input" value={formData.bloodGroup} onChange={e => setField('bloodGroup', e.target.value)} style={{ paddingLeft: '16px' }}>
                 <option value="">Select Blood Group</option>
