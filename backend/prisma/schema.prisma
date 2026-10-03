@@ -110,8 +110,9 @@ model Student {
   clearance    ClearanceRecord?
   outpasses    Outpass[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  profileUpdatedAt DateTime?
 }
 
 // ---------------------------------------------------------

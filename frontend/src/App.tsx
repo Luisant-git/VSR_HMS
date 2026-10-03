@@ -22,6 +22,7 @@ import MenuPermission from './pages/MenuPermission';
 import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
 import DeveloperSettings from './pages/DeveloperSettings';
+import StudentAdmissionForm from './pages/StudentAdmissionForm';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -61,6 +62,7 @@ function App() {
       <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/student-portal" element={<StudentPortal />} />
+      <Route path="/student-admission" element={<StudentAdmissionForm />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="hostellers">

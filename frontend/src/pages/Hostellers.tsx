@@ -411,6 +411,11 @@ const Hostellers = () => {
                         <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                           <Phone size={12} /> {h.contact}
                         </div>
+                        {h.raw.profileUpdatedAt && (
+                          <div style={{ fontSize: '11px', color: '#10b981', display: 'inline-block', padding: '2px 6px', background: '#ecfdf5', borderRadius: '4px', marginTop: '4px', fontWeight: 600 }}>
+                            Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </td>

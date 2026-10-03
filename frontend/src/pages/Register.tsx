@@ -161,7 +161,6 @@ const Register = () => {
     if (!formData.name.trim()) return toast.error('Please enter the Full Name');
     if (!formData.mobileNo.trim()) return toast.error('Please enter the Mobile Number');
     if (!formData.gender) return toast.error('Please select a Gender');
-    if (!formData.emergencyContact.trim()) return toast.error('Please enter the Emergency Contact Number');
     if (!selectedRoom) return toast.error('Please assign a vacant room to the student');
     
     setIsSubmitting(true);
@@ -459,7 +458,7 @@ const Register = () => {
                 <input value={formData.guardianMobileNo} onChange={e => setFormData({ ...formData, guardianMobileNo: sanitizeMobile(e.target.value) })} type="text" placeholder="Optional" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.guardianMobileNo)} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Emergency Contact Number <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Emergency Contact Number</label>
                 <input value={formData.emergencyContact} onChange={e => setFormData({ ...formData, emergencyContact: sanitizeMobile(e.target.value) })} type="text" placeholder="Mandatory contact" maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.emergencyContact)} />
               </div>
               <div></div>

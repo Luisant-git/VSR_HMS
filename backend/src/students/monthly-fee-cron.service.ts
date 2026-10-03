@@ -62,7 +62,7 @@ export class MonthlyFeeCronService {
           });
           this.logger.log(`Generated monthly fees for student ${student.regNo}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(`Failed to generate monthly fees for student ${student.regNo}: ${error.message}`);
       }
     }

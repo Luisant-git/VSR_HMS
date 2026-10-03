@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap } from 'lucide-react';
+import { Search, User, CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
@@ -86,6 +86,63 @@ export default function StudentPortal() {
 
   const pendingFees = student?.transactions?.filter((t: any) => t.status === 'PENDING') || [];
 
+  if (!student) {
+    return (
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '20px' }}>
+        <div style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+            <div style={{ width: '64px', height: '64px', background: '#eff6ff', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+              <Wallet size={32} />
+            </div>
+          </div>
+          
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Fee Portal</h2>
+            <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>Enter your registered mobile number to securely pay your fees.</p>
+          </div>
+
+          <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
+              <div style={{ position: 'relative' }}>
+                <Phone size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  value={mobileNo}
+                  onChange={(e) => setMobileNo(e.target.value)}
+                  placeholder="e.g. 9876543210"
+                  style={{
+                    width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: '#f8fafc', color: '#1e293b'
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+            </div>
+            
+            {error && (
+              <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', color: '#ef4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertCircle size={20} style={{ flexShrink: 0 }} /> <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                background: '#2563eb', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '8px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}
+              onMouseOver={(e) => { if(!loading) { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)'; } }}
+              onMouseOut={(e) => { if(!loading) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
+            >
+              {loading ? 'Searching...' : 'Continue to Fee Portal →'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="portal-container" style={{ height: '100vh', overflowY: 'auto', background: '#f8fafc', padding: '40px 20px', fontFamily: '"Inter", sans-serif' }}>
       <style>
@@ -101,6 +158,7 @@ export default function StudentPortal() {
             .portal-subtitle { font-size: 14px !important; }
             .login-card { padding: 24px !important; }
             .portal-container { padding: 20px 15px !important; }
+            .student-header-box { flex-direction: column; text-align: center; }
           }
           .history-cards { display: none; }
           .history-cards::-webkit-scrollbar { width: 4px; }
@@ -108,51 +166,10 @@ export default function StudentPortal() {
         `}
       </style>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h1 className="portal-title" style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 8px 0', background: 'linear-gradient(to right, #1e3a8a, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>VSR Hostel Student Portal</h1>
           <p className="portal-subtitle" style={{ color: '#64748b', fontSize: '16px', margin: 0, fontWeight: 500 }}>View your details and securely pay your fees online.</p>
         </div>
-
-        {!student ? (
-          <div className="login-card" style={{ background: 'white', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', maxWidth: '500px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ width: '64px', height: '64px', background: '#eff6ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <User size={32} color="#2563eb" />
-            </div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', marginBottom: '24px' }}>Enter Mobile Number</h2>
-            
-            <form onSubmit={handleSearch}>
-              <div style={{ position: 'relative', marginBottom: '24px' }}>
-                <div style={{ position: 'absolute', left: '2px', top: '2px', bottom: '2px', width: '50px', background: '#f8fafc', borderRight: `1px solid ${error ? '#ef4444' : '#e2e8f0'}`, borderRadius: '10px 0 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ color: '#64748b', fontWeight: 700, fontSize: '15px' }}>+91</span>
-                </div>
-                <input 
-                  type="tel" 
-                  value={mobileNo}
-                  onChange={(e) => {
-                    setMobileNo(e.target.value);
-                    if (error) setError('');
-                  }}
-                  placeholder="10-digit mobile number"
-                  style={{ width: '100%', padding: '14px 16px 14px 65px', borderRadius: '12px', border: `2px solid ${error ? '#ef4444' : '#e2e8f0'}`, fontSize: '16px', outline: 'none', transition: 'border-color 0.2s', fontWeight: 600, color: '#0f172a' }}
-                />
-              </div>
-              
-              {error && (
-                <div style={{ color: '#ef4444', fontSize: '14px', fontWeight: 500, marginBottom: '20px', textAlign: 'left', padding: '8px 12px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fee2e2' }}>
-                  {error}
-                </div>
-              )}
-              <button 
-                type="submit" 
-                disabled={loading}
-                style={{ width: '100%', padding: '14px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '12px', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)' }}
-              >
-                {loading ? 'Searching...' : <><Search size={18} /> Find My Record</>}
-              </button>
-            </form>
-          </div>
-        ) : (
           <div>
             <button 
               onClick={() => { 
@@ -177,6 +194,38 @@ export default function StudentPortal() {
               </div>
               <div style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CheckCircle size={14} /> Active Resident
+              </div>
+            </div>
+
+            {/* Room & Accommodation */}
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '16px' }}>Room & Accommodation</h3>
+            <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '30px', padding: '24px' }}>
+              <div className="room-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px' }}>
+                <style>{`
+                  @media (max-width: 640px) {
+                    .room-grid { grid-template-columns: 1fr 1fr !important; }
+                  }
+                `}</style>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Room Type</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.room?.type || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Block / Floor</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.room ? `Block ${student.room.block} - Floor ${student.room.floor}` : 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Rent</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{student.rent?.toLocaleString('en-IN') || 0}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Advance Paid</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{student.advance?.toLocaleString('en-IN') || 0}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Food Type</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>{student.foodType || 'N/A'}</div>
+                </div>
               </div>
             </div>
 
@@ -207,9 +256,7 @@ export default function StudentPortal() {
               </div>
             )}
 
-
           </div>
-        )}
 
       </div>
 
