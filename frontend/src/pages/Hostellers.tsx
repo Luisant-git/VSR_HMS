@@ -656,6 +656,14 @@ const Hostellers = () => {
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Personal Details</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedHosteller.raw?.doc2Type || 'Secondary ID'}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.doc2Number || 'N/A'}</div>
+                </div>
+                <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Aadhar Number</div>
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
                 </div>

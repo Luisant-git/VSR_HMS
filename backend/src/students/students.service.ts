@@ -198,12 +198,18 @@ export class StudentsService {
   }
 
   async update(id: string, updateData: any) {
+    console.log('--- BACKEND UPDATE RECEIVED ---');
+    console.log('ID:', id);
+    console.log('updateData:', updateData);
+
     const cleanData = { ...updateData };
     Object.keys(cleanData).forEach(key => {
       if (cleanData[key] === '') {
         cleanData[key] = null;
       }
     });
+    
+    console.log('cleanData:', cleanData);
     
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
@@ -213,13 +219,16 @@ export class StudentsService {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
 
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const whereClause = isUuid ? { id } : { regNo: id };
+
     const existingStudent = await this.prisma.student.findUnique({
-      where: { regNo: id },
+      where: whereClause,
       select: { roomNo: true, status: true }
     });
 
     const updatedStudent = await this.prisma.student.update({
-      where: { regNo: id },
+      where: whereClause,
       data: cleanData
     });
 

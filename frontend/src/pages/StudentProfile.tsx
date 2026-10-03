@@ -148,6 +148,10 @@ const StudentProfile = () => {
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
           doc2Url: data.doc2Url,
+          doc1Type: data.doc1Type,
+          doc2Type: data.doc2Type,
+          doc1Number: data.doc1Number,
+          doc2Number: data.doc2Number,
           aadharNo: data.aadharNo, 
           secondaryIdNo: data.secondaryIdNo, 
           clearance: data.clearance,
@@ -511,7 +515,7 @@ const StudentProfile = () => {
                     <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
                         <FileText size={18} color="#0ea5e9" />
-                        <span>Document 1: Aadhar Card</span>
+                        <span>Document 1: {student.doc1Type || 'Aadhar Card'}</span>
                       </div>
                       <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
@@ -519,15 +523,15 @@ const StudentProfile = () => {
                     <div style={{ padding: '20px' }}>
                       <div style={{ marginBottom: '15px' }}>
                         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> Aadhar Card
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> {student.doc1Type || 'Aadhar Card'}
                         </div>
                         <div style={{ fontSize: '14px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.aadharNo || 'Not Provided'}
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.doc1Number || 'Not Provided'}
                         </div>
                       </div>
 
                       <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
-                        {renderDocPreview(student.doc1Url, "Aadhar Card")}
+                        {renderDocPreview(student.doc1Url, student.doc1Type || "Aadhar Card")}
                       </div>
 
                       <a
@@ -552,7 +556,7 @@ const StudentProfile = () => {
                     <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
                         <FileText size={18} color="#0ea5e9" />
-                        <span>Document 2: Secondary ID</span>
+                        <span>Document 2: {student.doc2Type || 'Secondary ID'}</span>
                       </div>
                       <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
                     </div>
@@ -560,15 +564,15 @@ const StudentProfile = () => {
                     <div style={{ padding: '20px' }}>
                       <div style={{ marginBottom: '15px' }}>
                         <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> Secondary ID
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> {student.doc2Type || 'Secondary ID'}
                         </div>
                         <div style={{ fontSize: '14px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.secondaryIdNo || 'Not Provided'}
+                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.doc2Number || 'Not Provided'}
                         </div>
                       </div>
 
                       <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
-                        {renderDocPreview(student.doc2Url, "Secondary ID")}
+                        {renderDocPreview(student.doc2Url, student.doc2Type || "Secondary ID")}
                       </div>
 
                       <a

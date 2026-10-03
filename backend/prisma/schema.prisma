@@ -75,6 +75,10 @@ model Student {
   photoUrl         String?
   doc1Url          String?
   doc2Url          String?
+  doc1Type         String?
+  doc2Type         String?
+  doc1Number       String?
+  doc2Number       String?
   aadharNo         String? @unique
   secondaryIdNo    String?
   address          String?

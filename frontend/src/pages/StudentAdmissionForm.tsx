@@ -1,83 +1,209 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, User, Upload, ArrowLeft, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard } from 'lucide-react';
+import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, ChevronRight } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
 import { UploadAPI } from '../api/upload.api';
 import Swal from 'sweetalert2';
+
+const EMPTY_FORM = { 
+  mobileNo: '', fatherMobileNo: '', motherMobileNo: '', guardianMobileNo: '', emergencyContact: '', 
+  photoUrl: '', doc1Url: '', doc2Url: '', 
+  doc1Type: 'Aadhar Card', doc2Type: 'College Student ID', doc1Number: '', doc2Number: '', aadharNo: '', secondaryIdNo: '' 
+};
+
+
+
+const DOCS = [
+  { key: 'doc1Url', typeKey: 'doc1Type', numKey: 'doc1Number', title: 'Document 1: Primary ID Proof', hint: 'Front and back in one file', options: ['Aadhar Card', 'PAN Card', 'Voter ID', 'Driving License'] },
+  { key: 'doc2Url', typeKey: 'doc2Type', numKey: 'doc2Number', title: 'Document 2: Secondary / College Proof', hint: 'Any valid photo ID', options: ['College Student ID', 'Driving License', 'Voter ID', 'Passport', 'Other'] },
+];
+
+const CSS = `
+.sa{--primary:#0ea5e9;--primary-d:#0284c7;--primary-soft:#f0f9ff;--ink:#0f172a;--text:#334155;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;
+  min-height:100vh;height:100vh;overflow-y:auto;background:var(--bg);font-family:"Inter",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+.sa *{box-sizing:border-box}
+.sa-wrap{max-width:960px;margin:0 auto;padding:100px 20px 120px}
+.sa-card{background:#fff;border:1px solid #f1f5f9;border-radius:24px;box-shadow:0 20px 40px -15px rgba(0,0,0,.05);padding:28px}
+.sa-stack{display:flex;flex-direction:column;gap:20px}
+.sa-icon{width:64px;height:64px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center}
+.sa-icon.sm{width:40px;height:40px;border-radius:12px}
+.sa h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:0}
+.sa h2{font-size:17px;font-weight:700;margin:0}
+.sa p{margin:0}
+.sa-sub{color:var(--muted);font-size:15px}
+.sa-label{display:block;margin-bottom:8px;color:var(--text);font-size:14px;font-weight:600}
+.sa-field{position:relative}
+.sa-field svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none}
+.sa-input{width:100%;padding:14px 16px 14px 48px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font:inherit;font-size:16px;color:#1e293b;outline:none;transition:all .2s ease}
+.sa-input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(14,165,233,.1)}
+.sa-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:12px;background:var(--primary);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s ease}
+.sa-btn:hover:not(:disabled){background:var(--primary-d);transform:translateY(-2px);box-shadow:0 10px 25px -5px rgba(14,165,233,.4)}
+.sa-btn:disabled{opacity:.6;cursor:not-allowed}
+.sa-btn.block{width:100%}
+.sa-btn.ghost{background:#fff;color:var(--primary-d);border:2px solid var(--line);padding:10px 16px;font-size:14px}
+.sa-btn.ghost:hover:not(:disabled){background:var(--primary-soft);border-color:var(--primary);box-shadow:none;transform:none}
+.sa-btn.sm{padding:10px 16px;font-size:14px}
+.sa-btn.danger{background:#fff;color:#e11d48;border:2px solid #fecdd3}
+.sa-btn.danger:hover:not(:disabled){background:#fff1f2;box-shadow:none;transform:none}
+.sa :focus-visible:not(.sa-input){outline:3px solid rgba(14,165,233,.45);outline-offset:2px}
+.sa-error{display:flex;gap:10px;align-items:center;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;color:#ef4444;font-size:14px}
+
+/* login */
+.sa-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.sa-login .sa-card{width:100%;max-width:440px;padding:40px;text-align:center}
+.sa-login form{text-align:left;display:flex;flex-direction:column;gap:20px;margin-top:32px}
+
+/* page title */
+.sa-title { margin-bottom: 8px; padding: 0 4px; }
+.sa-title h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin: 0; color: var(--ink); }
+.sa-title p { margin-top: 8px; color: var(--muted); font-size: 16px; }
+
+/* topbar */
+.sa-topbar { position: fixed; top: 0; left: 0; right: 0; height: 72px; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); z-index: 40; display: flex; align-items: center; justify-content: center; }
+.sa-topbar-inner { width: 100%; max-width: 960px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+.sa-logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; color: var(--ink); }
+.sa-logo div { width: 36px; height: 36px; background: var(--primary); color: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+
+/* top */
+.sa-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.sa-who{display:flex;align-items:center;gap:16px;min-width:0}
+.sa-avatar{width:64px;height:64px;border-radius:50%;background:var(--bg);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#94a3b8}
+.sa-avatar img{width:100%;height:100%;object-fit:cover}
+.sa-chips{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.sa-chip{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:#f1f5f9;color:#475569}
+.sa-chip.green{background:#f0fdf4;color:#166534}
+
+/* progress */
+.sa-progress{display:flex;align-items:center;gap:16px}
+.sa-bar{flex:1;height:8px;border-radius:99px;background:#f1f5f9;overflow:hidden}
+.sa-bar i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .4s ease}
+.sa-progress span{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap}
+
+/* sections */
+.sa-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sa-head p{font-size:13px;color:var(--muted);margin-top:2px}
+.sa-dl{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin:0}
+.sa-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;border-bottom:1px solid #f1f5f9}
+.sa-row dt{font-size:14px;color:var(--muted);flex-shrink:0}
+.sa-row dd{margin:0;font-size:14px;font-weight:600;color:var(--ink);text-align:right;word-break:break-word}
+.sa-row.wide{grid-column:1/-1}
+.sa-dl .sa-row:nth-last-child(-n+2):not(.wide){border-bottom:none}
+.sa-dl .sa-row.wide:last-child{border-bottom:none}
+.sa-grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+/* photo */
+.sa-photo{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.sa-frame{width:160px;height:160px;border-radius:24px;border:2px dashed #cbd5e1;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;font-weight:500;gap:8px}
+.sa-frame img,.sa-frame video{width:100%;height:100%;object-fit:cover}
+.sa-frame.filled{border-style:solid;border-color:var(--line)}
+.sa-spin{width:24px;height:24px;border:3px solid #cbd5e1;border-top-color:var(--primary);border-radius:50%;animation:sa-spin 1s linear infinite}
+@keyframes sa-spin{to{transform:rotate(360deg)}}
+.sa-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sa-note{font-size:12px;color:#94a3b8;margin-top:10px}
+
+/* docs */
+.sa-doc{border:2px solid var(--line);border-radius:18px;padding:20px;background:var(--bg)}
+.sa-doc.done{border-color:#bae6fd;background:var(--primary-soft)}
+.sa-doc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:8px}
+.sa-doc-top b{display:block;font-size:15px}
+.sa-doc-top small{color:var(--muted);font-size:13px}
+.sa-tick{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sa-preview{height:150px;background:#fff;border:2px dashed #cbd5e1;border-radius:14px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#94a3b8;text-align:center;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s ease;width:100%}
+.sa-preview:hover{border-color:var(--primary);background:var(--primary-soft)}
+.sa-preview img{width:100%;height:100%;object-fit:contain}
+.sa-preview svg{display:block;margin:0 auto 6px}
+
+/* save bar */
+.sa-save{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:14px 20px;z-index:10}
+.sa-save div{max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.sa-save p{font-size:14px;color:var(--muted)}
+
+@media (max-width:720px){
+  .sa-wrap{padding:92px 12px calc(96px + env(safe-area-inset-bottom));gap:12px}
+  .sa-card{padding:16px;border-radius:18px;box-shadow:0 8px 20px -12px rgba(0,0,0,.08)}
+  .sa-title h1{font-size:22px}.sa-title p{font-size:13px}
+  .sa h1{font-size:24px}.sa h2{font-size:16px}
+  .sa-login .sa-card{padding:28px 20px}
+  .sa-top{flex-wrap:nowrap;gap:10px}
+  .sa-top h1{font-size:18px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sa-avatar{width:52px;height:52px}
+  .sa-chip{font-size:12px;padding:3px 8px}
+  .sa-lo{display:none}
+  .sa-top .sa-btn.ghost{padding:10px;border-radius:12px;flex-shrink:0}
+  .sa-progress-card{padding:14px 16px!important}
+  .sa-head{margin-bottom:16px;gap:10px}
+  .sa-head p{font-size:12px}
+  .sa-icon.sm{width:36px;height:36px;border-radius:10px}
+  .sa-dl{grid-template-columns:1fr}
+  .sa-row,.sa-row.wide{padding:12px 0;grid-column:auto}
+  .sa-dl .sa-row:nth-last-child(2):not(.wide){border-bottom:1px solid #f1f5f9}
+  .sa-dl .sa-row:last-child{border-bottom:none}
+  .sa-row dt,.sa-row dd{font-size:13px}
+  .sa-grid2{grid-template-columns:1fr;gap:14px}
+  .sa-photo{flex-direction:column;align-items:center;gap:16px;text-align:center}
+  .sa-actions{width:100%}
+  .sa-actions .sa-btn{flex:1;padding:12px 10px}
+  .sa-doc{padding:14px;border-radius:16px}
+  .sa-preview{height:120px;margin-bottom:12px}
+  .sa-input{padding:13px 14px 13px 44px;border-radius:12px}
+  .sa-save{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .sa-save p{display:none}.sa-save .sa-btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){.sa *{transition:none!important;animation:none!important}}
+`;
 
 export default function StudentAdmissionForm() {
   const [mobileNo, setMobileNo] = useState('');
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Form State
-  const [formData, setFormData] = useState({
-    mobileNo: '',
-    fatherMobileNo: '',
-    motherMobileNo: '',
-    guardianMobileNo: '',
-    emergencyContact: '',
-    photoUrl: '',
-    doc1Url: '',
-    doc2Url: ''
-  });
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState('');
 
-  // Camera State
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const setField = (key: string, value: string) => setFormData(prev => ({ ...prev, [key]: value }));
 
   const startCamera = async () => {
     setIsCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      toast.error('Failed to access camera.');
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      toast.error('Could not access the camera. Check your browser permissions.');
       setIsCameraOpen(false);
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    stream?.getTracks().forEach(t => t.stop());
     setIsCameraOpen(false);
   };
 
-  const takePhoto = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        
-        setUploadingField('photoUrl');
-        canvasRef.current.toBlob(async (blob) => {
-          if (blob) {
-            const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-            try {
-              const res = await UploadAPI.uploadFile(file);
-              if (res && res.url) {
-                 setFormData({ ...formData, photoUrl: res.url });
-                 toast.success('Photo captured and uploaded!');
-              }
-            } catch (err) {
-              toast.error('Failed to upload captured photo');
-            }
-            setUploadingField('');
-            stopCamera();
-          }
-        }, 'image/jpeg');
+  const takePhoto = () => {
+    const video = videoRef.current, canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!video || !canvas || !ctx) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setUploadingField('photoUrl');
+    canvas.toBlob(async blob => {
+      if (blob) {
+        try {
+          const url = await UploadAPI.uploadImage(new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+          if (url) { setField('photoUrl', url); toast.success('Photo uploaded'); }
+        } catch {
+          toast.error('Photo upload failed. Try again.');
+        }
       }
-    }
+      setUploadingField('');
+      stopCamera();
+    }, 'image/jpeg');
   };
 
   const loadStudent = async (searchMobile: string) => {
@@ -85,395 +211,310 @@ export default function StudentAdmissionForm() {
     try {
       const data = await StudentAPI.findByMobile(searchMobile);
       if (!data) {
-        setError("No student registered with this mobile number.");
+        setError('No student is registered with this mobile number.');
         setStudent(null);
       } else {
         setStudent(data);
-        setFormData({
-          mobileNo: data.mobileNo || '',
-          fatherMobileNo: data.fatherMobileNo || '',
-          motherMobileNo: data.motherMobileNo || '',
-          guardianMobileNo: data.guardianMobileNo || '',
-          emergencyContact: data.emergencyContact || '',
-          photoUrl: data.photoUrl || '',
-          doc1Url: data.doc1Url || '',
-          doc2Url: data.doc2Url || ''
-        });
+        setFormData(Object.fromEntries(Object.keys(EMPTY_FORM).map(k => {
+          let val = data[k];
+          if (k === 'doc1Number' && !val && data.aadharNo) val = data.aadharNo;
+          if (k === 'doc2Number' && !val && data.secondaryIdNo) val = data.secondaryIdNo;
+          return [k, val || (EMPTY_FORM as any)[k]];
+        })) as typeof EMPTY_FORM);
         sessionStorage.setItem('student_admission_mobile', searchMobile);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to find student");
+      setError(err.message || 'Could not find the student. Try again.');
     }
     setLoading(false);
   };
 
+  // Mobile styles only apply when the page has a viewport meta tag
   useEffect(() => {
-    const savedMobile = sessionStorage.getItem('student_admission_mobile');
-    if (savedMobile) {
-      setMobileNo(savedMobile);
-      loadStudent(savedMobile);
+    let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
     }
+    meta.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+  }, []);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('student_admission_mobile');
+    if (saved) { setMobileNo(saved); loadStudent(saved); }
   }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    const cleanMobile = mobileNo.trim().replace(/\D/g, '');
-    if (cleanMobile.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number.');
-      return;
-    }
-    await loadStudent(cleanMobile);
+    const clean = mobileNo.trim().replace(/\D/g, '');
+    if (clean.length !== 10) { setError('Enter a valid 10-digit mobile number.'); return; }
+    await loadStudent(clean);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (!file) return;
     setUploadingField(fieldName);
-    
     try {
-      const res = await UploadAPI.uploadFile(file);
-      if (res && res.url) {
-        setFormData({ ...formData, [fieldName]: res.url });
-        toast.success('File uploaded successfully!');
-      }
-    } catch (err) {
-      toast.error('Failed to upload file');
+      const url = await UploadAPI.uploadImage(file);
+      if (url) { setField(fieldName, url); toast.success('File uploaded'); }
+    } catch {
+      toast.error('Upload failed. Try again.');
     } finally {
       setUploadingField('');
+      e.target.value = '';
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!student) return;
-    
+    const confirm = await Swal.fire({
+      title: 'Save these changes?',
+      text: 'Your profile details and KYC documents will be updated.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, save',
+      cancelButtonText: 'Review again',
+      confirmButtonColor: '#0ea5e9',
+      cancelButtonColor: '#94a3b8',
+    });
+    if (!confirm.isConfirmed) return;
     setSaving(true);
     try {
-      await StudentAPI.update(student.id, {
-        ...formData,
-        profileUpdatedAt: new Date()
-      });
-      Swal.fire({
-        title: 'Updated Successfully!',
-        text: 'Your profile and KYC documents have been saved.',
-        icon: 'success',
-        confirmButtonColor: '#0ea5e9'
-      });
-      // Reload student
-      await loadStudent(formData.mobileNo || mobileNo);
+      await StudentAPI.update(student.id, { ...formData, profileUpdatedAt: new Date() });
+      await Swal.fire({ title: 'Changes saved', text: 'Your profile and KYC documents are up to date.', icon: 'success', confirmButtonColor: '#0ea5e9' });
+      logout();
     } catch (err: any) {
-      Swal.fire({
-        title: 'Update Failed',
-        text: err.message || 'Failed to update profile. Please try again.',
-        icon: 'error',
-        confirmButtonColor: '#e11d48'
-      });
+      Swal.fire({ title: 'Could not save changes', text: err.message || 'Check your connection and try again.', icon: 'error', confirmButtonColor: '#e11d48' });
     }
     setSaving(false);
   };
 
+  const logout = () => {
+    stopCamera();
+    setStudent(null);
+    setFormData({ ...EMPTY_FORM });
+    sessionStorage.removeItem('student_admission_mobile');
+  };
+
+  /* ---------- Login ---------- */
   if (!student) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '20px' }}>
-        <div style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '64px', height: '64px', background: '#f0f9ff', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0ea5e9' }}>
-              <FileText size={32} />
-            </div>
-          </div>
-          
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Welcome Back</h2>
-            <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>Enter your registered mobile number to access your portal.</p>
-          </div>
-
-          <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="text"
-                  value={mobileNo}
-                  onChange={(e) => setMobileNo(e.target.value)}
-                  placeholder="e.g. 9876543210"
-                  style={{
-                    width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: '#f8fafc', color: '#1e293b'
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#0ea5e9'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(14, 165, 233, 0.1)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
-                />
+      <div className="sa">
+        <style>{CSS}</style>
+        <div className="sa-login">
+          <div className="sa-card">
+            <div className="sa-icon" style={{ margin: '0 auto 24px' }}><FileText size={32} /></div>
+            <h1>Welcome back</h1>
+            <p className="sa-sub" style={{ marginTop: 8 }}>Enter your registered mobile number to open your portal.</p>
+            <form onSubmit={handleSearch}>
+              <div>
+                <label className="sa-label" htmlFor="sa-mobile">Registered mobile number</label>
+                <div className="sa-field">
+                  <Phone size={20} />
+                  <input id="sa-mobile" className="sa-input" inputMode="numeric" value={mobileNo} onChange={e => setMobileNo(e.target.value)} placeholder="e.g. 9876543210" />
+                </div>
               </div>
-            </div>
-            
-            {error && (
-              <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', color: '#ef4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <AlertCircle size={20} style={{ flexShrink: 0 }} /> <span>{error}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                background: '#0ea5e9', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '8px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-              }}
-              onMouseOver={(e) => { if(!loading) { e.currentTarget.style.background = '#0284c7'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(14, 165, 233, 0.4)'; } }}
-              onMouseOut={(e) => { if(!loading) { e.currentTarget.style.background = '#0ea5e9'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
-            >
-              {loading ? 'Searching...' : 'Continue to Portal →'}
-            </button>
-          </form>
+              {error && <div className="sa-error" role="alert"><AlertCircle size={20} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+              <button type="submit" className="sa-btn block" disabled={loading}>
+                {loading ? 'Searching…' : <>Continue to portal <ArrowRight size={18} /></>}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
   }
 
+  /* ---------- Portal ---------- */
+  const steps = [formData.photoUrl, formData.doc1Url, formData.doc2Url, formData.fatherMobileNo || formData.motherMobileNo || formData.guardianMobileNo, formData.emergencyContact];
+  const done = steps.filter(Boolean).length;
+  const busy = saving || uploadingField !== '';
+
+  const details = [
+    { label: 'Registration no', value: student.regNo },
+    { label: 'Full name', value: student.name },
+    { label: 'Date of birth', value: student.dob ? new Date(student.dob).toLocaleDateString() : '' },
+    { label: 'Blood group', value: student.bloodGroup },
+    { label: 'Aadhar number', value: student.aadharNo },
+    { label: 'College', value: student.college?.name },
+    { label: 'Educational qualification', value: student.educationalQua },
+    { label: 'Course duration', value: student.courseDuration },
+    { label: 'Date of joining', value: student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '' },
+    { label: 'Address', value: student.address },
+    { label: 'Student mobile', value: student.mobileNo },
+    { label: "Father's mobile", value: student.fatherMobileNo },
+    { label: "Mother's mobile", value: student.motherMobileNo },
+    { label: "Guardian's mobile", value: student.guardianMobileNo },
+    { label: 'Emergency contact', value: student.emergencyContact },
+  ];
+
   return (
-    <div className="student-form-container" style={{ height: '100vh', overflowY: 'auto', background: '#f8fafc', padding: '40px 20px', fontFamily: '"Inter", sans-serif' }}>
-      <style>{`
-        @media (max-width: 768px) {
-          .student-form-container { padding: 20px 10px !important; }
-          .header-title h1 { font-size: 24px !important; }
-          .header-title p { font-size: 13px !important; }
-          .details-grid { grid-template-columns: 1fr 1fr !important; }
-          .contact-grid { grid-template-columns: 1fr !important; }
-          .kyc-grid { grid-template-columns: 1fr !important; }
-          .header-row { flex-direction: column; align-items: flex-start !important; gap: 15px; }
-        }
-        @media (max-width: 480px) {
-          .details-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', borderRadius: '20px', marginBottom: '16px', boxShadow: '0 10px 25px -5px rgba(59,130,246,0.3)' }}>
-            <FileText color="white" size={32} />
-          </div>
-          <div className="header-title">
-            <h1 style={{ margin: 0, fontSize: '32px', color: '#0f172a', fontWeight: 800, letterSpacing: '-0.5px' }}>Student Admission Form</h1>
-            <p style={{ margin: '8px 0 0 0', color: '#64748b', fontSize: '16px' }}>Complete your profile details and upload necessary KYC documents</p>
+    <div className="sa">
+      <style>{CSS}</style>
+      {/* Modern Top Bar */}
+      <header className="sa-topbar">
+         <div className="sa-topbar-inner">
+           <div className="sa-logo">
+              <div><IdCard size={20} /></div>
+              <span>VSR Hostels</span>
+           </div>
+           <button type="button" className="sa-btn ghost sm" style={{ border: 'none', background: 'transparent' }} onClick={logout} aria-label="Log out">
+             <LogOut size={16} /> <span className="sa-lo">Log out</span>
+           </button>
+         </div>
+      </header>
+
+      <form className="sa-wrap sa-stack" onSubmit={handleSubmit}>
+
+        {/* Title */}
+        <div className="sa-title">
+          <h1>Student admission form</h1>
+          <p>Complete your profile and upload your KYC documents.</p>
+        </div>
+
+        {/* Profile header */}
+        <div className="sa-card sa-top">
+          <div className="sa-who">
+            <div className="sa-avatar">{formData.photoUrl ? <img src={formData.photoUrl} alt="Profile" /> : <User size={30} />}</div>
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ fontSize: 22 }}>{student.name}</h1>
+              <div className="sa-chips">
+                <span className="sa-chip">{student.regNo}</span>
+                <span className="sa-chip green">Room {student.roomNo || 'N/A'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Profile Header Card */}
-          <div className="header-row" style={{ background: 'white', borderRadius: '20px', padding: '24px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '2px solid #e2e8f0' }}>
-                {formData.photoUrl ? (
-                  <img src={formData.photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <User size={32} color="#94a3b8" />
-                )}
+        {/* Progress */}
+        <div className="sa-card sa-progress-card" style={{ padding: '20px 28px' }}>
+          <div className="sa-progress">
+            <div className="sa-bar"><i style={{ width: `${(done / steps.length) * 100}%` }} /></div>
+            <span>{done} of {steps.length} complete</span>
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="sa-card">
+          <div className="sa-head">
+            <div className="sa-icon sm"><IdCard size={20} /></div>
+            <div><h2>Student details</h2><p>Registered with the hostel. Contact the office to change these.</p></div>
+          </div>
+          <dl className="sa-dl">
+            {details.map(d => (
+              <div className={`sa-row ${d.label === 'Address' ? 'wide' : ''}`} key={d.label}>
+                <dt>{d.label}</dt>
+                <dd>{d.value || '-'}</dd>
               </div>
-              <div>
-                <h2 style={{ margin: 0, color: '#0f172a', fontSize: '20px', fontWeight: 700 }}>{student.name}</h2>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                  <span style={{ background: '#f1f5f9', color: '#475569', padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 600 }}>{student.regNo}</span>
-                  <span style={{ background: '#f0fdf4', color: '#166534', padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 600 }}>Room {student.roomNo || 'N/A'}</span>
-                </div>
-              </div>
+            ))}
+          </dl>
+        </div>
+
+        {/* Photo */}
+        <div className="sa-card">
+          <div className="sa-head">
+            <div className="sa-icon sm"><Camera size={20} /></div>
+            <div><h2>Profile photo</h2><p>A clear, front-facing photo.</p></div>
+          </div>
+          <div className="sa-photo">
+            <div className={`sa-frame ${formData.photoUrl && !isCameraOpen ? 'filled' : ''}`}>
+              {isCameraOpen ? (
+                <><video ref={videoRef} autoPlay playsInline muted /><canvas ref={canvasRef} style={{ display: 'none' }} /></>
+              ) : uploadingField === 'photoUrl' ? (
+                <><div className="sa-spin" /><span>Uploading…</span></>
+              ) : formData.photoUrl ? (
+                <img src={formData.photoUrl} alt="Preview" />
+              ) : (
+                <><User size={32} color="#94a3b8" /><span>No photo yet</span></>
+              )}
             </div>
-            <button 
-              onClick={() => { setStudent(null); setFormData({} as any); sessionStorage.removeItem('student_admission_mobile'); }}
-              style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600, padding: '10px 16px', borderRadius: '12px', transition: 'all 0.2s' }}
-              onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#334155'; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}
-            >
-              <ArrowLeft size={16} /> Logout
+            <div>
+              {isCameraOpen ? (
+                <div className="sa-actions">
+                  <button type="button" className="sa-btn sm" onClick={takePhoto}><Camera size={16} /> Take photo</button>
+                  <button type="button" className="sa-btn sm danger" onClick={stopCamera}>Cancel</button>
+                </div>
+              ) : (
+                <div className="sa-actions">
+                  <button type="button" className="sa-btn sm" onClick={startCamera}><Camera size={16} /> {formData.photoUrl ? 'Retake photo' : 'Use camera'}</button>
+                  <label className="sa-btn ghost sm">
+                    <Upload size={16} /> Upload file
+                    <input type="file" hidden accept="image/*" onChange={e => handleFileUpload(e, 'photoUrl')} disabled={uploadingField === 'photoUrl'} />
+                  </label>
+                </div>
+              )}
+              <p className="sa-note">JPG or PNG, up to 5 MB.</p>
+            </div>
+          </div>
+        </div>
+
+
+
+        {/* KYC */}
+        <div className="sa-card">
+          <div className="sa-head">
+            <div className="sa-icon sm"><FileText size={20} /></div>
+            <div><h2>KYC documents</h2><p>Upload a clear image or PDF of each document.</p></div>
+          </div>
+          <div className="sa-grid2">
+            {DOCS.map(doc => {
+              const url = (formData as any)[doc.key] as string;
+              return (
+                <div key={doc.key} className={`sa-doc ${url ? 'done' : ''}`}>
+                  <div className="sa-doc-top">
+                    <div><b>{doc.title}</b><small>{doc.hint}</small></div>
+                    {url && <span className="sa-tick"><Check size={14} /></span>}
+                  </div>
+                  
+                  <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                     <div>
+                       <label className="sa-label" style={{ fontSize: '13px' }}>Document type</label>
+                       <select className="sa-input" style={{ paddingLeft: '16px' }} value={(formData as any)[doc.typeKey] || ''} onChange={e => setField(doc.typeKey, e.target.value)}>
+                          {doc.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                       </select>
+                     </div>
+                     <div>
+                       <label className="sa-label" style={{ fontSize: '13px' }}>Document / ID Number (Optional)</label>
+                       <input className="sa-input" style={{ paddingLeft: '16px' }} placeholder="e.g. 1234 5678 9012" value={(formData as any)[doc.numKey] || ''} onChange={e => setField(doc.numKey, e.target.value)} />
+                     </div>
+                  </div>
+
+                  <label htmlFor={`upload-${doc.key}`} className="sa-preview">
+                    {url ? (
+                      url.toLowerCase().endsWith('.pdf')
+                        ? <div style={{ color: 'var(--primary)' }}><FileText size={36} />PDF uploaded</div>
+                        : <img src={url} alt={doc.title} />
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <Upload size={32} />
+                        <span>Click to upload document</span>
+                      </div>
+                    )}
+                  </label>
+                  <label htmlFor={`upload-${doc.key}`} className="sa-btn ghost block">
+                    {uploadingField === doc.key ? 'Uploading…' : url ? 'Replace document' : 'Upload document'}
+                    <input id={`upload-${doc.key}`} type="file" hidden accept="image/*,.pdf" onChange={e => handleFileUpload(e, doc.key)} disabled={uploadingField === doc.key} />
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Sticky save bar */}
+        <div className="sa-save">
+          <div>
+            <p>{done === steps.length ? 'Everything is filled in.' : 'You can save now and finish later.'}</p>
+            <button type="submit" className="sa-btn" disabled={busy}>
+              {saving ? 'Saving…' : <><CheckCircle size={18} /> Save changes</>}
             </button>
           </div>
-
-          {/* Read Only Details Card */}
-          <div style={{ background: 'white', borderRadius: '20px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-            <h3 style={{ margin: '0 0 24px 0', color: '#0f172a', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <IdCard size={20} color="#3b82f6" /> Student Details
-            </h3>
-            <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              {[
-                { label: 'Registration No', value: student.regNo },
-                { label: 'Full Name', value: student.name },
-                { label: 'Date of Birth', value: student.dob ? new Date(student.dob).toLocaleDateString() : '-' },
-                { label: 'Blood Group', value: student.bloodGroup },
-                { label: 'Aadhar Number', value: student.aadharNo },
-                { label: 'Address', value: student.address },
-                { label: 'College Name', value: student.college?.name },
-                { label: 'Educational Qual.', value: student.educationalQua },
-                { label: 'Course Duration', value: student.courseDuration },
-                { label: 'Date of Joining', value: student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '-' }
-              ].map((item, idx) => (
-                <div key={idx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 600 }}>{item.value || '-'}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
-            {/* Profile Photo Card */}
-            <div style={{ background: 'white', borderRadius: '20px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: '0 0 24px 0', color: '#0f172a', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Camera size={20} color="#3b82f6" /> Profile Photo
-              </h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ width: '160px', height: '160px', background: '#f8fafc', borderRadius: '24px', border: '2px dashed #cbd5e1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', marginBottom: '20px', overflow: 'hidden', position: 'relative', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                    {isCameraOpen ? (
-                      <>
-                        <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }}></video>
-                        <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
-                      </>
-                    ) : uploadingField === 'photoUrl' ? (
-                      <>
-                        <div style={{ width: '24px', height: '24px', border: '3px solid #cbd5e1', borderTopColor: 'var(--sidebar-active)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: '8px' }}></div>
-                        <style>{'@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }'}</style>
-                        <span style={{ fontSize: '12px', fontWeight: 500 }}>Uploading...</span>
-                      </>
-                    ) : formData.photoUrl ? (
-                      <img src={formData.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <>
-                        <User size={32} style={{ marginBottom: '8px', color: '#94a3b8' }} />
-                        <span style={{ fontSize: '12px', fontWeight: 500 }}>No Photo</span>
-                      </>
-                    )}
-                  </div>
-
-                {isCameraOpen ? (
-                  <div style={{ display: 'flex', gap: '10px', width: '160px', marginBottom: '10px' }}>
-                    <button onClick={takePhoto} type="button" style={{ flex: 1, padding: '10px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(16,185,129,0.3)' }}>
-                      Snap!
-                    </button>
-                    <button onClick={stopCamera} type="button" style={{ flex: 1, padding: '10px', fontSize: '13px', fontWeight: 600, background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(239,68,68,0.3)' }}>
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', gap: '10px', width: '160px', marginBottom: '12px' }}>
-                    <button onClick={startCamera} type="button" style={{ flex: 1, padding: '10px', fontSize: '13px', fontWeight: 600, background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(59,130,246,0.3)' }}>
-                      <Camera size={14} /> {formData.photoUrl ? 'Retake' : 'Capture'}
-                    </button>
-                    <label style={{ flex: 1, padding: '10px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}>
-                      <Upload size={14} /> Browse
-                      <input type="file" style={{ display: 'none' }} accept="image/*" onChange={(e) => handleFileUpload(e, 'photoUrl')} disabled={uploadingField === 'photoUrl'} />
-                    </label>
-                  </div>
-                )}
-                <div style={{ fontSize: '12px', color: '#94a3b8', width: '160px', textAlign: 'center', fontWeight: 500 }}>Supported: JPG, PNG (Max 5MB)</div>
-              </div>
-            </div>
-
-            {/* Contact Numbers Card */}
-            <div style={{ background: 'white', borderRadius: '20px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: '0 0 24px 0', color: '#0f172a', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Phone size={20} color="#3b82f6" /> Contact Numbers
-              </h3>
-              <div className="contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                {[
-                  { label: "Student Mobile No", key: "mobileNo" },
-                  { label: "Father's Mobile No", key: "fatherMobileNo" },
-                  { label: "Mother's Mobile No", key: "motherMobileNo" },
-                  { label: "Guardian's Mobile No", key: "guardianMobileNo" },
-                  { label: "Emergency Contact", key: "emergencyContact" },
-                ].map((inputItem) => (
-                  <div key={inputItem.key}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: '#475569', fontSize: '14px', fontWeight: 600 }}>{inputItem.label}</label>
-                    <div style={{ position: 'relative' }}>
-                      <Phone size={18} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input 
-                        type="text" 
-                        value={(formData as any)[inputItem.key]} 
-                        onChange={e => setFormData({...formData, [inputItem.key]: e.target.value})} 
-                        style={{ width: '100%', padding: '14px 16px 14px 44px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '15px', outline: 'none', transition: 'all 0.2s', background: '#f8fafc', color: '#1e293b' }} 
-                        onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; }}
-                        onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* KYC Documents Card */}
-            <div style={{ background: 'white', borderRadius: '20px', padding: '32px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: '0 0 24px 0', color: '#0f172a', fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <FileText size={20} color="#3b82f6" /> KYC Documents
-              </h3>
-              <div className="kyc-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                
-                {/* Document 1 */}
-                <div style={{ border: '2px solid #e2e8f0', borderRadius: '16px', padding: '24px', background: '#f8fafc', transition: 'all 0.2s', position: 'relative' }}>
-                  <label style={{ display: 'block', marginBottom: '16px', color: '#0f172a', fontSize: '15px', fontWeight: 700 }}>Aadhar Card (Front/Back)</label>
-                  <div style={{ height: '160px', background: 'white', border: '2px dashed #cbd5e1', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
-                    {formData.doc1Url ? (
-                        formData.doc1Url.toLowerCase().endsWith('.pdf') ? (
-                          <div style={{ textAlign: 'center', color: '#3b82f6' }}><FileText size={40} /><p style={{margin:'8px 0 0 0', fontSize:'13px', fontWeight: 600}}>PDF Uploaded</p></div>
-                        ) : (
-                          <img src={formData.doc1Url} alt="Doc 1" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        )
-                    ) : (
-                        <div style={{ textAlign: 'center', color: '#94a3b8' }}><Upload size={40} /><p style={{margin:'8px 0 0 0', fontSize:'13px', fontWeight: 500}}>No document</p></div>
-                    )}
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'white', border: '2px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', color: '#3b82f6', fontSize: '14px', fontWeight: 600, width: '100%', transition: 'all 0.2s' }}
-                    onMouseOver={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'white'; }}
-                  >
-                    {uploadingField === 'doc1Url' ? 'Uploading...' : 'Upload Document 1'}
-                    <input type="file" style={{ display: 'none' }} accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'doc1Url')} disabled={uploadingField === 'doc1Url'} />
-                  </label>
-                </div>
-
-                {/* Document 2 */}
-                <div style={{ border: '2px solid #e2e8f0', borderRadius: '16px', padding: '24px', background: '#f8fafc', transition: 'all 0.2s', position: 'relative' }}>
-                  <label style={{ display: 'block', marginBottom: '16px', color: '#0f172a', fontSize: '15px', fontWeight: 700 }}>Other ID / College ID</label>
-                  <div style={{ height: '160px', background: 'white', border: '2px dashed #cbd5e1', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
-                    {formData.doc2Url ? (
-                        formData.doc2Url.toLowerCase().endsWith('.pdf') ? (
-                          <div style={{ textAlign: 'center', color: '#3b82f6' }}><FileText size={40} /><p style={{margin:'8px 0 0 0', fontSize:'13px', fontWeight: 600}}>PDF Uploaded</p></div>
-                        ) : (
-                          <img src={formData.doc2Url} alt="Doc 2" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        )
-                    ) : (
-                        <div style={{ textAlign: 'center', color: '#94a3b8' }}><Upload size={40} /><p style={{margin:'8px 0 0 0', fontSize:'13px', fontWeight: 500}}>No document</p></div>
-                    )}
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', background: 'white', border: '2px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', color: '#3b82f6', fontSize: '14px', fontWeight: 600, width: '100%', transition: 'all 0.2s' }}
-                    onMouseOver={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#eff6ff'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'white'; }}
-                  >
-                    {uploadingField === 'doc2Url' ? 'Uploading...' : 'Upload Document 2'}
-                    <input type="file" style={{ display: 'none' }} accept="image/*,.pdf" onChange={(e) => handleFileUpload(e, 'doc2Url')} disabled={uploadingField === 'doc2Url'} />
-                  </label>
-                </div>
-
-              </div>
-            </div>
-
-            {/* Submit Button Row */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px', paddingBottom: '40px' }}>
-              <button
-                type="submit"
-                disabled={saving || uploadingField !== ''}
-                style={{
-                  background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white', padding: '16px 40px', borderRadius: '12px', border: 'none', fontSize: '16px', fontWeight: 700, cursor: (saving || uploadingField !== '') ? 'not-allowed' : 'pointer', opacity: (saving || uploadingField !== '') ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '10px', boxShadow: '0 10px 25px -5px rgba(59,130,246,0.4)', transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => { if(!saving && uploadingField === '') { e.currentTarget.style.transform = 'translateY(-2px)'; } }}
-                onMouseOut={(e) => { if(!saving && uploadingField === '') { e.currentTarget.style.transform = 'translateY(0)'; } }}
-              >
-                {saving ? 'Saving...' : <><CheckCircle size={20} /> Save & Submit Updates</>}
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
