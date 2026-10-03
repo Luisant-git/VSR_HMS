@@ -2,11 +2,14 @@ import { Controller, Get, Post, Body, Param, Patch, Query } from '@nestjs/common
 import { StudentsService } from './students.service';
 import { FineCronService } from './fine-cron.service';
 
+import { MonthlyFeeCronService } from './monthly-fee-cron.service';
+
 @Controller('students')
 export class StudentsController {
   constructor(
     private readonly studentsService: StudentsService,
-    private readonly fineCronService: FineCronService
+    private readonly fineCronService: FineCronService,
+    private readonly monthlyFeeCronService: MonthlyFeeCronService
   ) {}
 
   @Post()
@@ -50,5 +53,11 @@ export class StudentsController {
   async triggerFines() {
     await this.fineCronService.handleDailyFines();
     return { message: 'Fines calculation triggered successfully' };
+  }
+
+  @Post('actions/trigger-monthly-fees')
+  async triggerMonthlyFees() {
+    await this.monthlyFeeCronService.handleMonthlyFees();
+    return { message: 'Monthly fees generated successfully' };
   }
 }
