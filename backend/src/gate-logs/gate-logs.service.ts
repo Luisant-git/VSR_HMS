@@ -88,8 +88,10 @@ export class GateLogsService {
     if (search) {
       where.student = {
         OR: [
-          { name: { contains: search } },
-          { regNo: { contains: search } }
+          { name: { contains: search, mode: 'insensitive' } },
+          { regNo: { contains: search, mode: 'insensitive' } },
+          { mobileNo: { contains: search, mode: 'insensitive' } },
+          { roomNo: { contains: search, mode: 'insensitive' } }
         ]
       };
     }

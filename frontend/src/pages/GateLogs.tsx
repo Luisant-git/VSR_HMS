@@ -32,6 +32,12 @@ const GateLogs = () => {
   const [toDate, setToDate] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // Filters for "Currently Outside Campus"
+  const [outsideSearch, setOutsideSearch] = useState('');
+  const [outsideRoom, setOutsideRoom] = useState('-- All Rooms --');
+  const [outsideCollege, setOutsideCollege] = useState('-- All Colleges --');
+
   
   // Form State
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -48,7 +54,7 @@ const GateLogs = () => {
   const fetchData = async () => {
     try {
       const [studentsRes, logsRes] = await Promise.all([
-        StudentAPI.findAll(),
+        StudentAPI.findAll({ limit: 5000 }),
         gateLogApi.getAll(page, 5, searchQuery, fromDate, toDate, statusFilter)
       ]);
       setStudents(studentsRes);
@@ -62,6 +68,11 @@ const GateLogs = () => {
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
+  
+  const allRooms = ['-- All Rooms --', ...Array.from(new Set(activeStudents.map((s: any) => s.room?.id ? `Room ${s.room.id}` : null).filter(Boolean))).sort((a: any, b: any) => a.localeCompare(b, undefined, { numeric: true }))];
+  const allColleges = ['-- All Colleges --', ...Array.from(new Set(activeStudents.map((s: any) => s.college?.name || (typeof s.college === 'string' ? s.college : null)).filter(Boolean))).sort()];
+
+
   // If EXIT, only show students who are 'In'. If ENTRY, only 'Out' or 'Missing'.
   const availableStudents = activeStudents.filter((s: any) => 
     movementType === 'EXIT' ? s.status === 'In' : (s.status === 'Out' || s.status === 'Missing')
@@ -69,7 +80,8 @@ const GateLogs = () => {
 
   const studentOptions = availableStudents.map((s: any) => ({
     value: s.id,
-    label: `${s.name} (${s.regNo} - Room ${s.room?.id || 'N/A'})`
+    label: `${s.name} (${s.regNo} - Room ${s.room?.id || 'N/A'} - ${s.mobileNo || 'No Mobile'})`,
+    student: s
   }));
 
   const purposeOptions = [
@@ -158,7 +170,26 @@ const GateLogs = () => {
     })
   };
 
-  const currentlyOut = students.filter(s => s.status === 'Out' || s.status === 'Missing');
+  const currentlyOutRaw = activeStudents.filter((s: any) => s.status === 'Out' || s.status === 'Missing');
+  const currentlyOut = currentlyOutRaw.filter((s: any) => {
+    let match = true;
+    if (outsideSearch) {
+      const q = outsideSearch.toLowerCase();
+      const n = s.name?.toLowerCase() || '';
+      const r = s.regNo?.toLowerCase() || '';
+      const m = s.mobileNo?.toLowerCase() || '';
+      if (!n.includes(q) && !r.includes(q) && !m.includes(q)) match = false;
+    }
+    if (outsideRoom !== '-- All Rooms --') {
+      const rId = `Room ${s.room?.id}`;
+      if (rId !== outsideRoom) match = false;
+    }
+    if (outsideCollege !== '-- All Colleges --') {
+      const cName = s.college?.name || (typeof s.college === 'string' ? s.college : '');
+      if (cName !== outsideCollege) match = false;
+    }
+    return match;
+  });
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -293,6 +324,47 @@ const GateLogs = () => {
               <div style={{ fontSize: '13px', color: '#64748b' }}>{currentlyOut.length} student(s) currently marked as OUT</div>
             </div>
             
+            <div style={{ padding: '15px 25px', borderBottom: '1px solid var(--border-color)', background: '#f8fafc', display: 'flex', gap: '15px', alignItems: 'center' }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search Name, Reg No or Mobile..." 
+                  value={outsideSearch}
+                  onChange={e => setOutsideSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px 8px 32px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+              <select 
+                value={outsideRoom}
+                onChange={e => setOutsideRoom(e.target.value)}
+                style={{ width: '150px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: 'white', cursor: 'pointer' }}
+              >
+                {allRooms.map((r: any) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select 
+                value={outsideCollege}
+                onChange={e => setOutsideCollege(e.target.value)}
+                style={{ width: '180px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: 'white', cursor: 'pointer' }}
+              >
+                {allColleges.map((c: any) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {(outsideSearch || outsideRoom !== '-- All Rooms --' || outsideCollege !== '-- All Colleges --') && (
+                <button
+                  onClick={() => {
+                    setOutsideSearch('');
+                    setOutsideRoom('-- All Rooms --');
+                    setOutsideCollege('-- All Colleges --');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '4px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#fef2f2'}
+                >
+                  <X size={14} /> Clear
+                </button>
+              )}
+            </div>
+            
             {currentlyOut.length === 0 ? (
               <div style={{ padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', textAlign: 'center' }}>
                 <Clock size={32} style={{ marginBottom: '10px', color: '#cbd5e1' }} />
@@ -401,7 +473,7 @@ const GateLogs = () => {
                   <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input 
                     type="text" 
-                    placeholder="Search log..." 
+                    placeholder="Search Name, Reg No, Room, Mobile..." 
                     value={searchQuery}
                     onChange={(e) => {
                       setSearchQuery(e.target.value);
