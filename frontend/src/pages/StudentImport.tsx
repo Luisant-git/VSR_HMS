@@ -62,6 +62,14 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
             confirmButtonText: 'Yes, import it!'
           }).then((result) => {
             if (result.isConfirmed) {
+              Swal.fire({
+                title: 'Uploading...',
+                html: 'Please wait while we import the records.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                  Swal.showLoading();
+                }
+              });
               handleImport(cleanedData);
             } else {
               if (onClose) onClose();
@@ -197,7 +205,7 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
     }
 
     if (successCount > 0) {
-      toast.success(`Successfully imported ${successCount} students!`);
+      toast.success(`${successCount} records imported successfully!`);
     }
 
     let resultHtml = `
@@ -231,9 +239,19 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
       html: resultHtml,
       icon: failedCount > 0 ? (successCount > 0 ? 'warning' : 'error') : 'success',
       confirmButtonText: 'OK',
+      showCancelButton: failedCount > 0,
+      cancelButtonText: 'Export Failed Records',
       confirmButtonColor: '#0d6efd',
+      cancelButtonColor: '#e11d48',
       width: '600px'
-    }).then(() => {
+    }).then((result) => {
+      if (result.dismiss === Swal.DismissReason.cancel) {
+        // Export to Excel
+        const ws = XLSX.utils.json_to_sheet(errors.map(e => ({ Row: e.row, Name: e.name, ErrorReason: e.reason })));
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Failed Records");
+        XLSX.writeFile(wb, "Failed_Import_Records.xlsx");
+      }
       if (onClose) onClose();
     });
   };
