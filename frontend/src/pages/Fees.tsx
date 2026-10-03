@@ -276,21 +276,7 @@ const Fees = () => {
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
         rightContent={
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
-              onClick={async () => {
-                try {
-                  const StudentAPI = (await import('../api/student.api')).StudentAPI;
-                  await StudentAPI.triggerFines();
-                  fetchFees();
-                  alert('Fine calculation triggered successfully!');
-                } catch (e) {
-                  alert('Failed to trigger fines');
-                }
-              }}
-              style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#dc3545', border: '1px solid #dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <RefreshCcw size={16} /> Run Fines Cron
-            </button>
+
             <button onClick={handleExportExcel} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
               <FileSpreadsheet size={16} /> Export Excel
             </button>
@@ -444,41 +430,28 @@ const Fees = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>
-              Showing {((page - 1) * 10) + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
+        {totalPages > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button 
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: 'white', borderRadius: '6px', fontSize: '13px', color: page === 1 ? '#94a3b8' : '#475569', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-              >
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 Previous
               </button>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    style={{
-                      width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      border: p === page ? 'none' : '1px solid #cbd5e1',
-                      background: p === page ? 'var(--sidebar-active)' : 'white',
-                      color: p === page ? 'white' : '#475569',
-                      borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: p === page ? 600 : 400
-                    }}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
-              <button
+              <button 
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+                {page}
+              </button>
+              <button 
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                style={{ padding: '6px 12px', border: '1px solid #cbd5e1', background: 'white', borderRadius: '6px', fontSize: '13px', color: page === totalPages ? '#94a3b8' : '#475569', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-              >
+                disabled={page === totalPages || totalPages === 0}
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 Next
               </button>
             </div>
