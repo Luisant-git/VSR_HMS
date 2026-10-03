@@ -36,7 +36,7 @@ const CSS = `
 .sa-field svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none}
 .sa-input{width:100%;padding:14px 16px 14px 48px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font:inherit;font-size:16px;color:#1e293b;outline:none;transition:all .2s ease}
 .sa-input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(14,165,233,.1)}
-.sa-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:12px;background:var(--primary);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s ease}
+.sa-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:12px;background:var(--primary);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s ease;white-space:nowrap}
 .sa-btn:hover:not(:disabled){background:var(--primary-d);transform:translateY(-2px);box-shadow:0 10px 25px -5px rgba(14,165,233,.4)}
 .sa-btn:disabled{opacity:.6;cursor:not-allowed}
 .sa-btn.block{width:100%}
@@ -142,7 +142,8 @@ const CSS = `
   .sa-grid2{grid-template-columns:1fr;gap:14px}
   .sa-photo{flex-direction:column;align-items:center;gap:16px;text-align:center}
   .sa-actions{width:100%}
-  .sa-actions .sa-btn{flex:1;padding:12px 10px}
+  .sa-actions .sa-btn{flex:1;padding:12px 6px;font-size:13px}
+  .sa-note{margin-top:16px;text-align:center;width:100%}
   .sa-doc{padding:14px;border-radius:16px}
   .sa-preview{height:120px;margin-bottom:12px}
   .sa-input{padding:13px 14px 13px 44px;border-radius:12px}

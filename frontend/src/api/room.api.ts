@@ -39,5 +39,18 @@ export const RoomAPI = {
       throw new Error(err?.message || 'Failed to create room');
     }
     return response.json();
+  },
+
+  update: async (id: string, data: Partial<CreateRoomDto>) => {
+    const response = await fetch(`${API_URL}/rooms/${id}`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.message || 'Failed to update room');
+    }
+    return response.json();
   }
 };
