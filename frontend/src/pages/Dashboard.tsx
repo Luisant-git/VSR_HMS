@@ -4,12 +4,14 @@ import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
-import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn } from 'lucide-react';
+import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [roomFilter, setRoomFilter] = useState('All');
+  const [roomSearch, setRoomSearch] = useState('');
+  const [blockFilter, setBlockFilter] = useState('All');
   const [dbRooms, setDbRooms] = useState<any[]>([]);
   const [fees, setFees] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -42,7 +44,20 @@ const Dashboard = () => {
   const vacantPercent = totalBeds > 0 ? Math.round((vacantBeds / totalBeds) * 100) : 0;
 
   
-  const filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
+  const allBlocks = ['All', ...Array.from(new Set(dbRooms.map(r => r.block).filter(Boolean))).sort()];
+  let filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
+  if (roomSearch) {
+    const q = roomSearch.toLowerCase();
+    const exactMatches = filteredRooms.filter(r => r.id.toLowerCase() === q);
+    if (exactMatches.length > 0) {
+      filteredRooms = exactMatches;
+    } else {
+      filteredRooms = filteredRooms.filter(r => r.id.toLowerCase().includes(q));
+    }
+  }
+  if (blockFilter !== 'All') {
+    filteredRooms = filteredRooms.filter(r => r.block === blockFilter);
+  }
 
   const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
   const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
@@ -222,6 +237,34 @@ const Dashboard = () => {
                   <List size={14} /> Full View Table
                 </button>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', padding: '0 5px' }}>
+              <div style={{ flex: 1, position: 'relative', maxWidth: '300px' }}>
+                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Search Room Number..."
+                  value={roomSearch}
+                  onChange={(e) => setRoomSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px 8px 30px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+              <select
+                value={blockFilter}
+                onChange={(e) => setBlockFilter(e.target.value)}
+                style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: 'white', cursor: 'pointer', minWidth: '150px' }}
+              >
+                {allBlocks.map(b => <option key={b} value={b}>{b === 'All' ? 'All Blocks' : `Block ${b}`}</option>)}
+              </select>
+              {(roomSearch || blockFilter !== 'All') && (
+                <button
+                  onClick={() => { setRoomSearch(''); setBlockFilter('All'); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '4px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <X size={14} /> Clear
+                </button>
+              )}
             </div>
 
             <div style={{ overflowX: 'auto' }}>
