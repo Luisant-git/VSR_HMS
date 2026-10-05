@@ -219,6 +219,10 @@ export default function StudentPortal() {
                   <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{student.rent?.toLocaleString('en-IN') || 0}</div>
                 </div>
                 <div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Mess Fee</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{(student.transactions?.find((t: any) => t.transactionType === 'MESS')?.amount || 0).toLocaleString('en-IN')}</div>
+                </div>
+                <div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Advance Paid</div>
                   <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{student.advance?.toLocaleString('en-IN') || 0}</div>
                 </div>
