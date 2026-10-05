@@ -224,7 +224,7 @@ const Register = () => {
         .map((room: any) => {
           const occupied = room.occupiedCount || 0;
           const freeBeds = room.capacity - occupied;
-          const formatPrice = (p: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
+
           return {
             value: room.id,
             label: `Room ${room.id} (${room.type} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free)`,
