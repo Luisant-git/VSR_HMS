@@ -100,12 +100,14 @@ const Register = () => {
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
     emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
-    bloodGroup: '', dateOfJoining: '', vsrLedger1: '', pursuingYear: '',
+    bloodGroup: '', dateOfJoining: new Date().toLocaleDateString('en-CA'), vsrLedger1: '', pursuingYear: '',
     category: '', foodType: '', courseDuration: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
   const [collegesList, setCollegesList] = useState<any[]>([]);
+  const [customRent, setCustomRent] = useState<string>('');
+  const [customMessFee, setCustomMessFee] = useState<string>('');
 
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -160,6 +162,7 @@ const Register = () => {
   const submitAdmission = async () => {
     if (!formData.name.trim()) return toast.error('Please enter the Full Name');
     if (!formData.mobileNo.trim()) return toast.error('Please enter the Mobile Number');
+    if (formData.mobileNo.length !== 10) return toast.error('Mobile Number must be exactly 10 digits');
     if (!formData.gender) return toast.error('Please select a Gender');
     if (!selectedRoom) return toast.error('Please assign a vacant room to the student');
     
@@ -180,8 +183,8 @@ const Register = () => {
           roomNo: selectedRoom?.value || selectedRoom?.id,
           bedNo: formData.bedNo || undefined,
           advance: Number(formData.advance) || 0,
-          rent: selectedRoom?.room?.rent || 0,
-          messFee: selectedRoom?.room?.messFee || 0,
+          rent: Number(customRent) || 0,
+          messFee: Number(customMessFee) || 0,
           autoGenerateInvoice: autoGenerateInvoice,
 
           photoUrl: capturedImage || undefined,
@@ -224,7 +227,7 @@ const Register = () => {
           const formatPrice = (p: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(p || 0);
           return {
             value: room.id,
-            label: `Room ${room.id} (${room.type} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free • Rent: ${formatPrice(room.rent)} + Mess: ${formatPrice(room.messFee)})`,
+            label: `Room ${room.id} (${room.type} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free)`,
             room,
           };
         });
@@ -377,7 +380,7 @@ const Register = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Mobile Number <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input type="text" placeholder="10-digit mobile" value={formData.mobileNo} onChange={e => setFormData({ ...formData, mobileNo: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                  <input type="text" placeholder="10-digit mobile" value={formData.mobileNo} onChange={e => setFormData({ ...formData, mobileNo: sanitizeMobile(e.target.value) })} maxLength={10} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', fontSize: '14px', outline: 'none' }} className={mobileClass(formData.mobileNo)} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Email Address</label>
@@ -608,7 +611,16 @@ const Register = () => {
                 <Select
                   options={roomOptions}
                   value={selectedRoom}
-                  onChange={setSelectedRoom}
+                  onChange={(option) => {
+                    setSelectedRoom(option);
+                    if (option && option.room) {
+                      setCustomRent('0');
+                      setCustomMessFee('2000');
+                    } else {
+                      setCustomRent('');
+                      setCustomMessFee('');
+                    }
+                  }}
                   placeholder="-- Choose Vacant Room --"
                   styles={selectStyles}
                   isSearchable={true}
@@ -626,20 +638,20 @@ const Register = () => {
                 {selectedRoom && selectedRoom.room && (
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginTop: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontWeight: 600, fontSize: '13px', marginBottom: '12px' }}>
-                      <Calculator size={16} color="#3b82f6" /> Predefined Monthly Room Rates:
+                      <Calculator size={16} color="#3b82f6" /> Monthly Room & Mess Charges:
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span>Base Room Rent:</span>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>₹{(selectedRoom.room.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <input type="number" value={customRent} onChange={(e) => setCustomRent(e.target.value)} style={{ width: '120px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#475569', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                       <span>Standard Mess Fee:</span>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>₹{(selectedRoom.room.messFee || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <input type="number" value={customMessFee} onChange={(e) => setCustomMessFee(e.target.value)} style={{ width: '120px', padding: '6px 10px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
                     </div>
 
-                    <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                    <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 700, color: '#0f172a', flexWrap: 'wrap' }}>
                       <span>Total Monthly Charge:</span>
-                      <span style={{ color: '#0d6efd' }}>₹{((selectedRoom.room.rent || 0) + (selectedRoom.room.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span style={{ color: '#0d6efd' }}>₹{((Number(customRent) || 0) + (Number(customMessFee) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 )}
@@ -668,12 +680,14 @@ const Register = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Advance Amount (₹)</label>
-                <input type="number" value={formData.advance} onChange={(e) => setFormData({ ...formData, advance: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
-                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Refundable upon exit/discontinuation settlement.</div>
+                <input type="number" value={formData.advance} onChange={(e) => setFormData({ ...formData, advance: e.target.value })} disabled={!!editId} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: editId ? '#f1f5f9' : 'white', cursor: editId ? 'not-allowed' : 'text' }} />
+                <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                  {editId ? <span style={{ color: '#ef4444' }}>Advance amounts cannot be modified here. Please use the Fees module.</span> : 'Refundable upon exit/discontinuation settlement.'}
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Payment Mode</label>
-                <select style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
+                <select disabled={!!editId} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: editId ? '#f1f5f9' : 'white', cursor: editId ? 'not-allowed' : 'pointer' }}>
                   <option>UPI / GPay / PhonePe</option>
                   <option>Cash</option>
                   <option>Bank Transfer / NEFT</option>

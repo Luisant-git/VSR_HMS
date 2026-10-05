@@ -212,8 +212,8 @@ const Dashboard = () => {
           <div className="content-card" style={{ flex: '2 1 600px' }}>
             <div className="card-header" style={{ marginBottom: '15px', display: 'flex', flexWrap: 'nowrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ minWidth: 0, flexShrink: 1 }}>
-                <div className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Live Room Occupancy & Pricing</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Real-time room occupancy and predefined rate structures</div>
+                <div className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Live Room Occupancy</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Real-time room occupancy</div>
               </div>
               <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', background: '#f0f2f5', padding: '4px', borderRadius: '20px', alignItems: 'center', flexShrink: 0 }}>
                 <button 
@@ -274,7 +274,6 @@ const Dashboard = () => {
                     <th>Room #</th>
                     <th>Wing & Room No</th>
                     <th>Type</th>
-                    <th>Monthly Fee Structure</th>
                     <th>Occupancy</th>
                     <th>Status</th>
                   </tr>
@@ -293,10 +292,6 @@ const Dashboard = () => {
                         </td>
                         <td>{room.block} - {room.floor}</td>
                         <td>{room.type}</td>
-                        <td>
-                          <div style={{ fontSize: '13px' }}>Rent: <span style={{ fontWeight: 600 }}>₹{room.rent}</span></div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mess: ₹{room.mess}</div>
-                        </td>
                         <td style={{ minWidth: '120px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                             <span style={{ fontWeight: 600 }}>{room.occ}/{room.cap} Beds</span>
