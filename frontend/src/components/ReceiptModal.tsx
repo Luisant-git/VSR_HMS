@@ -29,6 +29,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
+  const firstFeeDesc = firstFee?.description || '';
+  const refMatch = firstFeeDesc.match(/\|\s*Ref:\s*([^|]+)/);
+  const refNo = refMatch ? refMatch[1].trim() : null;
+  
+  const notesMatch = firstFeeDesc.match(/\|\s*Notes:\s*([^|]+)/);
+  const notesText = notesMatch ? notesMatch[1].trim() : null;
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
       <style>
@@ -93,6 +100,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   Registration No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.regNo || 'N/A'}</span><br/>
                   Room No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</span><br/>
                   Payment Mode: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</span>
+                  {refNo && <><br/>Transaction Ref: <span style={{ fontWeight: 600, color: '#1e293b' }}>{refNo}</span></>}
+                  {notesText && <><br/>Notes: <span style={{ fontWeight: 600, color: '#1e293b' }}>{notesText}</span></>}
                 </div>
               </div>
             </div>
@@ -111,7 +120,28 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   {feesList.map((f: any) => (
                     <tr key={f.id}>
                       <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
-                        {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
+                        <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
+                          {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
+                        </div>
+                        {f.description?.includes('|') && f.description.split('|').slice(1)
+                          .filter((part: string) => !part.trim().startsWith('Ref:') && !part.trim().startsWith('Notes:'))
+                          .map((descPart: string, idx: number) => {
+                            const trimmed = descPart.trim();
+                            const match = trimmed.match(/Paid for (\d+) Months/);
+                            let extraText = '';
+                            if (match && f.amount) {
+                              const months = parseInt(match[1], 10);
+                              if (months > 0) {
+                                const originalAmount = f.amount / months;
+                                extraText = ` (@ ₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)`;
+                              }
+                            }
+                            return (
+                              <div key={idx} style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: idx > 0 ? '2px' : '0' }}>
+                                {trimmed}{extraText}
+                              </div>
+                            );
+                          })}
                       </td>
                       <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '13px', color: '#64748b', textAlign: 'center' }}>
                         {f.transactionType}

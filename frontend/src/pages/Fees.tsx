@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Eye } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
@@ -397,9 +397,31 @@ const Fees = () => {
                   <td style={{ padding: '16px 12px', color: '#334155' }}>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
                   
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#198754', fontWeight: 600 }}>₹{fee.advance.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.rent.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
+                    <div>₹{fee.rent.toLocaleString('en-IN')}</div>
+                    {fee.status === 'COMPLETED' && (() => {
+                      const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
+                      const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                      if (match) {
+                        const parts = match[1].split('-');
+                        return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                      }
+                      return null;
+                    })()}
+                  </td>
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.mess.toLocaleString('en-IN')}</td>
+                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
+                    <div>₹{fee.mess.toLocaleString('en-IN')}</div>
+                    {fee.status === 'COMPLETED' && (() => {
+                      const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS'));
+                      const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                      if (match) {
+                        const parts = match[1].split('-');
+                        return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                      }
+                      return null;
+                    })()}
+                  </td>
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
                   
                   <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 800, color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontSize: '14px' }}>

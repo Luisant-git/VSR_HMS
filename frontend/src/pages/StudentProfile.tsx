@@ -163,7 +163,8 @@ const StudentProfile = () => {
           advance: data.advance || 0,
           category: data.category || 'N/A',
           foodType: data.foodType || 'N/A',
-          courseDuration: data.courseDuration || 'N/A'
+          courseDuration: data.courseDuration || 'N/A',
+          monthlyMessFee: data.room?.messFee || 0
         });
         if (data.id) {
           FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
@@ -457,7 +458,7 @@ const StudentProfile = () => {
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Mess Fee</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{fees.find(f => f.transactionType === 'MESS')?.amount || 0}</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{student.monthlyMessFee}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Advance Paid</div>
@@ -654,9 +655,31 @@ const StudentProfile = () => {
                             {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
                           </td>
                           <td style={{ padding: '15px', fontSize: '13px', color: '#198754', fontWeight: 600, textAlign: 'right' }}>₹{fee.advance.toLocaleString('en-IN')}</td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.rent.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>
+                            <div>₹{fee.rent.toLocaleString('en-IN')}</div>
+                            {fee.status === 'COMPLETED' && (() => {
+                              const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
+                              const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                              if (match) {
+                                const parts = match[1].split('-');
+                                return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                              }
+                              return null;
+                            })()}
+                          </td>
                           <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.mess.toLocaleString('en-IN')}</td>
+                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>
+                            <div>₹{fee.mess.toLocaleString('en-IN')}</div>
+                            {fee.status === 'COMPLETED' && (() => {
+                              const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS'));
+                              const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                              if (match) {
+                                const parts = match[1].split('-');
+                                return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                              }
+                              return null;
+                            })()}
+                          </td>
                           <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
                           
                           <td style={{ padding: '15px', fontSize: '14px', color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontWeight: 700, textAlign: 'right' }}>

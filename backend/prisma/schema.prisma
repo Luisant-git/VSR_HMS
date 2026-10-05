@@ -102,6 +102,8 @@ model Student {
   bedNo    String? // e.g. "Bed 1", "Bed 2"
   advance  Float?  @default(0.0)
   rent     Float?  @default(0.0)
+  rentPaidUntil DateTime?
+  messPaidUntil DateTime?
 
   // Status tracking
   status    String @default("In") // "In", "Out", "Missing", "Vacated"
