@@ -176,7 +176,8 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
             if (b && !r.startsWith(b)) return `${b}${r}`.replace(/\s+/g, '');
             return (r || b).replace(/\s+/g, '');
           })(),
-          rent: row['RENT'] ? Number(row['RENT']) : undefined,
+          rent: row['RENT'] && Number(row['RENT']) > 2000 ? Number(row['RENT']) - 2000 : (row['RENT'] ? Number(row['RENT']) : undefined),
+          messFee: row['RENT'] && Number(row['RENT']) > 2000 ? 2000 : 0,
           advance: row['ADVANCE'] ? Number(row['ADVANCE']) : undefined,
           category: row['CATEGORY']?.toString(),
           foodType: row['FOOD TYPE']?.toString() || row['FOOD']?.toString(),

@@ -456,6 +456,10 @@ const StudentProfile = () => {
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{student.monthlyRent}</div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Mess Fee</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{fees.find(f => f.transactionType === 'MESS')?.amount || 0}</div>
+                </div>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Advance Paid</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{student.advance}</div>
                 </div>
