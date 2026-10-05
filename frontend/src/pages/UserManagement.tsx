@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -21,10 +22,11 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
+      setError(null);
       const data = await UserAPI.getAll();
       setUsers(data);
     } catch (err) {
-      toast.error('Failed to load users');
+      setError('Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -113,6 +115,12 @@ const UserManagement = () => {
                 <tr>
                   <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Loading...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+                    {error}
                   </td>
                 </tr>
               ) : users.length === 0 ? (

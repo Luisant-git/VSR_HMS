@@ -10,6 +10,7 @@ const CollegeMaster = () => {
   const [activeTab, setActiveTab] = useState<'college' | 'fine'>('college');
   const [colleges, setColleges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Search & Pagination State
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,6 +43,7 @@ const CollegeMaster = () => {
 
   const fetchColleges = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await CollegeAPI.findAll({
         page,
@@ -52,7 +54,7 @@ const CollegeMaster = () => {
       setColleges(response.data);
       setTotalPages(response.totalPages || 1);
     } catch (err: any) {
-      toast.error('Failed to load colleges');
+      setError('Failed to load colleges');
     } finally {
       setLoading(false);
     }
@@ -244,6 +246,8 @@ const CollegeMaster = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center' }}>Loading...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#ef4444' }}>{error}</td></tr>
             ) : colleges.length === 0 ? (
               <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No colleges found. Click 'Add College' to create one.</td></tr>
             ) : (
@@ -303,9 +307,11 @@ const CollegeMaster = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center' }}>Loading...</td></tr>
+              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center' }}>Loading...</td></tr>
+            ) : error ? (
+              <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: '#ef4444' }}>{error}</td></tr>
             ) : colleges.length === 0 ? (
-              <tr><td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No colleges found. Please add colleges in College Master first.</td></tr>
+              <tr><td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No colleges found. Please add colleges in College Master first.</td></tr>
             ) : (
               colleges.map((c) => (
                 <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>

@@ -18,6 +18,7 @@ const EbBills = () => {
   const [rooms, setRooms] = useState<any[]>([]);
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -30,17 +31,18 @@ const EbBills = () => {
       const data = await RoomAPI.findAll();
       setRooms(data);
     } catch (error) {
-      toast.error('Failed to load rooms');
+      setError('Failed to load rooms');
     }
   };
 
   const fetchBillingHistory = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const data = await EbBillsAPI.findAll();
       setBillingHistory(data);
     } catch (error) {
-      toast.error('Failed to load EB bills history');
+      setError('Failed to load EB bills history');
     } finally {
       setIsLoading(false);
     }
@@ -210,6 +212,8 @@ const EbBills = () => {
           <div className="table-responsive" style={{ flex: 1, overflowX: 'auto' }}>
             {isLoading ? (
                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
+            ) : error ? (
+               <div style={{ padding: '20px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
             ) : (
             <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>

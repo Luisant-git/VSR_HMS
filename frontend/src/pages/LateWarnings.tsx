@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 const LateWarnings = () => {
   const [missingLogs, setMissingLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,10 +22,12 @@ const LateWarnings = () => {
 
   const fetchMissing = async () => {
     try {
+      setError(null);
       const data = await gateLogApi.getMissing();
       setMissingLogs(data);
     } catch (err) {
       console.error(err);
+      setError('Failed to load missing alerts');
     } finally {
       setLoading(false);
     }
@@ -102,6 +105,12 @@ const LateWarnings = () => {
             <tbody>
               {loading ? (
                 <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center' }}>Loading...</td></tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+                    {error}
+                  </td>
+                </tr>
               ) : missingLogs.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>

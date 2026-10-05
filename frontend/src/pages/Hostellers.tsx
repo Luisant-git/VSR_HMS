@@ -26,6 +26,7 @@ const Hostellers = () => {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const [allRooms, setAllRooms] = useState<string[]>([]);
   const [allColleges, setAllColleges] = useState<string[]>([]);
@@ -36,6 +37,7 @@ const Hostellers = () => {
   }, []);
 
   const fetchHostellers = () => {
+    setError(null);
     StudentAPI.findAll({
       page,
       limit,
@@ -65,7 +67,10 @@ const Hostellers = () => {
         setHostellers(mapped);
         setTotalPages(res.totalPages || 1);
         setTotalRecords(res.total || 0);
-      }).catch(console.error);
+      }).catch(err => {
+        console.error(err);
+        setError('Failed to load hostellers');
+      });
   };
 
   useEffect(() => {
@@ -391,10 +396,16 @@ const Hostellers = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredHostellers.length === 0 ? (
+              {error ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#ef4444', fontSize: '14px' }}>
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredHostellers.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
-                    No enrolled students found in this room.
+                    No enrolled students found.
                   </td>
                 </tr>
               ) : (
@@ -533,7 +544,8 @@ const Hostellers = () => {
                     )}
                   </td>
                 </tr>
-              )))}
+                ))
+              )}
             </tbody>
           </table>
           

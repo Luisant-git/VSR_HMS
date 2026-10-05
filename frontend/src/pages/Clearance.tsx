@@ -13,6 +13,7 @@ const Clearance = () => {
 
   const [student, setStudent] = useState<any>(null);
   const [pendingDues, setPendingDues] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const [reason, setReason] = useState('Completed Course / Graduated');
   const [deductions, setDeductions] = useState('0');
@@ -22,6 +23,7 @@ const Clearance = () => {
 
   useEffect(() => {
     if (studentId) {
+      setError(null);
       StudentAPI.findOne(studentId).then(data => {
         setStudent(data);
         FeesAPI.findByStudent(data.id).then(fees => {
@@ -29,10 +31,14 @@ const Clearance = () => {
           setPendingDues(dues);
         });
       }).catch(() => {
-        toast.error('Failed to load student details');
+        setError('Failed to load student details');
       });
     }
   }, [studentId]);
+
+  if (error) {
+    return <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>{error}</div>;
+  }
 
   if (!student) {
     return <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading student data...</div>;

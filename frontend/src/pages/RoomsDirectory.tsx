@@ -19,6 +19,8 @@ const RoomsDirectory = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const limit = 12;
 
   const getTypeStyle = (type: string) => {
@@ -79,12 +81,16 @@ const RoomsDirectory = () => {
   };
 
   const fetchRooms = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const data = await RoomAPI.findAll();
       setDbRooms(data);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to load rooms');
+      setError('Failed to load rooms');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -244,8 +250,13 @@ const RoomsDirectory = () => {
         </div>
       </div>
 
-
-      {viewMode === 'grid' && (
+      {isLoading ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
+      ) : error ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
+      ) : (
+        <>
+          {viewMode === 'grid' && (
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
@@ -402,6 +413,8 @@ const RoomsDirectory = () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
       {/* Add Room Modal */}
       {isModalOpen && (

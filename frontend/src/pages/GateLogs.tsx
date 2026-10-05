@@ -27,6 +27,7 @@ const GateLogs = () => {
   const [gateLogs, setGateLogs] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -53,6 +54,7 @@ const GateLogs = () => {
 
   const fetchData = async () => {
     try {
+      setError(null);
       const [studentsRes, logsRes] = await Promise.all([
         StudentAPI.findAll({ limit: 5000 }),
         gateLogApi.getAll(page, 5, searchQuery, fromDate, toDate, statusFilter)
@@ -63,6 +65,7 @@ const GateLogs = () => {
       setTotalRecords(logsRes.total || 0);
     } catch (err) {
       console.error('Failed to fetch data', err);
+      setError('Failed to load gate logs');
     }
   };
 
@@ -518,7 +521,11 @@ const GateLogs = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {gateLogs.length === 0 ? (
+                  {error ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#ef4444' }}>{error}</td>
+                    </tr>
+                  ) : gateLogs.length === 0 ? (
                     <tr>
                       <td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No gate movements found</td>
                     </tr>

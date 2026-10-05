@@ -9,6 +9,7 @@ const Outpass = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [outpasses, setOutpasses] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -21,9 +22,13 @@ const Outpass = () => {
   });
 
   const fetchOutpasses = () => {
+    setError(null);
     OutpassAPI.findAll().then(data => {
       setOutpasses(data);
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      setError('Failed to load outpasses');
+    });
   };
 
   useEffect(() => {
@@ -134,7 +139,20 @@ const Outpass = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredOutpasses.map((op, idx) => {
+              {error ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#ef4444', fontSize: '14px' }}>
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredOutpasses.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+                    No outpasses found.
+                  </td>
+                </tr>
+              ) : (
+              filteredOutpasses.map((op, idx) => {
                 const leave = formatDateTime(op.leaveDate);
                 const ret = formatDateTime(op.returnDate);
                 return (
@@ -202,7 +220,7 @@ const Outpass = () => {
                     </td>
                   </tr>
                 )
-              })}
+              }))}
             </tbody>
           </table>
         </div>

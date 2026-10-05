@@ -22,6 +22,7 @@ const Fees = () => {
 
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>({
     value: studentParam || 'ALL',
@@ -39,9 +40,13 @@ const Fees = () => {
 
 
   const fetchFees = () => {
+    setError(null);
     FeesAPI.findAll().then(data => {
       setFees(data);
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      setError('Failed to load fees');
+    });
   };
 
   useEffect(() => {
@@ -420,7 +425,11 @@ const Fees = () => {
                   </td>
                 </tr>
               ))}
-              {paginatedFees.length === 0 && (
+              {error ? (
+                <tr>
+                  <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#ef4444' }}>{error}</td>
+                </tr>
+              ) : paginatedFees.length === 0 && (
                 <tr>
                   <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No fee transactions found.</td>
                 </tr>

@@ -9,6 +9,7 @@ const MenuPermission = () => {
   const [editData, setEditData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const roles = [
     'ADMIN', 
@@ -18,11 +19,12 @@ const MenuPermission = () => {
 
   const fetchPermissions = async () => {
     setFetching(true);
+    setError(null);
     try {
       const data = await MenuPermissionAPI.getAll();
       setPermissions(data);
     } catch (err) {
-      toast.error('Failed to load permissions');
+      setError('Failed to load permissions');
     } finally {
       setFetching(false);
     }
@@ -98,6 +100,12 @@ const MenuPermission = () => {
                 <tr>
                   <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     Loading...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+                    {error}
                   </td>
                 </tr>
               ) : (
