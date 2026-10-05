@@ -458,7 +458,24 @@ const StudentProfile = () => {
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Mess Fee</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{student.monthlyMessFee}</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>
+                    ₹{(() => {
+                      const tList = fees?.filter(f => f.transactionType === 'MESS') || [];
+                      if (tList.length === 0) return (student.monthlyMessFee || 0).toLocaleString('en-IN');
+                      tList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                      for (const t of tList) {
+                        const match = t.description?.match(/@ ₹([0-9,.]+)\/month/);
+                        if (match) return match[1];
+                        const match2 = t.description?.match(/Paid for (\d+) Months/);
+                        if (match2) {
+                          const months = parseInt(match2[1], 10);
+                          if (months > 0) return (t.amount / months).toLocaleString('en-IN');
+                        }
+                        return t.amount?.toLocaleString('en-IN') || 0;
+                      }
+                      return (student.monthlyMessFee || 0).toLocaleString('en-IN');
+                    })()}
+                  </div>
                 </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Advance Paid</div>
