@@ -163,7 +163,7 @@ const Dashboard = () => {
           <div className="card-header" style={{ marginBottom: '15px' }}>
             <div className="card-title" style={{ color: '#ef4444' }}>Late Return Warnings</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '15px' }}>
             {missingLogs.filter(log => !log.inTime).slice(0, 5).map((log, idx) => (
               <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
@@ -209,7 +209,7 @@ const Dashboard = () => {
         {/* On large screens, this grid will be styled via CSS to 2fr 1fr. For inline simplicity, I'll use a media query in CSS later, but let's just do flex here. */}
         <div className="dashboard-bottom-row" style={{ display: 'flex', gap: '25px', flexWrap: 'wrap' }}>
           
-          <div className="content-card" style={{ flex: '2 1 600px' }}>
+          <div className="content-card" style={{ flex: '2 1 min(100%, 600px)', minWidth: 0 }}>
             <div className="card-header" style={{ marginBottom: '15px', display: 'flex', flexWrap: 'nowrap', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ minWidth: 0, flexShrink: 1 }}>
                 <div className="card-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Live Room Occupancy</div>
@@ -314,7 +314,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
+          <div style={{ flex: '1 1 min(100%, 300px)', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '25px' }}>
             
             {/* Active Outpasses */}
             <div className="content-card">

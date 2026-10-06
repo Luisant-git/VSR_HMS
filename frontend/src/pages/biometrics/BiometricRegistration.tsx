@@ -135,7 +135,7 @@ const BiometricRegistration = () => {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '25px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '25px' }}>
           {/* Profile Sidebar */}
           <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', padding: '25px', height: 'fit-content' }}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>

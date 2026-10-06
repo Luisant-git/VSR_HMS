@@ -83,7 +83,7 @@ const Clearance = () => {
               <UserMinus size={18} color="var(--sidebar-active)" /> Clearance Wizard: {student.name}
             </h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Student ID & Name</label>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{student.name} ({student.regNo})</div>

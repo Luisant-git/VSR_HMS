@@ -85,7 +85,7 @@ const BiometricIdentify = () => {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '30px' }}>
         {/* Scanner Terminal UI */}
         <div style={{ background: '#0f172a', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', display: 'flex', flexDirection: 'column' }}>
           
@@ -228,7 +228,7 @@ const BiometricIdentify = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '30px', flex: 1 }}>
                 <div>
                   <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600, marginBottom: '4px' }}>Room / Bed</div>
                   <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 600 }}>{identifiedStudent.roomNo || 'N/A'} - {identifiedStudent.bedNo || 'N/A'}</div>

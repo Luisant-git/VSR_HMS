@@ -331,7 +331,7 @@ const StudentProfile = () => {
                 <User size={20} color="var(--sidebar-active)" /> Personal Details
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Aadhar Number</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.aadharNo || 'N/A'}</div>
@@ -370,7 +370,7 @@ const StudentProfile = () => {
                 <FileText size={20} color="#8b5cf6" /> Academic & Additional Info
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>VSR Ledger-1</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.vsrLedger1}</div>
@@ -401,7 +401,7 @@ const StudentProfile = () => {
                 <Phone size={20} color="#f59e0b" /> Guardian & Emergency Contacts
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Guardian Name</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.guardianName}</div>
@@ -420,7 +420,7 @@ const StudentProfile = () => {
                 <User size={20} color="#3b82f6" /> Parent Information
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '35px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Father's Name</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.fatherName || '-'}</div>
@@ -443,7 +443,7 @@ const StudentProfile = () => {
                 <Bed size={20} color="#8b5cf6" /> Room & Accommodation
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Room Type</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.roomType}</div>
@@ -493,7 +493,7 @@ const StudentProfile = () => {
                     <LogOut size={20} color="#dc2626" /> Exit & Clearance Details
                   </h3>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '20px', marginBottom: '20px' }}>
                     <div>
                       <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Date</div>
                       <div style={{ fontSize: '14px', fontWeight: 600, color: '#450a0a' }}>{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
@@ -530,7 +530,7 @@ const StudentProfile = () => {
                 <FileText size={20} color="var(--sidebar-active)" /> KYC Documents
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '30px' }}>
                 {/* Document 1 Card */}
                 {student.doc1Url ? (
                   <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
@@ -624,7 +624,7 @@ const StudentProfile = () => {
                 </h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '25px' }}>
                 <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                   <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Paid (Receipts)</div>
                   <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>

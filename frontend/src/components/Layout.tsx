@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 
 const Layout = () => {
@@ -8,6 +8,7 @@ const Layout = () => {
   const navigate = useNavigate();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<{ name?: string, email?: string, role?: string } | null>(null);
   const [permissions, setPermissions] = useState<any>(null);
 
@@ -32,13 +33,28 @@ const Layout = () => {
 
   return (
     <div className="app-layout">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          HMS
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-brand" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>HMS</span>
+          <button 
+            className="mobile-close-btn"
+            onClick={() => setIsSidebarOpen(false)} 
+            style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '5px' }}
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" onClick={() => setIsSidebarOpen(false)}>
           {(!permissions || permissions.dashboard !== false) && (
             <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
               <div className="nav-icon"><Home size={18} /></div>
@@ -187,7 +203,15 @@ const Layout = () => {
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
         {/* Top Header (Dark, separate from white body) */}
-        <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          
+          {/* Mobile Menu Button (Visible only on mobile) */}
+          <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '5px' }}>
+            <Menu size={24} />
+          </button>
+
+          {/* Spacer for desktop to keep profile on the right */}
+          <div className="topbar-spacer" style={{ flex: 1 }}></div>
 
           <div className="topbar-icons" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
 

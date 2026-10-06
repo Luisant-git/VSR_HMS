@@ -633,7 +633,7 @@ const Hostellers = () => {
             
             {/* Modal Body */}
             <div style={{ padding: '25px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '25px' }}>
                 <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Room Number</div>
                   <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)' }}>Room {selectedHosteller.room}</div>
@@ -672,7 +672,7 @@ const Hostellers = () => {
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Personal Details</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
@@ -702,7 +702,7 @@ const Hostellers = () => {
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Family & Guardian</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Father's Name</div>
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.fatherName || 'N/A'}</div>
@@ -725,7 +725,7 @@ const Hostellers = () => {
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Academic & Additional Info</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>VSR Ledger-1</div>
                   <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>

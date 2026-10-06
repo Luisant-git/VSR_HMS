@@ -484,3 +484,156 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
   outline: none;
 }
+
+/* ---------------------------------------------------
+   Responsive Styles
+   Goal: Do not change desktop, just make it fit smaller screens.
+   --------------------------------------------------- */
+
+/* Adjusting fixed widths for smaller screens */
+.search-container {
+  max-width: 100%;
+}
+
+.search-input input {
+  max-width: 100%;
+}
+
+.mobile-menu-btn, .mobile-close-btn {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .search-container {
+    width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Layout adjustments */
+  .app-layout {
+    position: relative;
+  }
+  
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -270px; /* Hidden by default */
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+  }
+  
+  .sidebar.open {
+    left: 0;
+  }
+  
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+  }
+  
+  .mobile-menu-btn, .mobile-close-btn {
+    display: block !important;
+  }
+  
+  /* Content padding adjustments for mobile */
+  .main-content {
+    padding: 10px 15px 20px 15px;
+  }
+  
+  .topbar {
+    padding: 0 15px !important;
+  }
+  
+  .search-container {
+    width: 100%;
+    margin-right: 15px;
+  }
+  
+  .topbar-icons {
+    gap: 10px;
+  }
+  
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 15px;
+  }
+  
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  
+  .toolbar-actions {
+    flex-wrap: wrap;
+  }
+  
+  .data-table {
+    white-space: nowrap;
+  }
+
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Stack inline grids on mobile */
+  [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Exception for room grids which can use auto-fit */
+  .room-grid[style*="grid-template-columns"] {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  input, select, textarea {
+    max-width: 100% !important;
+  }
+  
+  /* Catch fixed width inline divs to prevent overflow */
+  div[style*="width: 300px"],
+  div[style*="width:400px"], div[style*="width: 400px"],
+  div[style*="width:450px"], div[style*="width: 450px"],
+  div[style*="width:500px"], div[style*="width: 500px"],
+  div[style*="width:520px"], div[style*="width: 520px"],
+  div[style*="width:600px"], div[style*="width: 600px"],
+  div[style*="width:800px"], div[style*="width: 800px"],
+  div[style*="width:250px"], div[style*="width: 250px"],
+  div[style*="width:280px"], div[style*="width: 280px"] {
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  .cards-row {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  .search-input input {
+    width: 100%;
+  }
+  
+  .metric-card {
+    min-height: auto;
+  }
+}

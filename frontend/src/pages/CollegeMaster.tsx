@@ -397,7 +397,7 @@ const CollegeMaster = () => {
                   <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. SRM Institute of Science and Technology" required style={{ width: '100%', padding: '12px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontSize: '14px', fontWeight: 500, transition: 'border-color 0.2s' }} onFocus={e => e.currentTarget.style.borderColor = '#4f46e5'} onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'} />
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Short Name / Code</label>
                     <input type="text" value={formData.shortName} onChange={e => setFormData({...formData, shortName: e.target.value})} placeholder="e.g. SRM IST" style={{ width: '100%', padding: '12px', border: '2px solid #e2e8f0', borderRadius: '10px', outline: 'none', fontSize: '14px', fontWeight: 500, transition: 'border-color 0.2s' }} onFocus={e => e.currentTarget.style.borderColor = '#4f46e5'} onBlur={e => e.currentTarget.style.borderColor = '#e2e8f0'} />

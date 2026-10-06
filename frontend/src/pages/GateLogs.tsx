@@ -212,7 +212,7 @@ const GateLogs = () => {
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '3.5fr 6.5fr', gap: '25px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '25px', alignItems: 'flex-start' }}>
         
         {/* Left Column: Form & Current Status */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '25px', position: 'sticky', top: '20px' }}>
