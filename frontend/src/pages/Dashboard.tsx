@@ -59,14 +59,19 @@ const Dashboard = () => {
     filteredRooms = filteredRooms.filter(r => r.block === blockFilter);
   }
 
-  const totalPendingFees = fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0);
-  const totalAdvanceHeld = fees.filter(f => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum, f) => sum + f.amount, 0);
+  const safeFees = Array.isArray(fees) ? fees : ((fees as any).data || []);
+  const totalPendingFees = safeFees.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0);
+  const totalAdvanceHeld = safeFees.filter((f: any) => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum: number, f: any) => sum + f.amount, 0);
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
   const currentlyOut = activeStudents.filter((s: any) => s.status === 'Out').length;
-  const activeLateWarnings = missingLogs.filter(log => !log.inTime).length;
-  const activeOutpassesCount = outpasses.filter(op => op.status === 'Approved' || op.status === 'Pending' || op.status === 'Active Out').length;
+  
+  const safeMissingLogs = Array.isArray(missingLogs) ? missingLogs : ((missingLogs as any).data || []);
+  const activeLateWarnings = safeMissingLogs.filter((log: any) => !log.inTime).length;
+  
+  const safeOutpasses = Array.isArray(outpasses) ? outpasses : ((outpasses as any).data || []);
+  const activeOutpassesCount = safeOutpasses.filter((op: any) => op.status === 'Approved' || op.status === 'Pending' || op.status === 'Active Out').length;
   const handleCheckIn = async (studentId: string) => {
     try {
       await gateLogApi.create({
@@ -164,7 +169,7 @@ const Dashboard = () => {
             <div className="card-title" style={{ color: '#ef4444' }}>Late Return Warnings</div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '15px' }}>
-            {missingLogs.filter(log => !log.inTime).slice(0, 5).map((log, idx) => (
+            {safeMissingLogs.filter((log: any) => !log.inTime).slice(0, 5).map((log: any, idx: number) => (
               <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div>
@@ -198,7 +203,7 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
-            {missingLogs.filter(log => !log.inTime).length === 0 && (
+            {safeMissingLogs.filter((log: any) => !log.inTime).length === 0 && (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', gridColumn: '1 / -1' }}>
                 No late returns
               </div>

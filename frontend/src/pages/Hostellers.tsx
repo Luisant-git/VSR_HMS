@@ -32,8 +32,14 @@ const Hostellers = () => {
   const [allColleges, setAllColleges] = useState<string[]>([]);
 
   useEffect(() => {
-    RoomAPI.findAll().then(res => setAllRooms(res.map((r: any) => `Room ${r.id}`))).catch(console.error);
-    CollegeAPI.findAll().then(res => setAllColleges(res.map((c: any) => c.name))).catch(console.error);
+    RoomAPI.findAll().then(res => {
+      const data = Array.isArray(res) ? res : (res.data || []);
+      setAllRooms(data.map((r: any) => `Room ${r.id}`));
+    }).catch(console.error);
+    CollegeAPI.findAll().then(res => {
+      const data = Array.isArray(res) ? res : (res.data || []);
+      setAllColleges(data.map((c: any) => c.name));
+    }).catch(console.error);
   }, []);
 
   const fetchHostellers = () => {
