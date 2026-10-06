@@ -25,6 +25,7 @@ export class StudentsController {
     @Query('roomFilter') roomFilter?: string,
     @Query('collegeFilter') collegeFilter?: string,
     @Query('sortFilter') sortFilter?: string,
+    @Query('feeFilter') feeFilter?: string,
   ) {
     return this.studentsService.findAll({
       page: page ? parseInt(page) : undefined,
@@ -32,7 +33,8 @@ export class StudentsController {
       search,
       roomFilter,
       collegeFilter,
-      sortFilter
+      sortFilter,
+      feeFilter
     });
   }
 

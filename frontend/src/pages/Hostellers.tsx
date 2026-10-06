@@ -20,6 +20,7 @@ const Hostellers = () => {
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
+  const [feeStatusFilter, setFeeStatusFilter] = useState('-- All Fee Status --');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortFilter, setSortFilter] = useState('latest');
   
@@ -51,11 +52,19 @@ const Hostellers = () => {
       search: searchQuery,
       roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
       collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
-      sortFilter: sortFilter !== 'latest' ? sortFilter : undefined
+      sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
+      feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined
     }).then(res => {
         const data = res.data || [];
         const mapped = data.map((h: any) => {
           const pendingFeesAmount = h.transactions?.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0) || 0;
+          const hasPending = h.transactions?.some((f: any) => f.status === 'PENDING');
+          const hasCompleted = h.transactions?.some((f: any) => f.status === 'COMPLETED');
+          
+          let currentFeeStatus = 'No Dues';
+          if (hasPending) currentFeeStatus = 'Un-Paid';
+          else if (hasCompleted) currentFeeStatus = 'Paid';
+
           return {
             id: h.regNo,
             name: h.name,
@@ -66,7 +75,7 @@ const Hostellers = () => {
             dept: h.educationalQua ? h.educationalQua.trim() : 'N/A',
             advance: `₹${h.advance || 0}`,
             pending: `₹${pendingFeesAmount}`,
-            feeStatus: pendingFeesAmount > 0 ? 'Un-Paid' : 'Paid',
+            feeStatus: currentFeeStatus,
             date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
             avatar: h.name.substring(0, 2).toUpperCase(),
@@ -84,7 +93,7 @@ const Hostellers = () => {
 
   useEffect(() => {
     fetchHostellers();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter]);
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -343,6 +352,19 @@ const Hostellers = () => {
             placeholder="Search college..."
             isSearchable={true}
           />
+          
+          <Select 
+            options={[
+              { value: '-- All Fee Status --', label: '-- All Fee Status --' },
+              { value: 'Un-Paid', label: 'Un-Paid' },
+              { value: 'Paid', label: 'Paid' },
+              { value: 'No Dues', label: 'No Dues' }
+            ]}
+            value={{ value: feeStatusFilter, label: feeStatusFilter }}
+            onChange={(opt) => { setFeeStatusFilter(opt?.value || '-- All Fee Status --'); setPage(1); }}
+            styles={selectStyles}
+            isSearchable={false}
+          />
 
           <Select 
             options={[
@@ -356,12 +378,13 @@ const Hostellers = () => {
             isSearchable={false}
           />
           
-          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --') && (
+          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || feeStatusFilter !== '-- All Fee Status --') && (
             <button 
               onClick={() => {
                 setSearchQuery('');
                 setRoomFilter('-- All Rooms --');
                 setCollegeFilter('-- All Colleges --');
+                setFeeStatusFilter('-- All Fee Status --');
               }}
               title="Clear all filters"
               style={{ 

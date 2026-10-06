@@ -134,7 +134,7 @@ export class StudentsService {
     return student;
   }
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string }) {
     const page = params?.page || 1;
     const limit = params?.limit || 10;
     const skip = (page - 1) * limit;
@@ -158,6 +158,16 @@ export class StudentsService {
       where.college = {
         name: params.collegeFilter
       };
+    }
+
+    if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
+      if (params.feeFilter === 'Un-Paid') {
+        where.transactions = { some: { status: 'PENDING' } };
+      } else if (params.feeFilter === 'Paid') {
+        where.transactions = { some: { status: 'COMPLETED' }, none: { status: 'PENDING' } };
+      } else if (params.feeFilter === 'No Dues') {
+        where.transactions = { none: {} };
+      }
     }
 
     let orderBy: any = { createdAt: 'desc' };
