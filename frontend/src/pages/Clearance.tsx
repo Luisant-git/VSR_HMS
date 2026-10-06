@@ -27,7 +27,8 @@ const Clearance = () => {
       StudentAPI.findOne(studentId).then(data => {
         setStudent(data);
         FeesAPI.findByStudent(data.id).then(fees => {
-          const dues = fees.filter((f: any) => f.status === 'PENDING').reduce((acc: number, f: any) => acc + f.amount, 0);
+          const safeFees = Array.isArray(fees) ? fees : (fees as any).data || [];
+          const dues = safeFees.filter((f: any) => f.status === 'PENDING').reduce((acc: number, f: any) => acc + f.amount, 0);
           setPendingDues(dues);
         });
       }).catch(() => {

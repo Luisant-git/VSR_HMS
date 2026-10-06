@@ -167,13 +167,18 @@ const StudentProfile = () => {
           monthlyMessFee: data.room?.messFee || 0
         });
         if (data.id) {
-          FeesAPI.findByStudent(data.id).then(setFees).catch(console.error);
+          FeesAPI.findByStudent(data.id).then(res => {
+            setFees(Array.isArray(res) ? res : (res.data || []));
+          }).catch(console.error);
         }
         if (data.regNo) {
-          gateLogApi.getAll(1, 100, data.regNo).then(res => setGateLogs(res.data || [])).catch(console.error);
+          gateLogApi.getAll(1, 100, data.regNo).then(res => setGateLogs(Array.isArray(res) ? res : (res.data || []))).catch(console.error);
         }
         if (data.id) {
-          OutpassAPI.findAll().then(res => setOutpasses(res.data.filter((op: any) => op.studentId === data.id))).catch(console.error);
+          OutpassAPI.findAll().then(res => {
+            const arr = Array.isArray(res) ? res : (res.data || []);
+            setOutpasses(arr.filter((op: any) => op.studentId === data.id));
+          }).catch(console.error);
         }
       }).catch(console.error);
     }

@@ -81,6 +81,8 @@ const LateWarnings = () => {
     }
   };
 
+  const safeMissingLogs = Array.isArray(missingLogs) ? missingLogs : (missingLogs as any).data || [];
+  
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader
@@ -90,16 +92,16 @@ const LateWarnings = () => {
 
       />
 
-      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div style={{ background: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+      <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: safeMissingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ background: safeMissingLogs.filter((l: any) => !l.inTime).length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: safeMissingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {missingLogs.filter((l: any) => !l.inTime).length > 0 ? (
+            {safeMissingLogs.filter((l: any) => !l.inTime).length > 0 ? (
               <AlertTriangle size={20} color="#e11d48" />
             ) : (
               <CheckCircle2 size={20} color="#10b981" />
             )}
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
-              {missingLogs.filter((l: any) => !l.inTime).length} Critical Alerts Active
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: safeMissingLogs.filter((l: any) => !l.inTime).length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
+              {safeMissingLogs.filter((l: any) => !l.inTime).length} Critical Alerts Active
             </h3>
           </div>
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -157,14 +159,14 @@ const LateWarnings = () => {
                     {error}
                   </td>
                 </tr>
-              ) : missingLogs.length === 0 ? (
+              ) : safeMissingLogs.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                     No late warnings currently. All students are either inside or not yet overdue.
                   </td>
                 </tr>
               ) : (
-                missingLogs.map((log: any) => {
+                safeMissingLogs.map((log: any) => {
                   const isHistorical = !!log.inTime;
                   return (
                     <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', background: isHistorical ? '#f8fafc' : '#fffcfc' }}>
