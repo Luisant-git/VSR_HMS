@@ -36,7 +36,7 @@ export class CollegesService {
     }
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string, dueDate?: string) {
+  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string) {
     const where: any = {};
     
     if (search) {
@@ -46,14 +46,14 @@ export class CollegesService {
       ];
     }
     
-    if (dueDate) {
-      const startOfDay = new Date(dueDate);
-      const endOfDay = new Date(dueDate);
-      endOfDay.setDate(endOfDay.getDate() + 1);
-      where.dueDate = {
-        gte: startOfDay,
-        lt: endOfDay
-      };
+    if (fromDate || toDate) {
+      where.dueDate = {};
+      if (fromDate) {
+        where.dueDate.gte = new Date(fromDate + 'T00:00:00');
+      }
+      if (toDate) {
+        where.dueDate.lte = new Date(toDate + 'T23:59:59.999');
+      }
     }
 
     const skip = (page - 1) * limit;

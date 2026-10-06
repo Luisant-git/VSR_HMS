@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, SquarePen, Trash2, Calendar, AlertCircle } from 'lucide-react';
+import { Building2, Plus, SquarePen, Trash2, Calendar, AlertCircle, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { CollegeAPI } from '../api/college.api';
 import { toast } from 'react-toastify';
@@ -14,9 +14,11 @@ const CollegeMaster = () => {
   
   // Search & Pagination State
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
   const limit = 10;
   
   // College Modal State
@@ -49,10 +51,13 @@ const CollegeMaster = () => {
         page,
         limit,
         search: searchQuery,
-        dueDate: dateFilter
+        fromDate,
+        toDate
       });
-      setColleges(response.data);
+      const data = Array.isArray(response) ? response : (response.data || []);
+      setColleges(data);
       setTotalPages(response.totalPages || 1);
+      setTotalRecords(response.total || data.length);
     } catch (err: any) {
       setError('Failed to load colleges');
     } finally {
@@ -62,7 +67,7 @@ const CollegeMaster = () => {
 
   useEffect(() => {
     fetchColleges();
-  }, [page, searchQuery, dateFilter]);
+  }, [page, searchQuery, fromDate, toDate]);
 
   const handleCollegeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,27 +210,47 @@ const CollegeMaster = () => {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <input 
-            type="text" 
-            placeholder="Search College Name or Code..." 
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-            style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px', minWidth: '250px' }}
-          />
-          {activeTab === 'college' && (
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <input 
+              type="text" 
+              placeholder="Search College Name or Code..." 
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => { setSearchQuery(''); setPage(1); }}
+                style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '13px', color: '#64748b' }}>Due From:</label>
             <input 
               type="date" 
-              value={dateFilter}
-              onChange={(e) => { setDateFilter(e.target.value); setPage(1); }}
-              style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px' }}
+              value={fromDate}
+              onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }}
             />
-          )}
-          {(searchQuery || dateFilter) && (
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '13px', color: '#64748b' }}>Due To:</label>
+            <input 
+              type="date" 
+              value={toDate}
+              onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+              style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }}
+            />
+          </div>
+          {(searchQuery || fromDate || toDate) && (
             <button 
-              onClick={() => { setSearchQuery(''); setDateFilter(''); setPage(1); }}
-              style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
-              Clear
+              onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); setPage(1); }}
+              style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+              Clear Filters
             </button>
           )}
         </div>
@@ -355,27 +380,30 @@ const CollegeMaster = () => {
         )}
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              Showing Page {page} of {totalPages}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
-                Previous
-              </button>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === totalPages ? '#f1f5f9' : 'white', color: page === totalPages ? '#94a3b8' : '#334155', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
-                Next
-              </button>
-            </div>
+        <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+          <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Previous
+            </button>
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
+            >
+              {page}
+            </button>
+            <button 
+              disabled={page >= totalPages || totalPages === 0}
+              onClick={() => setPage(p => p + 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Next
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {isCollegeModalOpen && (
