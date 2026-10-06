@@ -23,7 +23,7 @@ const Dashboard = () => {
     FeesAPI.findAll().then(setFees).catch(console.error);
     StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error);
     gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
-    OutpassAPI.findAll().then(setOutpasses).catch(console.error);
+    OutpassAPI.findAll().then(res => setOutpasses(res.data)).catch(console.error);
   }, []);
 
   const roomsData = dbRooms.map(r => ({

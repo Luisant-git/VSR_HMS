@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { OutpassService } from './outpass.service';
 import { CreateOutpassDto } from './dto/create-outpass.dto';
 import { UpdateOutpassDto } from './dto/update-outpass.dto';
@@ -13,8 +13,20 @@ export class OutpassController {
   }
 
   @Get()
-  findAll() {
-    return this.outpassService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string
+  ) {
+    return this.outpassService.findAll(
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+      search,
+      fromDate,
+      toDate
+    );
   }
 
   @Get(':id')

@@ -21,10 +21,19 @@ const Outpass = () => {
     parentConsent: true
   });
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   const fetchOutpasses = () => {
     setError(null);
-    OutpassAPI.findAll().then(data => {
-      setOutpasses(data);
+    OutpassAPI.findAll({ page, limit, search: searchTerm, fromDate, toDate }).then(res => {
+      setOutpasses(res.data || []);
+      setTotalPages(res.totalPages || 1);
+      setTotalRecords(res.total || 0);
     }).catch(err => {
       console.error(err);
       setError('Failed to load outpasses');
@@ -32,12 +41,16 @@ const Outpass = () => {
   };
 
   useEffect(() => {
-    StudentAPI.findAll().then(data => {
-      setStudents(data.filter((s: any) => s.status !== 'Vacated'));
+    StudentAPI.findAll().then(res => {
+      // Use res.data if available (in case StudentAPI is paginated), otherwise fallback to res array
+      const sData = Array.isArray(res) ? res : (res.data || []);
+      setStudents(sData.filter((s: any) => s.status !== 'Vacated'));
     }).catch(console.error);
-    
-    fetchOutpasses();
   }, []);
+
+  useEffect(() => {
+    fetchOutpasses();
+  }, [page, limit, searchTerm, fromDate, toDate]);
 
   const handleIssueOutpass = async () => {
     try {
@@ -87,11 +100,7 @@ const Outpass = () => {
     }
   };
 
-  const filteredOutpasses = outpasses.filter(op => 
-    op.outpassId?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    op.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    op.destination?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOutpasses = outpasses; // We handle filtering on backend now
 
   return (
     <div style={{ paddingBottom: '40px' }}>
@@ -111,16 +120,39 @@ const Outpass = () => {
       </div>
 
       <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b' }}>Outpasses Master Register</h3>
-          <div style={{ position: 'relative' }}>
-            <input 
-              type="text" 
-              placeholder="Search outpasses..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '10px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '250px', outline: 'none' }}
-            />
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative' }}>
+              <input 
+                type="text" 
+                placeholder="Search outpasses..." 
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => { setSearchTerm(''); setPage(1); }}
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#64748b' }}>From:</label>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#64748b' }}>To:</label>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            </div>
+            {(fromDate || toDate) && (
+              <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                Clear Dates
+              </button>
+            )}
           </div>
         </div>
 
@@ -223,6 +255,31 @@ const Outpass = () => {
               }))}
             </tbody>
           </table>
+        </div>
+        
+        <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+          <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Previous
+            </button>
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
+            >
+              {page}
+            </button>
+            <button 
+              disabled={page >= totalPages || totalPages === 0}
+              onClick={() => setPage(p => p + 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

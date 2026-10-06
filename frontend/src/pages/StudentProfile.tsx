@@ -173,7 +173,7 @@ const StudentProfile = () => {
           gateLogApi.getAll(1, 100, data.regNo).then(res => setGateLogs(res.data || [])).catch(console.error);
         }
         if (data.id) {
-          OutpassAPI.findAll().then(res => setOutpasses(res.filter((op: any) => op.studentId === data.id))).catch(console.error);
+          OutpassAPI.findAll().then(res => setOutpasses(res.data.filter((op: any) => op.studentId === data.id))).catch(console.error);
         }
       }).catch(console.error);
     }

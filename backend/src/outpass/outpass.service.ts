@@ -24,19 +24,55 @@ export class OutpassService {
     });
   }
 
-  async findAll() {
-    return this.prisma.outpass.findMany({
-      include: {
-        student: {
-          include: {
-            room: true
-          }
-        },
-      },
-      orderBy: {
-        createdAt: 'desc'
+  async findAll(page?: number, limit?: number, search?: string, fromDate?: string, toDate?: string) {
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { outpassId: { contains: search, mode: 'insensitive' } },
+        { destination: { contains: search, mode: 'insensitive' } },
+        { student: { name: { contains: search, mode: 'insensitive' } } },
+        { student: { regNo: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+    
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) where.createdAt.gte = new Date(fromDate);
+      if (toDate) {
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt.lte = end;
       }
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const [data, total] = await Promise.all([
+        this.prisma.outpass.findMany({
+          where,
+          skip,
+          take: limit,
+          include: { student: { include: { room: true } } },
+          orderBy: { createdAt: 'desc' }
+        }),
+        this.prisma.outpass.count({ where })
+      ]);
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    }
+
+    // Default without pagination (for backwards compatibility if needed, though we will update callers)
+    const data = await this.prisma.outpass.findMany({
+      where,
+      include: { student: { include: { room: true } } },
+      orderBy: { createdAt: 'desc' }
     });
+    return { data, total: data.length, page: 1, limit: data.length, totalPages: 1 };
   }
 
   async findOne(id: string) {
