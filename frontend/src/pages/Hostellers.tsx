@@ -618,7 +618,7 @@ const Hostellers = () => {
             backgroundColor: 'white',
             borderRadius: '16px',
             width: '100%',
-            maxWidth: '500px',
+            maxWidth: '850px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
             overflow: 'hidden',
             animation: 'fadeIn 0.2s ease-out'
@@ -653,7 +653,7 @@ const Hostellers = () => {
             </div>
             
             {/* Modal Body */}
-            <div style={{ padding: '25px' }}>
+            <div style={{ padding: '25px', maxHeight: '65vh', overflowY: 'auto' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '25px' }}>
                 <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Room Number</div>
@@ -693,77 +693,81 @@ const Hostellers = () => {
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Personal Details</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Biometric ID</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.biometricId || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedHosteller.raw?.doc2Type || 'Secondary ID'}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.doc2Number || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Aadhar Number</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>{selectedHosteller.raw?.doc2Type || 'Secondary ID'}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.doc2Number || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Blood Group</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.bloodGroup || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Aadhar Number</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>DOB</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Blood Group</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#e11d48' }}>{selectedHosteller.raw?.bloodGroup || 'N/A'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>DOB</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
                     {selectedHosteller.raw?.dob ? new Date(selectedHosteller.raw.dob).toLocaleDateString() : 'N/A'}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Marital Status</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.maritalStatus || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Marital Status</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.maritalStatus || 'N/A'}</div>
                 </div>
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Family & Guardian</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Father's Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.fatherName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.fatherMobileNo || 'No Mobile'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Father's Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.fatherName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.fatherMobileNo || 'No Mobile'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mother's Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.motherName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.motherMobileNo || 'No Mobile'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Mother's Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.motherName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.motherMobileNo || 'No Mobile'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Guardian Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.guardianName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{selectedHosteller.raw?.guardianMobileNo || 'No Mobile'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Guardian Name</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.guardianName || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.guardianMobileNo || 'No Mobile'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Emergency Contact</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500, color: '#dc3545' }}>{selectedHosteller.raw?.emergencyContact || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Emergency Contact</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc3545' }}>{selectedHosteller.raw?.emergencyContact || 'N/A'}</div>
                 </div>
               </div>
 
               <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Academic & Additional Info</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>VSR Ledger-1</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>VSR Ledger-1</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Date of Joining</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Date of Joining</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
                     {selectedHosteller.raw?.dateOfJoining ? new Date(selectedHosteller.raw.dateOfJoining).toLocaleDateString() : 'N/A'}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Pursuing Year</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.pursuingYear || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Pursuing Year</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.pursuingYear || 'N/A'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>College/Institute</div>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.dept || 'N/A'}</div>
+                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>College/Institute</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.dept || 'N/A'}</div>
                 </div>
               </div>
             </div>
