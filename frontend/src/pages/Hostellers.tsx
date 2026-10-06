@@ -21,6 +21,7 @@ const Hostellers = () => {
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortFilter, setSortFilter] = useState('latest');
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -36,7 +37,7 @@ const Hostellers = () => {
       const data = Array.isArray(res) ? res : (res.data || []);
       setAllRooms(data.map((r: any) => `Room ${r.id}`));
     }).catch(console.error);
-    CollegeAPI.findAll().then(res => {
+    CollegeAPI.findAll({ limit: 1000 }).then(res => {
       const data = Array.isArray(res) ? res : (res.data || []);
       setAllColleges(data.map((c: any) => c.name));
     }).catch(console.error);
@@ -49,7 +50,8 @@ const Hostellers = () => {
       limit,
       search: searchQuery,
       roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
-      collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined
+      collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
+      sortFilter: sortFilter !== 'latest' ? sortFilter : undefined
     }).then(res => {
         const data = res.data || [];
         const mapped = data.map((h: any) => {
@@ -66,6 +68,7 @@ const Hostellers = () => {
             pending: `₹${pendingFeesAmount}`,
             feeStatus: pendingFeesAmount > 0 ? 'Un-Paid' : 'Paid',
             date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
             avatar: h.name.substring(0, 2).toUpperCase(),
             raw: h
           };
@@ -81,7 +84,7 @@ const Hostellers = () => {
 
   useEffect(() => {
     fetchHostellers();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter]);
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -339,6 +342,18 @@ const Hostellers = () => {
             styles={selectStyles}
             placeholder="Search college..."
             isSearchable={true}
+          />
+
+          <Select 
+            options={[
+              { value: 'latest', label: 'All Students' },
+              { value: 'updated', label: 'Updated Profiles Only' }
+            ]}
+            value={{ value: sortFilter, label: sortFilter === 'updated' ? 'Updated Profiles Only' : 'All Students' }}
+            onChange={(opt) => setSortFilter(opt?.value || 'latest')}
+            styles={selectStyles}
+            placeholder="View..."
+            isSearchable={false}
           />
           
           {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --') && (

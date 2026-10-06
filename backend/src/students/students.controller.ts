@@ -24,13 +24,15 @@ export class StudentsController {
     @Query('search') search?: string,
     @Query('roomFilter') roomFilter?: string,
     @Query('collegeFilter') collegeFilter?: string,
+    @Query('sortFilter') sortFilter?: string,
   ) {
     return this.studentsService.findAll({
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
       search,
       roomFilter,
-      collegeFilter
+      collegeFilter,
+      sortFilter
     });
   }
 

@@ -58,13 +58,14 @@ export const StudentAPI = {
     return res.json();
   },
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
     if (params?.search) query.append('search', params.search);
     if (params?.roomFilter) query.append('roomFilter', params.roomFilter);
     if (params?.collegeFilter) query.append('collegeFilter', params.collegeFilter);
+    if (params?.sortFilter) query.append('sortFilter', params.sortFilter);
     
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetch(`${API_URL}/students${queryString}`);

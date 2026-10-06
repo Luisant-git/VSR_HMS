@@ -134,7 +134,7 @@ export class StudentsService {
     return student;
   }
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string }) {
     const page = params?.page || 1;
     const limit = params?.limit || 10;
     const skip = (page - 1) * limit;
@@ -160,12 +160,18 @@ export class StudentsService {
       };
     }
 
+    let orderBy: any = { createdAt: 'desc' };
+    if (params?.sortFilter === 'updated') {
+      where.profileUpdatedAt = { not: null };
+      orderBy = { profileUpdatedAt: 'desc' };
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.student.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: { transactions: true, room: true, college: true }
       }),
       this.prisma.student.count({ where })
