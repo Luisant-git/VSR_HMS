@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { Calculator, Search, History, X } from 'lucide-react';
+import { Calculator, History, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
