@@ -101,7 +101,7 @@ const Register = () => {
     emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
     bloodGroup: '', dateOfJoining: new Date().toLocaleDateString('en-CA'), vsrLedger1: '', pursuingYear: '',
-    category: '', foodType: '', courseDuration: ''
+    category: '', foodType: '', courseDuration: '', biometricId: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
@@ -143,7 +143,8 @@ const Register = () => {
           pursuingYear: data.pursuingYear || '',
           category: data.category || '',
           foodType: data.foodType || '',
-          courseDuration: data.courseDuration || ''
+          courseDuration: data.courseDuration || '',
+          biometricId: data.biometricId || ''
         });
         if (data.photoUrl) setCapturedImage(data.photoUrl);
         if (data.doc1Url) setDoc1Url(data.doc1Url);
@@ -403,6 +404,10 @@ const Register = () => {
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Aadhar Number</label>
                   <input value={formData.aadharNo} onChange={e => setFormData({ ...formData, aadharNo: e.target.value })} type="text" placeholder="12-digit Aadhar" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Biometric ID</label>
+                  <input value={formData.biometricId} onChange={e => setFormData({ ...formData, biometricId: e.target.value })} type="text" placeholder="e.g. Device ID" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Category</label>

@@ -154,6 +154,7 @@ const StudentProfile = () => {
           doc2Number: data.doc2Number,
           aadharNo: data.aadharNo, 
           secondaryIdNo: data.secondaryIdNo, 
+          biometricId: data.biometricId || 'N/A',
           clearance: data.clearance,
           bloodGroup: data.bloodGroup || 'N/A',
           maritalStatus: data.maritalStatus || 'N/A',
@@ -337,6 +338,10 @@ const StudentProfile = () => {
               </h3>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Biometric ID</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.biometricId}</div>
+                </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Aadhar Number</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.aadharNo || 'N/A'}</div>

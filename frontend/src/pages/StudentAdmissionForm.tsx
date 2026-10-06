@@ -11,7 +11,7 @@ const EMPTY_FORM = {
   pursuingYear: '', category: '', foodType: '',
   mobileNo: '', fatherMobileNo: '', motherMobileNo: '', guardianMobileNo: '', emergencyContact: '', 
   photoUrl: '', doc1Url: '', doc2Url: '', 
-  doc1Type: 'Aadhar Card', doc2Type: 'College Student ID', doc1Number: '', doc2Number: '', aadharNo: '', secondaryIdNo: '' 
+  doc1Type: 'Aadhar Card', doc2Type: 'College Student ID', doc1Number: '', doc2Number: '', aadharNo: '', secondaryIdNo: '', biometricId: ''
 };
 
 
@@ -373,6 +373,9 @@ export default function StudentAdmissionForm() {
               <div className="sa-chips">
                 <span className="sa-chip">{student.regNo}</span>
                 <span className="sa-chip green">Room {student.roomNo || 'N/A'}</span>
+                {student.biometricId && (
+                  <span className="sa-chip" style={{ background: '#f1f5f9', color: '#475569' }}>Bio ID: {student.biometricId}</span>
+                )}
               </div>
             </div>
           </div>

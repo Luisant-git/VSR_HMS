@@ -95,6 +95,7 @@ model Student {
   // Additional tracking
   vsrLedger1     String?
   dateOfJoining  DateTime?
+  biometricId    String?
 
   // Hostel details
   foodType String? // "Veg", "Non-Veg"
