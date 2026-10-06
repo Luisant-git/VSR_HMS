@@ -66,11 +66,34 @@ export class EbBillsService {
     });
   }
 
-  async findAll() {
-    return this.prisma.ebBill.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { room: true }
-    });
+  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string) {
+    const where: any = {};
+    if (search) {
+      where.roomNo = { contains: search, mode: 'insensitive' };
+    }
+    if (fromDate || toDate) {
+      where.createdAt = {};
+      if (fromDate) {
+        where.createdAt.gte = new Date(fromDate + 'T00:00:00');
+      }
+      if (toDate) {
+        where.createdAt.lte = new Date(toDate + 'T23:59:59.999');
+      }
+    }
+
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.ebBill.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { room: true }
+      }),
+      this.prisma.ebBill.count({ where })
+    ]);
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
   }
 
   async findByRoom(roomNo: string) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { EbBillsService } from './eb-bills.service';
 import { CreateEbBillDto } from './dto/create-eb-bill.dto';
 
@@ -12,8 +12,20 @@ export class EbBillsController {
   }
 
   @Get()
-  findAll() {
-    return this.ebBillsService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.ebBillsService.findAll(
+      page ? parseInt(page) : 1, 
+      limit ? parseInt(limit) : 10, 
+      search, 
+      fromDate,
+      toDate
+    );
   }
 
   @Get('room/:roomNo')

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { Calculator, Search, History } from 'lucide-react';
+import { Calculator, Search, History, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
@@ -21,10 +21,22 @@ const EbBills = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Pagination & Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const limit = 10;
+
   useEffect(() => {
     fetchRooms();
-    fetchBillingHistory();
   }, []);
+
+  useEffect(() => {
+    fetchBillingHistory();
+  }, [page, searchTerm, fromDate, toDate]);
 
   const fetchRooms = async () => {
     try {
@@ -39,8 +51,11 @@ const EbBills = () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await EbBillsAPI.findAll();
+      const res = await EbBillsAPI.findAll({ page, limit, search: searchTerm, fromDate, toDate });
+      const data = Array.isArray(res) ? res : (res.data || []);
       setBillingHistory(data);
+      setTotalPages(res.totalPages || 1);
+      setTotalRecords(res.total || data.length);
     } catch (error) {
       setError('Failed to load EB bills history');
     } finally {
@@ -72,14 +87,7 @@ const EbBills = () => {
     })
   };
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCycle, setFilterCycle] = useState('');
 
-  const filteredHistory = billingHistory.filter(bill => {
-    const matchesSearch = !searchTerm || bill.roomNo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCycle = !filterCycle || bill.billingCycle === filterCycle;
-    return matchesSearch && matchesCycle;
-  });
 
   const handleGenerateInvoice = async () => {
     if (!selectedRoom) {
@@ -195,17 +203,42 @@ const EbBills = () => {
 
         {/* Right Column: History */}
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <History size={18} color="var(--sidebar-active)" />
               <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>Room EB Billing History</h3>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input type="month" value={filterCycle} onChange={e => setFilterCycle(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '140px', color: '#64748b', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ position: 'relative' }}>
-                <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input type="text" placeholder="Search Room..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '160px' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search Room..." 
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                  style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
+                />
+                {searchTerm && (
+                  <button 
+                    onClick={() => { setSearchTerm(''); setPage(1); }}
+                    style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', color: '#64748b' }}>From:</label>
+                <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '13px', color: '#64748b' }}>To:</label>
+                <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+              </div>
+              {(fromDate || toDate) && (
+                <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                  Clear Dates
+                </button>
+              )}
             </div>
           </div>
           
@@ -227,7 +260,7 @@ const EbBills = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredHistory.map((bill) => (
+                {billingHistory.map((bill) => (
                   <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ fontWeight: 600, color: '#1e293b' }}>{bill.roomNo}</td>
                     <td><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>{bill.billingCycle}</span></td>
@@ -237,7 +270,7 @@ const EbBills = () => {
                     <td style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{bill.perStudentShare.toFixed(2)}</td>
                   </tr>
                 ))}
-                {filteredHistory.length === 0 && (
+                {billingHistory.length === 0 && (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No billing history found</td>
                   </tr>
@@ -245,6 +278,31 @@ const EbBills = () => {
               </tbody>
             </table>
             )}
+          </div>
+          
+          <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+            <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+              >
+                Previous
+              </button>
+              <button
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
+              >
+                {page}
+              </button>
+              <button 
+                disabled={page >= totalPages || totalPages === 0}
+                onClick={() => setPage(p => p + 1)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>

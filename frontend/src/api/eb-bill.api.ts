@@ -14,8 +14,16 @@ export const EbBillsAPI = {
     return res.json();
   },
 
-  async findAll() {
-    const res = await fetch(`${API_URL}/eb-bills`);
+  async findAll(params?: { page?: number; limit?: number; search?: string; fromDate?: string; toDate?: string }) {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.search) query.append('search', params.search);
+    if (params?.fromDate) query.append('fromDate', params.fromDate);
+    if (params?.toDate) query.append('toDate', params.toDate);
+    
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`${API_URL}/eb-bills${queryString}`);
     if (!res.ok) throw new Error('Failed to fetch EB Bills');
     return res.json();
   },
