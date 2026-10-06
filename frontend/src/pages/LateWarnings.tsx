@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { gateLogApi } from '../api/gatelog.api';
 import { toast } from 'react-toastify';
@@ -16,15 +16,27 @@ const LateWarnings = () => {
   const [lateRemarks, setLateRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Pagination & Filters
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
   useEffect(() => {
     fetchMissing();
-  }, []);
+  }, [page, limit, searchTerm, fromDate, toDate]);
 
   const fetchMissing = async () => {
     try {
       setError(null);
-      const data = await gateLogApi.getMissing();
+      const res = await gateLogApi.getMissing({ page, limit, search: searchTerm, fromDate, toDate });
+      const data = Array.isArray(res) ? res : (res.data || []);
       setMissingLogs(data);
+      setTotalPages(res.totalPages || 1);
+      setTotalRecords(res.total || data.length);
     } catch (err) {
       console.error(err);
       setError('Failed to load missing alerts');
@@ -79,15 +91,49 @@ const LateWarnings = () => {
       />
 
       <div style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', border: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', overflow: 'hidden' }}>
-        <div style={{ background: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {missingLogs.filter((l: any) => !l.inTime).length > 0 ? (
-            <AlertTriangle size={20} color="#e11d48" />
-          ) : (
-            <CheckCircle2 size={20} color="#10b981" />
-          )}
-          <h3 style={{ fontSize: '16px', fontWeight: 700, color: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
-            {missingLogs.filter((l: any) => !l.inTime).length} Critical Alerts Active
-          </h3>
+        <div style={{ background: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#fff1f2' : '#f8f9fa', padding: '15px 20px', borderBottom: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '1px solid #fecdd3' : '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {missingLogs.filter((l: any) => !l.inTime).length > 0 ? (
+              <AlertTriangle size={20} color="#e11d48" />
+            ) : (
+              <CheckCircle2 size={20} color="#10b981" />
+            )}
+            <h3 style={{ fontSize: '16px', fontWeight: 700, color: missingLogs.filter((l: any) => !l.inTime).length > 0 ? '#e11d48' : '#10b981', margin: 0 }}>
+              {missingLogs.filter((l: any) => !l.inTime).length} Critical Alerts Active
+            </h3>
+          </div>
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative' }}>
+              <input 
+                type="text" 
+                placeholder="Search alerts..." 
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => { setSearchTerm(''); setPage(1); }}
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#64748b' }}>From:</label>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#64748b' }}>To:</label>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            </div>
+            {(fromDate || toDate) && (
+              <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                Clear Dates
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="table-responsive">
@@ -153,6 +199,31 @@ const LateWarnings = () => {
               )}
             </tbody>
           </table>
+        </div>
+        
+        <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+          <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Previous
+            </button>
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
+            >
+              {page}
+            </button>
+            <button 
+              disabled={page >= totalPages || totalPages === 0}
+              onClick={() => setPage(p => p + 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

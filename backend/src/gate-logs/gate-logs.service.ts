@@ -99,12 +99,10 @@ export class GateLogsService {
     if (fromDate || toDate) {
       where.createdAt = {};
       if (fromDate) {
-        where.createdAt.gte = new Date(fromDate);
+        where.createdAt.gte = new Date(fromDate + 'T00:00:00');
       }
       if (toDate) {
-        const toDateObj = new Date(toDate);
-        toDateObj.setHours(23, 59, 59, 999);
-        where.createdAt.lte = toDateObj;
+        where.createdAt.lte = new Date(toDate + 'T23:59:59.999');
       }
     }
 
@@ -140,7 +138,7 @@ export class GateLogsService {
     };
   }
 
-  async findMissingOrLate() {
+  async findMissingOrLate(page?: number, limit?: number, search?: string, fromDate?: string, toDate?: string) {
     // Find all students currently OUT whose expected return time has passed
     const outStudents = await this.prisma.student.findMany({
       where: { status: 'Out' }
@@ -167,11 +165,51 @@ export class GateLogsService {
       },
       include: { student: { include: { room: true } } },
       orderBy: { inTime: 'desc' },
-      take: 200
+      take: 2000
     });
 
     const historicalLateLogs = returnedLogs.filter(log => log.inTime && log.expectedInTime && log.inTime > log.expectedInTime);
 
-    return [...activeLateLogs, ...historicalLateLogs];
+    let allLogs = [...activeLateLogs, ...historicalLateLogs];
+
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase();
+      allLogs = allLogs.filter(log => 
+        (log.student?.name?.toLowerCase().includes(q) || false) ||
+        (log.student?.regNo?.toLowerCase().includes(q) || false) ||
+        (log.reason?.toLowerCase().includes(q) || false) ||
+        (log.lateRemarks?.toLowerCase().includes(q) || false)
+      );
+    }
+
+    // Filter by date
+    if (fromDate) {
+      const from = new Date(fromDate + 'T00:00:00');
+      allLogs = allLogs.filter(log => new Date(log.createdAt) >= from);
+    }
+    if (toDate) {
+      const to = new Date(toDate + 'T23:59:59.999');
+      allLogs = allLogs.filter(log => new Date(log.createdAt) <= to);
+    }
+
+    // Sort by outTime desc
+    allLogs.sort((a, b) => new Date(b.outTime || b.createdAt).getTime() - new Date(a.outTime || a.createdAt).getTime());
+
+    const total = allLogs.length;
+    const p = page || 1;
+    const l = limit || 10;
+    
+    if (page && limit) {
+      allLogs = allLogs.slice((p - 1) * l, p * l);
+    }
+
+    return {
+      data: allLogs,
+      total,
+      page: p,
+      limit: l,
+      totalPages: Math.ceil(total / l) || 1
+    };
   }
 }

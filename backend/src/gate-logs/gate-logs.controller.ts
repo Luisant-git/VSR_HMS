@@ -31,7 +31,19 @@ export class GateLogsController {
   }
 
   @Get('missing')
-  findMissingOrLate() {
-    return this.gateLogsService.findMissingOrLate();
+  findMissingOrLate(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string
+  ) {
+    return this.gateLogsService.findMissingOrLate(
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+      search,
+      fromDate,
+      toDate
+    );
   }
 }

@@ -22,7 +22,7 @@ const Dashboard = () => {
     RoomAPI.findAll().then(setDbRooms).catch(console.error);
     FeesAPI.findAll().then(setFees).catch(console.error);
     StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error);
-    gateLogApi.getMissing().then(setMissingLogs).catch(console.error);
+    gateLogApi.getMissing().then(res => setMissingLogs(Array.isArray(res) ? res : (res.data || []))).catch(console.error);
     OutpassAPI.findAll().then(res => setOutpasses(res.data)).catch(console.error);
   }, []);
 

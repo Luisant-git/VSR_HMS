@@ -37,11 +37,11 @@ export class OutpassService {
     
     if (fromDate || toDate) {
       where.createdAt = {};
-      if (fromDate) where.createdAt.gte = new Date(fromDate);
+      if (fromDate) {
+        where.createdAt.gte = new Date(fromDate + 'T00:00:00');
+      }
       if (toDate) {
-        const end = new Date(toDate);
-        end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+        where.createdAt.lte = new Date(toDate + 'T23:59:59.999');
       }
     }
 
