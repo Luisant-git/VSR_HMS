@@ -412,8 +412,17 @@ const Fees = () => {
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
                     <div>₹{fee.mess.toLocaleString('en-IN')}</div>
+                    {fee.feesList?.filter((x: any) => x.transactionType === 'MESS DEDUCTION').map((d: any, idx: number) => {
+                      const match = d.description?.match(/\((\d+\s*days)\)/i);
+                      const daysText = match ? match[1] : '';
+                      return (
+                        <div key={idx} style={{ fontSize: '11px', color: '#b91c1c', marginTop: '4px', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                          Inc. -₹{Math.abs(d.amount).toLocaleString('en-IN')} {daysText ? `(${daysText})` : ''}
+                        </div>
+                      );
+                    })}
                     {fee.status === 'COMPLETED' && (() => {
-                      const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS'));
+                      const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS') && x.transactionType !== 'MESS DEDUCTION');
                       const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                       if (match) {
                         const parts = match[1].split('-');

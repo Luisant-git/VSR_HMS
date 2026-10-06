@@ -165,7 +165,7 @@ const Outpass = () => {
                 <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason & Destination</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled Leave</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expected Return</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parent Consent</th>
+                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration & Consent</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
                 <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Gate Action</th>
               </tr>
@@ -187,6 +187,7 @@ const Outpass = () => {
               filteredOutpasses.map((op, idx) => {
                 const leave = formatDateTime(op.leaveDate);
                 const ret = formatDateTime(op.returnDate);
+                const daysOut = Math.max(1, Math.ceil((new Date(op.returnDate).getTime() - new Date(op.leaveDate).getTime()) / (1000 * 3600 * 24)));
                 return (
                   <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#f8fafc'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
                     <td style={{ padding: '15px 20px', fontSize: '14px', fontWeight: 700, color: '#0284c7' }}>
@@ -207,6 +208,16 @@ const Outpass = () => {
                       {ret.dateStr}<br/>{ret.timeStr}
                     </td>
                     <td style={{ padding: '15px 20px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
+                        {daysOut} {daysOut === 1 ? 'Day' : 'Days'}
+                      </div>
+                      {daysOut > 15 && (
+                        <div style={{ marginBottom: '6px' }}>
+                          <span style={{ display: 'inline-block', background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                            Mess Deduction Eligible
+                          </span>
+                        </div>
+                      )}
                       {op.parentConsent && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
                           <CheckCircle2 size={12} /> Verified

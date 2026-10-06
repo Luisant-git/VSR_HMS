@@ -115,6 +115,40 @@ export class OutpassService {
         where: { id: op.studentId },
         data: { status: 'In' }
       });
+
+      // Mess Deduction Logic
+      const leaveTime = new Date(op.leaveDate).getTime();
+      const returnTime = new Date(op.returnDate).getTime();
+      const daysOut = Math.max(1, Math.ceil((returnTime - leaveTime) / (1000 * 3600 * 24)));
+      
+      if (daysOut > 15) {
+        // Prevent duplicate deduction for same outpass
+        const existing = await this.prisma.feeTransaction.findFirst({
+          where: { studentId: op.studentId, description: { contains: op.outpassId } }
+        });
+        
+        if (!existing) {
+          const student = await this.prisma.student.findUnique({
+            where: { id: op.studentId },
+            include: { room: true }
+          });
+          
+          if (student && student.room && student.room.messFee > 0) {
+            const dailyMessFee = student.room.messFee / 30;
+            const deductionAmount = Math.round(dailyMessFee * daysOut);
+            
+            await this.prisma.feeTransaction.create({
+              data: {
+                studentId: op.studentId,
+                transactionType: "MESS DEDUCTION",
+                amount: -deductionAmount,
+                status: "PENDING",
+                description: `Mess deduction for outpass ${op.outpassId} (${daysOut} days)`
+              }
+            });
+          }
+        }
+      }
     }
     
     return op;
