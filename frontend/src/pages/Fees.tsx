@@ -141,7 +141,9 @@ const Fees = () => {
         formatInvoiceNumber(fee).toLowerCase().includes(q) ||
         fee.transactionType.toLowerCase().includes(q) ||
         (fee.student?.name || '').toLowerCase().includes(q) ||
-        (fee.student?.regNo || '').toLowerCase().includes(q)
+        (fee.student?.regNo || '').toLowerCase().includes(q) ||
+        (fee.referenceNumber || '').toLowerCase().includes(q) ||
+        (fee.id || '').toLowerCase().includes(q)
       );
     }
     return match;
@@ -369,7 +371,7 @@ const Fees = () => {
           <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 12px' }}>Receipt No</th>
+                <th style={{ padding: '16px 12px' }}>Invoice No</th>
                 <th style={{ padding: '16px 12px' }}>Reg. No</th>
                 <th style={{ padding: '16px 12px' }}>Student Name</th>
                 <th style={{ padding: '16px 12px' }}>Room</th>

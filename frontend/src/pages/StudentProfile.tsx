@@ -10,6 +10,19 @@ import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { toast } from 'react-toastify';
 
+const formatInvoiceNumber = (fee: any) => {
+  const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
+  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
+  const studentStr = fee.student?.regNo || fee.student?.id || 'UNKN';
+  return `INV-${purpose}-${ymStr}-${studentStr}`;
+};
+
+const formatReceiptNumber = (fee: any) => {
+  const ymStr = new Date(fee.paidDate || fee.updatedAt || fee.createdAt).toISOString().slice(0, 7).replace('-', '');
+  const studentStr = fee.student?.regNo || fee.student?.id || 'UNKN';
+  return `RCT-${ymStr}-${studentStr}`;
+};
+
 const StudentProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -24,7 +37,7 @@ const StudentProfile = () => {
   const [gateLogs, setGateLogs] = useState<any[]>([]);
   const [outpasses, setOutpasses] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
-  
+
   const displayFees = useMemo(() => {
     const pendingGroup = {
       isGrouped: true,
@@ -152,8 +165,8 @@ const StudentProfile = () => {
           doc2Type: data.doc2Type,
           doc1Number: data.doc1Number,
           doc2Number: data.doc2Number,
-          aadharNo: data.aadharNo, 
-          secondaryIdNo: data.secondaryIdNo, 
+          aadharNo: data.aadharNo,
+          secondaryIdNo: data.secondaryIdNo,
           biometricId: data.biometricId || 'N/A',
           clearance: data.clearance,
           bloodGroup: data.bloodGroup || 'N/A',
@@ -265,17 +278,17 @@ const StudentProfile = () => {
               )}
             </div>
             <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', margin: '0 0 5px 0' }}>{student.name}</h3>
-            <span style={{ 
-              background: student.status === 'Vacated' ? '#f87171' : student.status === 'Out' ? '#fef3c7' : '#dcfce7', 
-              color: student.status === 'Vacated' ? 'white' : student.status === 'Out' ? '#92400e' : '#166534', 
-              padding: '4px 12px', 
-              borderRadius: '20px', 
-              fontSize: '12px', 
-              fontWeight: 700, 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '4px', 
-              marginBottom: '15px' 
+            <span style={{
+              background: student.status === 'Vacated' ? '#f87171' : student.status === 'Out' ? '#fef3c7' : '#dcfce7',
+              color: student.status === 'Vacated' ? 'white' : student.status === 'Out' ? '#92400e' : '#166534',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              marginBottom: '15px'
             }}>
               <CheckCircle2 size={14} /> {student.status === 'Vacated' ? 'Inactive' : student.status === 'Out' ? 'Active (Out)' : 'Active'}
             </span>
@@ -654,7 +667,7 @@ const StudentProfile = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
                       <tr>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Receipt No</th>
+                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Invoice No</th>
                         <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Payment Date</th>
                         <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Advance</th>
                         <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Rent</th>
@@ -708,11 +721,11 @@ const StudentProfile = () => {
                             })()}
                           </td>
                           <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
-                          
+
                           <td style={{ padding: '15px', fontSize: '14px', color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontWeight: 700, textAlign: 'right' }}>
                             ₹{fee.totalAmount.toLocaleString('en-IN')}
                           </td>
-                          
+
                           <td style={{ padding: '15px', fontSize: '12px' }}>
                             <span style={{
                               padding: '4px 8px', borderRadius: '4px', fontWeight: 600,
@@ -728,7 +741,7 @@ const StudentProfile = () => {
                                 <Wallet size={14} /> Pay Now
                               </button>
                             ) : (
-                              <button onClick={() => setSelectedReceipt({...fee, student: { name: student.name, regNo: student.id, roomNo: student.room }})} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <button onClick={() => setSelectedReceipt({ ...fee, student: { name: student.name, regNo: student.id, roomNo: student.room } })} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <FileText size={14} color="#64748b" /> View Receipt
                               </button>
                             )}
@@ -805,12 +818,76 @@ const StudentProfile = () => {
           )}
 
           {activeTab === 'Advance Deposit' && (
-            <div style={{ animation: 'fadeIn 0.3s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1' }}>
-              <div style={{ background: 'white', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <ShieldCheck size={48} color="#10b981" style={{ marginBottom: '15px' }} />
-                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>Total Advance Deposit</div>
-                <div style={{ fontSize: '42px', color: '#0f172a', fontWeight: 800, letterSpacing: '-0.02em' }}>₹{(student.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div style={{ animation: 'fadeIn 0.3s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                  <ShieldCheck size={20} color="#10b981" /> Advance Deposit Details
+                </h3>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
+                <div style={{ background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', textAlign: 'center', border: '1px solid #e2e8f0', minWidth: '350px' }}>
+                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Total Advance Deposit Held</div>
+                  <div style={{ fontSize: '36px', color: '#10b981', fontWeight: 800, letterSpacing: '-0.02em' }}>₹{(student.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                </div>
+              </div>
+
+              {(() => {
+                const advanceTransactions = fees.filter(f => (f.transactionType || '').toUpperCase() === 'ADVANCE');
+                return (
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                      <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
+                        <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
+                          <th style={{ padding: '12px 15px' }}>Date</th>
+                          <th style={{ padding: '12px 15px' }}>Invoice No</th>
+                          <th style={{ padding: '12px 15px' }}>Payment Mode</th>
+                          <th style={{ padding: '12px 15px', textAlign: 'right' }}>Amount</th>
+                          <th style={{ padding: '12px 15px', textAlign: 'center' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {advanceTransactions.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa' }}>
+                              No advance payment records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          advanceTransactions.map(txn => (
+                            <tr key={txn.id} style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
+                              <td style={{ padding: '15px', color: '#475569' }}>
+                                {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                <br/>
+                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </td>
+                              <td style={{ padding: '15px', color: '#475569', fontWeight: 500 }}>
+                                {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }) : '—'}
+                              </td>
+                              <td style={{ padding: '15px', color: '#475569' }}>
+                                <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
+                                  {txn.paymentMode || 'N/A'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '15px', color: '#0f172a', fontWeight: 700, textAlign: 'right' }}>
+                                ₹{txn.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '15px', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px',
+                                  background: txn.status === 'COMPLETED' ? '#dcfce7' : txn.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
+                                  color: txn.status === 'COMPLETED' ? '#166534' : txn.status === 'PENDING' ? '#92400e' : '#991b1b'
+                                }}>
+                                  {txn.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
