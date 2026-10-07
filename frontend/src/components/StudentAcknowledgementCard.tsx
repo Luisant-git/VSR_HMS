@@ -51,7 +51,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
   const displayRegNo = student.regNo || student.id || 'N/A';
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px', animation: 'fadeIn 0.5s ease' }}>
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: isViewOnly ? '0' : '20px 10px', animation: 'fadeIn 0.5s ease' }}>
       {!isViewOnly ? (
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', background: '#dcfce7', color: '#16a34a', marginBottom: '16px' }}>
@@ -81,7 +81,8 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
           ref={cardRef}
           className="id-card-print-area"
           style={{
-            width: '340px',
+            width: '100%',
+            maxWidth: '340px',
             background: '#ffffff',
             borderRadius: '16px',
             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.15)',
@@ -91,11 +92,11 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
           }}
         >
           {/* Header */}
-          <div style={{ background: 'var(--sidebar-active, #0ea5e9)', padding: '24px 16px 28px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--sidebar-active, #0ea5e9)', padding: '20px 12px 24px', textAlign: 'center', color: 'white', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Building2 size={24} />
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, letterSpacing: '0.5px' }}>Hostel Management</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
+                <Building2 size={20} />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' }}>Hostel Management</h3>
               </div>
               <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, opacity: 0.9, letterSpacing: '1px' }}>STUDENT IDENTITY CARD</p>
             </div>
@@ -110,7 +111,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <path d="M0,0 C50,24 100,0 100,0 L100,24 L0,24 Z" fill="#ffffff" />
           </svg>
 
-          <div style={{ padding: '16px 24px 24px', position: 'relative', zIndex: 3, textAlign: 'center' }}>
+          <div style={{ padding: '16px 16px 20px', position: 'relative', zIndex: 3, textAlign: 'center' }}>
             {/* Photo */}
             <div style={{
               width: '110px',
@@ -135,7 +136,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <p style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700, color: 'var(--sidebar-active, #0ea5e9)' }}>{displayRegNo}</p>
 
             {/* Details Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', textAlign: 'left', marginBottom: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 8px', textAlign: 'left', marginBottom: '16px' }}>
               <div>
                 <span style={{ color: '#475569', display: 'block', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>Room No</span>
                 <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>{displayRoom} {student.bedNo && student.bedNo !== 'N/A' ? `(${student.bedNo})` : ''}</span>
@@ -158,10 +159,10 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
               </div>
               <div>
                 <span style={{ color: '#475569', display: 'block', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>Food</span>
-                <span style={{ 
-                  fontWeight: 900, 
-                  color: 'white', 
-                  backgroundColor: student.foodType === 'Veg' ? '#16a34a' : student.foodType === 'Non-Veg' ? '#dc2626' : '#64748b', 
+                <span style={{
+                  fontWeight: 900,
+                  color: 'white',
+                  backgroundColor: student.foodType === 'Veg' ? '#16a34a' : student.foodType === 'Non-Veg' ? '#dc2626' : '#64748b',
                   fontSize: '13px',
                   padding: '4px 10px',
                   borderRadius: '6px',
