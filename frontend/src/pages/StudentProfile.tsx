@@ -18,11 +18,7 @@ const formatInvoiceNumber = (fee: any) => {
   return `INV-${purpose}-${ymStr}-${studentStr}`;
 };
 
-const formatReceiptNumber = (fee: any) => {
-  const ymStr = new Date(fee.paidDate || fee.updatedAt || fee.createdAt).toISOString().slice(0, 7).replace('-', '');
-  const studentStr = fee.student?.regNo || fee.student?.id || 'UNKN';
-  return `RCT-${ymStr}-${studentStr}`;
-};
+
 
 const StudentProfile = () => {
   const navigate = useNavigate();

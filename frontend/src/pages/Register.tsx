@@ -9,7 +9,7 @@ import { StudentAPI } from '../api/student.api';
 import { UploadAPI } from '../api/upload.api';
 import { RoomAPI } from '../api/room.api';
 import { CollegeAPI } from '../api/college.api';
-import Swal from 'sweetalert2';
+
 
 const Register = () => {
   // Helper: keep only digits and limit to 10 characters
