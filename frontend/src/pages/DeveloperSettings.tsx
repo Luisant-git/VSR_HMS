@@ -83,10 +83,10 @@ export default function DeveloperSettings() {
             onClick={() => requestTruncate('COLLEGES', 'Colleges & Fine Masters')}
           />
           <TruncateCard 
-            title="Truncate Financials" 
+            title="Truncate Fees" 
             desc="Wipe all fee transactions and EB bills."
             btnText="Wipe Fees"
-            onClick={() => requestTruncate('FEES', 'All Financial Transactions')}
+            onClick={() => requestTruncate('FEES', 'All Fees & EB Bills')}
           />
           <TruncateCard 
             title="Truncate Outpasses" 
@@ -99,6 +99,12 @@ export default function DeveloperSettings() {
             desc="Wipe all entry and exit logs from the gate."
             btnText="Wipe Gate Logs"
             onClick={() => requestTruncate('GATELOGS', 'All Gate Logs')}
+          />
+          <TruncateCard 
+            title="Truncate Rooms" 
+            desc="Wipe all rooms directory data."
+            btnText="Wipe Rooms"
+            onClick={() => requestTruncate('ROOMS', 'All Rooms')}
           />
 
         </div>

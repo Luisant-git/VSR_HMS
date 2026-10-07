@@ -15,7 +15,10 @@ export class DeveloperService {
           await this.prisma.outpass.deleteMany({});
           await this.prisma.clearanceRecord.deleteMany({});
           await this.prisma.student.deleteMany({});
-          return { message: 'All Student records and their related data have been truncated.' };
+          await this.prisma.room.updateMany({
+            data: { occupiedCount: 0 }
+          });
+          return { message: 'All Student records and their related data have been truncated, and all rooms are now free.' };
           
         case 'COLLEGES':
           // Must ensure no students are attached, or just delete fineMasters and colleges
@@ -26,11 +29,23 @@ export class DeveloperService {
         case 'FEES':
           await this.prisma.feeTransaction.deleteMany({});
           await this.prisma.ebBill.deleteMany({});
-          return { message: 'All Fee Transactions and EB Bills have been truncated.' };
+          await this.prisma.student.updateMany({
+            data: { 
+              feeStatus: 'Un-Paid',
+              advance: 0,
+              rentPaidUntil: null,
+              messPaidUntil: null
+            }
+          });
+          return { message: 'All Fee Transactions and EB Bills have been truncated, and student fee statuses reset.' };
           
         case 'OUTPASSES':
           await this.prisma.outpass.deleteMany({});
           return { message: 'All Outpasses have been truncated.' };
+          
+        case 'ROOMS':
+          await this.prisma.room.deleteMany({});
+          return { message: 'All Rooms have been truncated.' };
           
         case 'GATELOGS':
           await this.prisma.gateLog.deleteMany({});
