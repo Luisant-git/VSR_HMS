@@ -128,7 +128,12 @@ export class OutpassService {
       const returnTime = actualReturnDate.getTime();
       const daysOut = Math.max(0, Math.ceil((returnTime - leaveTime) / (1000 * 3600 * 24)));
       
-      if (daysOut > 15) {
+      const settingsRes = await this.prisma.messDeductionMaster.findUnique({
+        where: { id: 'GLOBAL' }
+      });
+      const threshold = settingsRes?.messDeductionThreshold ?? 15;
+
+      if (daysOut > threshold) {
         // Prevent duplicate deduction for same outpass
         const existing = await this.prisma.feeTransaction.findFirst({
           where: { studentId: op.studentId, description: { contains: op.outpassId } }

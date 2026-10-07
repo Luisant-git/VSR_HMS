@@ -134,6 +134,10 @@ const Layout = () => {
                 <div className="nav-icon"><Building2 size={18} /></div>
                 College Master
               </NavLink>
+              <NavLink to="/settings/mess-deduction" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><Building2 size={18} /></div>
+                Mess Deduction Master
+              </NavLink>
             </>
           )}
 

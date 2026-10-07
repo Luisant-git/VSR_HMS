@@ -256,3 +256,12 @@ model College {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------
+// Mess Deduction Master
+// ---------------------------------------------------------
+model MessDeductionMaster {
+  id                     String   @id @default("GLOBAL")
+  messDeductionThreshold Int      @default(15)
+  updatedAt              DateTime @updatedAt
+}

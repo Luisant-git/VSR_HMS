@@ -23,6 +23,7 @@ import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
 import DeveloperSettings from './pages/DeveloperSettings';
 import StudentAdmissionForm from './pages/StudentAdmissionForm';
+import MessDeductionMaster from './pages/MessDeductionMaster';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -91,6 +92,7 @@ function App() {
             <Route path="records" element={<BiometricRecords />} />
           </Route>
           <Route path="settings">
+            <Route path="mess-deduction" element={<MessDeductionMaster />} />
             <Route path="menu-permission" element={<MenuPermission />} />
             <Route path="user-management" element={<UserManagement />} />
           </Route>

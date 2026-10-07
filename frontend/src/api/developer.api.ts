@@ -1,21 +1,17 @@
-import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL;
-
-const api = axios.create({
-  baseURL: `${API_URL}/developer`,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 export const DeveloperAPI = {
   truncate: async (data: { entity: string; passwordConfirm: string }) => {
-    const response = await api.post('/truncate', data);
-    return response.data;
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/developer/truncate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to truncate');
+    return response.json();
   }
 };

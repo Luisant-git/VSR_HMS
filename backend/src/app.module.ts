@@ -16,6 +16,8 @@ import { CollegesModule } from './colleges/colleges.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { DeveloperModule } from './developer/developer.module';
 import { DeveloperSeedService } from './developer/developer.seed.service';
+import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -31,7 +33,8 @@ import { DeveloperSeedService } from './developer/developer.seed.service';
     OutpassModule, 
     CollegesModule,
     MenuPermissionModule,
-    DeveloperModule
+    DeveloperModule,
+    MessDeductionModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],
