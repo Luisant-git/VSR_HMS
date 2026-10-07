@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, CheckCircle2, X, LogOut, Check, LogIn } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { OutpassAPI } from '../api/outpass.api';
+import { MessDeductionAPI } from '../api/mess-deduction.api';
 import Select from 'react-select';
 
 const Outpass = () => {
@@ -27,6 +28,7 @@ const Outpass = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [deductionThreshold, setDeductionThreshold] = useState<number>(15);
 
   const fetchOutpasses = () => {
     setError(null);
@@ -50,6 +52,11 @@ const Outpass = () => {
 
   useEffect(() => {
     fetchOutpasses();
+    MessDeductionAPI.getSettings().then(res => {
+      if (res && res.messDeductionThreshold !== undefined) {
+        setDeductionThreshold(res.messDeductionThreshold);
+      }
+    }).catch(console.error);
   }, [page, limit, searchTerm, fromDate, toDate]);
 
   const handleIssueOutpass = async () => {
@@ -211,7 +218,7 @@ const Outpass = () => {
                       <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
                         {daysOut} {daysOut === 1 ? 'Day' : 'Days'}
                       </div>
-                      {daysOut > 15 && (
+                      {daysOut > deductionThreshold && (
                         <div style={{ marginBottom: '6px' }}>
                           <span style={{ display: 'inline-block', background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
                             Mess Deduction Eligible
