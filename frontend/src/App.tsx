@@ -48,10 +48,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <>
-      <ToastContainer 
-        position="top-center" 
-        autoClose={3000} 
-        hideProgressBar={true} 
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        hideProgressBar={true}
         newestOnTop={true}
         closeOnClick
         rtl={false}
@@ -61,48 +61,48 @@ function App() {
         theme="light"
       />
       <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/student-portal" element={<StudentPortal />} />
-      <Route path="/student-admission" element={<StudentAdmissionForm />} />
-      <Route path="/id/:id" element={<PublicStudentId />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="hostellers">
-          <Route index element={<Hostellers />} />
-          <Route path="clearance/:id" element={<Clearance />} />
-          <Route path="profile/:id" element={<StudentProfile />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/student-portal" element={<StudentPortal />} />
+        <Route path="/student-admission" element={<StudentAdmissionForm />} />
+        <Route path="/id/:id" element={<PublicStudentId />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="hostellers">
+            <Route index element={<Hostellers />} />
+            <Route path="clearance/:id" element={<Clearance />} />
+            <Route path="profile/:id" element={<StudentProfile />} />
+          </Route>
+          <Route path="gate-logs" element={<GateLogs />} />
+          <Route path="late-warnings" element={<LateWarnings />} />
+          <Route path="fees" element={<Fees />} />
+          <Route path="outpass" element={<Outpass />} />
+          <Route path="colleges" element={<CollegeMaster />} />
+          <Route path="register" element={<Register />} />
+          <Route path="rooms">
+            <Route index element={<Rooms />} />
+            <Route path="directory" element={<RoomsDirectory />} />
+            <Route path="eb-bills" element={<EbBills />} />
+            <Route path=":id" element={<RoomDetails />} />
+          </Route>
+          <Route path="biometrics">
+            <Route index element={<BiometricDashboard />} />
+            <Route path="register" element={<BiometricRegistration />} />
+            <Route path="identify" element={<BiometricIdentify />} />
+            <Route path="records" element={<BiometricRecords />} />
+          </Route>
+          <Route path="settings">
+            <Route path="menu-permission" element={<MenuPermission />} />
+            <Route path="user-management" element={<UserManagement />} />
+          </Route>
+          <Route path="developer">
+            <Route path="settings" element={<DeveloperSettings />} />
+          </Route>
+          <Route path="canteen" element={<ComingSoon title="Canteen" />} />
+          <Route path="staff" element={<ComingSoon title="Staff" />} />
+          <Route path="admin" element={<ComingSoon title="Admin" />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
-        <Route path="gate-logs" element={<GateLogs />} />
-        <Route path="late-warnings" element={<LateWarnings />} />
-        <Route path="fees" element={<Fees />} />
-        <Route path="outpass" element={<Outpass />} />
-        <Route path="colleges" element={<CollegeMaster />} />
-        <Route path="register" element={<Register />} />
-        <Route path="rooms">
-          <Route index element={<Rooms />} />
-          <Route path="directory" element={<RoomsDirectory />} />
-          <Route path="eb-bills" element={<EbBills />} />
-          <Route path=":id" element={<RoomDetails />} />
-        </Route>
-        <Route path="biometrics">
-          <Route index element={<BiometricDashboard />} />
-          <Route path="register" element={<BiometricRegistration />} />
-          <Route path="identify" element={<BiometricIdentify />} />
-          <Route path="records" element={<BiometricRecords />} />
-        </Route>
-        <Route path="settings">
-          <Route path="menu-permission" element={<MenuPermission />} />
-          <Route path="user-management" element={<UserManagement />} />
-        </Route>
-        <Route path="developer">
-          <Route path="settings" element={<DeveloperSettings />} />
-        </Route>
-        <Route path="canteen" element={<ComingSoon title="Canteen" />} />
-        <Route path="staff" element={<ComingSoon title="Staff" />} />
-        <Route path="admin" element={<ComingSoon title="Admin" />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+      </Routes>
     </>
   );
 }
