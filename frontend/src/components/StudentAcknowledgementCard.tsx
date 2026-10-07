@@ -132,10 +132,10 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             </div>
 
             <h4 style={{ margin: '0 0 4px', fontSize: '22px', fontWeight: 800, color: '#0f172a' }}>{student.name}</h4>
-            <p style={{ margin: '0 0 20px', fontSize: '15px', fontWeight: 700, color: 'var(--sidebar-active, #0ea5e9)' }}>{displayRegNo}</p>
+            <p style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: 700, color: 'var(--sidebar-active, #0ea5e9)' }}>{displayRegNo}</p>
 
             {/* Details Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 12px', textAlign: 'left', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', textAlign: 'left', marginBottom: '16px' }}>
               <div>
                 <span style={{ color: '#475569', display: 'block', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>Room No</span>
                 <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>{displayRoom} {student.bedNo && student.bedNo !== 'N/A' ? `(${student.bedNo})` : ''}</span>
@@ -158,7 +158,17 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
               </div>
               <div>
                 <span style={{ color: '#475569', display: 'block', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '3px' }}>Food</span>
-                <span style={{ fontWeight: 800, color: student.foodType === 'Veg' ? '#16a34a' : student.foodType === 'Non-Veg' ? '#dc2626' : '#0f172a', fontSize: '14px' }}>{student.foodType || 'N/A'}</span>
+                <span style={{ 
+                  fontWeight: 900, 
+                  color: 'white', 
+                  backgroundColor: student.foodType === 'Veg' ? '#16a34a' : student.foodType === 'Non-Veg' ? '#dc2626' : '#64748b', 
+                  fontSize: '13px',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  display: 'inline-block',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>{student.foodType || 'N/A'}</span>
               </div>
               {student.biometricId ? (
                 <div>
@@ -171,23 +181,17 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             </div>
 
             {/* QR Code Area */}
-            <div style={{ borderTop: '2px dashed #f1f5f9', paddingTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+            <div style={{ borderTop: '2px dashed #f1f5f9', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', overflow: 'hidden' }}>
                 <QRCodeSVG
                   value={`${window.location.origin}/hostellers/profile/${student.uuid || student.id}`}
-                  size={72}
+                  size={120}
                   level={"H"}
                   includeMargin={true}
                 />
               </div>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#334155', textAlign: 'left', maxWidth: '130px', lineHeight: 1.4 }}>
-                Scan to verify student details in the Hosteller Directory.
-              </div>
             </div>
           </div>
-
-          {/* Footer bar */}
-          <div style={{ background: '#0f172a', height: '14px', width: '100%' }}></div>
         </div>
       </div>
 
