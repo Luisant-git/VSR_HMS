@@ -3,6 +3,7 @@ import { Camera, Info, CheckCircle2, Upload, ArrowLeft, Calculator } from 'lucid
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { toast } from 'react-toastify';
 import { StudentAPI } from '../api/student.api';
 import { UploadAPI } from '../api/upload.api';
@@ -95,6 +96,7 @@ const Register = () => {
 
   const navigate = useNavigate();
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [registeredStudent, setRegisteredStudent] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
@@ -169,8 +171,9 @@ const Register = () => {
     
     setIsSubmitting(true);
     try {
+      let result;
       if (editId) {
-        await StudentAPI.update(editId, {
+        result = await StudentAPI.update(editId, {
           ...formData,
           roomNo: selectedRoom.id || selectedRoom.value,
           bedNo: formData.bedNo || undefined,
@@ -179,7 +182,7 @@ const Register = () => {
           doc2Url: doc2Url || undefined
         });
       } else {
-        await StudentAPI.create({
+        result = await StudentAPI.create({
           ...formData,
           roomNo: selectedRoom?.value || selectedRoom?.id,
           bedNo: formData.bedNo || undefined,
@@ -194,20 +197,9 @@ const Register = () => {
         });
       }
 
-      await Swal.fire({
-        title: editId ? 'Update Successful!' : 'Admission Successful!',
-        text: editId
-          ? `Hosteller ${formData.name}'s details have been updated.`
-          : `Hosteller ${formData.name} has been assigned to Room ${selectedRoom?.label?.split('(')[0]?.trim() || selectedRoom?.roomNo}.`,
-        icon: 'success',
-        confirmButtonColor: '#10b981',
-        confirmButtonText: 'Go to Hostellers Directory',
-        timer: 4000,
-        timerProgressBar: true,
-        showClass: { popup: 'animate__animated animate__zoomIn' },
-        hideClass: { popup: 'animate__animated animate__fadeOut' }
-      });
-      navigate('/hostellers');
+      toast.success(editId ? 'Update Successful!' : 'Admission Successful!');
+      setRegisteredStudent(result);
+      window.scrollTo(0, 0);
     } catch (e: any) {
       toast.error(e.message || 'Admission failed');
     } finally {
@@ -266,6 +258,35 @@ const Register = () => {
   };
 
 
+
+  if (registeredStudent) {
+    const collegeName = collegesList.find(c => c.id === registeredStudent.collegeId)?.name;
+    return (
+      <StudentAcknowledgementCard 
+        student={registeredStudent} 
+        collegeName={collegeName}
+        onBack={() => {
+          setRegisteredStudent(null);
+          if (!editId) {
+            setFormData({
+              name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
+              fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
+              emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
+              maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
+              bloodGroup: '', dateOfJoining: new Date().toLocaleDateString('en-CA'), vsrLedger1: '', pursuingYear: '',
+              category: '', foodType: '', courseDuration: '', biometricId: ''
+            });
+            setCapturedImage(null);
+            setDoc1Url(null);
+            setDoc2Url(null);
+            setSelectedRoom(null);
+          } else {
+            navigate('/hostellers');
+          }
+        }} 
+      />
+    );
+  }
 
   return (
     <div style={{ paddingBottom: '40px' }}>

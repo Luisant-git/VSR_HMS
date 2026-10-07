@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -8,6 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { toast } from 'react-toastify';
 
 const formatInvoiceNumber = (fee: any) => {
@@ -101,6 +102,7 @@ const StudentProfile = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [doc1File, setDoc1File] = useState<File | null>(null);
   const [doc2File, setDoc2File] = useState<File | null>(null);
+  const [showIdCard, setShowIdCard] = useState(false);
 
   const handleUpdateKyc = async () => {
     setIsUpdating(true);
@@ -243,7 +245,10 @@ const StudentProfile = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => navigate(`/register?edit=${student.id}`)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #334155', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button onClick={() => setShowIdCard(true)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)' }}>
+            <IdCard size={16} /> View ID Card
+          </button>
+          <button onClick={() => navigate(`/register?edit=${student.uuid}`)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #334155', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Camera size={16} /> Update Photo & KYC
           </button>
           {student.status !== 'Vacated' && (
@@ -307,7 +312,7 @@ const StudentProfile = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontWeight: 600 }}>Category:</span>
-                <span>{student.raw?.category || 'N/A'}</span>
+                <span style={{ textAlign: 'right', maxWidth: '120px' }}>{student.category || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -998,6 +1003,24 @@ const StudentProfile = () => {
             fetchStudentData(); // Refresh data
           }}
         />
+      )}
+
+      {showIdCard && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '800px', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease' }}>
+             <button onClick={() => setShowIdCard(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: '#f1f5f9', color: '#64748b', border: 'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}>
+               <X size={20} />
+             </button>
+             <div style={{ padding: '10px' }}>
+               <StudentAcknowledgementCard 
+                 student={{ ...student, regNo: student.id, collegeId: student.college }} 
+                 collegeName={student.college?.split('(')[0]?.trim()}
+                 onBack={() => setShowIdCard(false)} 
+                 isViewOnly={true}
+               />
+             </div>
+          </div>
+        </div>
       )}
     </div>
   );

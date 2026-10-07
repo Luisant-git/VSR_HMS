@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, Building2 } from 'lucide-react';
+import { User, Upload, LogOut, Camera, FileText, Phone, CheckCircle, AlertCircle, IdCard, ArrowRight, Check, Building2, X } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
 import { UploadAPI } from '../api/upload.api';
 import Swal from 'sweetalert2';
+import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 
 const EMPTY_FORM = { 
   name: '', dob: '', bloodGroup: '', address: '', educationalQua: '', courseDuration: '',
@@ -164,6 +165,7 @@ export default function StudentAdmissionForm() {
   const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState('');
+  const [showIdCard, setShowIdCard] = useState(false);
 
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -369,7 +371,12 @@ export default function StudentAdmissionForm() {
           <div className="sa-who">
             <div className="sa-avatar">{formData.photoUrl ? <img src={formData.photoUrl} alt="Profile" /> : <User size={30} />}</div>
             <div style={{ minWidth: 0 }}>
-              <h1 style={{ fontSize: 22 }}>{student.name}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                <h1 style={{ fontSize: 22, margin: 0 }}>{student.name}</h1>
+                <button type="button" onClick={() => setShowIdCard(true)} style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IdCard size={14} /> View ID Card
+                </button>
+              </div>
               <div className="sa-chips">
                 <span className="sa-chip">{student.regNo}</span>
                 <span className="sa-chip green">Room {student.roomNo || 'N/A'}</span>
@@ -636,6 +643,24 @@ export default function StudentAdmissionForm() {
           </div>
         </div>
       </form>
+
+      {showIdCard && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '800px', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease' }}>
+             <button type="button" onClick={() => setShowIdCard(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: '#f1f5f9', color: '#64748b', border: 'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}>
+               <X size={20} />
+             </button>
+             <div style={{ padding: '10px' }}>
+               <StudentAcknowledgementCard 
+                 student={{ ...student, regNo: student.regNo, collegeId: student.college?.name || student.college }} 
+                 collegeName={student.college?.name || student.college}
+                 onBack={() => setShowIdCard(false)} 
+                 isViewOnly={true}
+               />
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
