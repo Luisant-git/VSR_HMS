@@ -28,6 +28,7 @@ import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
 import BiometricIdentify from './pages/biometrics/BiometricIdentify';
 import BiometricRecords from './pages/biometrics/BiometricRecords';
+import PublicStudentId from './pages/PublicStudentId';
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center" style={{ height: '60vh', color: 'var(--text-muted)' }}>
@@ -63,6 +64,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/student-portal" element={<StudentPortal />} />
       <Route path="/student-admission" element={<StudentAdmissionForm />} />
+      <Route path="/id/:id" element={<PublicStudentId />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="hostellers">

@@ -184,7 +184,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <div style={{ borderTop: '2px dashed #f1f5f9', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', overflow: 'hidden' }}>
                 <QRCodeSVG
-                  value={`${window.location.origin}/hostellers/profile/${student.uuid || student.id}`}
+                  value={`${window.location.origin}/id/${student.uuid || student.id}`}
                   size={120}
                   level={"H"}
                   includeMargin={true}
