@@ -37,17 +37,24 @@ const MenuPermission = () => {
   const handleEdit = (role: string) => {
     const existing = permissions.find(p => p.role === role);
     setSelectedRole(role);
-    setEditData(existing?.permissions || {
+    setEditData({
       dashboard: false,
       hostellers: false,
-      rooms: false,
+      student_register: false,
+      hostel_blocks: false,
+      rooms_master: false,
       fees: false,
       gate_logs: false,
       eb_bills: false,
       clearance: false,
       outpass: false,
+      late_warnings: false,
       colleges: false,
-      settings: false
+      fine_master: false,
+      mess_deduction: false,
+      user_management: false,
+      menu_permission: false,
+      ...(existing?.permissions || {})
     });
   };
 
@@ -73,10 +80,21 @@ const MenuPermission = () => {
     }));
   };
 
+  const toggleGroup = (moduleIds: string[]) => {
+    const allChecked = moduleIds.every(id => editData[id] === true);
+    setEditData((prev: any) => {
+      const next = { ...prev };
+      moduleIds.forEach(id => {
+        next[id] = !allChecked;
+      });
+      return next;
+    });
+  };
+
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader 
-        title="Menu Permissions"
+        title="Menu Permission"
         subtitle="Configure access control for different roles"
         showBack={true}
         
@@ -88,10 +106,7 @@ const MenuPermission = () => {
             <thead>
               <tr style={{ background: 'linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%)', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
                 <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Dashboard</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Hostellers</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Rooms</th>
-                <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Fees</th>
+                <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Allowed Modules</th>
                 <th style={{ padding: '16px 24px', fontSize: '12px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -114,17 +129,36 @@ const MenuPermission = () => {
                   return (
                     <tr key={role} style={{ borderBottom: '1px solid #f1f5f9', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = 'white'}>
                       <td style={{ padding: '16px 24px', fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{role}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                        {perm?.permissions?.dashboard ? <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span> : <span style={{ color: '#cbd5e1' }}>✗</span>}
-                      </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                        {perm?.permissions?.hostellers ? <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span> : <span style={{ color: '#cbd5e1' }}>✗</span>}
-                      </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                        {perm?.permissions?.rooms ? <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span> : <span style={{ color: '#cbd5e1' }}>✗</span>}
-                      </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                        {perm?.permissions?.fees ? <span style={{ color: '#10b981', fontWeight: 'bold' }}>✓</span> : <span style={{ color: '#cbd5e1' }}>✗</span>}
+                      <td style={{ padding: '16px 24px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {(() => {
+                            if (!perm?.permissions) return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
+                            
+                            const moduleMap: any = {
+                              dashboard: 'Dashboard', hostellers: 'Hostellers', student_register: 'Student Register',
+                              hostel_blocks: 'Hostel Blocks', rooms_master: 'Rooms Directory', fees: 'Fees', gate_logs: 'Gate Logs', eb_bills: 'EB Bills',
+                              clearance: 'Clearance', outpass: 'Outpass', late_warnings: 'Late Warnings',
+                              colleges: 'College Master', fine_master: 'Fine Master', mess_deduction: 'Mess Deduction', 
+                              user_management: 'User Management', menu_permission: 'Menu Config'
+                            };
+
+                            const allowed = Object.entries(perm.permissions).filter(([key, val]) => val === true && moduleMap[key]);
+                            
+                            if (allowed.length === Object.keys(moduleMap).length) {
+                              return <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>All Modules Access</span>;
+                            }
+
+                            if (allowed.length === 0) {
+                              return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
+                            }
+
+                            return allowed.map(([key]) => (
+                              <span key={key} style={{ background: '#eef2ff', color: '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                                {moduleMap[key]}
+                              </span>
+                            ));
+                          })()}
+                        </div>
                       </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                         <button
@@ -155,30 +189,109 @@ const MenuPermission = () => {
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Select which modules this role is allowed to access.</p>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '16px' }}>
-                {[
-                  { id: 'dashboard', label: 'Dashboard' },
-                  { id: 'hostellers', label: 'Hostellers' },
-                  { id: 'student_register', label: 'Student Register' },
-                  { id: 'rooms', label: 'Rooms' },
-                  { id: 'fees', label: 'Fees & Payments' },
-                  { id: 'gate_logs', label: 'Gate Logs' },
-                  { id: 'eb_bills', label: 'EB Bills' },
-                  { id: 'clearance', label: 'Clearance' },
-                  { id: 'outpass', label: 'Outpass' },
-                  { id: 'colleges', label: 'College Master' },
-                  { id: 'settings', label: 'Settings & Users' },
-                ].map(module => (
-                  <label key={module.id} style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = '#eef2ff'} onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}>
-                    <input
-                      type="checkbox"
-                      checked={editData[module.id] || false}
-                      onChange={() => togglePermission(module.id)}
-                      style={{ width: '18px', height: '18px', marginRight: '12px', accentColor: '#4f46e5', cursor: 'pointer' }}
-                    />
-                    <span style={{ fontWeight: 500, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingLeft: '8px' }}>
+                
+                {/* General */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['dashboard'].every(id => editData[id])} onChange={() => toggleGroup(['dashboard'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>General</span>
                   </label>
-                ))}
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'dashboard', label: 'Dashboard' }
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hostellers */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'].every(id => editData[id])} onChange={() => toggleGroup(['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Hostellers</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'hostellers', label: 'Hostellers' },
+                      { id: 'student_register', label: 'Student Register' },
+                      { id: 'gate_logs', label: 'Gate Logs' },
+                      { id: 'outpass', label: 'Outpasses' },
+                      { id: 'late_warnings', label: 'Late Warnings' },
+                      { id: 'clearance', label: 'Clearance' },
+                      { id: 'fees', label: 'Fees & Payments' },
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rooms */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['hostel_blocks', 'rooms_master', 'eb_bills'].every(id => editData[id])} onChange={() => toggleGroup(['hostel_blocks', 'rooms_master', 'eb_bills'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Rooms</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'hostel_blocks', label: 'Hostel Blocks' },
+                      { id: 'rooms_master', label: 'Rooms Master Directory' },
+                      { id: 'eb_bills', label: 'Room EB Bill Sharing' }
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Administration */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['colleges'].every(id => editData[id])} onChange={() => toggleGroup(['colleges'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Administration</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'colleges', label: 'College Master' }
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Settings */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['fine_master', 'mess_deduction', 'user_management', 'menu_permission'].every(id => editData[id])} onChange={() => toggleGroup(['fine_master', 'mess_deduction', 'user_management', 'menu_permission'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Settings</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'fine_master', label: 'Fine Master' },
+                      { id: 'mess_deduction', label: 'Mess Deduction Master' },
+                      { id: 'user_management', label: 'User Management' },
+                      { id: 'menu_permission', label: 'Menu Permission' }
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             </div>
             

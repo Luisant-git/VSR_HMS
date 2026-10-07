@@ -90,8 +90,8 @@ const Clearance = () => {
                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{student.name} ({student.regNo})</div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Current Room & Bed (To be liberated)</label>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc3545' }}>Room {student.roomNo || 'N/A'} ({student.bedNo?.includes('Bed') ? student.bedNo : `Bed ${student.bedNo || 'N/A'}`})</div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Current Room (To be liberated)</label>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc3545' }}>Room {student.roomNo || 'N/A'}</div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Course / Dept</label>
@@ -185,7 +185,7 @@ const Clearance = () => {
           <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '8px', border: '1px solid #fef3c7', display: 'flex', gap: '12px' }}>
             <AlertCircle size={20} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div style={{ fontSize: '13px', color: '#92400e', lineHeight: '1.5' }}>
-              <strong>Important:</strong> Clicking confirm will immediately mark the student as Discontinued, settle their dues, and free up bed occupancy in <strong>Room {student.roomNo || 'N/A'}</strong> so it becomes available for new admissions.
+              <strong>Important:</strong> Clicking confirm will immediately mark the student as Discontinued, settle their dues, and free up room occupancy in <strong>Room {student.roomNo || 'N/A'}</strong> so it becomes available for new admissions.
             </div>
           </div>
 

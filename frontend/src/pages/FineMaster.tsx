@@ -6,8 +6,8 @@ import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
 
-const CollegeMaster = () => {
-  const [activeTab, setActiveTab] = useState<'college'>('college');
+const FineMaster = () => {
+  const [activeTab, setActiveTab] = useState<'fine'>('fine');
   const [colleges, setColleges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -181,11 +181,11 @@ const CollegeMaster = () => {
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader 
-        title="College Master" 
-        subtitle="Manage affiliated colleges and their codes"
+        title="Fine Master" 
+        subtitle="Configure daily fine settings for colleges"
         rightContent={
-          <button onClick={openNewCollegeModal} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'linear-gradient(135deg, var(--sidebar-active), #3b5bdb)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'} onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}>
-            <Plus size={18} /> Add College
+          <button onClick={() => openFineModal()} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'linear-gradient(135deg, var(--sidebar-active), #3b5bdb)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)', transition: 'transform 0.1s' }} onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'} onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}>
+            <AlertCircle size={18} /> Global Fine Config
           </button>
         }
       />
@@ -566,4 +566,4 @@ const CollegeMaster = () => {
   );
 };
 
-export default CollegeMaster;
+export default FineMaster;

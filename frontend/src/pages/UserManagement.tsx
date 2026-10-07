@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, SquarePen, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, SquarePen, CheckCircle, XCircle, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
@@ -10,6 +10,13 @@ const UserManagement = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Pagination & Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -23,8 +30,10 @@ const UserManagement = () => {
     setLoading(true);
     try {
       setError(null);
-      const data = await UserAPI.getAll();
-      setUsers(data);
+      const data = await UserAPI.getAll({ page, limit, search: searchQuery });
+      setUsers(data.data || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalRecords(data.total || 0);
     } catch (err) {
       setError('Failed to load users');
     } finally {
@@ -34,7 +43,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page, limit, searchQuery]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +106,26 @@ const UserManagement = () => {
           </button>
         }
       />
+
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative' }}>
+          <input 
+            type="text" 
+            placeholder="Search User Name or Email..." 
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => { setSearchQuery(''); setPage(1); }}
+              style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      </div>
 
       <div style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '20px' }}>
         <div style={{ overflowX: 'auto' }}>
@@ -167,6 +196,32 @@ const UserManagement = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
+          <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Previous
+            </button>
+            <button
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
+            >
+              {page}
+            </button>
+            <button 
+              disabled={page >= totalPages || totalPages === 0}
+              onClick={() => setPage(p => p + 1)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

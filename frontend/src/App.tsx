@@ -14,10 +14,12 @@ import RoomDetails from './pages/RoomDetails';
 import EbBills from './pages/EbBills';
 import Login from './pages/Login';
 import Clearance from './pages/Clearance';
+import ClearanceRecords from './pages/ClearanceRecords';
 import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
 import CollegeMaster from './pages/CollegeMaster';
+import FineMaster from './pages/FineMaster';
 import MenuPermission from './pages/MenuPermission';
 import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
@@ -77,6 +79,7 @@ function App() {
           <Route path="late-warnings" element={<LateWarnings />} />
           <Route path="fees" element={<Fees />} />
           <Route path="outpass" element={<Outpass />} />
+          <Route path="clearance" element={<ClearanceRecords />} />
           <Route path="colleges" element={<CollegeMaster />} />
           <Route path="register" element={<Register />} />
           <Route path="rooms">
@@ -92,6 +95,7 @@ function App() {
             <Route path="records" element={<BiometricRecords />} />
           </Route>
           <Route path="settings">
+            <Route path="fine-master" element={<FineMaster />} />
             <Route path="mess-deduction" element={<MessDeductionMaster />} />
             <Route path="menu-permission" element={<MenuPermission />} />
             <Route path="user-management" element={<UserManagement />} />

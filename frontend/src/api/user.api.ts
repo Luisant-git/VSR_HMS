@@ -1,43 +1,67 @@
-import axios from 'axios';
 const API_URL = import.meta.env.VITE_API_URL;
 
-const api = axios.create({
-  baseURL: `${API_URL}/users`,
-});
-
-api.interceptors.request.use((config) => {
+const getHeaders = () => {
   const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
 
 export const UserAPI = {
   login: async (credentials: any) => {
-    const response = await api.post('/auth/login', credentials, {
-      baseURL: API_URL
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(credentials)
     });
-    return response.data;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.message || 'Login failed');
+    }
+    return response.json();
   },
 
-  getAll: async () => {
-    const response = await api.get('/');
-    return response.data;
+  getAll: async (params?: { page: number; limit: number; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params) {
+      if (params.page) query.append('page', params.page.toString());
+      if (params.limit) query.append('limit', params.limit.toString());
+      if (params.search) query.append('search', params.search);
+    }
+    const response = await fetch(`${API_URL}/users?${query.toString()}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return response.json();
   },
 
   create: async (data: any) => {
-    const response = await api.post('/', data);
-    return response.data;
+    const response = await fetch(`${API_URL}/users`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to create user');
+    return response.json();
   },
 
   update: async (id: string, data: any) => {
-    const response = await api.patch(`/${id}`, data);
-    return response.data;
+    const response = await fetch(`${API_URL}/users/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update user');
+    return response.json();
   },
 
   toggleActive: async (id: string) => {
-    const response = await api.patch(`/${id}/toggle-active`);
-    return response.data;
+    const response = await fetch(`${API_URL}/users/${id}/toggle-active`, {
+      method: 'PATCH',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to toggle user status');
+    return response.json();
   }
 };

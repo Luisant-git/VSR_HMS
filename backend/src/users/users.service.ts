@@ -29,18 +29,42 @@ export class UsersService {
     });
   }
 
-  async getAll() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+  async getAll(query: { page: number; limit: number; search: string }) {
+    const { page, limit, search } = query;
+    const skip = (page - 1) * limit;
+
+    const where = search ? {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' as any } },
+        { email: { contains: search, mode: 'insensitive' as any } }
+      ]
+    } : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      }),
+      this.prisma.user.count({ where })
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async update(id: string, data: any) {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
 
@@ -8,6 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -22,7 +23,8 @@ const Login = () => {
       toast.success('Login successful!');
       navigate('/');
     } catch (err: any) {
-      toast.error(err.message || 'Invalid email or password');
+      const errorMessage = err.response?.data?.message || err.message || 'Invalid email or password';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -33,11 +35,12 @@ const Login = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      height: '100vh',
+      minHeight: '100vh',
       width: '100vw',
       backgroundColor: 'var(--sidebar-bg)', // Dark navy background
       margin: 0,
-      padding: 0
+      padding: '20px',
+      boxSizing: 'border-box'
     }}>
 
       {/* Centered White Card */}
@@ -45,11 +48,13 @@ const Login = () => {
         backgroundColor: 'var(--content-bg)',
         width: '100%',
         maxWidth: '420px',
+        margin: '0 20px',
         padding: '50px 40px',
         borderRadius: '12px',
         boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        boxSizing: 'border-box'
       }}>
 
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
@@ -81,7 +86,8 @@ const Login = () => {
                   outline: 'none',
                   fontSize: '14px',
                   backgroundColor: '#fff',
-                  transition: 'border-color 0.2s'
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
                 }}
                 required
               />
@@ -101,22 +107,41 @@ const Login = () => {
             <div style={{ position: 'relative' }}>
               <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '12px 15px 12px 42px',
+                  padding: '12px 42px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
                   outline: 'none',
                   fontSize: '14px',
                   backgroundColor: '#fff',
-                  transition: 'border-color 0.2s'
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
                 }}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '15px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                {showPassword ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
+              </button>
             </div>
           </div>
 
