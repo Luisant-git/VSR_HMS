@@ -115,7 +115,7 @@ const Register = () => {
   const editId = searchParams.get('edit');
 
   React.useEffect(() => {
-    CollegeAPI.findAll({ limit: 1000 }).then(response => setCollegesList(response.data || [])).catch(() => {});
+    CollegeAPI.findAll({ limit: 1000 }).then(response => setCollegesList(response.data || [])).catch(() => { });
     if (editId) {
       StudentAPI.findOne(editId).then(data => {
         setFormData({
@@ -168,7 +168,7 @@ const Register = () => {
     if (formData.mobileNo.length !== 10) return toast.error('Mobile Number must be exactly 10 digits');
     if (!formData.gender) return toast.error('Please select a Gender');
     if (!selectedRoom) return toast.error('Please assign a vacant room to the student');
-    
+
     setIsSubmitting(true);
     try {
       let result;
@@ -262,8 +262,8 @@ const Register = () => {
   if (registeredStudent) {
     const collegeName = collegesList.find(c => c.id === registeredStudent.collegeId)?.name;
     return (
-      <StudentAcknowledgementCard 
-        student={registeredStudent} 
+      <StudentAcknowledgementCard
+        student={registeredStudent}
         collegeName={collegeName}
         onBack={() => {
           setRegisteredStudent(null);
@@ -283,7 +283,7 @@ const Register = () => {
           } else {
             navigate('/hostellers');
           }
-        }} 
+        }}
       />
     );
   }
@@ -378,6 +378,10 @@ const Register = () => {
                   <input type="text" defaultValue="HST-2026-015" readOnly style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8f9fa', color: '#64748b', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Biometric ID</label>
+                  <input value={formData.biometricId} onChange={e => setFormData({ ...formData, biometricId: e.target.value })} type="text" placeholder="e.g. Device ID" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Full Name <span style={{ color: '#ef4444' }}>*</span></label>
                   <input type="text" placeholder="e.g. Ramesh Kumar" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
@@ -426,10 +430,7 @@ const Register = () => {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Aadhar Number</label>
                   <input value={formData.aadharNo} onChange={e => setFormData({ ...formData, aadharNo: e.target.value })} type="text" placeholder="12-digit Aadhar" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Biometric ID</label>
-                  <input value={formData.biometricId} onChange={e => setFormData({ ...formData, biometricId: e.target.value })} type="text" placeholder="e.g. Device ID" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />
-                </div>
+
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Category</label>
                   <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none', background: 'white' }}>
@@ -653,13 +654,13 @@ const Register = () => {
                   isClearable={true}
                 />
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>Only rooms with vacant capacity are listed.</div>
-{selectedRoom && selectedRoom.room && (
-    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-      <div>Occupied: <strong>{selectedRoom.room.occupiedCount || 0}</strong></div>
-      <div>Free: <strong>{selectedRoom.room.capacity - (selectedRoom.room.occupiedCount || 0)}</strong></div>
-      <div>Total: <strong>{selectedRoom.room.capacity}</strong></div>
-    </div>
-)}
+                {selectedRoom && selectedRoom.room && (
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                    <div>Occupied: <strong>{selectedRoom.room.occupiedCount || 0}</strong></div>
+                    <div>Free: <strong>{selectedRoom.room.capacity - (selectedRoom.room.occupiedCount || 0)}</strong></div>
+                    <div>Total: <strong>{selectedRoom.room.capacity}</strong></div>
+                  </div>
+                )}
 
                 {selectedRoom && selectedRoom.room && (
                   <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '15px', marginTop: '10px' }}>
