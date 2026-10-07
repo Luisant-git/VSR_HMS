@@ -31,8 +31,8 @@ async function bootstrap() {
 
 
   const config = new DocumentBuilder()
-    .setTitle('VSR HMS API')
-    .setDescription('The VSR Hostel Management System API')
+    .setTitle('Hostel Management System API')
+    .setDescription('The Hostel Management System API')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

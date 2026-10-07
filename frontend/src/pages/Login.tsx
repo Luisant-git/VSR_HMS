@@ -54,7 +54,7 @@ const Login = () => {
 
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-            Hostel Management
+            Hostel Management System
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
             Sign in to your admin account

@@ -94,7 +94,7 @@ const BiometricIdentify = () => {
               <div style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 8px #22c55e' }}></div>
               Terminal Ready
             </div>
-            <div style={{ color: '#94a3b8', fontSize: '12px' }}>VSR HMS Biometric Gateway</div>
+            <div style={{ color: '#94a3b8', fontSize: '12px' }}>Hostel Management System Biometric Gateway</div>
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '50px 30px', minHeight: '400px', position: 'relative' }}>

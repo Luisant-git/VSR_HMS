@@ -96,7 +96,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
                 <Building2 size={20} />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' }}>Hostel Management</h3>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' }}>Hostel Management System</h3>
               </div>
               <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, opacity: 0.9, letterSpacing: '1px' }}>STUDENT IDENTITY CARD</p>
             </div>

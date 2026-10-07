@@ -76,7 +76,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             {/* Header Section */}
             <div className="receipt-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
               <div>
-                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>VSR HOSTEL</h1>
+                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>HOSTEL MANAGEMENT SYSTEM</h1>
                 <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>123 University Road, City Campus<br/>State, ZIP 12345<br/>Phone: +91 98765 43210<br/>GSTIN: 22AAAAA0000A1Z5</div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -174,7 +174,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               <div style={{ textAlign: 'center' }}>
                 <div style={{ width: '180px', borderBottom: '1px solid #94a3b8', marginBottom: '8px', height: '40px' }}></div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Authorized Signatory</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>VSR Hostel Management</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>Hostel Management System</div>
               </div>
             </div>
           </div>
