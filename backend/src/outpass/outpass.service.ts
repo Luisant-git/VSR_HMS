@@ -111,15 +111,22 @@ export class OutpassService {
         data: { status: 'Out' }
       });
     } else if (status === 'Closed Returned') {
+      const actualReturnDate = new Date();
+      
       await this.prisma.student.update({
         where: { id: op.studentId },
         data: { status: 'In' }
       });
 
+      await this.prisma.outpass.update({
+        where: { id: op.id },
+        data: { returnDate: actualReturnDate }
+      });
+
       // Mess Deduction Logic
       const leaveTime = new Date(op.leaveDate).getTime();
-      const returnTime = new Date(op.returnDate).getTime();
-      const daysOut = Math.max(1, Math.ceil((returnTime - leaveTime) / (1000 * 3600 * 24)));
+      const returnTime = actualReturnDate.getTime();
+      const daysOut = Math.max(0, Math.ceil((returnTime - leaveTime) / (1000 * 3600 * 24)));
       
       if (daysOut > 15) {
         // Prevent duplicate deduction for same outpass
