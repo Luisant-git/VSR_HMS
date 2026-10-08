@@ -267,10 +267,17 @@ export class StudentsService {
     // Check if ID is a UUID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     
-    return this.prisma.student.findUnique({
-      where: isUuid ? { id } : { regNo: id },
-      include: { room: true, clearance: true, college: true } // Include room, clearance, and college
-    });
+    if (isUuid) {
+      return this.prisma.student.findUnique({
+        where: { id },
+        include: { room: true, clearance: true, college: true }
+      });
+    } else {
+      return this.prisma.student.findFirst({
+        where: { OR: [{ regNo: id }, { manualRegsiName: id }] },
+        include: { room: true, clearance: true, college: true }
+      });
+    }
   }
 
   async update(id: string, updateData: any) {

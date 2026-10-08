@@ -21,7 +21,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
   const ymStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,7).replace('-', '');
   const purpose = isGrouped && feesList.length > 1 ? 'MUL' : (firstFee?.transactionType || 'FEE').replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
-  const studentStr = primaryStudent?.regNo || 'UNKN';
+  const studentStr = primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'UNKN';
   const invoiceNo = `INV-${purpose}-${ymStr}-${studentStr}`;
   
   const dateStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
@@ -97,7 +97,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                 <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', margin: 0 }}>Received From</h3>
                 <div style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{primaryStudent?.name || 'Unknown Student'}</div>
                 <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-                  Registration No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.regNo || 'N/A'}</span><br/>
+                  Registration No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</span><br/>
                   Room No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</span><br/>
                   Payment Mode: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</span>
                   {refNo && <><br/>Transaction Ref: <span style={{ fontWeight: 600, color: '#1e293b' }}>{refNo}</span></>}

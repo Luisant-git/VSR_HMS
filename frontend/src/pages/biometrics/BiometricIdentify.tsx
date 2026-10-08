@@ -216,7 +216,7 @@ const BiometricIdentify = () => {
                 
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#1e293b', marginBottom: '4px' }}>{identifiedStudent.name}</h3>
-                  <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 500, marginBottom: '8px' }}>{identifiedStudent.regNo}</div>
+                  <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 500, marginBottom: '8px' }}>{identifiedStudent.manualRegsiName || identifiedStudent.regNo}</div>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <span style={{ display: 'inline-block', padding: '4px 10px', background: '#dcfce7', color: '#166534', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
                       {identifiedStudent.status}

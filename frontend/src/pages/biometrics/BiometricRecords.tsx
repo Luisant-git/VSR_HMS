@@ -44,6 +44,7 @@ const BiometricRecords = () => {
 
   const filteredRecords = students.filter(student => {
     const matchesSearch = (student.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                          (student.manualRegsiName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                           (student.regNo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                           (student.roomNo?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
@@ -136,7 +137,7 @@ const BiometricRecords = () => {
                         )}
                         <div>
                           <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{student.name}</div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{student.regNo}</div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{student.manualRegsiName || student.regNo}</div>
                         </div>
                       </div>
                     </td>

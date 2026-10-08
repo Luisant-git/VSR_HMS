@@ -173,7 +173,7 @@ const Dashboard = () => {
               <div key={idx} style={{ border: '1px solid #fecaca', borderRadius: '10px', padding: '15px', background: '#fef2f2' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '15px', color: '#991b1b' }}>{log.student?.name} ({log.student?.regNo})</div>
+                    <div style={{ fontWeight: 600, fontSize: '15px', color: '#991b1b' }}>{log.student?.name} ({log.student?.manualRegsiName || log.student?.regNo})</div>
                     <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '2px', fontWeight: 600 }}>Room: {log.student?.room?.id || 'N/A'} | Mob: {log.student?.mobileNo || 'N/A'}</div>
                     <div style={{ fontSize: '13px', color: '#b91c1c', marginTop: '4px' }}>{log.reason || 'No reason provided'}</div>
                   </div>
@@ -331,7 +331,7 @@ const Dashboard = () => {
                   <div key={idx} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '15px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '15px' }}>{op.student?.name} ({op.student?.regNo})</div>
+                        <div style={{ fontWeight: 600, fontSize: '15px' }}>{op.student?.name} ({op.student?.manualRegsiName || op.student?.regNo})</div>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', fontWeight: 600 }}>Room: {op.student?.room?.id || 'N/A'} | Mob: {op.student?.mobileNo || 'N/A'}</div>
                         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>{op.destination}</div>
                       </div>

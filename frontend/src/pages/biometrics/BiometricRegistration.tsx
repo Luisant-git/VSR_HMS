@@ -58,6 +58,7 @@ const BiometricRegistration = () => {
     setIsSearching(true);
     setTimeout(() => {
       const found = students.find(s => 
+        s.manualRegsiName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
         s.regNo?.toLowerCase().includes(searchQuery.toLowerCase()) || 
         s.name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -147,7 +148,7 @@ const BiometricRegistration = () => {
                 </div>
               )}
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginTop: '12px' }}>{selectedStudent.name}</h3>
-              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>{selectedStudent.regNo}</div>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>{selectedStudent.manualRegsiName || selectedStudent.regNo}</div>
               <span style={{ display: 'inline-block', padding: '4px 10px', background: '#dcfce7', color: '#166534', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginTop: '8px' }}>
                 {selectedStudent.status}
               </span>

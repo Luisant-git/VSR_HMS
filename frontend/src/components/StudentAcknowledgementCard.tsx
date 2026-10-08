@@ -25,7 +25,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
       format: [54, 85.6]
     });
     pdf.addImage(imgData, 'PNG', 0, 0, 54, 85.6);
-    pdf.save(`StudentID_${student.regNo || 'new'}.pdf`);
+    pdf.save(`StudentID_${student.manualRegsiName || student.regNo || 'new'}.pdf`);
   };
 
   const handlePrint = () => {
@@ -48,7 +48,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
   }
 
   const displayRoom = student.roomNo || student.room || 'N/A';
-  const displayRegNo = student.regNo || student.id || 'N/A';
+  const displayRegNo = student.manualRegsiName || student.regNo || student.id || 'N/A';
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: isViewOnly ? '0' : '20px 10px', animation: 'fadeIn 0.5s ease' }}>

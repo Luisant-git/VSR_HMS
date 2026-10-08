@@ -59,7 +59,7 @@ const Fees = () => {
       if (fee.student) {
         students.set(fee.student.regNo, {
           value: fee.student.regNo,
-          label: `${fee.student.name} (${fee.student.regNo})`
+          label: `${fee.student.name} (${fee.student.manualRegsiName || fee.student.regNo})`
         });
       }
     });
@@ -119,7 +119,7 @@ const Fees = () => {
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
 
-    if (selectedStudent.value !== 'ALL' && fee.student?.regNo !== selectedStudent.value) match = false;
+    if (selectedStudent.value !== 'ALL' && (fee.student?.manualRegsiName || fee.student?.regNo) !== selectedStudent.value) match = false;
 
     if (collegeFilter.value !== 'ALL') {
       const c = typeof fee.student?.college === 'string' ? fee.student.college : fee.student?.college?.name;
@@ -141,7 +141,7 @@ const Fees = () => {
         formatInvoiceNumber(fee).toLowerCase().includes(q) ||
         fee.transactionType.toLowerCase().includes(q) ||
         (fee.student?.name || '').toLowerCase().includes(q) ||
-        (fee.student?.regNo || '').toLowerCase().includes(q) ||
+        (fee.student?.manualRegsiName || fee.student?.regNo || '').toLowerCase().includes(q) ||
         (fee.referenceNumber || '').toLowerCase().includes(q) ||
         (fee.id || '').toLowerCase().includes(q)
       );
@@ -237,7 +237,7 @@ const Fees = () => {
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
       'Receipt No': fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—',
-      'Reg. No': fee.student?.regNo || 'N/A',
+      'Student ID': fee.student?.manualRegsiName || fee.student?.regNo || 'N/A',
       'Student Name': fee.student?.name || 'Unknown',
       'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
       'Payment Date': fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—',
@@ -393,7 +393,7 @@ const Fees = () => {
                   <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0d6efd' }}>
                     {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—'}
                   </td>
-                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 600 }}>{fee.student?.regNo || 'N/A'}</td>
+                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 600 }}>{fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}</td>
                   <td style={{ padding: '16px 12px', fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</td>
                   <td style={{ padding: '16px 12px', color: '#475569' }}>Room {fee.student?.roomNo || 'N/A'}</td>
                   <td style={{ padding: '16px 12px', color: '#334155' }}>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>

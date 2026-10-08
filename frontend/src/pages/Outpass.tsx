@@ -202,7 +202,7 @@ const Outpass = () => {
                     </td>
                     <td style={{ padding: '15px 20px' }}>
                       <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.student?.name}</div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.student?.regNo} | <br/>{op.student?.room?.id}</div>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.student?.manualRegsiName || op.student?.regNo} | <br/>{op.student?.room?.id}</div>
                     </td>
                     <td style={{ padding: '15px 20px' }}>
                       <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.destination}</div>
@@ -316,8 +316,8 @@ const Outpass = () => {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Hosteller</label>
                 <Select 
-                  options={students.map(s => ({ value: s.id, label: `${s.name} (${s.regNo})` }))}
-                  value={formData.studentId ? { value: formData.studentId, label: students.find(s => s.id === formData.studentId)?.name + ' (' + students.find(s => s.id === formData.studentId)?.regNo + ')' } : null}
+                  options={students.map(s => ({ value: s.id, label: `${s.name} (${s.manualRegsiName || s.regNo})` }))}
+                  value={formData.studentId ? { value: formData.studentId, label: students.find(s => s.id === formData.studentId)?.name + ' (' + (students.find(s => s.id === formData.studentId)?.manualRegsiName || students.find(s => s.id === formData.studentId)?.regNo) + ')' } : null}
                   onChange={(selected: any) => setFormData({...formData, studentId: selected ? selected.value : ''})}
                   placeholder="-- Search & Choose Hosteller --"
                   isSearchable={true}

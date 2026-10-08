@@ -187,7 +187,7 @@ export default function StudentPortal() {
               <div>
                 <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0' }}>{student.name}</h2>
                 <div className="profile-details" style={{ display: 'flex', gap: '20px', color: '#475569', fontSize: '14px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><IdCard size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Reg No:</strong> {student.regNo}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><IdCard size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Reg No:</strong> {student.manualRegsiName || student.regNo}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Room:</strong> {student.roomNo || 'N/A'}</span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><GraduationCap size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>College:</strong> {student.college?.name || 'N/A'}</span>
                 </div>

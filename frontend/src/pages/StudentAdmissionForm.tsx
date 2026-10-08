@@ -378,7 +378,7 @@ export default function StudentAdmissionForm() {
                 </button>
               </div>
               <div className="sa-chips">
-                <span className="sa-chip">{student.regNo}</span>
+                <span className="sa-chip">{student.manualRegsiName || student.regNo}</span>
                 <span className="sa-chip green">Room {student.roomNo || 'N/A'}</span>
                 {student.biometricId && (
                   <span className="sa-chip" style={{ background: '#f1f5f9', color: '#475569' }}>Bio ID: {student.biometricId}</span>
@@ -532,7 +532,7 @@ export default function StudentAdmissionForm() {
             <div><h2>Hostel Registration (Read-only)</h2><p>Registered with the hostel. Contact the office to change these.</p></div>
           </div>
           <dl className="sa-dl">
-            <div className="sa-row"><dt>Registration no</dt><dd>{student.regNo}</dd></div>
+            <div className="sa-row"><dt>Registration no</dt><dd>{student.manualRegsiName || student.regNo}</dd></div>
             <div className="sa-row"><dt>College</dt><dd>{student.college?.name || '-'}</dd></div>
             <div className="sa-row"><dt>Date of joining</dt><dd>{student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '-'}</dd></div>
             <div className="sa-row"><dt>Student mobile</dt><dd>{student.mobileNo}</dd></div>
@@ -652,7 +652,7 @@ export default function StudentAdmissionForm() {
              </button>
              <div style={{ padding: '10px' }}>
                <StudentAcknowledgementCard 
-                 student={{ ...student, regNo: student.regNo, collegeId: student.college?.name || student.college }} 
+                 student={{ ...student, regNo: student.manualRegsiName || student.regNo, collegeId: student.college?.name || student.college }} 
                  collegeName={student.college?.name || student.college}
                  onBack={() => setShowIdCard(false)} 
                  isViewOnly={true}

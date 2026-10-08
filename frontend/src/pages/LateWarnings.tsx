@@ -172,7 +172,7 @@ const LateWarnings = () => {
                     <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0', background: isHistorical ? '#f8fafc' : '#fffcfc' }}>
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ fontWeight: 700, color: '#1e293b' }}>{log.student.name}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.regNo} | Room {log.student.room?.id || '-'}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.manualRegsiName || log.student.regNo} | Room {log.student.room?.id || '-'}</div>
                       </td>
                       <td style={{ padding: '16px 20px', color: '#334155', textTransform: 'capitalize' }}>{log.reason || '-'}</td>
                       <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{new Date(log.expectedInTime).toLocaleString()}</td>

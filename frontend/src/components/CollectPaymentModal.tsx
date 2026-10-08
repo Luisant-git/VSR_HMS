@@ -212,7 +212,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h2 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                  {primaryStudent?.name || 'Unknown'} <span style={{ color: '#64748b', fontWeight: 500, fontSize: '15px' }}>({primaryStudent?.regNo || 'N/A'})</span>
+                  {primaryStudent?.name || 'Unknown'} <span style={{ color: '#64748b', fontWeight: 500, fontSize: '15px' }}>({primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'})</span>
                 </h2>
                 <div style={{ fontSize: '14px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span>Room: {primaryStudent?.roomNo || 'N/A'}</span>

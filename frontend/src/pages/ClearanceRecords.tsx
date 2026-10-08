@@ -37,7 +37,7 @@ const ClearanceRecords = () => {
       const activeStudents = (data.data || data).filter((s: any) => s.status !== 'VACATED');
       const options = activeStudents.map((s: any) => ({
         value: s.id,
-        label: `${s.regNo} - ${s.name} (Room: ${s.roomNo || 'N/A'})`,
+        label: `${s.manualRegsiName || s.regNo} - ${s.name} (Room: ${s.roomNo || 'N/A'})`,
         student: s
       }));
       setStudentOptions(options);
@@ -119,7 +119,7 @@ const ClearanceRecords = () => {
                     </td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
                       {record.student?.name || 'Unknown'} <br/>
-                      <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '12px' }}>{record.student?.regNo || ''}</span>
+                      <span style={{ fontWeight: 'normal', color: '#64748b', fontSize: '12px' }}>{record.student?.manualRegsiName || record.student?.regNo || ''}</span>
                     </td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: '#334155' }}>{record.reason}</td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: '#ef4444', fontWeight: 600 }}>₹{record.pendingDues}</td>

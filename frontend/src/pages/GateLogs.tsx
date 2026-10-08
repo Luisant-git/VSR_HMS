@@ -83,7 +83,7 @@ const GateLogs = () => {
 
   const studentOptions = availableStudents.map((s: any) => ({
     value: s.id,
-    label: `${s.name} (${s.regNo} - Room ${s.room?.id || 'N/A'} - ${s.mobileNo || 'No Mobile'})`,
+    label: `${s.name} (${s.manualRegsiName || s.regNo} - Room ${s.room?.id || 'N/A'} - ${s.mobileNo || 'No Mobile'})`,
     student: s
   }));
 
@@ -402,7 +402,7 @@ const GateLogs = () => {
                         <td style={{ padding: '16px 20px' }}>
                           <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{s.name}</div>
                           <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                            {s.regNo} | <br/>
+                            {s.manualRegsiName || s.regNo} | <br/>
                             {latestExit?.reason || '-'}
                           </div>
                         </td>
@@ -560,7 +560,7 @@ const GateLogs = () => {
                           </td>
                           <td style={{ padding: '20px 15px' }}>
                             <a href={`/students/${log.student.regNo}`} style={{ color: '#2563eb', fontWeight: 600, fontSize: '13px', textDecoration: 'none' }}>{log.student.name}</a>
-                            <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '2px' }}>{log.student.regNo}</div>
+                            <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '2px' }}>{log.student.manualRegsiName || log.student.regNo}</div>
                           </td>
                           <td style={{ padding: '20px 15px', color: '#475569', fontWeight: 500 }}>{log.student.room?.id || '-'}</td>
                           <td style={{ padding: '20px 15px', color: '#475569', textTransform: 'capitalize' }}>{log.reason || '—'}</td>
