@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
+import { getSystemSettings } from '../api/settings.api';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
 
@@ -11,6 +12,13 @@ export default function StudentPortal() {
   const [feesToPay, setFeesToPay] = useState<any[]>([]);
   const [receiptToShow, setReceiptToShow] = useState<any>(null);
   const [error, setError] = useState('');
+  const [hostelName, setHostelName] = useState('Hostel Management System');
+
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data && data.hostelName) setHostelName(data.hostelName);
+    }).catch(() => {});
+  }, []);
 
   const loadStudent = async (searchMobile: string) => {
     setLoading(true);
@@ -167,7 +175,7 @@ export default function StudentPortal() {
       </style>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 className="portal-title" style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 8px 0', background: 'linear-gradient(to right, #1e3a8a, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Hostel Management System Student Portal</h1>
+          <h1 className="portal-title" style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 8px 0', background: 'linear-gradient(to right, #1e3a8a, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{hostelName} Student Portal</h1>
           <p className="portal-subtitle" style={{ color: '#64748b', fontSize: '16px', margin: 0, fontWeight: 500 }}>View your details and securely pay your fees online.</p>
         </div>
           <div>

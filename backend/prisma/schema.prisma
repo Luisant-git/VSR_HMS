@@ -266,3 +266,17 @@ model MessDeductionMaster {
   messDeductionThreshold Int      @default(15)
   updatedAt              DateTime @updatedAt
 }
+
+// ---------------------------------------------------------
+// System Settings
+// ---------------------------------------------------------
+model HostelSettings {
+  id         Int      @id @default(1)
+  hostelName String   @default("HOSTEL MANAGEMENT SYSTEM")
+  address    String   @default("123 University Road, City Campus\nState, ZIP 12345")
+  phone      String   @default("+91 98765 43210")
+  email      String   @default("info@hostel.com")
+  gstin      String   @default("22AAAAA0000A1Z5")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

@@ -54,9 +54,11 @@ const MenuPermission = () => {
       mess_deduction: false,
       user_management: false,
       menu_permission: false,
+      system_settings: false,
       ...(existing?.permissions || {})
     });
   };
+
 
   const handleSave = async () => {
     setLoading(true);
@@ -274,7 +276,7 @@ const MenuPermission = () => {
                 {/* Settings */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['fine_master', 'mess_deduction', 'user_management', 'menu_permission'].every(id => editData[id])} onChange={() => toggleGroup(['fine_master', 'mess_deduction', 'user_management', 'menu_permission'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <input type="checkbox" checked={['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'].every(id => editData[id])} onChange={() => toggleGroup(['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                     <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Settings</span>
                   </label>
                   <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -282,7 +284,8 @@ const MenuPermission = () => {
                       { id: 'fine_master', label: 'Fine Master' },
                       { id: 'mess_deduction', label: 'Mess Deduction Master' },
                       { id: 'user_management', label: 'User Management' },
-                      { id: 'menu_permission', label: 'Menu Permission' }
+                      { id: 'menu_permission', label: 'Menu Permission' },
+                      { id: 'system_settings', label: 'System Settings' }
                     ].map(module => (
                       <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />

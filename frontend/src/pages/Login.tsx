@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
+import { getSystemSettings } from '../api/settings.api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -10,6 +11,13 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hostelName, setHostelName] = useState('Hostel Management System');
+
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data && data.hostelName) setHostelName(data.hostelName);
+    }).catch(() => {});
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +67,7 @@ const Login = () => {
 
         <div style={{ textAlign: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-            Hostel Management System
+            {hostelName}
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
             Sign in to your admin account

@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { Printer, Download, ArrowLeft, Building2 } from 'lucide-react';
+import { getSystemSettings } from '../api/settings.api';
 
 interface StudentAcknowledgementCardProps {
   student: any;
@@ -13,6 +14,13 @@ interface StudentAcknowledgementCardProps {
 
 export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProps> = ({ student, collegeName, onBack, isViewOnly }) => {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [hostelName, setHostelName] = useState('Hostel Management System');
+
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data && data.hostelName) setHostelName(data.hostelName);
+    }).catch(() => {});
+  }, []);
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
@@ -96,7 +104,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
                 <Building2 size={20} />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' }}>Hostel Management System</h3>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, letterSpacing: '0.5px' }}>{hostelName}</h3>
               </div>
               <p style={{ margin: 0, fontSize: '11px', fontWeight: 600, opacity: 0.9, letterSpacing: '1px' }}>STUDENT IDENTITY CARD</p>
             </div>

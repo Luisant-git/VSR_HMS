@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 
 const Layout = () => {
@@ -154,6 +154,11 @@ const Layout = () => {
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>SETTINGS</div>
           )}
           
+          <NavLink to="/settings/system-settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Settings size={18} /></div>
+            System Settings
+          </NavLink>
+
           {(!permissions || permissions.fine_master === true) && (
             <NavLink to="/settings/fine-master" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><AlertCircle size={18} /></div>

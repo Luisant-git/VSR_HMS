@@ -17,6 +17,7 @@ import { MenuPermissionModule } from './menu-permission/menu-permission.module';
 import { DeveloperModule } from './developer/developer.module';
 import { DeveloperSeedService } from './developer/developer.seed.service';
 import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
+import { SystemSettingsModule } from './system-settings/system-settings.module';
 
 @Module({
   imports: [
@@ -34,7 +35,8 @@ import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
     CollegesModule,
     MenuPermissionModule,
     DeveloperModule,
-    MessDeductionModule
+    MessDeductionModule,
+    SystemSettingsModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],

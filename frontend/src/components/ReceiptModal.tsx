@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
+import { getSystemSettings } from '../api/settings.api';
 
 interface ReceiptModalProps {
   fee: any;
@@ -7,6 +8,19 @@ interface ReceiptModalProps {
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
+  const [settings, setSettings] = useState<any>({
+    hostelName: 'HOSTEL MANAGEMENT SYSTEM',
+    address: '123 University Road, City Campus\nState, ZIP 12345',
+    phone: '+91 98765 43210',
+    gstin: '22AAAAA0000A1Z5'
+  });
+
+  useEffect(() => {
+    getSystemSettings().then(data => {
+      if (data) setSettings(data);
+    }).catch(err => console.log('Failed to load settings', err));
+  }, []);
+
   if (!fee) return null;
 
   // Handle both grouped fee objects and raw single fees for backward compatibility
@@ -76,8 +90,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             {/* Header Section */}
             <div className="receipt-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
               <div>
-                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>HOSTEL MANAGEMENT SYSTEM</h1>
-                <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>123 University Road, City Campus<br/>State, ZIP 12345<br/>Phone: +91 98765 43210<br/>GSTIN: 22AAAAA0000A1Z5</div>
+                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>{settings.hostelName}</h1>
+                <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
+                  {settings.address.split('\n').map((line: string, i: number) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                  Phone: {settings.phone}<br/>
+                  GSTIN: {settings.gstin}
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div className="title-text" style={{ fontSize: '32px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px', lineHeight: 1, marginBottom: '15px' }}>RECEIPT</div>
