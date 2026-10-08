@@ -98,7 +98,7 @@ const Register = () => {
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [registeredStudent, setRegisteredStudent] = useState<any>(null);
   const [formData, setFormData] = useState({
-    name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
+    name: '', manualRegsiName: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
     fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
     emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
     maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',
@@ -119,6 +119,7 @@ const Register = () => {
     if (editId) {
       StudentAPI.findOne(editId).then(data => {
         setFormData({
+          manualRegsiName: data.manualRegsiName || '',
           name: data.name || '',
           mobileNo: data.mobileNo || '',
           gender: data.gender || 'Female',
@@ -156,6 +157,12 @@ const Register = () => {
             value: data.room.id,
             label: `Room ${data.room.id} (${data.room.type || ''})`
           });
+        }
+      }).catch(console.error);
+    } else {
+      StudentAPI.getNextRegsiName().then(res => {
+        if (res && res.nextRegsiName) {
+          setFormData(prev => ({ ...prev, manualRegsiName: res.nextRegsiName }));
         }
       }).catch(console.error);
     }
@@ -372,10 +379,11 @@ const Register = () => {
               </div>
 
               {/* Form Fields */}
-              <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
+              <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Student ID <span style={{ color: '#ef4444' }}>*</span></label>
-                  <input type="text" defaultValue="HST-2026-015" readOnly style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8f9fa', color: '#64748b', fontSize: '14px', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Manual Regsi Name <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="text" value={formData.manualRegsiName} onChange={e => setFormData({ ...formData, manualRegsiName: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8f9fa', color: '#334155', fontSize: '14px', outline: 'none' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Biometric ID</label>
@@ -462,7 +470,7 @@ const Register = () => {
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               Parents, Guardian & Academic Info
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Father's Name</label>
                 <input value={formData.fatherName} onChange={e => setFormData({ ...formData, fatherName: e.target.value })} type="text" placeholder="Optional" style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '14px', outline: 'none' }} />

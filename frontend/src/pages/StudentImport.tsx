@@ -12,7 +12,13 @@ const parseDate = (dateVal: any) => {
     const parts = dateVal.split(/[-/]/);
     if (parts.length === 3) {
       // Prioritize DD/MM/YYYY
-      const d2 = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+      let year = Number(parts[2]);
+      if (year > 9999) {
+        // user typo, e.g. 20077 -> 2007
+        const yearStr = parts[2];
+        year = Number(yearStr.substring(0, 4));
+      }
+      const d2 = new Date(year, Number(parts[1]) - 1, Number(parts[0]));
       if (!isNaN(d2.getTime())) return d2;
     }
   } else if (typeof dateVal === 'number') {
@@ -21,7 +27,12 @@ const parseDate = (dateVal: any) => {
   }
 
   const d = new Date(dateVal);
-  if (!isNaN(d.getTime())) return d;
+  if (!isNaN(d.getTime())) {
+    if (d.getFullYear() > 9999) {
+       d.setFullYear(Number(d.getFullYear().toString().substring(0, 4)));
+    }
+    return d;
+  }
 
   return undefined;
 };
@@ -45,6 +56,10 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           // Clean keys
           const cleanedData = data.map((row: any) => {
             const newRow: any = {};
+            // __rowNum__ is a hidden non-enumerable property added by xlsx
+            if (row.__rowNum__ !== undefined) {
+              newRow['__ROWNUM__'] = row.__rowNum__;
+            }
             Object.keys(row).forEach(k => {
               newRow[k.trim().toUpperCase()] = row[k];
             });
@@ -105,6 +120,14 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
     for (let i = 0; i < dataToImport.length; i++) {
       const row = dataToImport[i];
+      
+      // Skip completely empty rows or rows that are just subheadings (less than 3 filled columns)
+      if (!row || Object.keys(row).length === 0) continue;
+      const filledValues = Object.values(row).filter(v => v && v.toString().trim() !== '');
+      if (filledValues.length < 3) {
+        continue; // This is a subheading like "NEW STUDENT(2026)" or "SSM LEDER-1", skip silently
+      }
+      
       try {
         // Find matching college
         const collegeName = (
@@ -148,10 +171,13 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
         // Prepare student DTO
         const studentData = {
-          regNo: row['REGIS NO']?.toString() || row['REG IS NO']?.toString(),
-          name: row['NAME'] || row['MANUAL REGSI NAME'],
+          isImport: true,
+          // Ignore regNo from Excel, let the backend auto-generate it securely
+          // regNo: row['REGIS NO']?.toString() || row['REG IS NO']?.toString(),
+          name: row['NAME']?.toString() || row['STUDENT NAME']?.toString() || row['FULL NAME']?.toString() || row['HOSTELER NAME']?.toString(),
+          manualRegsiName: row['MANUAL REGSI NAME']?.toString(),
           gender: row['GENDER']?.toString() || 'Female',
-          mobileNo: row['MOBILE NO']?.toString(),
+          mobileNo: row['MOBILE NO']?.toString() || row['MOBILE']?.toString() || row['PHONE']?.toString() || row['CONTACT NO']?.toString() || row['CONTACT']?.toString() || row['PHONE NO']?.toString(),
           dob: parseDate(row['DOB'])?.toISOString(),
           collegeId: matchedCollege?.id, // Send the UUID instead of string
           educationalQua: row['COURSE']?.toString(),
@@ -160,11 +186,11 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           aadharNo: row['ADHAAR NUM']?.toString() || row['AADHAR NO']?.toString() || row['AADHAR NUMBER']?.toString() || row['AADHAAR']?.toString() || row['AADHAAR NO']?.toString(),
           bloodGroup: row['BLOOD GROUP']?.toString() || row['BLOOD GRP']?.toString(),
           fatherName: row['FATHER NAME']?.toString() || row["FATHER'S NAME"]?.toString(),
-          fatherMobileNo: row['MOBILE NO_1']?.toString() || row['FATHER MOBILE']?.toString() || row['FATHER PHONE']?.toString(),
+          fatherMobileNo: row['MOBILE NO_1']?.toString() || row['FATHER MOBILE']?.toString() || row['FATHER PHONE']?.toString() || row["FATHER'S MOBILE"]?.toString(),
           motherName: row['MOTHER NAME']?.toString() || row["MOTHER'S NAME"]?.toString(),
-          motherMobileNo: row['MOBILE NO_2']?.toString() || row['MOTHER MOBILE']?.toString() || row['MOTHER PHONE']?.toString(),
+          motherMobileNo: row['MOBILE NO_2']?.toString() || row['MOTHER MOBILE']?.toString() || row['MOTHER PHONE']?.toString() || row["MOTHER'S MOBILE"]?.toString(),
           guardianName: row['GURDIAN NAME']?.toString() || row['GUARDIAN NAME']?.toString(),
-          guardianMobileNo: row['MOBILE NO_3']?.toString() || row['GUARDIAN MOBILE']?.toString() || row['GUARDIAN PHONE']?.toString(),
+          guardianMobileNo: row['MOBILE NO_3']?.toString() || row['GUARDIAN MOBILE']?.toString() || row['GUARDIAN PHONE']?.toString() || row["GUARDIAN'S MOBILE"]?.toString(),
           maritalStatus: row['MARTIAL STS']?.toString() || row['MARITAL STATUS']?.toString(),
           roomNo: (() => {
             const block = row['BLOCK'];
@@ -189,7 +215,11 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
         // Validation
         if (!studentData.name || studentData.name.trim() === '') {
-          throw new Error('Name is required. The NAME column is missing or empty.');
+          // Find the first non-empty string in the row to give a hint
+          const availableData = Object.entries(row)
+            .map(([k, v]) => `${k}="${v}"`)
+            .join(', ');
+          throw new Error(`Name is required. The NAME column is missing. (Found data in this row: ${availableData})`);
         }
         if (!studentData.mobileNo || studentData.mobileNo.trim() === '') {
           throw new Error('Mobile Number is required. The MOBILE NO column is missing or empty.');
@@ -201,7 +231,22 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
       } catch (err: any) {
         failedCount++;
-        errors.push({ row: i + 2, name: row['NAME'] || 'Unknown', reason: err.message });
+        // Try to guess the name for the error display if it's missing from the standard column
+        let displayHint = row['NAME'] || row['STUDENT NAME'] || row['FULL NAME'];
+        if (!displayHint) {
+          // just grab the second or third value in the row object as a hint
+          const vals = Object.values(row).filter(v => v && typeof v === 'string' && v.length > 2 && isNaN(Number(v)) && !v.includes('__ROWNUM__'));
+          if (vals.length > 0) displayHint = vals[0];
+        }
+        
+        // Calculate exact Excel row number using __ROWNUM__ (0-indexed) if available
+        const exactRow = row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2);
+
+        errors.push({ 
+          row: exactRow, 
+          name: displayHint || 'Unknown', 
+          reason: err.message 
+        });
       }
     }
 

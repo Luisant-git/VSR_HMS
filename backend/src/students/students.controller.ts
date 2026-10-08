@@ -17,6 +17,11 @@ export class StudentsController {
     return this.studentsService.create(createStudentDto);
   }
 
+  @Get('next-regsi')
+  getNextRegsiName() {
+    return this.studentsService.getNextRegsiName();
+  }
+
   @Get()
   findAll(
     @Query('page') page?: string,

@@ -5,6 +5,30 @@ import { PrismaService } from '../prisma.service';
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
+  async getNextRegsiName() {
+    const yearStr = new Date().getFullYear().toString().slice(-2);
+    const prefix = `SEASIND${yearStr}`;
+    
+    // Find highest sequence for this prefix
+    const lastStudent = await this.prisma.student.findFirst({
+      where: { manualRegsiName: { startsWith: prefix } },
+      orderBy: { manualRegsiName: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastStudent && lastStudent.manualRegsiName) {
+      const numStr = lastStudent.manualRegsiName.replace(prefix, '');
+      const parsed = parseInt(numStr, 10);
+      if (!isNaN(parsed)) {
+        nextNumber = parsed + 1;
+      }
+    }
+
+    return {
+      nextRegsiName: `${prefix}${nextNumber.toString().padStart(3, '0')}`
+    };
+  }
+
   async create(createStudentDto: any) {
     const cleanData = { ...createStudentDto };
     
@@ -14,7 +38,7 @@ export class StudentsService {
         orderBy: { createdAt: 'desc' }
       });
       let nextNumber: number | undefined;
-      if (lastStudent && lastStudent.regNo) {
+      if (lastStudent && lastStudent.regNo && lastStudent.regNo.startsWith('HST-')) {
         const parts = lastStudent.regNo.split('-');
         if (parts.length === 3) {
           nextNumber = parseInt(parts[2], 10) + 1;
@@ -26,6 +50,12 @@ export class StudentsService {
       }
       const year = new Date().getFullYear();
       regNo = `HST-${year}-${nextNumber.toString().padStart(3, '0')}`;
+    }
+    
+    // Auto-generate manualRegsiName if not provided (i.e. not from Excel import)
+    if (!cleanData.manualRegsiName) {
+      const generated = await this.getNextRegsiName();
+      cleanData.manualRegsiName = generated.nextRegsiName;
     }
 
     Object.keys(cleanData).forEach(key => {
@@ -49,6 +79,15 @@ export class StudentsService {
     delete cleanData.messFee;
     delete cleanData.isImport;
 
+    if (cleanData.manualRegsiName) {
+      const existing = await this.prisma.student.findFirst({
+        where: { manualRegsiName: cleanData.manualRegsiName }
+      });
+      if (existing) {
+        throw new BadRequestException(`Student with Manual Reg Name ${cleanData.manualRegsiName} already exists.`);
+      }
+    }
+
     if (cleanData.roomNo) {
       const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
       if (!roomExists) {
@@ -56,28 +95,48 @@ export class StudentsService {
       }
     }
 
-    let student;
-    try {
-      student = await this.prisma.student.create({
-        data: {
-          ...cleanData,
-          regNo,
-        },
-      });
-    } catch (error: any) {
-      if (error.code === 'P2002') {
-        const target = error.meta?.target?.[0] || 'field';
-        throw new BadRequestException(`A student with this ${target} already exists.`);
-      } else if (error.code === 'P2003') {
-        const fieldName = error.meta?.field_name || 'relation';
-        if (typeof fieldName === 'string' && fieldName.includes('roomNo')) {
-          throw new BadRequestException(`Invalid Room Number provided. The room does not exist.`);
-        } else if (typeof fieldName === 'string' && fieldName.includes('collegeId')) {
-          throw new BadRequestException(`Invalid College provided. The college does not exist.`);
+    let student: any;
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        student = await this.prisma.student.create({
+          data: {
+            ...cleanData,
+            regNo,
+          },
+        });
+        break; // Success
+      } catch (error: any) {
+        if (error.code === 'P2002') {
+          const target = error.meta?.target || [];
+          const isManualRegsiNameClash = Array.isArray(target) 
+            ? target.includes('manualRegsiName') 
+            : target === 'manualRegsiName' || (typeof target === 'string' && target.includes('manualRegsiName'));
+            
+          if (isManualRegsiNameClash && !isImport) {
+            // Auto-regenerate and retry
+            const generated = await this.getNextRegsiName();
+            cleanData.manualRegsiName = generated.nextRegsiName;
+            retries--;
+            if (retries === 0) {
+              throw new BadRequestException('Failed to generate a unique Manual Regsi Name after multiple attempts. Please try again.');
+            }
+            continue;
+          }
+
+          const targetStr = Array.isArray(target) ? target[0] : (target || 'field');
+          throw new BadRequestException(`A student with this ${targetStr} already exists.`);
+        } else if (error.code === 'P2003') {
+          const fieldName = error.meta?.field_name || 'relation';
+          if (typeof fieldName === 'string' && fieldName.includes('roomNo')) {
+            throw new BadRequestException(`Invalid Room Number provided. The room does not exist.`);
+          } else if (typeof fieldName === 'string' && fieldName.includes('collegeId')) {
+            throw new BadRequestException(`Invalid College provided. The college does not exist.`);
+          }
+          throw new BadRequestException(`Foreign key constraint failed on ${fieldName}.`);
         }
-        throw new BadRequestException(`Foreign key constraint failed on ${fieldName}.`);
+        throw new BadRequestException(error.message || 'Failed to create student');
       }
-      throw new BadRequestException(error.message || 'Failed to create student');
     }
 
     if (student.roomNo) {
@@ -145,6 +204,7 @@ export class StudentsService {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         { regNo: { contains: q, mode: 'insensitive' } },
+        { manualRegsiName: { contains: q, mode: 'insensitive' } },
         { mobileNo: { contains: q, mode: 'insensitive' } }
       ];
     }

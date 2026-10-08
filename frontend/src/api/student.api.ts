@@ -58,6 +58,12 @@ export const StudentAPI = {
     return res.json();
   },
 
+  async getNextRegsiName() {
+    const res = await fetch(`${API_URL}/students/next-regsi`);
+    if (!res.ok) throw new Error('Failed to fetch next regsi name');
+    return res.json();
+  },
+
   async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());

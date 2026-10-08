@@ -134,7 +134,7 @@ const StudentProfile = () => {
     if (id) {
       StudentAPI.findOne(id).then(data => {
         setStudent({
-          id: data.regNo,
+          id: data.manualRegsiName || data.regNo,
           uuid: data.id,
           name: data.name,
           status: data.status || 'Active',
@@ -166,6 +166,7 @@ const StudentProfile = () => {
           aadharNo: data.aadharNo,
           secondaryIdNo: data.secondaryIdNo,
           biometricId: data.biometricId || 'N/A',
+          manualRegsiName: data.manualRegsiName || 'N/A',
           clearance: data.clearance,
           bloodGroup: data.bloodGroup || 'N/A',
           maritalStatus: data.maritalStatus || 'N/A',
@@ -352,6 +353,10 @@ const StudentProfile = () => {
               </h3>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
+                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Manual Regsi Name</div>
+                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.manualRegsiName}</div>
+                </div>
                 <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
                   <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Biometric ID</div>
                   <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.biometricId}</div>

@@ -56,6 +56,7 @@ model Student {
   id            String    @id @default(uuid())
   regNo         String    @unique // e.g. HST-2026-001
   name          String
+  manualRegsiName String?   @unique
   dob           DateTime?
   age           Int?
   gender        String?

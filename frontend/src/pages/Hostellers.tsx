@@ -66,7 +66,7 @@ const Hostellers = () => {
         else if (hasCompleted) currentFeeStatus = 'Paid';
 
         return {
-          id: h.regNo,
+          id: h.manualRegsiName || h.regNo,
           name: h.name,
           contact: h.mobileNo || 'N/A',
           room: h.roomNo || 'N/A',
@@ -321,7 +321,7 @@ const Hostellers = () => {
             <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
             <input
               type="text"
-              placeholder="Search by name, ID, mobile, or college..."
+              placeholder="Search by name, ID, Manual Reg Name, mobile..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
