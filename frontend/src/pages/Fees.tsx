@@ -11,7 +11,7 @@ import { CollectPaymentModal } from '../components/CollectPaymentModal';
 const formatInvoiceNumber = (fee: any) => {
   const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
   const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
-  const studentStr = fee.student?.regNo || 'UNKN';
+  const studentStr = fee.student?.manualRegsiName || fee.student?.regNo || 'UNKN';
   return `INV-${purpose}-${ymStr}-${studentStr}`;
 };
 
@@ -32,7 +32,7 @@ const Fees = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
-  
+
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [feesToCollect, setFeesToCollect] = useState<any[]>([]);
@@ -57,9 +57,10 @@ const Fees = () => {
     const students = new Map();
     fees.forEach(fee => {
       if (fee.student) {
-        students.set(fee.student.regNo, {
-          value: fee.student.regNo,
-          label: `${fee.student.name} (${fee.student.manualRegsiName || fee.student.regNo})`
+        const sid = fee.student.manualRegsiName || fee.student.regNo;
+        students.set(sid, {
+          value: sid,
+          label: `${fee.student.name} (${sid})`
         });
       }
     });
@@ -127,12 +128,12 @@ const Fees = () => {
     }
 
     if (fromDate) {
-       if (new Date(fee.createdAt) < new Date(fromDate)) match = false;
+      if (new Date(fee.createdAt) < new Date(fromDate)) match = false;
     }
     if (toDate) {
-       const endOfDay = new Date(toDate);
-       endOfDay.setHours(23, 59, 59, 999);
-       if (new Date(fee.createdAt) > endOfDay) match = false;
+      const endOfDay = new Date(toDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      if (new Date(fee.createdAt) > endOfDay) match = false;
     }
 
     if (searchQuery) {
@@ -159,7 +160,7 @@ const Fees = () => {
 
     filteredFees.forEach(f => {
       const studentId = f.student?.regNo || 'unknown';
-      
+
       const type = (f.transactionType || '').toUpperCase();
       let category = 'other';
       if (type.includes('RENT')) category = 'rent';
@@ -222,7 +223,7 @@ const Fees = () => {
   const paginatedFees = useMemo(() => {
     return displayFees.slice((page - 1) * 10, page * 10);
   }, [displayFees, page]);
-  
+
   const totalPages = Math.ceil(displayFees.length / 10);
 
   const closePaymentModal = () => {
@@ -331,15 +332,15 @@ const Fees = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
-            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '180px'})}} />
-            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{...selectStyles, control: (b: any, s: any) => ({...selectStyles.control(b,s), minWidth: '150px'})}} />
+            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
+            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
+            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '150px' }) }} />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>From:</span>
               <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
             </div>
-            
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>To:</span>
               <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
@@ -397,7 +398,7 @@ const Fees = () => {
                   <td style={{ padding: '16px 12px', fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</td>
                   <td style={{ padding: '16px 12px', color: '#475569' }}>Room {fee.student?.roomNo || 'N/A'}</td>
                   <td style={{ padding: '16px 12px', color: '#334155' }}>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
-                  
+
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#198754', fontWeight: 600 }}>₹{fee.advance.toLocaleString('en-IN')}</td>
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
                     <div>₹{fee.rent.toLocaleString('en-IN')}</div>
@@ -434,11 +435,11 @@ const Fees = () => {
                     })()}
                   </td>
                   <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
-                  
+
                   <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 800, color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontSize: '14px' }}>
                     ₹{fee.totalAmount.toLocaleString('en-IN')}
                   </td>
-                  
+
                   <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 500 }}>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
                   <td style={{ padding: '16px 12px' }}>
                     <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>
@@ -480,17 +481,17 @@ const Fees = () => {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 Previous
               </button>
-              <button 
+              <button
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
                 {page}
               </button>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages || totalPages === 0}
                 style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>

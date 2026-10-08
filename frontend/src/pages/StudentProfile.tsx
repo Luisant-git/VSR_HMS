@@ -14,7 +14,7 @@ import { toast } from 'react-toastify';
 const formatInvoiceNumber = (fee: any) => {
   const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
   const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
-  const studentStr = fee.student?.regNo || fee.student?.id || 'UNKN';
+  const studentStr = fee.student?.manualRegsiName || fee.student?.regNo || fee.student?.id || 'UNKN';
   return `INV-${purpose}-${ymStr}-${studentStr}`;
 };
 
