@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 
 const CollegeMaster = () => {
-  const [activeTab, setActiveTab] = useState<'college'>('college');
+  const [activeTab] = useState<'college'>('college');
   const [colleges, setColleges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

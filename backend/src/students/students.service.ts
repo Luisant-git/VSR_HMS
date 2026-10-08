@@ -5,24 +5,29 @@ import { PrismaService } from '../prisma.service';
 export class StudentsService {
   constructor(private prisma: PrismaService) {}
 
-  async getNextRegsiName() {
-    const yearStr = new Date().getFullYear().toString().slice(-2);
+  async getNextRegsiName(dateOfJoining?: Date | string) {
+    const ref = dateOfJoining ? new Date(dateOfJoining) : new Date();
+    const yearStr = (isNaN(ref.getTime()) ? new Date() : ref).getFullYear().toString().slice(-2);
     const prefix = `SEASIND${yearStr}`;
     
-    // Find highest sequence for this prefix
-    const lastStudent = await this.prisma.student.findFirst({
+    // Find highest numeric sequence for this prefix
+    const students = await this.prisma.student.findMany({
       where: { manualRegsiName: { startsWith: prefix } },
-      orderBy: { manualRegsiName: 'desc' }
+      select: { manualRegsiName: true }
     });
 
-    let nextNumber = 1;
-    if (lastStudent && lastStudent.manualRegsiName) {
-      const numStr = lastStudent.manualRegsiName.replace(prefix, '');
-      const parsed = parseInt(numStr, 10);
-      if (!isNaN(parsed)) {
-        nextNumber = parsed + 1;
+    let maxNumber = 0;
+    for (const s of students) {
+      if (s.manualRegsiName) {
+        const numStr = s.manualRegsiName.replace(prefix, '').trim();
+        const parsed = parseInt(numStr, 10);
+        if (!isNaN(parsed) && parsed > maxNumber) {
+          maxNumber = parsed;
+        }
       }
     }
+
+    const nextNumber = maxNumber + 1;
 
     return {
       nextRegsiName: `${prefix}${nextNumber.toString().padStart(3, '0')}`
@@ -32,37 +37,62 @@ export class StudentsService {
   async create(createStudentDto: any) {
     const cleanData = { ...createStudentDto };
     
-    let regNo = cleanData.regNo;
-    if (!regNo) {
-      const lastStudent = await this.prisma.student.findFirst({
-        orderBy: { createdAt: 'desc' }
-      });
-      let nextNumber: number | undefined;
-      if (lastStudent && lastStudent.regNo && lastStudent.regNo.startsWith('HST-')) {
-        const parts = lastStudent.regNo.split('-');
-        if (parts.length === 3) {
-          nextNumber = parseInt(parts[2], 10) + 1;
-        }
-      }
-      if (!nextNumber || isNaN(nextNumber)) {
-        const totalStudents = await this.prisma.student.count();
-        nextNumber = totalStudents + 1;
-      }
-      const year = new Date().getFullYear();
-      regNo = `HST-${year}-${nextNumber.toString().padStart(3, '0')}`;
-    }
-    
-    // Auto-generate manualRegsiName if not provided (i.e. not from Excel import)
-    if (!cleanData.manualRegsiName) {
-      const generated = await this.getNextRegsiName();
-      cleanData.manualRegsiName = generated.nextRegsiName;
-    }
+    const isPlaceholder = (val: any) => {
+      if (val === undefined || val === null) return true;
+      const s = val.toString().trim();
+      if (!s) return true;
+      const upper = s.toUpperCase().replace(/\s+/g, '');
+      return ['NA', 'N/A', 'N/A.', 'NIL', 'NIL.', 'NONE', '-', '--', '0', '0000000000', '000000000000', 'NULL', 'UNDEFINED', 'NO', 'NOEMAIL', 'NOMOBILE'].includes(upper);
+    };
 
+    const isHeaderOrTitle = (name: string) => {
+      const upper = name.toUpperCase().trim();
+      const keywords = ['SEA SINDU STUDENTS', 'SEASINDU STUDENTS', 'STUDENTS', 'LEDGER', 'SL NO', 'S NO', 'SL.NO', 'S.NO', 'STUDENT NAME', 'FULL NAME', 'MOBILE NO', 'CONTACT NO', 'NEW ADMISSION', 'GRAND TOTAL', 'TOTAL RECORDS'];
+      return keywords.some(k => upper === k || upper.includes('STUDENTS') || upper.includes('LEDGER') || upper.startsWith('TOTAL'));
+    };
+
+    // Clean keys & convert placeholders to null
     Object.keys(cleanData).forEach(key => {
-      if (cleanData[key] === '') {
+      if (isPlaceholder(cleanData[key])) {
         cleanData[key] = null;
+      } else if (typeof cleanData[key] === 'string') {
+        cleanData[key] = cleanData[key].trim();
       }
     });
+
+    const isImport = cleanData.isImport;
+    if (isImport && cleanData.name && isHeaderOrTitle(cleanData.name)) {
+      throw new BadRequestException(`Title / subheading row skipped ("${cleanData.name}")`);
+    }
+    const autoGenerateInvoice = cleanData.autoGenerateInvoice;
+    const messFee = cleanData.messFee;
+    delete cleanData.autoGenerateInvoice;
+    delete cleanData.messFee;
+    delete cleanData.isImport;
+
+    // Auto-generate collision-free regNo if not provided
+    let regNo = cleanData.regNo;
+    if (!regNo) {
+      const year = new Date().getFullYear();
+      const prefix = `HST-${year}-`;
+      const allStudents = await this.prisma.student.findMany({
+        where: { regNo: { startsWith: prefix } },
+        select: { regNo: true }
+      });
+      let maxNum = 0;
+      for (const s of allStudents) {
+        if (s.regNo) {
+          const parts = s.regNo.split('-');
+          if (parts.length === 3) {
+            const parsed = parseInt(parts[2], 10);
+            if (!isNaN(parsed) && parsed > maxNum) {
+              maxNum = parsed;
+            }
+          }
+        }
+      }
+      regNo = `${prefix}${(maxNum + 1).toString().padStart(3, '0')}`;
+    }
 
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
@@ -72,31 +102,76 @@ export class StudentsService {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
 
-    const autoGenerateInvoice = cleanData.autoGenerateInvoice;
-    const messFee = cleanData.messFee;
-    const isImport = cleanData.isImport;
-    delete cleanData.autoGenerateInvoice;
-    delete cleanData.messFee;
-    delete cleanData.isImport;
+    if (cleanData.roomNo) {
+      const cleanRoom = cleanData.roomNo.trim().replace(/[`']/g, '');
+      const isBadRoom = (
+        cleanRoom.length > 10 ||
+        /\.[A-Za-z]$/.test(cleanRoom) ||
+        (/^[A-Za-z]{3,}$/.test(cleanRoom) && !/^(BLOCK|ROOM|FLAT|FLOOR|HALL|DORM|SUITE)/i.test(cleanRoom))
+      );
 
+      if (isBadRoom) {
+        cleanData.roomNo = null;
+      } else {
+        cleanData.roomNo = cleanRoom;
+        const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
+        if (!roomExists) {
+          try {
+            const blockChar = cleanData.roomNo.charAt(0).toUpperCase();
+            await this.prisma.room.create({
+              data: {
+                id: cleanData.roomNo,
+                block: blockChar,
+                floor: 1,
+                capacity: 4,
+                type: 'Four Sharing'
+              }
+            });
+          } catch {
+            cleanData.roomNo = null;
+          }
+        }
+      }
+    }
+
+    if (cleanData.collegeId) {
+      const collegeExists = await this.prisma.college.findUnique({ where: { id: cleanData.collegeId } });
+      if (!collegeExists) {
+        cleanData.collegeId = null;
+      }
+    }
+
+    // Handle manualRegsiName uniqueness
+    let manualRegsiGenerated = false;
     if (cleanData.manualRegsiName) {
       const existing = await this.prisma.student.findFirst({
         where: { manualRegsiName: cleanData.manualRegsiName }
       });
       if (existing) {
-        throw new BadRequestException(`Student with Manual Reg Name ${cleanData.manualRegsiName} already exists.`);
+        throw new BadRequestException(
+          `Already exists in database: Manual Reg Name "${cleanData.manualRegsiName}" belongs to ${existing.name}.`
+        );
       }
+    } else {
+      const generated = await this.getNextRegsiName(cleanData.dateOfJoining);
+      cleanData.manualRegsiName = generated.nextRegsiName;
+      manualRegsiGenerated = true;
     }
 
-    if (cleanData.roomNo) {
-      const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
-      if (!roomExists) {
-        cleanData.roomNo = null;
+    // Handle @unique emailId & aadharNo on import
+    if (isImport) {
+      if (cleanData.emailId) {
+        const existingEmail = await this.prisma.student.findFirst({ where: { emailId: cleanData.emailId } });
+        if (existingEmail) cleanData.emailId = null;
+      }
+      if (cleanData.aadharNo) {
+        const existingAadhar = await this.prisma.student.findFirst({ where: { aadharNo: cleanData.aadharNo } });
+        if (existingAadhar) cleanData.aadharNo = null;
       }
     }
 
     let student: any;
-    let retries = 3;
+    let retries = 5;
     while (retries > 0) {
       try {
         student = await this.prisma.student.create({
@@ -109,22 +184,35 @@ export class StudentsService {
       } catch (error: any) {
         if (error.code === 'P2002') {
           const target = error.meta?.target || [];
-          const isManualRegsiNameClash = Array.isArray(target) 
-            ? target.includes('manualRegsiName') 
-            : target === 'manualRegsiName' || (typeof target === 'string' && target.includes('manualRegsiName'));
-            
-          if (isManualRegsiNameClash && !isImport) {
-            // Auto-regenerate and retry
-            const generated = await this.getNextRegsiName();
-            cleanData.manualRegsiName = generated.nextRegsiName;
+          const targetStr = Array.isArray(target) ? target.join(', ') : (target || 'field');
+
+          if (targetStr.includes('manualRegsiName')) {
+            const generated = await this.getNextRegsiName(cleanData.dateOfJoining);
+            cleanData.manualRegsiName = isImport ? `${generated.nextRegsiName}_${Math.floor(Math.random() * 1000)}` : generated.nextRegsiName;
+            manualRegsiGenerated = true;
             retries--;
             if (retries === 0) {
-              throw new BadRequestException('Failed to generate a unique Manual Regsi Name after multiple attempts. Please try again.');
+              throw new BadRequestException('Failed to generate a unique Manual Regsi Name. Please try again.');
             }
             continue;
           }
 
-          const targetStr = Array.isArray(target) ? target[0] : (target || 'field');
+          if (targetStr.includes('regNo')) {
+            const year = new Date().getFullYear();
+            const total = await this.prisma.student.count();
+            regNo = `HST-${year}-${(total + retries + Math.floor(Math.random() * 100)).toString().padStart(3, '0')}`;
+            retries--;
+            if (retries === 0) {
+              throw new BadRequestException('Failed to generate a unique Reg No. Please try again.');
+            }
+            continue;
+          }
+
+          if (isImport) {
+            if (targetStr.includes('emailId')) { cleanData.emailId = null; retries--; continue; }
+            if (targetStr.includes('aadharNo')) { cleanData.aadharNo = null; retries--; continue; }
+          }
+
           throw new BadRequestException(`A student with this ${targetStr} already exists.`);
         } else if (error.code === 'P2003') {
           const fieldName = error.meta?.field_name || 'relation';
@@ -190,22 +278,30 @@ export class StudentsService {
       }
     }
 
-    return student;
+    return {
+      ...student,
+      _isUpdated: false
+    };
   }
 
   async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string }) {
+    const hasPagination = params?.page !== undefined || params?.limit !== undefined;
     const page = params?.page || 1;
     const limit = params?.limit || 10;
-    const skip = (page - 1) * limit;
+    const skip = hasPagination ? (page - 1) * limit : undefined;
+    const take = hasPagination ? limit : undefined;
 
     const where: any = {};
     if (params?.search) {
-      const q = params.search;
+      const q = params.search.trim();
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         { regNo: { contains: q, mode: 'insensitive' } },
         { manualRegsiName: { contains: q, mode: 'insensitive' } },
-        { mobileNo: { contains: q, mode: 'insensitive' } }
+        { mobileNo: { contains: q, mode: 'insensitive' } },
+        { roomNo: { contains: q, mode: 'insensitive' } },
+        { educationalQua: { contains: q, mode: 'insensitive' } },
+        { fatherName: { contains: q, mode: 'insensitive' } }
       ];
     }
     
@@ -240,7 +336,7 @@ export class StudentsService {
       this.prisma.student.findMany({
         where,
         skip,
-        take: limit,
+        take,
         orderBy,
         include: { transactions: true, room: true, college: true }
       }),
@@ -250,9 +346,9 @@ export class StudentsService {
     return {
       data,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+      page: hasPagination ? page : 1,
+      limit: hasPagination ? limit : total,
+      totalPages: hasPagination ? Math.ceil(total / limit) : 1
     };
   }
 
@@ -302,16 +398,17 @@ export class StudentsService {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    const whereClause = isUuid ? { id } : { regNo: id };
-
-    const existingStudent = await this.prisma.student.findUnique({
-      where: whereClause,
-      select: { roomNo: true, status: true }
+    const existingStudent = await this.prisma.student.findFirst({
+      where: { OR: [{ id }, { regNo: id }, { manualRegsiName: id }] },
+      select: { id: true, roomNo: true, status: true }
     });
 
+    if (!existingStudent) {
+      throw new BadRequestException(`Student with ID ${id} not found.`);
+    }
+
     const updatedStudent = await this.prisma.student.update({
-      where: whereClause,
+      where: { id: existingStudent.id },
       data: cleanData
     });
 

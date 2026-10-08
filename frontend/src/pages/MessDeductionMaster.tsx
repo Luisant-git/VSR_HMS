@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { MessDeductionAPI } from '../api/mess-deduction.api';

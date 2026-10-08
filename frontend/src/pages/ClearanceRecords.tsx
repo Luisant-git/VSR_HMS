@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { ClearanceAPI } from '../api/clearance.api';
 import { StudentAPI } from '../api/student.api';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, User } from 'lucide-react';
+import { X } from 'lucide-react';
 import Select from 'react-select';
 
 const ClearanceRecords = () => {
@@ -13,8 +13,6 @@ const ClearanceRecords = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const [studentOptions, setStudentOptions] = useState<any[]>([]);
@@ -76,7 +74,7 @@ const ClearanceRecords = () => {
         subtitle="View history of vacated students and settled dues"
         rightContent={
           <button 
-            onClick={() => { setIsModalOpen(true); setSearchQuery(''); setSearchResults([]); }}
+            onClick={() => { setIsModalOpen(true); }}
             style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#4f46e5', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }}
           >
             Process New Clearance

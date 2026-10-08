@@ -309,9 +309,13 @@ const Hostellers = () => {
               style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
             >
               <option value={10}>10</option>
-              <option value={20}>20</option>
+              <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+              <option value={99999}>All</option>
             </select>
             <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
           </div>
@@ -323,7 +327,10 @@ const Hostellers = () => {
               type="text"
               placeholder="Search by name, ID, Manual Reg Name, mobile..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               style={{
                 padding: '8px 12px 8px 36px',
                 borderRadius: '8px',
@@ -338,7 +345,10 @@ const Hostellers = () => {
           <Select
             options={roomOptions}
             value={roomOptions.find(o => o.value === roomFilter)}
-            onChange={(opt) => setRoomFilter(opt?.value || '-- All Rooms --')}
+            onChange={(opt) => {
+              setRoomFilter(opt?.value || '-- All Rooms --');
+              setPage(1);
+            }}
             styles={selectStyles}
             placeholder="Search room..."
             isSearchable={true}
@@ -347,7 +357,10 @@ const Hostellers = () => {
           <Select
             options={collegeOptions}
             value={collegeOptions.find(o => o.value === collegeFilter)}
-            onChange={(opt) => setCollegeFilter(opt?.value || '-- All Colleges --')}
+            onChange={(opt) => {
+              setCollegeFilter(opt?.value || '-- All Colleges --');
+              setPage(1);
+            }}
             styles={selectStyles}
             placeholder="Search college..."
             isSearchable={true}
@@ -372,7 +385,10 @@ const Hostellers = () => {
               { value: 'updated', label: 'Updated Profiles Only' }
             ]}
             value={{ value: sortFilter, label: sortFilter === 'updated' ? 'Updated Profiles Only' : 'All Students' }}
-            onChange={(opt) => setSortFilter(opt?.value || 'latest')}
+            onChange={(opt) => {
+              setSortFilter(opt?.value || 'latest');
+              setPage(1);
+            }}
             styles={selectStyles}
             placeholder="View..."
             isSearchable={false}
@@ -385,6 +401,8 @@ const Hostellers = () => {
                 setRoomFilter('-- All Rooms --');
                 setCollegeFilter('-- All Colleges --');
                 setFeeStatusFilter('-- All Fee Status --');
+                setSortFilter('latest');
+                setPage(1);
               }}
               title="Clear all filters"
               style={{

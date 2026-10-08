@@ -276,7 +276,7 @@ const Register = () => {
           setRegisteredStudent(null);
           if (!editId) {
             setFormData({
-              name: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
+              name: '', manualRegsiName: '', mobileNo: '', gender: 'Female', emailId: '', address: '', dob: '',
               fatherName: '', fatherMobileNo: '', motherName: '', motherMobileNo: '', guardianName: '', guardianMobileNo: '',
               emergencyContact: '', collegeId: '', educationalQua: '', advance: '',
               maritalStatus: 'Single', aadharNo: '', secondaryIdNo: '', bedNo: '',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, SquarePen, Trash2, Calendar, AlertCircle, X } from 'lucide-react';
+import { Building2, SquarePen, Trash2, Calendar, AlertCircle, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { CollegeAPI } from '../api/college.api';
 import { toast } from 'react-toastify';
@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 import Select from 'react-select';
 
 const FineMaster = () => {
-  const [activeTab, setActiveTab] = useState<'fine'>('fine');
+  const [activeTab] = useState<'fine' | 'college'>('fine');
   const [colleges, setColleges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,12 +170,6 @@ const FineMaster = () => {
         toast.error('Failed to delete college');
       }
     }
-  };
-
-  const openNewCollegeModal = () => {
-    setEditingCollegeId(null);
-    setFormData({ name: '', shortName: '', address: '', dueDate: '' });
-    setIsCollegeModalOpen(true);
   };
 
   return (

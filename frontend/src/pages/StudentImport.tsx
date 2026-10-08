@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 const parseDate = (dateVal: any) => {
   if (!dateVal) return undefined;
-  
+
   if (typeof dateVal === 'string') {
     const parts = dateVal.split(/[-/]/);
     if (parts.length === 3) {
@@ -18,8 +18,18 @@ const parseDate = (dateVal: any) => {
         const yearStr = parts[2];
         year = Number(yearStr.substring(0, 4));
       }
-      const d2 = new Date(year, Number(parts[1]) - 1, Number(parts[0]));
-      if (!isNaN(d2.getTime())) return d2;
+      let day = Number(parts[0]);
+      let month = Number(parts[1]);
+      // Handle M/D/YYYY (e.g. 2/27/2022) where 2nd part > 12
+      if (month > 12 && day >= 1 && day <= 12) {
+        const tmp = day;
+        day = month;
+        month = tmp;
+      }
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const d2 = new Date(year, month - 1, day);
+        if (!isNaN(d2.getTime())) return d2;
+      }
     }
   } else if (typeof dateVal === 'number') {
     const d3 = new Date((dateVal - 25569) * 86400 * 1000);
@@ -29,7 +39,7 @@ const parseDate = (dateVal: any) => {
   const d = new Date(dateVal);
   if (!isNaN(d.getTime())) {
     if (d.getFullYear() > 9999) {
-       d.setFullYear(Number(d.getFullYear().toString().substring(0, 4)));
+      d.setFullYear(Number(d.getFullYear().toString().substring(0, 4)));
     }
     return d;
   }
@@ -37,10 +47,64 @@ const parseDate = (dateVal: any) => {
   return undefined;
 };
 
-const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void }) => {
-  
+const cleanString = (val: any): string | undefined => {
+  if (val === undefined || val === null) return undefined;
+  const s = val.toString().replace(/[\u00A0\u200B]/g, ' ').trim();
+  if (!s) return undefined;
+  const upper = s.toUpperCase().replace(/\s+/g, '');
+  if (['NA', 'N/A', 'N/A.', 'NIL', 'NIL.', 'NONE', '-', '--', '0', '0000000000', '000000000000', 'NULL', 'UNDEFINED', 'NO', 'NOEMAIL', 'NOMOBILE'].includes(upper)) {
+    return undefined;
+  }
+  return s;
+};
 
-  // We will fetch colleges inside handleImport to avoid stale closure issues
+const normKey = (h: string) => h.trim().toUpperCase().replace(/[\u00A0\u200B]/g, '').replace(/[^A-Z0-9]/g, '');
+
+const extractExcelValue = (row: any, patterns: string[]): string | undefined => {
+  if (!row) return undefined;
+  const normPatterns = patterns.map(p => normKey(p));
+
+  // 1. Exact normalized key match (Highest priority)
+  for (const [key, val] of Object.entries(row)) {
+    if (key === '__ROWNUM__') continue;
+    const nk = normKey(key);
+    if (normPatterns.includes(nk)) {
+      const c = cleanString(val);
+      if (c !== undefined) return c;
+    }
+  }
+
+  // 2. Strict partial key match without cross-field contamination
+  const EXPLICIT_NAME_KEYS = [
+    'NAME', 'STUDENTNAME', 'FULLNAME', 'HOSTELERNAME', 'CANDIDATENAME', 
+    'FATHERNAME', 'MOTHERNAME', 'GUARDIANNAME', 'STUDENT', 'NAMEOFSTUDENT', 
+    'NAMEOFTHESTUDENT', 'STUDENTSNAME', 'CANDIDATE', 'HOSTELER'
+  ];
+
+  for (const [key, val] of Object.entries(row)) {
+    if (key === '__ROWNUM__') continue;
+    const nk = normKey(key);
+
+    const isLookingForCollege = normPatterns.some(p => p.includes('COLLEGE') || p.includes('EDUCATIONAL') || p.includes('INSTITUTION'));
+    const isLookingForRoom = normPatterns.some(p => p.includes('ROOM') || p.includes('BLOCK'));
+
+    // Skip matching explicit Name column when searching for College or Room
+    if ((isLookingForCollege || isLookingForRoom) && EXPLICIT_NAME_KEYS.some(k => nk === k || nk.includes(k))) {
+      continue;
+    }
+
+    for (const np of normPatterns) {
+      if (nk === np || (nk.length > np.length && (nk.startsWith(np) || nk.endsWith(np)))) {
+        const c = cleanString(val);
+        if (c !== undefined) return c;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void }) => {
 
   useEffect(() => {
     if (file) {
@@ -52,11 +116,9 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           const wsname = wb.SheetNames[0];
           const ws = wb.Sheets[wsname];
           const data = XLSX.utils.sheet_to_json(ws);
-          
-          // Clean keys
+
           const cleanedData = data.map((row: any) => {
             const newRow: any = {};
-            // __rowNum__ is a hidden non-enumerable property added by xlsx
             if (row.__rowNum__ !== undefined) {
               newRow['__ROWNUM__'] = row.__rowNum__;
             }
@@ -66,20 +128,19 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
             return newRow;
           });
 
-          
           Swal.fire({
             title: 'Confirm Import',
-            text: `Do you want to add this data? Total records: ${cleanedData.length}`,
+            text: `Do you want to import ${cleanedData.length} student records from Excel?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#198754',
             cancelButtonColor: '#dc3545',
-            confirmButtonText: 'Yes, import it!'
+            confirmButtonText: 'Yes, import now!'
           }).then((result) => {
             if (result.isConfirmed) {
               Swal.fire({
-                title: 'Uploading...',
-                html: 'Please wait while we import the records.',
+                title: 'Uploading Records...',
+                html: 'Processing student data from Excel, please wait...',
                 allowOutsideClick: false,
                 didOpen: () => {
                   Swal.showLoading();
@@ -107,9 +168,9 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
     }
     let successCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
     const errors: any[] = [];
-    
-    // Fetch fresh colleges to avoid stale state from closures
+
     let currentColleges: any[] = [];
     try {
       const res = await CollegeAPI.findAll({ limit: 1000 });
@@ -120,181 +181,376 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
     for (let i = 0; i < dataToImport.length; i++) {
       const row = dataToImport[i];
-      
-      // Skip completely empty rows or rows that are just subheadings (less than 3 filled columns)
-      if (!row || Object.keys(row).length === 0) continue;
-      const filledValues = Object.values(row).filter(v => v && v.toString().trim() !== '');
-      if (filledValues.length < 3) {
-        continue; // This is a subheading like "NEW STUDENT(2026)" or "SSM LEDER-1", skip silently
-      }
-      
-      try {
-        // Find matching college
-        const collegeName = (
-          row['EDUCATIONAL INSTITUTION'] || 
-          row['EDUCATIONAL INS.'] || 
-          row['EDUCATIONAL INS'] || 
-          row['COLLEGE'] || 
-          row['INSTITUTION'] || 
-          row['COLLEGE NAME'] || 
-          row['COLLEGE / DEPT'] || 
-          row['COLLEGE/DEPT'] || 
-          row['UNIVERSITY']
-        )?.toString().trim();
-        let matchedCollege = currentColleges.find(c => 
-          c.name.toLowerCase() === collegeName?.toLowerCase() || 
-          c.shortName?.toLowerCase() === collegeName?.toLowerCase()
-        );
 
-        if (collegeName && !matchedCollege) {
-          try {
-            matchedCollege = await CollegeAPI.create({ 
-              name: collegeName, 
-              shortName: collegeName.substring(0, 10).toUpperCase() 
-            });
-            currentColleges.push(matchedCollege);
-          } catch (e: any) {
-            console.error('Failed to auto-create college:', e);
-            // If it failed because it exists (maybe a race condition), let's try to fetch it
-            try {
-              const res = await CollegeAPI.findAll({ limit: 1000 });
-              currentColleges = res.data || [];
-              matchedCollege = currentColleges.find(c => 
-                c.name.toLowerCase() === collegeName?.toLowerCase() || 
-                c.shortName?.toLowerCase() === collegeName?.toLowerCase()
-              );
-            } catch (innerE) {
-              console.error(innerE);
+      if (!row || Object.keys(row).length === 0) {
+        skippedCount++;
+        errors.push({
+          row: i + 2,
+          name: 'Blank Row',
+          reason: 'Empty row in Excel file skipped',
+          originalRow: {}
+        });
+        continue;
+      }
+
+      const nonNumEntries = Object.entries(row).filter(([k]) => k !== '__ROWNUM__');
+      const filledValues = nonNumEntries
+        .map(([, v]) => cleanString(v))
+        .filter(Boolean);
+
+      if (filledValues.length === 0) {
+        skippedCount++;
+        errors.push({
+          row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
+          name: 'Blank Formatting Row',
+          reason: 'Empty formatting row skipped',
+          originalRow: row
+        });
+        continue;
+      }
+
+      // Skip subheadings / single-cell title rows cleanly
+      if (filledValues.length === 1 && !/SEASIND/i.test(filledValues[0]!)) {
+        skippedCount++;
+        errors.push({
+          row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
+          name: filledValues[0] || 'Subheading',
+          reason: 'Section subheading / header title skipped',
+          originalRow: row
+        });
+        continue;
+      }
+
+      try {
+        const nameVal = extractExcelValue(row, ['NAME', 'STUDENT NAME', 'FULL NAME', 'HOSTELER NAME', 'CANDIDATE NAME', 'STUDENT', 'NAME OF STUDENT']);
+        const mobileVal = extractExcelValue(row, ['MOBILE NO', 'MOBILE', 'MOB', 'MOB NO', 'MOB.NO', 'CELL', 'CELL NO', 'CONTACT NO', 'CONTACT', 'CONTACT NUMBER', 'MOBILE NUMBER', 'PHONE', 'PHONE NO', 'PH NO', 'STUDENT MOBILE', 'STUDENT PHONE']);
+        const dobVal = extractExcelValue(row, ['DOB', 'DATE OF BIRTH', 'BIRTH DATE']);
+        const courseVal = extractExcelValue(row, ['COURSE', 'EDUCATIONAL QUA', 'QUALIFICATION', 'DEGREE', 'PROGRAM']);
+        const courseDurVal = extractExcelValue(row, ['COURSE DURATION', 'DURATION', 'COURSE PERIOD']);
+        const emailVal = extractExcelValue(row, ['E-MAIL ID', 'EMAIL ID', 'EMAIL', 'EMAIL ADDRESS', 'STUDENT EMAIL']);
+        const aadharVal = extractExcelValue(row, ['ADHAAR NUM', 'AADHAR NO', 'AADHAR NUMBER', 'AADHAAR', 'AADHAAR NO', 'ADHAR NO']);
+        const bloodVal = extractExcelValue(row, ['BLOOD GROUP', 'BLOOD GRP', 'BLOOD']);
+        const fatherVal = extractExcelValue(row, ['FATHER NAME', "FATHER'S NAME", 'FATHER']);
+        const fatherMobVal = extractExcelValue(row, ['MOBILE NO_1', 'FATHER MOBILE', 'FATHER PHONE', "FATHER'S MOBILE", 'FATHER CONTACT']);
+        const motherVal = extractExcelValue(row, ['MOTHER NAME', "MOTHER'S NAME", 'MOTHER']);
+        const motherMobVal = extractExcelValue(row, ['MOBILE NO_2', 'MOTHER MOBILE', 'MOTHER PHONE', "MOTHER'S MOBILE", 'MOTHER CONTACT']);
+        const guardianVal = extractExcelValue(row, ['GURDIAN NAME', 'GUARDIAN NAME', "GUARDIAN'S NAME", 'GUARDIAN']);
+        const guardianMobVal = extractExcelValue(row, ['MOBILE NO_3', 'GUARDIAN MOBILE', 'GUARDIAN PHONE', "GUARDIAN'S MOBILE", 'GUARDIAN CONTACT']);
+        const maritalVal = extractExcelValue(row, ['MARTIAL STS', 'MARITAL STATUS', 'MARITAL']);
+        const rentVal = extractExcelValue(row, ['RENT', 'MONTHLY RENT', 'ROOM RENT', 'HOSTEL RENT']);
+        const advVal = extractExcelValue(row, ['ADVANCE', 'DEPOSIT', 'SECURITY DEPOSIT']);
+        const foodVal = extractExcelValue(row, ['FOOD TYPE', 'FOOD', 'DIET', 'MEAL TYPE']);
+        const vsrVal = extractExcelValue(row, ['VSR LEDGER-1', 'VSR SPOON 1', 'VSR LEDGER', 'LEDGER-1', 'LEDGER']);
+        const dojVal = extractExcelValue(row, ['DOJ', 'DATE OF JOINING', 'JOINING DATE', 'ADMISSION DATE']);
+        const yearVal = extractExcelValue(row, ['PURSUING YEAR', 'PURSUING YEAR ', 'PASSING YEAR', 'YEAR', 'CURRENT YEAR']);
+
+        // Strict College Extraction & Validation
+        const collegeName = extractExcelValue(row, [
+          'EDUCATIONAL INS', 'EDUCATIONAL INS.', 'EDUCATIONAL INSTITUTION', 'EDUCATIONAL INST',
+          'COLLEGE', 'COLLEGE NAME', 'INSTITUTION', 'UNIVERSITY', 'CLG', 'COLLEGE/DEPT', 'SCHOOL'
+        ]);
+
+        let matchedCollege: any = undefined;
+
+        const findMatchingCollege = (cleanCol: string) => {
+          if (!cleanCol || cleanCol.length < 2) return undefined;
+          const target = cleanCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+          // 1. Exact or normalized name/shortName match
+          for (const c of currentColleges) {
+            const nameNorm = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const shortNorm = (c.shortName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (target === nameNorm || (shortNorm && target === shortNorm)) return c;
+          }
+
+          // 2. Bidirectional contains match (e.g. "SSM" <-> "SSM College")
+          for (const c of currentColleges) {
+            const nameNorm = (c.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const shortNorm = (c.shortName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (
+              (nameNorm && nameNorm.length >= 2 && (target.includes(nameNorm) || nameNorm.includes(target))) ||
+              (shortNorm && shortNorm.length >= 2 && (target.includes(shortNorm) || shortNorm.includes(target)))
+            ) {
+              return c;
+            }
+          }
+
+          // 3. Known acronym / pattern rules
+          if (/^SSM/i.test(cleanCol)) return currentColleges.find(c => /^SSM/i.test(c.name));
+          if (/^JKKN/i.test(cleanCol)) return currentColleges.find(c => /^JKKN/i.test(c.name));
+          if (/^JKKM/i.test(cleanCol)) return currentColleges.find(c => /^JKKM/i.test(c.name));
+          if (/^EXCEL/i.test(cleanCol)) return currentColleges.find(c => /^EXCEL/i.test(c.name));
+          if (/^SHANMUGA/i.test(cleanCol)) return currentColleges.find(c => /SHANMUGA/i.test(c.name));
+          if (/^GOVT/i.test(cleanCol)) return currentColleges.find(c => /GOVT/i.test(c.name));
+
+          return undefined;
+        };
+
+        if (collegeName) {
+          const cleanCol = collegeName.trim();
+
+          // 1. Match against existing colleges in database first
+          matchedCollege = findMatchingCollege(cleanCol);
+
+          // 2. If not matched, auto-create ONLY if it is a genuine new college name (not a person name)
+          if (!matchedCollege) {
+            const hasPersonInitial = /(?:\s+|\.)[A-Z]\.?$/i.test(cleanCol);
+            const isMatchingPersonName = (
+              (nameVal && cleanCol.toLowerCase() === nameVal.toLowerCase()) ||
+              (fatherVal && cleanCol.toLowerCase() === fatherVal.toLowerCase()) ||
+              (motherVal && cleanCol.toLowerCase() === motherVal.toLowerCase()) ||
+              (guardianVal && cleanCol.toLowerCase() === guardianVal.toLowerCase())
+            );
+
+            if (!hasPersonInitial && !isMatchingPersonName && cleanCol.length >= 2) {
+              try {
+                matchedCollege = await CollegeAPI.create({
+                  name: cleanCol,
+                  shortName: cleanCol.substring(0, 10).toUpperCase()
+                });
+                currentColleges.push(matchedCollege);
+              } catch (e: any) {
+                console.error('Failed to auto-create college:', e);
+              }
             }
           }
         }
 
-        // Prepare student DTO
+        // Tier 1: Scan ALL cell values for explicit registration patterns like SEASIND26312 (HIGHEST PRIORITY!)
+        let extractedManualReg: string | undefined = undefined;
+        for (const [, val] of nonNumEntries) {
+          if (val !== undefined && val !== null) {
+            const s = val.toString().replace(/[\u00A0\u200B]/g, ' ').trim();
+            if (/SEASIND[\s\-_.]*\d+/i.test(s)) {
+              const m = s.match(/SEASIND[\s\-_.]*\d+/i);
+              if (m) {
+                extractedManualReg = m[0].replace(/[\s\-_.]/g, '').toUpperCase();
+                break;
+              }
+            }
+          }
+        }
+
+        // Tier 2: Explicit manual reg headers
+        if (!extractedManualReg) {
+          const manualRegExplicit = [
+            'MANUAL REGSI NAME', 'MANUAL REG NAME', 'MANUAL REG NO', 'MANUAL REG', 'MANUAL REG. NO.',
+            'MANUAL REGISTER NAME', 'MANUAL REGISTER NO', 'MANUAL REGISTRATION NO', 'MANUAL REGS',
+            'REGSI NAME', 'REGINAME', 'REGSINAME', 'REG. NAME', 'REG NAME'
+          ];
+          extractedManualReg = extractExcelValue(row, manualRegExplicit);
+        }
+
+        // Tier 3: Standard reg no headers
+        if (!extractedManualReg) {
+          const regNoPatterns = [
+            'REGISTRATION NO', 'REGISTRATION NUMBER', 'REGISTER NO', 'REGISTER NUMBER',
+            'REG NO', 'REG. NO.', 'REG.NO.', 'REG.NO', 'REGIS NO', 'REG IS NO', 'REGIST NO',
+            'REGS NO', 'REGS. NO', 'STUDENT ID', 'ADMISSION NO', 'ADM NO', 'ENROLLMENT NO', 'ROLL NO', 'ID NO'
+          ];
+          extractedManualReg = extractExcelValue(row, regNoPatterns);
+        }
+
+        // Tier 4: Serial number headers ONLY if no other registration number was found
+        if (!extractedManualReg) {
+          const slNoPatterns = ['SL NO', 'SL.NO', 'S.NO', 'S NO', 'SERIAL NO'];
+          extractedManualReg = extractExcelValue(row, slNoPatterns);
+        }
+
+        const blockVal = extractExcelValue(row, ['BLOCK', 'BLOCK NAME']);
+        const roomVal = extractExcelValue(row, ['ROOM', 'ROOM NO', 'ROOM NUMBER']);
+
+        let computedRoomNo: string | undefined = undefined;
+        const b = blockVal ? blockVal.toUpperCase().replace(/BLOCK\s*/, '').trim() : '';
+        let r = roomVal ? roomVal.toUpperCase().replace(/ROOM\s*/, '').trim() : '';
+        if (b || r) {
+          if (b && r.startsWith(b)) computedRoomNo = r.replace(/\s+/g, '');
+          else if (b && !r.startsWith(b)) computedRoomNo = `${b}${r}`.replace(/\s+/g, '');
+          else computedRoomNo = (r || b).replace(/\s+/g, '');
+        }
+
+        // Strict Room Validation
+        if (computedRoomNo) {
+          const cleanRoom = computedRoomNo.trim().replace(/[`']/g, '');
+          const isPersonNameRoom = (
+            cleanRoom.length > 10 ||
+            /\.[A-Za-z]$/.test(cleanRoom) ||
+            (/^[A-Za-z]{3,}$/.test(cleanRoom) && !/^(BLOCK|ROOM|FLAT|FLOOR|HALL|DORM|SUITE)/i.test(cleanRoom)) ||
+            (/[A-Z]\s*$/.test(cleanRoom) && cleanRoom.length > 4) ||
+            (nameVal && cleanRoom.toLowerCase().includes(nameVal.toLowerCase().replace(/[\s.]+/g, ''))) ||
+            (fatherVal && cleanRoom.toLowerCase().includes(fatherVal.toLowerCase().replace(/[\s.]+/g, ''))) ||
+            (guardianVal && cleanRoom.toLowerCase().includes(guardianVal.toLowerCase().replace(/[\s.]+/g, '')))
+          );
+
+          if (isPersonNameRoom) {
+            computedRoomNo = undefined;
+          } else {
+            computedRoomNo = cleanRoom;
+          }
+        }
+
         const studentData = {
           isImport: true,
-          // Ignore regNo from Excel, let the backend auto-generate it securely
-          // regNo: row['REGIS NO']?.toString() || row['REG IS NO']?.toString(),
-          name: row['NAME']?.toString() || row['STUDENT NAME']?.toString() || row['FULL NAME']?.toString() || row['HOSTELER NAME']?.toString(),
-          manualRegsiName: row['MANUAL REGSI NAME']?.toString(),
-          gender: row['GENDER']?.toString() || 'Female',
-          mobileNo: row['MOBILE NO']?.toString() || row['MOBILE']?.toString() || row['PHONE']?.toString() || row['CONTACT NO']?.toString() || row['CONTACT']?.toString() || row['PHONE NO']?.toString(),
-          dob: parseDate(row['DOB'])?.toISOString(),
-          collegeId: matchedCollege?.id, // Send the UUID instead of string
-          educationalQua: row['COURSE']?.toString(),
-          courseDuration: row['COURSE DURATION']?.toString(),
-          emailId: row['E-MAIL ID']?.toString() || row['EMAIL ID']?.toString() || row['EMAIL']?.toString(),
-          aadharNo: row['ADHAAR NUM']?.toString() || row['AADHAR NO']?.toString() || row['AADHAR NUMBER']?.toString() || row['AADHAAR']?.toString() || row['AADHAAR NO']?.toString(),
-          bloodGroup: row['BLOOD GROUP']?.toString() || row['BLOOD GRP']?.toString(),
-          fatherName: row['FATHER NAME']?.toString() || row["FATHER'S NAME"]?.toString(),
-          fatherMobileNo: row['MOBILE NO_1']?.toString() || row['FATHER MOBILE']?.toString() || row['FATHER PHONE']?.toString() || row["FATHER'S MOBILE"]?.toString(),
-          motherName: row['MOTHER NAME']?.toString() || row["MOTHER'S NAME"]?.toString(),
-          motherMobileNo: row['MOBILE NO_2']?.toString() || row['MOTHER MOBILE']?.toString() || row['MOTHER PHONE']?.toString() || row["MOTHER'S MOBILE"]?.toString(),
-          guardianName: row['GURDIAN NAME']?.toString() || row['GUARDIAN NAME']?.toString(),
-          guardianMobileNo: row['MOBILE NO_3']?.toString() || row['GUARDIAN MOBILE']?.toString() || row['GUARDIAN PHONE']?.toString() || row["GUARDIAN'S MOBILE"]?.toString(),
-          maritalStatus: row['MARTIAL STS']?.toString() || row['MARITAL STATUS']?.toString(),
-          roomNo: (() => {
-            const block = row['BLOCK'];
-            const room = row['ROOM'] || row['ROOM NO'];
-            const b = block ? block.toString().toUpperCase().replace(/BLOCK\s*/, '').trim() : '';
-            let r = room ? room.toString().toUpperCase().replace(/ROOM\s*/, '').trim() : '';
-            if (!b && !r) return undefined;
-            if (b && r.startsWith(b)) return r.replace(/\s+/g, '');
-            if (b && !r.startsWith(b)) return `${b}${r}`.replace(/\s+/g, '');
-            return (r || b).replace(/\s+/g, '');
-          })(),
-          rent: row['RENT'] && Number(row['RENT']) > 2000 ? Number(row['RENT']) - 2000 : (row['RENT'] ? Number(row['RENT']) : undefined),
-          messFee: row['RENT'] && Number(row['RENT']) > 2000 ? 2000 : 0,
-          advance: row['ADVANCE'] ? Number(row['ADVANCE']) : undefined,
-          category: row['CATEGORY']?.toString(),
-          foodType: row['FOOD TYPE']?.toString() || row['FOOD']?.toString(),
-          vsrLedger1: row['VSR LEDGER-1']?.toString() || row['VSR SPOON 1']?.toString() || row['VSR LEDGER']?.toString(),
-          dateOfJoining: parseDate(row['DOJ'])?.toISOString() || parseDate(row['DATE OF JOINING'])?.toISOString(),
-          pursuingYear: row['PURSUING YEAR']?.toString() || row['PURSUING YEAR ']?.toString() || row['PASSING YEAR']?.toString(),
-          isImport: true
+          name: nameVal,
+          manualRegsiName: extractedManualReg,
+          gender: extractExcelValue(row, ['GENDER', 'SEX']) || 'Female',
+          mobileNo: mobileVal,
+          dob: parseDate(dobVal)?.toISOString(),
+          collegeId: matchedCollege?.id,
+          educationalQua: courseVal,
+          courseDuration: courseDurVal,
+          emailId: emailVal,
+          aadharNo: aadharVal,
+          bloodGroup: bloodVal,
+          fatherName: fatherVal,
+          fatherMobileNo: fatherMobVal,
+          motherName: motherVal,
+          motherMobileNo: motherMobVal,
+          guardianName: guardianVal,
+          guardianMobileNo: guardianMobVal,
+          maritalStatus: maritalVal,
+          roomNo: computedRoomNo,
+          rent: rentVal && Number(rentVal) > 2000 ? Number(rentVal) - 2000 : (rentVal ? Number(rentVal) : undefined),
+          messFee: rentVal && Number(rentVal) > 2000 ? 2000 : 0,
+          advance: advVal ? Number(advVal) : undefined,
+          category: extractExcelValue(row, ['CATEGORY', 'COMMUNITY']),
+          foodType: foodVal,
+          vsrLedger1: vsrVal,
+          dateOfJoining: parseDate(dojVal)?.toISOString(),
+          pursuingYear: yearVal
         };
 
-        // Validation
-        if (!studentData.name || studentData.name.trim() === '') {
-          // Find the first non-empty string in the row to give a hint
-          const availableData = Object.entries(row)
-            .map(([k, v]) => `${k}="${v}"`)
-            .join(', ');
-          throw new Error(`Name is required. The NAME column is missing. (Found data in this row: ${availableData})`);
-        }
-        if (!studentData.mobileNo || studentData.mobileNo.trim() === '') {
-          throw new Error('Mobile Number is required. The MOBILE NO column is missing or empty.');
+        // Check if row is a section title or subheading header row
+        const nameUpper = (studentData.name || '').toUpperCase().trim();
+        const headerKeywords = [
+          'SL NO', 'SL.NO', 'S.NO', 'S NO', 'SERIAL NO', 'STUDENT NAME', 'FULL NAME',
+          'HOSTELER NAME', 'NAME OF STUDENT', 'NAME OF THE STUDENT', 'MOBILE NO',
+          'CONTACT NO', 'PHONE NO', 'COLLEGE NAME', 'EDUCATIONAL INS', 'COURSE DURATION',
+          'SEA SINDU', 'SEASINDU', 'STUDENTS', 'HOSTEL', 'LEDGER', 'BLOCK A', 'BLOCK B',
+          'BLOCK C', 'BLOCK D', 'NEW ADMISSION', 'NEW STUDENT', 'TOTAL', 'GRAND TOTAL',
+          'NON-VEG', 'VEG', 'FOOD TYPE'
+        ];
+
+        const isTitleRow = headerKeywords.some(kw => nameUpper === kw || nameUpper.includes('STUDENTS') || nameUpper.includes('LEDGER') || nameUpper.startsWith('TOTAL')) || (
+          !studentData.mobileNo &&
+          !studentData.educationalQua &&
+          !studentData.roomNo &&
+          !studentData.dateOfJoining &&
+          !studentData.dob &&
+          !studentData.fatherName &&
+          !studentData.motherName &&
+          !studentData.emailId &&
+          !studentData.aadharNo &&
+          (!studentData.manualRegsiName || studentData.manualRegsiName === studentData.name)
+        );
+
+        if (isTitleRow) {
+          skippedCount++;
+          errors.push({
+            row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
+            name: studentData.name || 'Subheading / Header',
+            reason: 'Section title or subheading row skipped',
+            originalRow: row
+          });
+          continue;
         }
 
-        // Create
-        await StudentAPI.create(studentData);
+        // If name was missing, attempt to extract any remaining string column
+        if (!studentData.name || studentData.name.trim() === '') {
+          const unmappedValues = Object.entries(row)
+            .filter(([k]) => k !== '__ROWNUM__')
+            .map(([, v]) => cleanString(v))
+            .filter(v => v && v.length > 2 && /^[a-zA-Z\s.]+$/.test(v));
+
+          if (unmappedValues.length > 0) {
+            studentData.name = unmappedValues[0] as string;
+          } else {
+            skippedCount++;
+            errors.push({
+              row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
+              name: 'No Name',
+              reason: 'No valid student name found in row',
+              originalRow: row
+            });
+            continue;
+          }
+        }
+
+        // Create student (duplicates throw and are reported as failed)
+        await StudentAPI.create({
+          ...studentData,
+          name: studentData.name!
+        });
         successCount++;
 
       } catch (err: any) {
-        failedCount++;
-        // Try to guess the name for the error display if it's missing from the standard column
         let displayHint = row['NAME'] || row['STUDENT NAME'] || row['FULL NAME'];
         if (!displayHint) {
-          // just grab the second or third value in the row object as a hint
           const vals = Object.values(row).filter(v => v && typeof v === 'string' && v.length > 2 && isNaN(Number(v)) && !v.includes('__ROWNUM__'));
           if (vals.length > 0) displayHint = vals[0];
         }
-        
-        // Calculate exact Excel row number using __ROWNUM__ (0-indexed) if available
-        const exactRow = row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2);
 
-        errors.push({ 
-          row: exactRow, 
-          name: displayHint || 'Unknown', 
-          reason: err.message 
+        const exactRow = row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2);
+        const errMsg = err.response?.data?.message || err.message || '';
+
+        failedCount++;
+        errors.push({
+          row: exactRow,
+          name: displayHint || 'Unknown',
+          reason: errMsg,
+          originalRow: row
         });
       }
     }
 
-    if (failedCount === 0) {
-      // 100% success
-      toast.success(`${successCount} records imported successfully!`);
-      if (onClose) onClose();
-      Swal.close();
-      return;
-    }
+    const hasNotImported = failedCount > 0 || skippedCount > 0;
 
-    // If there are failures, show the modal
+    // Show complete import results modal (ALWAYS SHOWN!)
     let resultHtml = `
       <div style="text-align: left; font-size: 15px;">
         <div style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px;">
-          <div style="margin-bottom: 8px;"><strong>Total Records:</strong> ${dataToImport.length}</div>
-          <div style="color: #16a34a; margin-bottom: 8px;"><strong>✓ Imported:</strong> ${successCount}</div>
-          <div style="color: #e11d48;"><strong>✗ Failed:</strong> ${failedCount}</div>
+          <div style="margin-bottom: 8px;"><strong>Total Sheet Rows:</strong> ${dataToImport.length}</div>
+          <div style="color: #16a34a; margin-bottom: 8px;"><strong>✓ Successfully Imported:</strong> ${successCount}</div>
+          <div style="color: ${failedCount > 0 ? '#e11d48' : '#16a34a'}; margin-bottom: 8px;"><strong>✗ Failed / Duplicate Records:</strong> ${failedCount}</div>
+          ${skippedCount > 0 ? `<div style="color: #64748b;"><strong>ℹ Blank / Subheading Rows Skipped:</strong> ${skippedCount}</div>` : ''}
         </div>
     `;
 
-    resultHtml += `
-      <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">Failed Records:</h4>
-      <div style="max-height: 250px; overflow-y: auto; background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3;">
-    `;
-    errors.forEach((e, idx) => {
+    if (errors.length > 0) {
       resultHtml += `
-        <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: ${idx < errors.length - 1 ? '1px solid #fda4af' : 'none'}; font-size: 13px; color: #be123c;">
-          <strong>Row ${e.row} (${e.name}):</strong> ${e.reason}
-        </div>
+        <h4 style="margin: 0 0 10px 0; font-size: 15px; color: #334155;">Skipped / Failed Records:</h4>
+        <div style="max-height: 250px; overflow-y: auto; background: #fff1f2; padding: 15px; border-radius: 8px; border: 1px solid #fecdd3; margin-bottom: 15px;">
       `;
-    });
-    resultHtml += `</div></div>`;
+      errors.forEach((e, idx) => {
+        resultHtml += `
+          <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: ${idx < errors.length - 1 ? '1px solid #fda4af' : 'none'}; font-size: 13px; color: #be123c;">
+            <strong>Row ${e.row} (${e.name}):</strong> ${e.reason}
+          </div>
+        `;
+      });
+      resultHtml += `</div>`;
+    }
+
+    resultHtml += `</div>`;
 
     Swal.fire({
-      title: 'Import Results',
+      title: hasNotImported ? 'Import Summary & Results' : 'Import Successful!',
       html: resultHtml,
-      icon: successCount > 0 ? 'warning' : 'error',
+      icon: failedCount > 0 ? 'warning' : 'success',
       confirmButtonText: 'OK',
-      showCancelButton: true,
-      cancelButtonText: 'Export Failed Records',
-      confirmButtonColor: '#0d6efd',
-      cancelButtonColor: '#e11d48',
+      showCancelButton: errors.length > 0,
+      cancelButtonText: 'Export Failed / Skipped Records',
+      confirmButtonColor: '#198754',
+      cancelButtonColor: '#0d6efd',
       width: '600px'
     }).then((result) => {
-      if (result.dismiss === Swal.DismissReason.cancel) {
-        // Export to Excel
-        const ws = XLSX.utils.json_to_sheet(errors.map(e => ({ Row: e.row, Name: e.name, ErrorReason: e.reason })));
+      if (errors.length > 0 && result.dismiss === Swal.DismissReason.cancel) {
+        const ws = XLSX.utils.json_to_sheet(errors.map(e => ({
+          ErrorRow: e.row,
+          ErrorName: e.name,
+          ErrorReason: e.reason,
+          ...e.originalRow
+        })));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Failed Records");
         XLSX.writeFile(wb, "Failed_Import_Records.xlsx");
