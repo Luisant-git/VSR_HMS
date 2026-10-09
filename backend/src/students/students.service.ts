@@ -139,10 +139,44 @@ export class StudentsService {
       }
     }
 
+    const rawCollegeName = cleanData.collegeName || cleanData.college;
+    delete cleanData.collegeName;
+    delete cleanData.college;
+
     if (cleanData.collegeId) {
       const collegeExists = await this.prisma.college.findUnique({ where: { id: cleanData.collegeId } });
       if (!collegeExists) {
         cleanData.collegeId = null;
+      }
+    }
+
+    if (!cleanData.collegeId && rawCollegeName && typeof rawCollegeName === 'string' && rawCollegeName.trim().length >= 2) {
+      const cName = rawCollegeName.trim();
+      const allColleges = await this.prisma.college.findMany();
+      const existing = allColleges.find(c =>
+        c.name.toLowerCase() === cName.toLowerCase() ||
+        (c.shortName && c.shortName.toLowerCase() === cName.toLowerCase()) ||
+        c.name.toLowerCase().includes(cName.toLowerCase()) ||
+        cName.toLowerCase().includes(c.name.toLowerCase())
+      );
+
+      if (existing) {
+        cleanData.collegeId = existing.id;
+      } else {
+        try {
+          const newCol = await this.prisma.college.create({
+            data: {
+              name: cName,
+              shortName: cName.substring(0, 10).toUpperCase()
+            }
+          });
+          cleanData.collegeId = newCol.id;
+        } catch {
+          const fallback = await this.prisma.college.findFirst({
+            where: { name: { equals: cName, mode: 'insensitive' } }
+          });
+          if (fallback) cleanData.collegeId = fallback.id;
+        }
       }
     }
 

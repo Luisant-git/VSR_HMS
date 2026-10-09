@@ -145,7 +145,9 @@ const StudentProfile = () => {
           mobile: data.mobileNo,
           email: data.emailId || 'N/A',
           address: data.address || 'N/A',
-          college: `${data.college?.name || data.college || 'N/A'} (${data.educationalQua || 'N/A'})`,
+          college: data.college?.name
+            ? `${data.college.name}${data.educationalQua ? ` (${data.educationalQua})` : ''}`
+            : (data.educationalQua || 'N/A'),
           fatherName: data.fatherName,
           fatherMobileNo: data.fatherMobileNo,
           motherName: data.motherName,

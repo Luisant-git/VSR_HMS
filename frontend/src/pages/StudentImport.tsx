@@ -250,7 +250,11 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
         // Strict College Extraction & Validation
         const collegeName = extractExcelValue(row, [
           'EDUCATIONAL INS', 'EDUCATIONAL INS.', 'EDUCATIONAL INSTITUTION', 'EDUCATIONAL INST',
-          'COLLEGE', 'COLLEGE NAME', 'INSTITUTION', 'UNIVERSITY', 'CLG', 'COLLEGE/DEPT', 'SCHOOL'
+          'COLLEGE', 'COLLEGE NAME', 'COLLEGE/DEPT', 'COLLEGE / DEPT', 'COLLEGE/DEPARTMENT',
+          'COLLEGE/COURSE', 'COLLEGE / COURSE', 'EDUCATIONAL INS / COURSE', 'EDUCATIONAL INS/COURSE',
+          'INSTITUTION', 'UNIVERSITY', 'CLG', 'SCHOOL', 'COLLEGE NAME / ADDRESS', 'INSTITUTE',
+          'NAME OF THE COLLEGE', 'NAME OF COLLEGE', 'INSTITUTION NAME', 'DEPARTMENT / COLLEGE',
+          'COLLEGE DEPT', 'CLG NAME', 'CLG/DEPT', 'COLLEGE & DEPT'
         ]);
 
         let matchedCollege: any = undefined;
@@ -394,6 +398,7 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           mobileNo: mobileVal,
           dob: parseDate(dobVal)?.toISOString(),
           collegeId: matchedCollege?.id,
+          collegeName: collegeName,
           educationalQua: courseVal,
           courseDuration: courseDurVal,
           emailId: emailVal,
