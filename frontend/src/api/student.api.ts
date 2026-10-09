@@ -33,6 +33,8 @@ export interface CreateStudentDto {
   rent?: number;
   messFee?: number;
   autoGenerateInvoice?: boolean;
+  manualRegsiName?: string;
+  isImport?: boolean;
   photoUrl?: string;
   doc1Url?: string;
   doc2Url?: string;
