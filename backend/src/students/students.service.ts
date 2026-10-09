@@ -157,7 +157,7 @@ export class StudentsService {
         select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, regNo: true }
       });
 
-      const isNameMatch = (name1?: string, name2?: string) => {
+      const isNameMatch = (name1?: string | null, name2?: string | null) => {
         if (!name1 || !name2) return false;
         const n1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
         const n2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -166,11 +166,11 @@ export class StudentsService {
         return false;
       };
 
-      const isMobileMatch = (mob1?: string, mob2?: string) => {
+      const isMobileMatch = (mob1?: string | null, mob2?: string | null) => {
         if (!mob1 || !mob2) return false;
         const m1 = mob1.replace(/\D/g, '').slice(-10);
         const m2 = mob2.replace(/\D/g, '').slice(-10);
-        return m1 && m2 && m1.length >= 7 && m1 === m2;
+        return Boolean(m1 && m2 && m1.length >= 7 && m1 === m2);
       };
 
       let existingStudent: any = null;
