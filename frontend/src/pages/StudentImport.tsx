@@ -414,36 +414,23 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           pursuingYear: yearVal
         };
 
-        // Check if row is a section title or subheading header row
+        // Check if row is a header title row (e.g. "STUDENT NAME", "SL NO")
         const nameUpper = (studentData.name || '').toUpperCase().trim();
-        const headerKeywords = [
+        const exactHeaderTitles = [
           'SL NO', 'SL.NO', 'S.NO', 'S NO', 'SERIAL NO', 'STUDENT NAME', 'FULL NAME',
           'HOSTELER NAME', 'NAME OF STUDENT', 'NAME OF THE STUDENT', 'MOBILE NO',
           'CONTACT NO', 'PHONE NO', 'COLLEGE NAME', 'EDUCATIONAL INS', 'COURSE DURATION',
-          'SEA SINDU', 'SEASINDU', 'STUDENTS', 'HOSTEL', 'LEDGER', 'BLOCK A', 'BLOCK B',
-          'BLOCK C', 'BLOCK D', 'NEW ADMISSION', 'NEW STUDENT', 'TOTAL', 'GRAND TOTAL',
-          'NON-VEG', 'VEG', 'FOOD TYPE'
+          'TOTAL', 'GRAND TOTAL', 'TOTAL RECORDS'
         ];
 
-        const isTitleRow = headerKeywords.some(kw => nameUpper === kw || nameUpper.includes('STUDENTS') || nameUpper.includes('LEDGER') || nameUpper.startsWith('TOTAL')) || (
-          !studentData.mobileNo &&
-          !studentData.educationalQua &&
-          !studentData.roomNo &&
-          !studentData.dateOfJoining &&
-          !studentData.dob &&
-          !studentData.fatherName &&
-          !studentData.motherName &&
-          !studentData.emailId &&
-          !studentData.aadharNo &&
-          (!studentData.manualRegsiName || studentData.manualRegsiName === studentData.name)
-        );
+        const isTitleRow = exactHeaderTitles.includes(nameUpper) || nameUpper.startsWith('TOTAL ');
 
         if (isTitleRow) {
           skippedCount++;
           errors.push({
             row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
-            name: studentData.name || 'Subheading / Header',
-            reason: 'Section title or subheading row skipped',
+            name: studentData.name || 'Header Row',
+            reason: 'Header title row skipped',
             originalRow: row
           });
           continue;
