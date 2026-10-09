@@ -70,6 +70,7 @@ function App() {
         <Route path="/student-portal" element={<StudentPortal />} />
         <Route path="/student-admission" element={<StudentAdmissionForm />} />
         <Route path="/id/:id" element={<PublicStudentId />} />
+        <Route path="/canteen" element={<ProtectedRoute><CanteenMaster /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="hostellers">
@@ -106,7 +107,6 @@ function App() {
           <Route path="developer">
             <Route path="settings" element={<DeveloperSettings />} />
           </Route>
-          <Route path="canteen" element={<CanteenMaster />} />
           <Route path="staff" element={<ComingSoon title="Staff" />} />
           <Route path="admin" element={<ComingSoon title="Admin" />} />
           <Route path="*" element={<NotFound />} />

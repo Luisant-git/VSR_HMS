@@ -215,16 +215,28 @@ export class CanteenService {
     }
     const name = data.name.trim();
 
-    if (data.code && data.code.trim() !== '') {
-      const code = data.code.trim();
-      const existingCode = await this.prisma.canteenProduct.findUnique({ where: { code } });
-      if (existingCode) throw new BadRequestException(`Product code/barcode "${code}" is already in use.`);
+    let finalCode = data.code ? data.code.trim() : '';
+    if (!finalCode) {
+      const lastProduct = await this.prisma.canteenProduct.findFirst({
+        where: { code: { startsWith: 'P' } },
+        orderBy: { code: 'desc' },
+      });
+      if (lastProduct && lastProduct.code) {
+        const lastNumber = parseInt(lastProduct.code.substring(1), 10);
+        finalCode = `P${(isNaN(lastNumber) ? 0 : lastNumber + 1).toString().padStart(6, '0')}`;
+      } else {
+        const count = await this.prisma.canteenProduct.count();
+        finalCode = `P${(count + 1).toString().padStart(6, '0')}`;
+      }
+    } else {
+      const existingCode = await this.prisma.canteenProduct.findUnique({ where: { code: finalCode } });
+      if (existingCode) throw new BadRequestException(`Product code/barcode "${finalCode}" is already in use.`);
     }
 
     return this.prisma.canteenProduct.create({
       data: {
         name,
-        code: data.code ? data.code.trim() : null,
+        code: finalCode,
         categoryId: data.categoryId || null,
         unitId: data.unitId || null,
         price: data.price !== undefined ? Number(data.price) : 0.0,
