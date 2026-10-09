@@ -107,7 +107,13 @@ const extractExcelValue = (row: any, patterns: string[]): string | undefined => 
   return undefined;
 };
 
-const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void }) => {
+interface StudentImportProps {
+  file?: File;
+  onClose?: () => void;
+  onUploadingChange?: (isUploading: boolean) => void;
+}
+
+const StudentImport = ({ file, onClose, onUploadingChange }: StudentImportProps) => {
 
   useEffect(() => {
     if (file) {
@@ -141,9 +147,19 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
             confirmButtonText: 'Yes, import now!'
           }).then((result) => {
             if (result.isConfirmed) {
+              if (onUploadingChange) onUploadingChange(true);
               Swal.fire({
                 title: 'Uploading Records...',
-                html: 'Processing student data from Excel, please wait...',
+                html: `
+                  <div style="padding: 10px 0;">
+                    <div style="font-size: 15px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+                      Preparing to import ${cleanedData.length} records...
+                    </div>
+                    <div style="width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden;">
+                      <div style="width: 0%; background: #10b981; height: 100%;"></div>
+                    </div>
+                  </div>
+                `,
                 allowOutsideClick: false,
                 didOpen: () => {
                   Swal.showLoading();
@@ -166,6 +182,7 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
   const handleImport = async (dataToImport: any[]) => {
     if (dataToImport.length === 0) {
       toast.error('No data to import.');
+      if (onUploadingChange) onUploadingChange(false);
       if (onClose) onClose();
       return;
     }
@@ -184,6 +201,23 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
 
     for (let i = 0; i < dataToImport.length; i++) {
       const row = dataToImport[i];
+
+      const pct = Math.round(((i + 1) / dataToImport.length) * 100);
+      Swal.update({
+        html: `
+          <div style="padding: 10px 0; text-align: center;">
+            <div style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">
+              Uploading Record ${i + 1} of ${dataToImport.length} (${pct}%)
+            </div>
+            <div style="width: 100%; background: #e2e8f0; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 12px;">
+              <div style="width: ${pct}%; background: #10b981; height: 100%; transition: width 0.15s ease;"></div>
+            </div>
+            <div style="font-size: 13px; color: #64748b;">
+              Processing: <strong style="color: #0f172a;">${row['NAME'] || row['STUDENT NAME'] || row['FULL NAME'] || `Row ${i + 2}`}</strong>
+            </div>
+          </div>
+        `
+      });
 
       if (!row || Object.keys(row).length === 0) {
         skippedCount++;
@@ -557,6 +591,7 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
         XLSX.utils.book_append_sheet(wb, ws, "Failed Records");
         XLSX.writeFile(wb, "Failed_Import_Records.xlsx");
       }
+      if (onUploadingChange) onUploadingChange(false);
       if (onClose) onClose();
     });
   };

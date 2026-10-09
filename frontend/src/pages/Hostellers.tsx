@@ -29,6 +29,7 @@ const Hostellers = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadingImport, setIsUploadingImport] = useState(false);
 
   const [allRooms, setAllRooms] = useState<string[]>([]);
   const [allColleges, setAllColleges] = useState<string[]>([]);
@@ -247,26 +248,38 @@ const Hostellers = () => {
               </button>
               <label
                 style={{
-                  background: 'white',
-                  color: '#334155',
+                  background: isUploadingImport ? '#e2e8f0' : 'white',
+                  color: isUploadingImport ? '#94a3b8' : '#334155',
                   border: '1px solid #cbd5e1',
                   padding: '12px 24px',
                   borderRadius: '8px',
                   fontSize: '15px',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: isUploadingImport ? 'not-allowed' : 'pointer',
                   boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                   transition: 'all 0.2s',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  marginRight: '12px'
+                  marginRight: '12px',
+                  pointerEvents: isUploadingImport ? 'none' : 'auto',
+                  opacity: isUploadingImport ? 0.7 : 1
                 }}>
-                <Upload size={18} />
-                Bulk Import
+                {isUploadingImport ? (
+                  <>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #94a3b8', borderTopColor: '#0f172a', animation: 'spin 0.8s linear infinite' }} />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    <span>Bulk Import</span>
+                  </>
+                )}
                 <input
                   type="file"
                   accept=".xlsx, .xls, .csv"
+                  disabled={isUploadingImport}
                   style={{ display: 'none' }}
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
@@ -892,9 +905,11 @@ const Hostellers = () => {
       {showImportModal && importFile && (
         <StudentImport
           file={importFile}
+          onUploadingChange={setIsUploadingImport}
           onClose={() => {
             setShowImportModal(false);
             setImportFile(null);
+            setIsUploadingImport(false);
             fetchHostellers();
           }}
         />
