@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings, Utensils } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 
 const Layout = () => {
@@ -146,6 +146,10 @@ const Layout = () => {
               <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <div className="nav-icon"><Building2 size={18} /></div>
                 College Master
+              </NavLink>
+              <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                <div className="nav-icon"><Utensils size={18} /></div>
+                Canteen Master
               </NavLink>
             </>
           )}

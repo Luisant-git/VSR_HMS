@@ -21,6 +21,7 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "postinstall": "prisma generate",
     "seed": "npx tsx prisma/seed.ts",
+    "seed:canteen": "npx tsx prisma/seed-canteen.ts",
     "sync-rooms": "npx tsx prisma/sync-rooms.ts"
   },
   "prisma": {

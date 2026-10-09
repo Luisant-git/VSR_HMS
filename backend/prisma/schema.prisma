@@ -277,3 +277,93 @@ model HostelSettings {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+// ---------------------------------------------------------
+// Canteen & Inventory Master Models
+// ---------------------------------------------------------
+
+model CanteenCategory {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  products    CanteenProduct[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model CanteenUnit {
+  id        String           @id @default(uuid())
+  name      String           @unique
+  symbol    String?
+  products  CanteenProduct[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model CanteenSupplier {
+  id        String            @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  gstNo     String?
+  purchases CanteenPurchase[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model CanteenPaymentMode {
+  id        String            @id @default(uuid())
+  name      String            @unique
+  isSystem  Boolean           @default(false)
+  purchases CanteenPurchase[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model CanteenProduct {
+  id            String                @id @default(uuid())
+  name          String
+  code          String?               @unique
+  categoryId    String?
+  category      CanteenCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unitId        String?
+  unit          CanteenUnit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  price         Float                 @default(0.0)
+  costPrice     Float                 @default(0.0)
+  stock         Float                 @default(0.0)
+  status        String                @default("Active")
+  purchaseItems CanteenPurchaseItem[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+}
+
+model CanteenPurchase {
+  id            String               @id @default(uuid())
+  invoiceNo     String               @unique
+  purchaseDate  DateTime             @default(now())
+  supplierId    String?
+  supplier      CanteenSupplier?     @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  paymentModeId String?
+  paymentMode   CanteenPaymentMode?  @relation(fields: [paymentModeId], references: [id], onDelete: SetNull)
+  totalAmount   Float                @default(0.0)
+  notes         String?
+  items         CanteenPurchaseItem[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+}
+
+model CanteenPurchaseItem {
+  id          String          @id @default(uuid())
+  purchaseId  String
+  purchase    CanteenPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     CanteenProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  qty         Float
+  unit        String?
+  price       Float
+  totalAmount Float
+  createdAt   DateTime        @default(now())
+}
+

@@ -27,6 +27,7 @@ import DeveloperSettings from './pages/DeveloperSettings';
 import StudentAdmissionForm from './pages/StudentAdmissionForm';
 import MessDeductionMaster from './pages/MessDeductionMaster';
 import SystemSettings from './pages/SystemSettings';
+import CanteenMaster from './pages/CanteenMaster';
 
 import BiometricDashboard from './pages/biometrics/BiometricDashboard';
 import BiometricRegistration from './pages/biometrics/BiometricRegistration';
@@ -105,7 +106,7 @@ function App() {
           <Route path="developer">
             <Route path="settings" element={<DeveloperSettings />} />
           </Route>
-          <Route path="canteen" element={<ComingSoon title="Canteen" />} />
+          <Route path="canteen" element={<CanteenMaster />} />
           <Route path="staff" element={<ComingSoon title="Staff" />} />
           <Route path="admin" element={<ComingSoon title="Admin" />} />
           <Route path="*" element={<NotFound />} />

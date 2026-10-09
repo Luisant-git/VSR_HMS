@@ -18,6 +18,7 @@ import { DeveloperModule } from './developer/developer.module';
 import { DeveloperSeedService } from './developer/developer.seed.service';
 import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { CanteenModule } from './canteen/canteen.module';
 
 @Module({
   imports: [
@@ -36,7 +37,8 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
     MenuPermissionModule,
     DeveloperModule,
     MessDeductionModule,
-    SystemSettingsModule
+    SystemSettingsModule,
+    CanteenModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],
