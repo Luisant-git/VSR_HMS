@@ -151,59 +151,54 @@ export class StudentsService {
       throw new BadRequestException(`Mobile number is required for student "${cleanData.name || 'Unknown'}". Record failed.`);
     }
 
-    // On Excel import: Match existing student by mobileNo, aadharNo, or manualRegsiName to update record
+    // On Excel import: Match existing student by ManualRegName, RegNo, or (Name + Mobile) to update record safely
     if (isImport) {
+      const allStudents = await this.prisma.student.findMany({
+        select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, regNo: true }
+      });
+
+      const isNameMatch = (name1?: string, name2?: string) => {
+        if (!name1 || !name2) return false;
+        const n1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const n2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (n1 === n2) return true;
+        if (n1.length > 3 && n2.length > 3 && (n1.includes(n2) || n2.includes(n1))) return true;
+        return false;
+      };
+
+      const isMobileMatch = (mob1?: string, mob2?: string) => {
+        if (!mob1 || !mob2) return false;
+        const m1 = mob1.replace(/\D/g, '').slice(-10);
+        const m2 = mob2.replace(/\D/g, '').slice(-10);
+        return m1 && m2 && m1.length >= 7 && m1 === m2;
+      };
+
       let existingStudent: any = null;
 
-      if (cleanData.mobileNo) {
-        const cleanMob = cleanData.mobileNo.replace(/\D/g, '').slice(-10);
-        // Try exact match first
-        existingStudent = await this.prisma.student.findFirst({
-          where: { mobileNo: cleanData.mobileNo }
-        });
-        
-        // If not found by exact string, search by last 10 digits
-        if (!existingStudent && cleanMob && cleanMob.length >= 7) {
-          const allStudents = await this.prisma.student.findMany({
-            select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, dateOfJoining: true }
-          });
-          existingStudent = allStudents.find(s => {
-            if (!s.mobileNo) return false;
-            const sMob = s.mobileNo.replace(/\D/g, '').slice(-10);
-            return sMob && sMob.length >= 7 && sMob === cleanMob;
-          }) || null;
-        }
-      }
-      if (!existingStudent && cleanData.aadharNo) {
-        const cleanAadhar = cleanData.aadharNo.replace(/\D/g, '');
-        existingStudent = await this.prisma.student.findFirst({
-          where: { aadharNo: cleanData.aadharNo }
-        });
-        if (!existingStudent && cleanAadhar) {
-          const allStudents = await this.prisma.student.findMany({
-            select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, dateOfJoining: true }
-          });
-          existingStudent = allStudents.find(s => {
-            if (!s.aadharNo) return false;
-            return s.aadharNo.replace(/\D/g, '') === cleanAadhar;
-          }) || null;
-        }
-      }
-      if (!existingStudent && cleanData.manualRegsiName) {
-        existingStudent = await this.prisma.student.findFirst({
-          where: { manualRegsiName: cleanData.manualRegsiName }
-        });
+      // 1. Match by manualRegsiName if provided in Excel
+      if (cleanData.manualRegsiName) {
+        existingStudent = allStudents.find(s => s.manualRegsiName && s.manualRegsiName.trim().toUpperCase() === cleanData.manualRegsiName.trim().toUpperCase()) || null;
       }
 
+      // 2. Match by regNo if provided in Excel and not found
+      if (!existingStudent && cleanData.regNo) {
+        existingStudent = allStudents.find(s => s.regNo && s.regNo.trim().toUpperCase() === cleanData.regNo.trim().toUpperCase()) || null;
+      }
+
+      // 3. Match by Name AND Mobile (or Name AND Aadhar) if not found
+      if (!existingStudent && cleanData.name) {
+        existingStudent = allStudents.find(s => {
+          const nameMatches = isNameMatch(s.name, cleanData.name);
+          const mobMatches = isMobileMatch(s.mobileNo, cleanData.mobileNo);
+          const aadharMatches = cleanData.aadharNo && s.aadharNo && s.aadharNo.replace(/\D/g, '') === cleanData.aadharNo.replace(/\D/g, '');
+          return nameMatches && (mobMatches || aadharMatches);
+        }) || null;
+      }
+
+      // IF MATCHED -> Safe Update
       if (existingStudent) {
-        // Check if new manualRegsiName clashes with a DIFFERENT student
         if (cleanData.manualRegsiName && cleanData.manualRegsiName !== existingStudent.manualRegsiName) {
-          const clashRegsi = await this.prisma.student.findFirst({
-            where: {
-              manualRegsiName: cleanData.manualRegsiName,
-              id: { not: existingStudent.id }
-            }
-          });
+          const clashRegsi = allStudents.find(s => s.manualRegsiName && s.manualRegsiName.trim().toUpperCase() === cleanData.manualRegsiName.trim().toUpperCase() && s.id !== existingStudent.id);
           if (clashRegsi) {
             throw new BadRequestException(
               `Duplicate Manual Reg Name: "${cleanData.manualRegsiName}" already belongs to student "${clashRegsi.name}".`
@@ -239,6 +234,35 @@ export class StudentsService {
           ...updated,
           _isUpdated: true
         };
+      }
+
+      // IF NOT MATCHED -> Check if mobileNo, aadharNo, or manualRegsiName belong to ANOTHER student
+      if (cleanData.mobileNo) {
+        const clashMobile = allStudents.find(s => isMobileMatch(s.mobileNo, cleanData.mobileNo));
+        if (clashMobile) {
+          throw new BadRequestException(
+            `Duplicate Mobile Number: "${cleanData.mobileNo}" is already assigned to existing student "${clashMobile.name}". Cannot assign to "${cleanData.name}".`
+          );
+        }
+      }
+
+      if (cleanData.aadharNo) {
+        const cleanAadhar = cleanData.aadharNo.replace(/\D/g, '');
+        const clashAadhar = allStudents.find(s => s.aadharNo && s.aadharNo.replace(/\D/g, '') === cleanAadhar);
+        if (clashAadhar) {
+          throw new BadRequestException(
+            `Duplicate Aadhar Number: "${cleanData.aadharNo}" is already assigned to existing student "${clashAadhar.name}". Cannot assign to "${cleanData.name}".`
+          );
+        }
+      }
+
+      if (cleanData.manualRegsiName) {
+        const clashRegsi = allStudents.find(s => s.manualRegsiName && s.manualRegsiName.trim().toUpperCase() === cleanData.manualRegsiName.trim().toUpperCase());
+        if (clashRegsi) {
+          throw new BadRequestException(
+            `Duplicate Manual Reg Name: "${cleanData.manualRegsiName}" already belongs to student "${clashRegsi.name}".`
+          );
+        }
       }
     }
 
