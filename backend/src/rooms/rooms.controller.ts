@@ -10,6 +10,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
+  @Post('sync-occupancy')
+  @ApiOperation({ summary: 'Sync occupancy counts for all rooms' })
+  syncOccupancy() {
+    return this.roomsService.syncOccupancy();
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new room' })
   create(@Body() createRoomDto: CreateRoomDto) {

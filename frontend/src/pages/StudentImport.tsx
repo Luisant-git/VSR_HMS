@@ -351,12 +351,6 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           extractedManualReg = extractExcelValue(row, regNoPatterns);
         }
 
-        // Tier 4: Serial number headers ONLY if no other registration number was found
-        if (!extractedManualReg) {
-          const slNoPatterns = ['SL NO', 'SL.NO', 'S.NO', 'S NO', 'SERIAL NO'];
-          extractedManualReg = extractExcelValue(row, slNoPatterns);
-        }
-
         const blockVal = extractExcelValue(row, ['BLOCK', 'BLOCK NAME']);
         const roomVal = extractExcelValue(row, ['ROOM', 'ROOM NO', 'ROOM NUMBER']);
 
@@ -476,9 +470,22 @@ const StudentImport = ({ file, onClose }: { file?: File, onClose?: () => void })
           }
         }
 
-        // Create student (duplicates throw and are reported as failed)
+        // Check if mobile number is empty / missing
+        if (!studentData.mobileNo || studentData.mobileNo.trim() === '') {
+          failedCount++;
+          errors.push({
+            row: row['__ROWNUM__'] !== undefined ? Number(row['__ROWNUM__']) + 1 : (i + 2),
+            name: studentData.name || 'Unknown Student',
+            reason: 'Mobile number is missing or empty — Record Failed',
+            originalRow: row
+          });
+          continue;
+        }
+
+        // Create student (duplicates update existing student on import)
         await StudentAPI.create({
           ...studentData,
+          isImport: true,
           name: studentData.name!
         });
         successCount++;

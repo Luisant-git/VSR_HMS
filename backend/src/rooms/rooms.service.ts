@@ -11,16 +11,52 @@ export class RoomsService {
     return this.prisma.room.create({ data: createRoomDto });
   }
 
-  async findAll() {
-    return this.prisma.room.findMany({
+  async syncOccupancy() {
+    const rooms = await this.prisma.room.findMany({
       include: { students: true }
+    });
+
+    let updatedCount = 0;
+    for (const room of rooms) {
+      const activeCount = room.students ? room.students.filter((s: any) => s.status !== 'Vacated').length : 0;
+      await this.prisma.room.update({
+        where: { id: room.id },
+        data: { occupiedCount: activeCount }
+      });
+      updatedCount++;
+    }
+
+    return {
+      message: `Successfully synchronized occupancy for ${updatedCount} rooms.`,
+      updatedCount
+    };
+  }
+
+  async findAll() {
+    const rooms = await this.prisma.room.findMany({
+      include: { students: true }
+    });
+
+    return rooms.map(room => {
+      const activeCount = room.students ? room.students.filter((s: any) => s.status !== 'Vacated').length : 0;
+      return {
+        ...room,
+        occupiedCount: activeCount
+      };
     });
   }
 
   async findOne(id: string) {
-    const room = await this.prisma.room.findUnique({ where: { id } });
+    const room = await this.prisma.room.findUnique({
+      where: { id },
+      include: { students: true }
+    });
     if (!room) throw new NotFoundException(`Room with ID ${id} not found`);
-    return room;
+    const activeCount = room.students ? room.students.filter((s: any) => s.status !== 'Vacated').length : 0;
+    return {
+      ...room,
+      occupiedCount: activeCount
+    };
   }
 
   async update(id: string, updateRoomDto: UpdateRoomDto) {

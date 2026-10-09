@@ -61,8 +61,13 @@ export class StudentsService {
     });
 
     const isImport = cleanData.isImport;
-    if (isImport && cleanData.name && isHeaderOrTitle(cleanData.name)) {
-      throw new BadRequestException(`Title / subheading row skipped ("${cleanData.name}")`);
+    if (isImport) {
+      if (cleanData.name && isHeaderOrTitle(cleanData.name)) {
+        throw new BadRequestException(`Title / subheading row skipped ("${cleanData.name}")`);
+      }
+      if (!cleanData.mobileNo || cleanData.mobileNo.trim() === '') {
+        throw new BadRequestException(`Mobile number is required for importing student "${cleanData.name || 'Unknown'}". Row skipped.`);
+      }
     }
     const autoGenerateInvoice = cleanData.autoGenerateInvoice;
     const messFee = cleanData.messFee;
@@ -141,33 +146,147 @@ export class StudentsService {
       }
     }
 
-    // Handle manualRegsiName uniqueness
-    let manualRegsiGenerated = false;
+    // Require mobile number for imports
+    if (isImport && (!cleanData.mobileNo || cleanData.mobileNo.trim() === '')) {
+      throw new BadRequestException(`Mobile number is required for student "${cleanData.name || 'Unknown'}". Record failed.`);
+    }
+
+    // On Excel import: Match existing student by mobileNo, aadharNo, or manualRegsiName to update record
+    if (isImport) {
+      let existingStudent: any = null;
+
+      if (cleanData.mobileNo) {
+        const cleanMob = cleanData.mobileNo.replace(/\D/g, '').slice(-10);
+        // Try exact match first
+        existingStudent = await this.prisma.student.findFirst({
+          where: { mobileNo: cleanData.mobileNo }
+        });
+        
+        // If not found by exact string, search by last 10 digits
+        if (!existingStudent && cleanMob && cleanMob.length >= 7) {
+          const allStudents = await this.prisma.student.findMany({
+            select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, dateOfJoining: true }
+          });
+          existingStudent = allStudents.find(s => {
+            if (!s.mobileNo) return false;
+            const sMob = s.mobileNo.replace(/\D/g, '').slice(-10);
+            return sMob && sMob.length >= 7 && sMob === cleanMob;
+          }) || null;
+        }
+      }
+      if (!existingStudent && cleanData.aadharNo) {
+        const cleanAadhar = cleanData.aadharNo.replace(/\D/g, '');
+        existingStudent = await this.prisma.student.findFirst({
+          where: { aadharNo: cleanData.aadharNo }
+        });
+        if (!existingStudent && cleanAadhar) {
+          const allStudents = await this.prisma.student.findMany({
+            select: { id: true, name: true, mobileNo: true, aadharNo: true, manualRegsiName: true, dateOfJoining: true }
+          });
+          existingStudent = allStudents.find(s => {
+            if (!s.aadharNo) return false;
+            return s.aadharNo.replace(/\D/g, '') === cleanAadhar;
+          }) || null;
+        }
+      }
+      if (!existingStudent && cleanData.manualRegsiName) {
+        existingStudent = await this.prisma.student.findFirst({
+          where: { manualRegsiName: cleanData.manualRegsiName }
+        });
+      }
+
+      if (existingStudent) {
+        // Check if new manualRegsiName clashes with a DIFFERENT student
+        if (cleanData.manualRegsiName && cleanData.manualRegsiName !== existingStudent.manualRegsiName) {
+          const clashRegsi = await this.prisma.student.findFirst({
+            where: {
+              manualRegsiName: cleanData.manualRegsiName,
+              id: { not: existingStudent.id }
+            }
+          });
+          if (clashRegsi) {
+            throw new BadRequestException(
+              `Duplicate Manual Reg Name: "${cleanData.manualRegsiName}" already belongs to student "${clashRegsi.name}".`
+            );
+          }
+        }
+
+        const updateData: any = {};
+        if (cleanData.manualRegsiName) {
+          updateData.manualRegsiName = cleanData.manualRegsiName;
+        }
+
+        const allowedKeys = [
+          'name', 'gender', 'dob', 'collegeId', 'educationalQua',
+          'courseDuration', 'emailId', 'aadharNo', 'bloodGroup', 'fatherName',
+          'fatherMobileNo', 'motherName', 'motherMobileNo', 'guardianName',
+          'guardianMobileNo', 'maritalStatus', 'roomNo', 'category',
+          'foodType', 'vsrLedger1', 'dateOfJoining', 'pursuingYear'
+        ];
+
+        for (const key of allowedKeys) {
+          if (cleanData[key] !== undefined && cleanData[key] !== null) {
+            updateData[key] = cleanData[key];
+          }
+        }
+
+        const updated = await this.prisma.student.update({
+          where: { id: existingStudent.id },
+          data: updateData
+        });
+
+        return {
+          ...updated,
+          _isUpdated: true
+        };
+      }
+    }
+
+    // For brand new student creation: Check duplicates
+    if (cleanData.mobileNo) {
+      const existingMobile = await this.prisma.student.findFirst({
+        where: { mobileNo: cleanData.mobileNo }
+      });
+      if (existingMobile) {
+        throw new BadRequestException(
+          `Duplicate Mobile Number: "${cleanData.mobileNo}" already exists for student "${existingMobile.name}".`
+        );
+      }
+    }
+
+    if (cleanData.aadharNo) {
+      const existingAadhar = await this.prisma.student.findFirst({
+        where: { aadharNo: cleanData.aadharNo }
+      });
+      if (existingAadhar) {
+        throw new BadRequestException(
+          `Duplicate Aadhar Number: "${cleanData.aadharNo}" already exists for student "${existingAadhar.name}".`
+        );
+      }
+    }
+
+    if (cleanData.emailId) {
+      const existingEmail = await this.prisma.student.findFirst({
+        where: { emailId: cleanData.emailId }
+      });
+      if (existingEmail) {
+        throw new BadRequestException(
+          `Duplicate Email: "${cleanData.emailId}" already exists for student "${existingEmail.name}".`
+        );
+      }
+    }
+
     if (cleanData.manualRegsiName) {
-      const existing = await this.prisma.student.findFirst({
+      const existingRegsi = await this.prisma.student.findFirst({
         where: { manualRegsiName: cleanData.manualRegsiName }
       });
-      if (existing) {
+      if (existingRegsi) {
         throw new BadRequestException(
-          `Already exists in database: Manual Reg Name "${cleanData.manualRegsiName}" belongs to ${existing.name}.`
+          `Duplicate Manual Reg Name: "${cleanData.manualRegsiName}" already belongs to student "${existingRegsi.name}".`
         );
       }
     } else {
-      const generated = await this.getNextRegsiName(cleanData.dateOfJoining);
-      cleanData.manualRegsiName = generated.nextRegsiName;
-      manualRegsiGenerated = true;
-    }
-
-    // Handle @unique emailId & aadharNo on import
-    if (isImport) {
-      if (cleanData.emailId) {
-        const existingEmail = await this.prisma.student.findFirst({ where: { emailId: cleanData.emailId } });
-        if (existingEmail) cleanData.emailId = null;
-      }
-      if (cleanData.aadharNo) {
-        const existingAadhar = await this.prisma.student.findFirst({ where: { aadharNo: cleanData.aadharNo } });
-        if (existingAadhar) cleanData.aadharNo = null;
-      }
+      cleanData.manualRegsiName = null;
     }
 
     let student: any;
@@ -189,7 +308,6 @@ export class StudentsService {
           if (targetStr.includes('manualRegsiName')) {
             const generated = await this.getNextRegsiName(cleanData.dateOfJoining);
             cleanData.manualRegsiName = isImport ? `${generated.nextRegsiName}_${Math.floor(Math.random() * 1000)}` : generated.nextRegsiName;
-            manualRegsiGenerated = true;
             retries--;
             if (retries === 0) {
               throw new BadRequestException('Failed to generate a unique Manual Regsi Name. Please try again.');
@@ -447,3 +565,4 @@ export class StudentsService {
     return updatedStudent;
   }
 }
+
