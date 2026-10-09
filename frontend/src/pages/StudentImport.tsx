@@ -8,19 +8,27 @@ import Swal from 'sweetalert2';
 const parseDate = (dateVal: any) => {
   if (!dateVal) return undefined;
 
+  const numVal = typeof dateVal === 'number' ? dateVal : (typeof dateVal === 'string' && /^\d{5}$/.test(dateVal.trim()) ? Number(dateVal.trim()) : NaN);
+  if (!isNaN(numVal) && numVal > 10000 && numVal < 100000) {
+    const d3 = new Date((numVal - 25569) * 86400 * 1000);
+    if (!isNaN(d3.getTime()) && d3.getFullYear() >= 1950 && d3.getFullYear() <= 2050) return d3;
+  }
+
   if (typeof dateVal === 'string') {
-    const parts = dateVal.split(/[-/]/);
+    const parts = dateVal.trim().split(/[-/]/);
     if (parts.length === 3) {
-      // Prioritize DD/MM/YYYY
       let year = Number(parts[2]);
-      if (year > 9999) {
-        // user typo, e.g. 20077 -> 2007
-        const yearStr = parts[2];
-        year = Number(yearStr.substring(0, 4));
+      if (year < 100) {
+        year = year > 30 ? 1900 + year : 2000 + year;
+      } else if (year > 9999) {
+        year = Number(parts[2].substring(0, 4));
+      } else if (year > 3000 && year < 100000) {
+        const dSerial = new Date((year - 25569) * 86400 * 1000);
+        if (!isNaN(dSerial.getTime()) && dSerial.getFullYear() >= 1950 && dSerial.getFullYear() <= 2050) return dSerial;
       }
+
       let day = Number(parts[0]);
       let month = Number(parts[1]);
-      // Handle M/D/YYYY (e.g. 2/27/2022) where 2nd part > 12
       if (month > 12 && day >= 1 && day <= 12) {
         const tmp = day;
         day = month;
@@ -31,16 +39,11 @@ const parseDate = (dateVal: any) => {
         if (!isNaN(d2.getTime())) return d2;
       }
     }
-  } else if (typeof dateVal === 'number') {
-    const d3 = new Date((dateVal - 25569) * 86400 * 1000);
-    if (!isNaN(d3.getTime())) return d3;
   }
 
   const d = new Date(dateVal);
   if (!isNaN(d.getTime())) {
-    if (d.getFullYear() > 9999) {
-      d.setFullYear(Number(d.getFullYear().toString().substring(0, 4)));
-    }
+    if (d.getFullYear() > 2100 || d.getFullYear() < 1900) return undefined;
     return d;
   }
 
