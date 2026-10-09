@@ -468,7 +468,7 @@ export class StudentsService {
       }
     }
 
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: any = { createdAt: 'asc' };
     if (params?.sortFilter === 'updated') {
       where.profileUpdatedAt = { not: null };
       orderBy = { profileUpdatedAt: 'desc' };
