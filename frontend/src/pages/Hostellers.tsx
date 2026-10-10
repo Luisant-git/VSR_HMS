@@ -283,6 +283,7 @@ const Hostellers = () => {
                   style={{ display: 'none' }}
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
+                      setIsUploadingImport(true);
                       setImportFile(e.target.files[0]);
                       setShowImportModal(true);
                     }
