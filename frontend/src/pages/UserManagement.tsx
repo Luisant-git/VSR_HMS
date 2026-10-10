@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, SquarePen, CheckCircle, XCircle, X } from 'lucide-react';
+import { Plus, SquarePen, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
@@ -83,6 +83,18 @@ const UserManagement = () => {
       fetchUsers();
     } catch (err: any) {
       toast.error('Operation failed');
+    }
+  };
+
+  const handleDelete = async (user: any) => {
+    if (window.confirm(`Are you sure you want to delete ${user.name} (${user.email})?`)) {
+      try {
+        await UserAPI.delete(user.id);
+        toast.success('User deleted successfully');
+        fetchUsers();
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to delete user');
+      }
     }
   };
 
@@ -186,9 +198,17 @@ const UserManagement = () => {
                     <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                       <button
                         onClick={() => handleEdit(user)}
-                        style={{ width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s' }}
+                        title="Edit User"
+                        style={{ width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.2s', marginRight: '8px' }}
                       >
                         <SquarePen size={15} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user)}
+                        title="Delete User"
+                        style={{ width: '32px', height: '32px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', cursor: 'pointer', transition: 'all 0.2s' }}
+                      >
+                        <Trash2 size={15} />
                       </button>
                     </td>
                   </tr>

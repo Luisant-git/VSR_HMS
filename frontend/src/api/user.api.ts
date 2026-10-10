@@ -63,5 +63,14 @@ export const UserAPI = {
     });
     if (!response.ok) throw new Error('Failed to toggle user status');
     return response.json();
+  },
+
+  delete: async (id: string) => {
+    const response = await fetch(`${API_URL}/users/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to delete user');
+    return response.json();
   }
 };
