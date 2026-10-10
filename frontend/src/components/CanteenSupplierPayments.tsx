@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Save, Maximize2, Minimize2, Filter, Printer, Download, X } from 'lucide-react';
+import { FileText, Save, Maximize2, Minimize2, Download, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
@@ -12,7 +12,7 @@ interface CanteenSupplierPaymentsProps {
   paymentModes: any[];
 }
 
-export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = ({ suppliers, paymentModes }) => {
+export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = ({ suppliers }) => {
   const [formData, setFormData] = useState({
     paymentNo: 'Generating...',
     date: new Date().toISOString().substring(0, 10),
@@ -70,7 +70,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
   // When supplier changes, fetch balance and unpaid bills
   useEffect(() => {
     const fetchBalance = async () => {
-      if (formData.supplierId && formData.supplierId !== 0 && formData.supplierId !== '0') {
+      if (formData.supplierId && formData.supplierId !== 0 && String(formData.supplierId) !== '0') {
         try {
           const res = await CanteenAPI.getSupplierBalance(formData.supplierId.toString());
           setCurrentBalance(res.balance || 0);
@@ -610,13 +610,11 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
                   <tr><td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: '#64748B' }}>No payment records found.</td></tr>
                 ) : (
                   paginatedHistory.map((p: any, idx: number) => {
-                    let userRemarks = p.remarks;
                     let billsPaid: any[] = [];
                     let balanceAfter: number | null = null;
                     if (p.remarks && p.remarks.startsWith('{"userRemarks"')) {
                       try {
                         const parsed = JSON.parse(p.remarks);
-                        userRemarks = parsed.userRemarks;
                         billsPaid = parsed.bills || [];
                         if (parsed.balanceAfter !== undefined) {
                           balanceAfter = parsed.balanceAfter;
