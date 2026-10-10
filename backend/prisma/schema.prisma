@@ -308,6 +308,7 @@ model CanteenSupplier {
   address   String?
   gstNo     String?
   purchases CanteenPurchase[]
+  payments  CanteenSupplierPayment[]
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
 }
@@ -364,5 +365,19 @@ model CanteenPurchaseItem {
   price       Float
   totalAmount Float
   createdAt   DateTime        @default(now())
+}
+
+model CanteenSupplierPayment {
+  id            String             @id @default(uuid())
+  paymentNo     String             @unique
+  date          DateTime           @default(now())
+  supplierId    String
+  supplier      CanteenSupplier    @relation(fields: [supplierId], references: [id])
+  amount        Float              @default(0.0)
+  paymentType   String?
+  reference     String?
+  remarks       String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 

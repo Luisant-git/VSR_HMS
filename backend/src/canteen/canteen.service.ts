@@ -398,6 +398,30 @@ export class CanteenService {
         }
       }
 
+      const paymentMode = await tx.canteenPaymentMode.findUnique({
+        where: { id: data.paymentModeId }
+      });
+
+      if (paymentMode && paymentMode.name.toLowerCase() !== 'credit' && totalAmount > 0) {
+        const paymentCount = await tx.canteenSupplierPayment.count();
+        const paymentNo = `PAY-${new Date().getFullYear()}-${(paymentCount + 1).toString().padStart(4, '0')}`;
+        
+        await tx.canteenSupplierPayment.create({
+          data: {
+            paymentNo,
+            date: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
+            supplierId: data.supplierId,
+            amount: totalAmount,
+            paymentType: paymentMode.name,
+            reference: `Auto-payment for ${invoiceNo}`,
+            remarks: JSON.stringify({
+              userRemarks: `Purchase ${invoiceNo} paid via ${paymentMode.name}`,
+              bills: [{ entryNo: invoiceNo, date: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : new Date().toISOString(), amount: totalAmount }]
+            })
+          }
+        });
+      }
+
       return purchase;
     });
   }
@@ -416,6 +440,105 @@ export class CanteenService {
         }
       }
       return tx.canteenPurchase.delete({ where: { id } });
+    });
+  }
+
+  // ---------------------------------------------------------
+  // SUPPLIER PAYMENTS & PAYOUTS
+  // ---------------------------------------------------------
+  async getSupplierPayments() {
+    return this.prisma.canteenSupplierPayment.findMany({
+      include: {
+        supplier: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async getNextPaymentNo() {
+    const count = await this.prisma.canteenSupplierPayment.count();
+    return { paymentNo: `PAY-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}` };
+  }
+
+  async getSupplierBalance(supplierId: string) {
+    const purchases = await this.prisma.canteenPurchase.aggregate({
+      where: { supplierId },
+      _sum: { totalAmount: true }
+    });
+    const payments = await this.prisma.canteenSupplierPayment.aggregate({
+      where: { supplierId },
+      _sum: { amount: true }
+    });
+    
+    const totalPurchases = purchases._sum.totalAmount || 0;
+    const totalPayments = payments._sum.amount || 0;
+    
+    return { balance: totalPurchases - totalPayments };
+  }
+
+  async getUnpaidBills(supplierId: string) {
+    const purchases = await this.prisma.canteenPurchase.findMany({
+      where: { supplierId },
+      orderBy: { purchaseDate: 'asc' }
+    });
+    
+    const payments = await this.prisma.canteenSupplierPayment.aggregate({
+      where: { supplierId },
+      _sum: { amount: true }
+    });
+    
+    let totalPaid = payments._sum.amount || 0;
+    
+    const bills = purchases.map(p => {
+      const received = Math.min(p.totalAmount, totalPaid);
+      totalPaid = Math.max(0, totalPaid - received);
+      const pending = p.totalAmount - received;
+      
+      return {
+        entryNo: p.invoiceNo,
+        date: p.purchaseDate,
+        total: p.totalAmount,
+        returned: 0,
+        received,
+        pending
+      };
+    });
+    
+    return bills;
+  }
+
+  async createSupplierPayment(data: {
+    paymentNo: string;
+    date: string;
+    supplierId: string;
+    amount: number;
+    paymentType: string;
+    reference?: string;
+    remarks?: string;
+  }) {
+    if (!data.supplierId) throw new BadRequestException('Supplier is required');
+    if (!data.paymentType) throw new BadRequestException('Payment Type is required');
+    if (!data.amount || data.amount <= 0) throw new BadRequestException('Amount must be greater than 0');
+
+    let paymentNo = data.paymentNo;
+    if (!paymentNo || paymentNo === 'Generating...') {
+      const nextNo = await this.getNextPaymentNo();
+      paymentNo = nextNo.paymentNo;
+    }
+
+    return this.prisma.canteenSupplierPayment.create({
+      data: {
+        paymentNo,
+        date: data.date ? new Date(data.date) : new Date(),
+        supplierId: data.supplierId,
+        amount: Number(data.amount),
+        paymentType: data.paymentType,
+        reference: data.reference,
+        remarks: data.remarks
+      },
+      include: {
+        supplier: true
+      }
     });
   }
 }

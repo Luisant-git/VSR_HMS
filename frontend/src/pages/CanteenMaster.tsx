@@ -10,7 +10,8 @@ import { PageHeader } from '../components/PageHeader';
 import { CanteenAPI } from '../api/canteen.api';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Pagination } from '../components/Pagination';
-
+import { CanteenSupplierPayments } from '../components/CanteenSupplierPayments';
+import * as XLSX from 'xlsx';
 interface PurchaseItemRow {
   productId: string;
   productName: string;
@@ -21,7 +22,7 @@ interface PurchaseItemRow {
 }
 
 export default function CanteenMaster() {
-  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'units' | 'suppliers' | 'payment-modes' | 'purchase-entry' | 'purchase-reports'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'units' | 'suppliers' | 'payment-modes' | 'purchase-entry' | 'purchase-reports' | 'supplier-payments'>('products');
 
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -450,6 +451,7 @@ export default function CanteenMaster() {
           { id: 'suppliers', label: 'Suppliers', icon: <Truck size={16} /> },
           { id: 'payment-modes', label: 'Payment Modes', icon: <CreditCard size={16} /> },
           { id: 'purchase-entry', label: 'Purchase Entry', icon: <ShoppingCart size={16} />, highlight: true },
+          { id: 'supplier-payments', label: 'Supplier Payments', icon: <FileText size={16} />, highlight: true },
           { id: 'purchase-reports', label: 'Purchase Reports', icon: <FileText size={16} /> }
         ].map(tab => (
           <button
@@ -481,8 +483,12 @@ export default function CanteenMaster() {
         ))}
       </div>
 
+      {activeTab === 'supplier-payments' && (
+        <CanteenSupplierPayments suppliers={suppliers} paymentModes={paymentModes} />
+      )}
+
       {/* POS-Suite360 Style Split Grid View for Masters */}
-      {activeTab !== 'purchase-entry' && activeTab !== 'purchase-reports' && (
+      {activeTab !== 'purchase-entry' && activeTab !== 'purchase-reports' && activeTab !== 'supplier-payments' && (
         <div style={{ display: 'grid', gridTemplateColumns: isFullTable ? '1fr' : '320px 1fr', gap: '20px', alignItems: 'start' }}>
 
           {/* POS-Suite360 Left Column: Master Form Panel */}
@@ -1173,11 +1179,68 @@ export default function CanteenMaster() {
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
               <input type="date" value={filterToDate} onChange={e => setFilterToDate(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none' }} />
             </div>
-            {(searchTerm || filterSupplier || filterPaymentMode || filterFromDate || filterToDate) && (
-              <button onClick={() => { setSearchTerm(''); setFilterSupplier(''); setFilterPaymentMode(''); setFilterFromDate(''); setFilterToDate(''); }} style={{ padding: '8px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Clear Filters">
-                <X size={16} />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(searchTerm || filterSupplier || filterPaymentMode || filterFromDate || filterToDate) && (
+                <button onClick={() => { setSearchTerm(''); setFilterSupplier(''); setFilterPaymentMode(''); setFilterFromDate(''); setFilterToDate(''); }} style={{ padding: '8px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', height: '34px', boxSizing: 'border-box' }} title="Clear Filters">
+                  <X size={16} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  let filtered = purchases;
+                  if (searchTerm) {
+                    const lower = searchTerm.toLowerCase();
+                    filtered = filtered.filter(p => p.invoiceNo.toLowerCase().includes(lower) || p.supplier?.name?.toLowerCase().includes(lower));
+                  }
+                  if (filterSupplier) filtered = filtered.filter(p => p.supplier?.id === filterSupplier);
+                  if (filterPaymentMode) filtered = filtered.filter(p => p.paymentMode?.name === filterPaymentMode || p.paymentMode?.id === filterPaymentMode);
+                  if (filterFromDate) filtered = filtered.filter(p => new Date(p.purchaseDate) >= new Date(filterFromDate));
+                  if (filterToDate) filtered = filtered.filter(p => new Date(p.purchaseDate) <= new Date(filterToDate));
+                  
+                  const exportData: any[] = filtered.map((p: any) => {
+                    const d = new Date(p.purchaseDate);
+                    const formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                    return {
+                      'Entry No': p.invoiceNo,
+                      'Purchase Date': formattedDate,
+                      'Supplier': p.supplier?.name || '-',
+                      'Payment Mode': p.paymentMode?.name || '-',
+                      'Total Items': p.items?.length || 0,
+                      'Total Amount': p.totalAmount
+                    };
+                  });
+                  
+                  const totalAmount = exportData.reduce((sum: number, row: any) => sum + (row['Total Amount'] || 0), 0);
+                  exportData.push({
+                    'Entry No': 'TOTAL',
+                    'Purchase Date': '',
+                    'Supplier': '',
+                    'Payment Mode': '',
+                    'Total Items': '',
+                    'Total Amount': totalAmount
+                  });
+                  const ws = XLSX.utils.json_to_sheet(exportData);
+                  
+                  // Set column widths to prevent visual overflow
+                  ws['!cols'] = [
+                    { wch: 18 }, // Entry No
+                    { wch: 15 }, // Purchase Date
+                    { wch: 30 }, // Supplier
+                    { wch: 18 }, // Payment Mode
+                    { wch: 15 }, // Total Items
+                    { wch: 15 }  // Total Amount
+                  ];
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, "Purchase Report");
+                  XLSX.writeFile(wb, "Purchase_Report.xlsx");
+                }}
+                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', padding: '0 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, height: '34px', boxSizing: 'border-box' }}
+                title="Export Excel"
+              >
+                Export Excel
               </button>
-            )}
+            </div>
           </div>
           
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>

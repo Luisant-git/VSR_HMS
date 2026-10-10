@@ -187,4 +187,30 @@ export const CanteenAPI = {
     });
     return handleResponse(res);
   },
+
+  // Supplier Payments
+  getSupplierPayments: async () => {
+    const res = await fetch(`${API_URL}/canteen/supplier-payments`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+  getNextSupplierPaymentNo: async () => {
+    const res = await fetch(`${API_URL}/canteen/supplier-payments/next-payment-no`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+  getSupplierBalance: async (supplierId: string) => {
+    const res = await fetch(`${API_URL}/canteen/supplier-payments/balance/${supplierId}`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+  getSupplierUnpaidBills: async (supplierId: string) => {
+    const res = await fetch(`${API_URL}/canteen/supplier-payments/unpaid-bills/${supplierId}`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+  createSupplierPayment: async (data: any) => {
+    const res = await fetch(`${API_URL}/canteen/supplier-payments`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
 };

@@ -173,4 +173,40 @@ export class CanteenController {
   deletePurchase(@Param('id') id: string) {
     return this.canteenService.deletePurchase(id);
   }
+
+  // ---------------------------------------------------------
+  // SUPPLIER PAYMENTS & PAYOUTS
+  // ---------------------------------------------------------
+  @Get('supplier-payments')
+  getSupplierPayments() {
+    return this.canteenService.getSupplierPayments();
+  }
+
+  @Get('supplier-payments/next-payment-no')
+  getNextPaymentNo() {
+    return this.canteenService.getNextPaymentNo();
+  }
+
+  @Get('supplier-payments/balance/:supplierId')
+  getSupplierBalance(@Param('supplierId') supplierId: string) {
+    return this.canteenService.getSupplierBalance(supplierId);
+  }
+
+  @Get('supplier-payments/unpaid-bills/:supplierId')
+  getUnpaidBills(@Param('supplierId') supplierId: string) {
+    return this.canteenService.getUnpaidBills(supplierId);
+  }
+
+  @Post('supplier-payments')
+  createSupplierPayment(@Body() body: {
+    paymentNo: string;
+    date: string;
+    supplierId: string;
+    amount: number;
+    paymentType: string;
+    reference?: string;
+    remarks?: string;
+  }) {
+    return this.canteenService.createSupplierPayment(body);
+  }
 }
