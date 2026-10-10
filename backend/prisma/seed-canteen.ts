@@ -14,7 +14,9 @@ async function seedCanteen() {
   console.log('Seeding fresh Canteen default data...');
 
   // 1. Seed default payment modes
-  const defaultModes = ['Cash', 'UPI', 'Credit', 'Bank Transfer'];
+  // Clean up existing payment modes first to ensure only Cash and Credit remain
+  await prisma.canteenPaymentMode.deleteMany({});
+  const defaultModes = ['Cash', 'Credit'];
   for (const name of defaultModes) {
     await prisma.canteenPaymentMode.upsert({
       where: { name },
