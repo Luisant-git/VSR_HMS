@@ -125,202 +125,202 @@ async function seedCanteen() {
   const sampleProducts = [
     {
       name: 'Ponni Boiled Rice',
-      code: 'GRC-RIC-01',
+      code: 'P000001',
       categoryName: 'Rice & Rice Products',
       unitName: 'Kilogram',
       price: 55,
       costPrice: 48,
-      stock: 100,
+
       status: 'Active'
     },
     {
       name: 'Raw Rice',
-      code: 'GRC-RIC-02',
+      code: 'P000002',
       categoryName: 'Rice & Rice Products',
       unitName: 'Kilogram',
       price: 50,
       costPrice: 44,
-      stock: 100,
+
       status: 'Active'
     },
     {
       name: 'Toor Dal',
-      code: 'GRC-DAL-01',
+      code: 'P000003',
       categoryName: 'Dals & Pulses',
       unitName: 'Kilogram',
       price: 150,
       costPrice: 130,
-      stock: 25,
+
       status: 'Active'
     },
     {
       name: 'Urad Dal',
-      code: 'GRC-DAL-02',
+      code: 'P000004',
       categoryName: 'Dals & Pulses',
       unitName: 'Kilogram',
       price: 120,
       costPrice: 105,
-      stock: 20,
+
       status: 'Active'
     },
     {
       name: 'Moong Dal',
-      code: 'GRC-DAL-03',
+      code: 'P000005',
       categoryName: 'Dals & Pulses',
       unitName: 'Kilogram',
       price: 120,
       costPrice: 105,
-      stock: 20,
+
       status: 'Active'
     },
     {
       name: 'Wheat Flour',
-      code: 'GRC-FLR-01',
+      code: 'P000006',
       categoryName: 'Flour & Rava',
       unitName: 'Kilogram',
       price: 45,
       costPrice: 38,
-      stock: 25,
+
       status: 'Active'
     },
     {
       name: 'Rava',
-      code: 'GRC-FLR-02',
+      code: 'P000007',
       categoryName: 'Flour & Rava',
       unitName: 'Kilogram',
       price: 50,
       costPrice: 42,
-      stock: 20,
+
       status: 'Active'
     },
     {
       name: 'Sunflower Oil',
-      code: 'GRC-OIL-01',
+      code: 'P000008',
       categoryName: 'Oils & Ghee',
       unitName: 'Liter',
       price: 150,
       costPrice: 135,
-      stock: 30,
+
       status: 'Active'
     },
     {
       name: 'Turmeric Powder',
-      code: 'GRC-SPC-01',
+      code: 'P000009',
       categoryName: 'Spices & Masala',
       unitName: 'Kilogram',
       price: 250,
       costPrice: 220,
-      stock: 5,
+
       status: 'Active'
     },
     {
       name: 'Chilli Powder',
-      code: 'GRC-SPC-02',
+      code: 'P000010',
       categoryName: 'Spices & Masala',
       unitName: 'Kilogram',
       price: 300,
       costPrice: 270,
-      stock: 5,
+
       status: 'Active'
     },
     {
       name: 'Onion',
-      code: 'GRC-VEG-01',
+      code: 'P000011',
       categoryName: 'Vegetables',
       unitName: 'Kilogram',
       price: 40,
       costPrice: 30,
-      stock: 25,
+
       status: 'Active'
     },
     {
       name: 'Tomato',
-      code: 'GRC-VEG-02',
+      code: 'P000012',
       categoryName: 'Vegetables',
       unitName: 'Kilogram',
       price: 35,
       costPrice: 25,
-      stock: 25,
+
       status: 'Active'
     },
     {
       name: 'Potato',
-      code: 'GRC-VEG-03',
+      code: 'P000013',
       categoryName: 'Vegetables',
       unitName: 'Kilogram',
       price: 35,
       costPrice: 28,
-      stock: 25,
+
       status: 'Active'
     },
     {
       name: 'Sugar',
-      code: 'GRC-ESS-01',
+      code: 'P000014',
       categoryName: 'Grocery Essentials',
       unitName: 'Kilogram',
       price: 50,
       costPrice: 44,
-      stock: 20,
+
       status: 'Active'
     },
     {
       name: 'Salt',
-      code: 'GRC-ESS-02',
+      code: 'P000015',
       categoryName: 'Grocery Essentials',
       unitName: 'Kilogram',
       price: 25,
       costPrice: 20,
-      stock: 15,
+
       status: 'Active'
     },
     {
       name: 'Tamarind',
-      code: 'GRC-ESS-03',
+      code: 'P000016',
       categoryName: 'Grocery Essentials',
       unitName: 'Kilogram',
       price: 180,
       costPrice: 150,
-      stock: 5,
+
       status: 'Active'
     },
     {
       name: 'Milk',
-      code: 'GRC-DAI-01',
+      code: 'P000017',
       categoryName: 'Dairy Products',
       unitName: 'Liter',
       price: 60,
       costPrice: 54,
-      stock: 20,
+
       status: 'Active'
     },
     {
       name: 'Tea Powder',
-      code: 'GRC-TEA-01',
+      code: 'P000018',
       categoryName: 'Tea & Coffee',
       unitName: 'Kilogram',
       price: 350,
       costPrice: 300,
-      stock: 5,
+
       status: 'Active'
     },
     {
       name: 'Coffee Powder',
-      code: 'GRC-TEA-02',
+      code: 'P000019',
       categoryName: 'Tea & Coffee',
       unitName: 'Kilogram',
       price: 450,
       costPrice: 400,
-      stock: 5,
+
       status: 'Active'
     },
     {
       name: 'Dishwash Liquid',
-      code: 'GRC-CLN-01',
+      code: 'P000020',
       categoryName: 'Cleaning Supplies',
       unitName: 'Liter',
       price: 120,
       costPrice: 95,
-      stock: 5,
+
       status: 'Active'
     }
   ];
@@ -337,7 +337,7 @@ async function seedCanteen() {
         unitId: uId,
         price: p.price,
         costPrice: p.costPrice,
-        stock: p.stock,
+
         status: p.status
       }
     });

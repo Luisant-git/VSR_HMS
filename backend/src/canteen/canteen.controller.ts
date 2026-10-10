@@ -115,7 +115,6 @@ export class CanteenController {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    stock?: number;
     status?: string;
   }) {
     return this.canteenService.createProduct(body);
@@ -130,7 +129,6 @@ export class CanteenController {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    stock?: number;
     status?: string;
   }) {
     return this.canteenService.updateProduct(id, body);

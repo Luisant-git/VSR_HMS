@@ -331,7 +331,6 @@ model CanteenProduct {
   unit          CanteenUnit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
   price         Float                 @default(0.0)
   costPrice     Float                 @default(0.0)
-  stock         Float                 @default(0.0)
   status        String                @default("Active")
   purchaseItems CanteenPurchaseItem[]
   createdAt     DateTime              @default(now())

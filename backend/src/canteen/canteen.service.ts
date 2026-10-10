@@ -207,7 +207,6 @@ export class CanteenService {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    stock?: number;
     status?: string;
   }) {
     if (!data.name || data.name.trim() === '') {
@@ -241,7 +240,6 @@ export class CanteenService {
         unitId: data.unitId || null,
         price: data.price !== undefined ? Number(data.price) : 0.0,
         costPrice: data.costPrice !== undefined ? Number(data.costPrice) : 0.0,
-        stock: data.stock !== undefined ? Number(data.stock) : 0.0,
         status: data.status || 'Active'
       },
       include: {
@@ -258,7 +256,6 @@ export class CanteenService {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    stock?: number;
     status?: string;
   }) {
     const existing = await this.prisma.canteenProduct.findUnique({ where: { id } });
@@ -279,7 +276,6 @@ export class CanteenService {
         unitId: data.unitId !== undefined ? (data.unitId || null) : undefined,
         price: data.price !== undefined ? Number(data.price) : undefined,
         costPrice: data.costPrice !== undefined ? Number(data.costPrice) : undefined,
-        stock: data.stock !== undefined ? Number(data.stock) : undefined,
         status: data.status !== undefined ? data.status : undefined,
       },
       include: {
@@ -396,7 +392,6 @@ export class CanteenService {
           await tx.canteenProduct.update({
             where: { id: item.productId },
             data: {
-              stock: { increment: Number(item.qty) || 0 },
               costPrice: Number(item.price) || 0
             }
           });
@@ -417,12 +412,7 @@ export class CanteenService {
     return this.prisma.$transaction(async (tx: any) => {
       for (const item of purchase.items) {
         if (item.productId) {
-          await tx.canteenProduct.update({
-            where: { id: item.productId },
-            data: {
-              stock: { decrement: item.qty }
-            }
-          });
+          // No longer tracking stock
         }
       }
       return tx.canteenPurchase.delete({ where: { id } });

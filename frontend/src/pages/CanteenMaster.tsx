@@ -122,7 +122,7 @@ export default function CanteenMaster() {
     .map(p => ({
       value: p.id,
       label: p.code ? `${p.code} - ${p.name}` : p.name,
-      sublabel: `₹${p.price} | Stock: ${p.stock}`
+      sublabel: `₹${p.price}`
     }));
 
   const purchaseUnitOptions = [
@@ -658,16 +658,6 @@ export default function CanteenMaster() {
                           style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none' }}
                         />
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Current Stock</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={formData.stock || 0}
-                          onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })}
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none' }}
-                        />
-                      </div>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Status</label>
@@ -825,7 +815,6 @@ export default function CanteenMaster() {
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Category</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Unit</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Price (₹)</th>
-                        <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Stock</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Status</th>
                       </>
                     )}
@@ -856,7 +845,6 @@ export default function CanteenMaster() {
                       <td style={{ padding: '10px 14px' }}><span style={{ background: '#E0F2FE', color: '#0369A1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>{p.category?.name || '-'}</span></td>
                       <td style={{ padding: '10px 14px' }}><span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{p.unit?.name ? `${p.unit.name}${p.unit.symbol ? ` (${p.unit.symbol})` : ''}` : '-'}</span></td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#16A34A' }}>₹{p.price}</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 700 }}>{p.stock} {p.unit?.symbol || ''}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: p.status === 'Inactive' ? '#EF4444' : '#16A34A', background: p.status === 'Inactive' ? '#FEF2F2' : '#F0FDF4' }}>
                           {p.status || 'Active'}
@@ -954,7 +942,7 @@ export default function CanteenMaster() {
           <div style={{ background: '#F8FAFC', padding: '20px', borderBottom: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShoppingCart color="#10b981" size={22} /> Purchase Entry (Stock Inward)
+                <ShoppingCart color="#10b981" size={22} /> Purchase Entry
               </h3>
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -1287,10 +1275,6 @@ export default function CanteenMaster() {
                     <input type="number" step="any" value={formData.price || 0} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Current Stock</label>
-                    <input type="number" step="any" value={formData.stock || 0} onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                  </div>
-                  <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Status</label>
                     <SearchableSelect
                       options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]}
@@ -1468,12 +1452,6 @@ export default function CanteenMaster() {
                   <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', alignItems: 'center' }}>
                     <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Price</span>
                     <span style={{ color: '#16a34a', fontSize: '14px', fontWeight: 800 }}>₹{viewMasterItem.price}</span>
-                  </div>
-                )}
-                {viewMasterItem.stock !== undefined && viewMasterType === 'Product' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', alignItems: 'center' }}>
-                    <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Current Stock</span>
-                    <span style={{ color: '#0f172a', fontSize: '14px', fontWeight: 700 }}>{viewMasterItem.stock} {viewMasterItem.unit?.symbol || ''}</span>
                   </div>
                 )}
                 {viewMasterType === 'Product' && (
