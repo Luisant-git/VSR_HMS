@@ -849,7 +849,7 @@ export default function CanteenMaster() {
                       <td style={{ padding: '10px 14px', fontWeight: 700 }}>{p.code || '-'}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{p.name}</td>
                       <td style={{ padding: '10px 14px' }}><span style={{ background: '#E0F2FE', color: '#0369A1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>{p.category?.name || '-'}</span></td>
-                      <td style={{ padding: '10px 14px' }}><span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{p.unit?.name ? `${p.unit.name}${p.unit.symbol ? ` (${p.unit.symbol})` : ''}` : '-'}</span></td>
+                      <td style={{ padding: '10px 14px' }}><span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{p.unit?.symbol || p.unit?.name || '-'}</span></td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#16A34A' }}>₹{p.price}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: p.status === 'Inactive' ? '#EF4444' : '#16A34A', background: p.status === 'Inactive' ? '#FEF2F2' : '#F0FDF4' }}>
