@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Save, Maximize2, Minimize2, Filter, Printer, Download } from 'lucide-react';
+import { FileText, Save, Maximize2, Minimize2, Filter, Printer, Download, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { CanteenAPI } from '../api/canteen.api';
+import { SearchableSelect } from './SearchableSelect';
+import { Pagination } from './Pagination';
 
 interface CanteenSupplierPaymentsProps {
   suppliers: any[];
@@ -33,6 +35,8 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
@@ -172,8 +176,12 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
     if (filterSupplier && p.supplierId !== filterSupplier) return false;
     if (filterFromDate && new Date(p.date) < new Date(filterFromDate)) return false;
     if (filterToDate && new Date(p.date) > new Date(filterToDate)) return false;
+    if (filterToDate && new Date(p.date) > new Date(filterToDate)) return false;
     return true;
   });
+
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedHistory = filteredHistory.slice(startIndex, startIndex + pageSize);
 
   const handleExportExcel = () => {
     const exportData: any[] = filteredHistory.map((p: any) => {
@@ -255,14 +263,6 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
             <p style={{ margin: '4px 0 0 0', color: '#64748B', fontSize: '13px' }}>
               Record vendor credit payouts and supplier payments
             </p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button style={{ padding: '8px 16px', backgroundColor: '#EFF6FF', color: '#3B82F6', border: '1px solid #BFDBFE', borderRadius: '4px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}>
-              Purchase Hub
-            </button>
-            <button style={{ padding: '8px 16px', backgroundColor: '#FEF2F2', color: '#E11D48', border: '1px solid #FECDD3', borderRadius: '4px', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-              <span>✕</span> Close
-            </button>
           </div>
         </div>
       )}
@@ -528,48 +528,65 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
             </div>
           </div>
 
-          <div style={{ padding: '12px', borderBottom: '1px solid #E2E8F0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-            <select
-              value={filterSupplier}
-              onChange={(e) => setFilterSupplier(e.target.value)}
-              style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '12px', outline: 'none' }}
-            >
-              <option value="">-- All Suppliers --</option>
-              {suppliers.map((s: any) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <input
-              type="date"
-              value={filterFromDate}
-              onChange={(e) => setFilterFromDate(e.target.value)}
-              style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
-            />
-            <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ padding: '16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>Show</label>
+              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', cursor: 'pointer', backgroundColor: 'white' }}>
+                <option value={10}>10 Entries</option>
+                <option value={25}>25 Entries</option>
+                <option value={50}>50 Entries</option>
+                <option value={100}>100 Entries</option>
+              </select>
+            </div>
+            <div style={{ width: '250px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>Supplier</label>
+              <SearchableSelect
+                options={suppliers.map((s: any) => ({ value: s.id, label: s.name }))}
+                value={filterSupplier}
+                onChange={setFilterSupplier}
+                placeholder="All Suppliers"
+              />
+            </div>
+            <div style={{ width: '130px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>From Date</label>
+              <input
+                type="date"
+                value={filterFromDate}
+                onChange={(e) => setFilterFromDate(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ width: '130px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>To Date</label>
               <input
                 type="date"
                 value={filterToDate}
                 onChange={(e) => setFilterToDate(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: '6px', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
               />
-              <button 
-                type="button"
-                onClick={() => {
-                  setFilterSupplier('');
-                  setFilterFromDate('');
-                  setFilterToDate('');
-                }}
-                style={{ backgroundColor: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1', borderRadius: '4px', padding: '0 12px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                Clear
-              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(filterSupplier || filterFromDate || filterToDate) && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setFilterSupplier('');
+                    setFilterFromDate('');
+                    setFilterToDate('');
+                  }}
+                  style={{ padding: '8px', borderRadius: '6px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', height: '34px', boxSizing: 'border-box' }}
+                  title="Clear Filters"
+                >
+                  <X size={16} />
+                </button>
+              )}
               <button 
                 type="button" 
                 onClick={handleExportExcel}
-                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '4px', padding: '0 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
                 title="Export Excel"
               >
-                <Download size={14} />
+                <Download size={16} />
               </button>
             </div>
           </div>
@@ -589,10 +606,10 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
               <tbody>
                 {historyLoading ? (
                   <tr><td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: '#64748B' }}>Loading history...</td></tr>
-                ) : filteredHistory.length === 0 ? (
+                ) : paginatedHistory.length === 0 ? (
                   <tr><td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: '#64748B' }}>No payment records found.</td></tr>
                 ) : (
-                  filteredHistory.map((p: any, idx: number) => {
+                  paginatedHistory.map((p: any, idx: number) => {
                     let userRemarks = p.remarks;
                     let billsPaid: any[] = [];
                     let balanceAfter: number | null = null;
@@ -676,6 +693,17 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
                 )}
               </tbody>
             </table>
+          </div>
+          
+          <div style={{ padding: '8px 12px', borderTop: '1px solid #E2E8F0', backgroundColor: 'white' }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(filteredHistory.length / pageSize)}
+              totalItems={filteredHistory.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setPageSize}
+            />
           </div>
         </div>
       </div>

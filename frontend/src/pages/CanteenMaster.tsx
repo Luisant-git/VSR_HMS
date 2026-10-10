@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Package, Tag, Scale, Truck, CreditCard,
   ShoppingCart, FileText, Plus, Edit, Trash2, Search, CheckCircle,
-  X, Eye, RefreshCw, PlusCircle, RotateCcw, List, Grid, Maximize, Minimize
+  X, Eye, RefreshCw, PlusCircle, RotateCcw, List, Grid, Maximize, Minimize, Download
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
@@ -1156,6 +1156,15 @@ export default function CanteenMaster() {
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
           {/* Purchase Reports Filters */}
           <div style={{ padding: '16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>Show</label>
+              <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '13px', outline: 'none', cursor: 'pointer', backgroundColor: 'white' }}>
+                <option value={10}>10 Entries</option>
+                <option value={25}>25 Entries</option>
+                <option value={50}>50 Entries</option>
+                <option value={100}>100 Entries</option>
+              </select>
+            </div>
             <div style={{ flex: 1, minWidth: '150px' }}>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, color: '#1F2937', marginBottom: '4px', textTransform: 'uppercase' }}>Search</label>
               <div style={{ position: 'relative' }}>
@@ -1235,10 +1244,10 @@ export default function CanteenMaster() {
                   XLSX.utils.book_append_sheet(wb, ws, "Purchase Report");
                   XLSX.writeFile(wb, "Purchase_Report.xlsx");
                 }}
-                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', padding: '0 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 600, height: '34px', boxSizing: 'border-box' }}
+                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
                 title="Export Excel"
               >
-                Export Excel
+                <Download size={16} />
               </button>
             </div>
           </div>

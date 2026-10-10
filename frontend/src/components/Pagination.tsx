@@ -14,7 +14,8 @@ export const Pagination: React.FC<PaginationProps> = ({
   totalPages,
   totalItems,
   itemsPerPage,
-  onPageChange
+  onPageChange,
+  onItemsPerPageChange
 }) => {
   if (totalItems === 0) return null;
 
@@ -24,6 +25,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        {/* Show entries removed from bottom per user request */}
         <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
           Showing {startItem} to {endItem} of {totalItems} entries
         </div>
