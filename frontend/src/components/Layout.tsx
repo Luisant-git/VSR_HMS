@@ -140,28 +140,32 @@ const Layout = () => {
             </NavLink>
           )}
 
+          {(!permissions || permissions.colleges === true || permissions.canteen_master === true) && (
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>MASTER</div>
+          )}
           {(!permissions || permissions.colleges === true) && (
-            <>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ADMINISTRATION</div>
-              <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <div className="nav-icon"><Building2 size={18} /></div>
-                College Master
-              </NavLink>
-              <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <div className="nav-icon"><Utensils size={18} /></div>
-                Canteen Master
-              </NavLink>
-            </>
+            <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Building2 size={18} /></div>
+              College Master
+            </NavLink>
+          )}
+          {(!permissions || permissions.canteen_master === true) && (
+            <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Utensils size={18} /></div>
+              Canteen Master
+            </NavLink>
           )}
 
-          {(!permissions || permissions.fine_master === true || permissions.mess_deduction === true || permissions.user_management === true || permissions.menu_permission === true) && (
+          {(!permissions || permissions.fine_master === true || permissions.mess_deduction === true || permissions.user_management === true || permissions.menu_permission === true || permissions.system_settings === true) && (
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>SETTINGS</div>
           )}
           
-          <NavLink to="/settings/system-settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Settings size={18} /></div>
-            System Settings
-          </NavLink>
+          {(!permissions || permissions.system_settings === true) && (
+            <NavLink to="/settings/system-settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Settings size={18} /></div>
+              System Settings
+            </NavLink>
+          )}
 
           {(!permissions || permissions.fine_master === true) && (
             <NavLink to="/settings/fine-master" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>

@@ -50,6 +50,15 @@ const MenuPermission = () => {
       outpass: false,
       late_warnings: false,
       colleges: false,
+      canteen_master: false,
+      canteen_products: false,
+      canteen_categories: false,
+      canteen_units: false,
+      canteen_suppliers: false,
+      canteen_payment_modes: false,
+      canteen_purchase_entry: false,
+      canteen_purchase_reports: false,
+      canteen_supplier_payments: false,
       fine_master: false,
       mess_deduction: false,
       user_management: false,
@@ -136,27 +145,37 @@ const MenuPermission = () => {
                           {(() => {
                             if (!perm?.permissions) return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
                             
-                            const moduleMap: any = {
-                              dashboard: 'Dashboard', hostellers: 'Hostellers', student_register: 'Student Register',
-                              hostel_blocks: 'Hostel Blocks', rooms_master: 'Rooms Directory', fees: 'Fees', gate_logs: 'Gate Logs', eb_bills: 'EB Bills',
-                              clearance: 'Clearance', outpass: 'Outpass', late_warnings: 'Late Warnings',
-                              colleges: 'College Master', fine_master: 'Fine Master', mess_deduction: 'Mess Deduction', 
-                              user_management: 'User Management', menu_permission: 'Menu Config'
-                            };
+                            const allKeys = [
+                              'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                              'hostel_blocks', 'rooms_master', 'eb_bills',
+                              'colleges', 'canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                              'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
+                            ];
 
-                            const allowed = Object.entries(perm.permissions).filter(([key, val]) => val === true && moduleMap[key]);
+                            const allowedKeys = Object.entries(perm.permissions).filter(([key, val]) => val === true && allKeys.includes(key)).map(([k]) => k);
                             
-                            if (allowed.length === Object.keys(moduleMap).length) {
+                            if (allowedKeys.length === allKeys.length) {
                               return <span style={{ background: '#dcfce7', color: '#166534', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>All Modules Access</span>;
                             }
 
-                            if (allowed.length === 0) {
+                            if (allowedKeys.length === 0) {
                               return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
                             }
 
-                            return allowed.map(([key]) => (
-                              <span key={key} style={{ background: '#eef2ff', color: '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                                {moduleMap[key]}
+                            const parentCats = [
+                              { name: 'Dashboard', keys: ['dashboard'] },
+                              { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'] },
+                              { name: 'Rooms', keys: ['hostel_blocks', 'rooms_master', 'eb_bills'] },
+                              { name: 'College Master', keys: ['colleges'] },
+                              { name: 'Canteen Master', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'] },
+                              { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'] }
+                            ];
+
+                            const activeParents = parentCats.filter(cat => cat.keys.some(k => perm.permissions[k] === true));
+
+                            return activeParents.map(cat => (
+                              <span key={cat.name} style={{ background: '#eef2ff', color: '#4f46e5', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
+                                {cat.name}
                               </span>
                             ));
                           })()}
@@ -189,7 +208,38 @@ const MenuPermission = () => {
             </div>
             
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Select which modules this role is allowed to access.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Select which modules this role is allowed to access.</p>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', background: '#f1f5f9', padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={
+                      ['dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                       'hostel_blocks', 'rooms_master', 'eb_bills',
+                       'colleges', 'canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                       'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'].every(id => editData[id])
+                    } 
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      const allKeys = [
+                        'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                        'hostel_blocks', 'rooms_master', 'eb_bills',
+                        'colleges', 'canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                        'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
+                      ];
+                      setEditData((prev: any) => {
+                        const next = { ...prev };
+                        allKeys.forEach(id => {
+                          next[id] = isChecked;
+                        });
+                        return next;
+                      });
+                    }} 
+                    style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} 
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>Select All Modules</span>
+                </label>
+              </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingLeft: '8px' }}>
                 
@@ -255,21 +305,41 @@ const MenuPermission = () => {
                   </div>
                 </div>
 
-                {/* Administration */}
+                {/* Master */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['colleges'].every(id => editData[id])} onChange={() => toggleGroup(['colleges'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Administration</span>
+                    <input type="checkbox" checked={['colleges', 'canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'].every(id => editData[id])} onChange={() => toggleGroup(['colleges', 'canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Master</span>
                   </label>
-                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {[
-                      { id: 'colleges', label: 'College Master' }
-                    ].map(module => (
-                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['colleges'] || false} onChange={() => togglePermission('colleges')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>College Master</span>
+                    </label>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'].every(id => editData[id])} onChange={() => toggleGroup(['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Canteen Master</span>
                       </label>
-                    ))}
+                      <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {[
+                          { id: 'canteen_products', label: 'Products' },
+                          { id: 'canteen_categories', label: 'Categories' },
+                          { id: 'canteen_units', label: 'Units' },
+                          { id: 'canteen_suppliers', label: 'Suppliers' },
+                          { id: 'canteen_payment_modes', label: 'Payment Modes' },
+                          { id: 'canteen_purchase_entry', label: 'Purchase Entry' },
+                          { id: 'canteen_purchase_reports', label: 'Purchase Reports' },
+                          { id: 'canteen_supplier_payments', label: 'Supplier Payments' }
+                        ].map(module => (
+                          <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                            <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

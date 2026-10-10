@@ -24,6 +24,45 @@ interface PurchaseItemRow {
 export default function CanteenMaster() {
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'units' | 'suppliers' | 'payment-modes' | 'purchase-entry' | 'purchase-reports' | 'supplier-payments'>('products');
 
+  const [permissions, setPermissions] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.role) {
+          import('../api/menuPermission.api').then(({ MenuPermissionAPI }) => {
+            MenuPermissionAPI.getByRole(payload.role).then(res => {
+              if (res) {
+                setPermissions(res.permissions || res);
+              }
+            });
+          });
+        }
+      }
+    } catch (e) { }
+  }, []);
+
+  useEffect(() => {
+    if (permissions) {
+      const availableTabs = [
+        { id: 'products', permKey: 'canteen_products' },
+        { id: 'categories', permKey: 'canteen_categories' },
+        { id: 'units', permKey: 'canteen_units' },
+        { id: 'suppliers', permKey: 'canteen_suppliers' },
+        { id: 'payment-modes', permKey: 'canteen_payment_modes' },
+        { id: 'purchase-entry', permKey: 'canteen_purchase_entry' },
+        { id: 'supplier-payments', permKey: 'canteen_supplier_payments' },
+        { id: 'purchase-reports', permKey: 'canteen_purchase_reports' }
+      ].filter(t => permissions[t.permKey] === true);
+
+      if (availableTabs.length > 0 && !availableTabs.find(t => t.id === activeTab)) {
+        setActiveTab(availableTabs[0].id as any);
+      }
+    }
+  }, [permissions, activeTab]);
+
   // Loading states
   const [loading, setLoading] = useState(false);
 
@@ -445,15 +484,15 @@ export default function CanteenMaster() {
       {/* POS-Suite360 Style Tab Navigation Header */}
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '20px', borderBottom: '2px solid #e2e8f0' }}>
         {[
-          { id: 'products', label: 'Products Master', icon: <Package size={16} /> },
-          { id: 'categories', label: 'Categories', icon: <Tag size={16} /> },
-          { id: 'units', label: 'Units', icon: <Scale size={16} /> },
-          { id: 'suppliers', label: 'Suppliers', icon: <Truck size={16} /> },
-          { id: 'payment-modes', label: 'Payment Modes', icon: <CreditCard size={16} /> },
-          { id: 'purchase-entry', label: 'Purchase Entry', icon: <ShoppingCart size={16} />, highlight: true },
-          { id: 'supplier-payments', label: 'Supplier Payments', icon: <FileText size={16} />, highlight: true },
-          { id: 'purchase-reports', label: 'Purchase Reports', icon: <FileText size={16} /> }
-        ].map(tab => (
+          { id: 'products', label: 'Products Master', icon: <Package size={16} />, permKey: 'canteen_products' },
+          { id: 'categories', label: 'Categories', icon: <Tag size={16} />, permKey: 'canteen_categories' },
+          { id: 'units', label: 'Units', icon: <Scale size={16} />, permKey: 'canteen_units' },
+          { id: 'suppliers', label: 'Suppliers', icon: <Truck size={16} />, permKey: 'canteen_suppliers' },
+          { id: 'payment-modes', label: 'Payment Modes', icon: <CreditCard size={16} />, permKey: 'canteen_payment_modes' },
+          { id: 'purchase-entry', label: 'Purchase Entry', icon: <ShoppingCart size={16} />, highlight: true, permKey: 'canteen_purchase_entry' },
+          { id: 'supplier-payments', label: 'Supplier Payments', icon: <FileText size={16} />, highlight: true, permKey: 'canteen_supplier_payments' },
+          { id: 'purchase-reports', label: 'Purchase Reports', icon: <FileText size={16} />, permKey: 'canteen_purchase_reports' }
+        ].filter(tab => !permissions || permissions[tab.permKey] === true).map(tab => (
           <button
             key={tab.id}
             onClick={() => {
