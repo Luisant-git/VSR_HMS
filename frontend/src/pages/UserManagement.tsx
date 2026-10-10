@@ -3,6 +3,7 @@ import { Plus, SquarePen, CheckCircle, XCircle, X, Trash2 } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -87,7 +88,17 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (user: any) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name} (${user.email})?`)) {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete ${user.name} (${user.email})?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         await UserAPI.delete(user.id);
         toast.success('User deleted successfully');
