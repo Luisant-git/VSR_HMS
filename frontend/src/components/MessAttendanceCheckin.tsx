@@ -12,12 +12,13 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState<string | null>(null);
 
-  // Meal configurations with refined modern palettes
+  // Meal configurations with end times and sequential unlock
   const meals = [
     {
       name: 'Breakfast',
-      start: 9.0, end: 11.5,
-      displayTime: '09:00 AM - 11:30 AM',
+      unlock: 0,
+      end: 12.0,
+      displayTime: 'Until 12:00 PM',
       icon: Coffee,
       accentColor: '#f97316',
       gradient: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
@@ -26,8 +27,9 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
     },
     {
       name: 'Lunch',
-      start: 13.5, end: 15.0,
-      displayTime: '01:30 PM - 03:00 PM',
+      unlock: 12.0,
+      end: 15.0,
+      displayTime: 'Until 03:00 PM',
       icon: UtensilsCrossed,
       accentColor: '#ec4899',
       gradient: 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
@@ -36,8 +38,9 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
     },
     {
       name: 'Evening Snacks',
-      start: 17.0, end: 19.0,
-      displayTime: '05:00 PM - 07:00 PM',
+      unlock: 15.0,
+      end: 19.0,
+      displayTime: 'Until 07:00 PM',
       icon: Pizza,
       accentColor: '#eab308',
       gradient: 'linear-gradient(135deg, #facc15 0%, #ca8a04 100%)',
@@ -46,8 +49,9 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
     },
     {
       name: 'Dinner',
-      start: 20.5, end: 22.0,
-      displayTime: '08:30 PM - 10:00 PM',
+      unlock: 19.0,
+      end: 22.0,
+      displayTime: 'Until 10:00 PM',
       icon: Soup,
       accentColor: '#0ea5e9',
       gradient: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)',
@@ -322,7 +326,7 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
         {meals.map(meal => {
           const markedRecord = attendances.find(a => a.mealType === meal.name);
           const isMarked = !!markedRecord;
-          const isBeforeTime = timeValue < meal.start;
+          const isBeforeTime = timeValue < meal.unlock;
           const isTimeOver = timeValue > meal.end;
           const isAvailableNow = !isBeforeTime && !isTimeOver;
           const MealIcon = meal.icon;
