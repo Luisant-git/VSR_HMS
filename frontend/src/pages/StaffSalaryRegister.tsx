@@ -91,8 +91,8 @@ export default function StaffSalaryRegister() {
       backgroundColor: state.isSelected
         ? '#15803d'
         : state.isFocused
-        ? '#f0fdf4'
-        : 'white',
+          ? '#f0fdf4'
+          : 'white',
       color: state.isSelected ? 'white' : '#0f172a',
       cursor: 'pointer'
     }),
