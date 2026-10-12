@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Clock, Check, X, Search,
-  RefreshCw, CheckCircle2, AlertCircle, Calendar
+  RefreshCw, CheckCircle2, AlertCircle, Calendar, Phone
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
@@ -272,6 +272,12 @@ export default function StaffAttendance() {
 
         .data-table tr:hover td {
           background: #f8fafc;
+        }
+
+        .staff-code-badge {
+          color: var(--sidebar-active);
+          font-weight: 700;
+          font-size: 13px;
         }
 
         .designation-badge {
@@ -676,6 +682,7 @@ export default function StaffAttendance() {
         <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
+              <th>STAFF CODE</th>
               <th>STAFF MEMBER</th>
               <th>DESIGNATION</th>
               <th>CHECK-IN TIME</th>
@@ -687,13 +694,13 @@ export default function StaffAttendance() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
                   Loading Attendance Roster...
                 </td>
               </tr>
             ) : paginatedRoster.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
                   <Users size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
                   <div style={{ fontWeight: 600, color: '#334155' }}>No staff attendance records found</div>
                   <div style={{ fontSize: '12px', marginTop: '4px' }}>All active staff members appear here automatically for the selected date.</div>
@@ -715,10 +722,15 @@ export default function StaffAttendance() {
                 return (
                   <tr key={item.staffId}>
                     <td>
+                      <span className="staff-code-badge">{item.staffCode}</span>
+                    </td>
+                    <td>
                       <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.name}</div>
-                      <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
-                        {item.staffCode}
-                      </div>
+                      {item.phone && (
+                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                          <Phone size={11} /> {item.phone}
+                        </div>
+                      )}
                     </td>
 
                     <td>
