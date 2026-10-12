@@ -42,13 +42,7 @@ export default function StaffAttendance() {
       const data = await StaffAPI.getAttendanceRoster(selectedDate);
       setRoster(data || []);
     } catch (err: any) {
-      console.error(err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error Loading Attendance',
-        text: err.message || 'Could not fetch attendance roster',
-        confirmButtonColor: '#2563eb'
-      });
+      console.error('Failed to fetch attendance roster:', err);
     } finally {
       setLoading(false);
     }

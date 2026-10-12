@@ -412,6 +412,7 @@ model Staff {
   status      String    @default("Active") // "Active", "Inactive"
   notes       String?
   attendances StaffAttendance[]
+  salaries    StaffSalary[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -432,6 +433,31 @@ model StaffAttendance {
   updatedAt    DateTime  @updatedAt
 
   @@unique([staffId, dateStr])
+}
+
+// ---------------------------------------------------------
+// Staff Monthly Salary Disbursement
+// ---------------------------------------------------------
+model StaffSalary {
+  id                String    @id @default(uuid())
+  salaryCode        String    @unique // e.g. SAL-202610-001
+  staffId           String
+  staff             Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  salaryMonth       String    // Format: YYYY-MM (e.g. "2026-10")
+  year              Int       // e.g. 2026
+  month             String    // e.g. "October"
+  baseSalary        Float     // Base salary snapshot
+  bonus             Float     @default(0.0) // Bonus / Overtime (₹)
+  deductions        Float     @default(0.0) // Deductions (₹)
+  netAmount         Float     // Net Amount Disbursed = baseSalary + bonus - deductions
+  paymentDate       DateTime  @default(now())
+  paymentMode       String    @default("Direct Bank Transfer") // Direct Bank Transfer, Cash, UPI
+  remarks           String?
+  createdBy         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([staffId, salaryMonth])
 }
 
 

@@ -21,6 +21,7 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CanteenModule } from './canteen/canteen.module';
 import { MessAttendanceModule } from './mess-attendance/mess-attendance.module';
 import { StaffModule } from './staff/staff.module';
+import { StaffSalaryModule } from './staff-salary/staff-salary.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { StaffModule } from './staff/staff.module';
     SystemSettingsModule,
     CanteenModule,
     MessAttendanceModule,
-    StaffModule
+    StaffModule,
+    StaffSalaryModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],

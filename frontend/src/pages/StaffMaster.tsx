@@ -158,13 +158,7 @@ export default function StaffMaster() {
       const data = await StaffAPI.getAll();
       setStaffList(data || []);
     } catch (err: any) {
-      console.error(err);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error Loading Staff',
-        text: err.message || err.response?.data?.message || 'Could not fetch staff directory',
-        confirmButtonColor: '#2563eb'
-      });
+      console.error('Failed to load staff directory:', err);
     } finally {
       setLoading(false);
     }
