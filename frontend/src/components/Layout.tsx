@@ -149,6 +149,10 @@ const Layout = () => {
               College Master
             </NavLink>
           )}
+          <NavLink to="/staff" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <div className="nav-icon"><Users size={18} /></div>
+            Staff Master
+          </NavLink>
           {(!permissions || permissions.canteen_master === true) && (
             <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Utensils size={18} /></div>

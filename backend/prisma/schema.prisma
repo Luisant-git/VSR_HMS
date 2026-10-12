@@ -395,3 +395,23 @@ model MessAttendance {
   
   @@unique([studentId, dateStr, mealType])
 }
+
+// ---------------------------------------------------------
+// Staff Master Data
+// ---------------------------------------------------------
+model Staff {
+  id          String    @id @default(uuid())
+  staffCode   String    @unique // e.g. STF-001, STF-005
+  name        String    // Full Name
+  joiningDate DateTime  @default(now())
+  role        String    // e.g. Gate Security Guard, Warden, Canteen Cook
+  phone       String?   // Mobile Phone
+  email       String?   // Email (Optional)
+  salaryBasis String    @default("Monthly Fixed") // "Monthly Fixed", "Daily Wage", "Hourly Rate"
+  baseSalary  Float     @default(0.0) // Base Salary (₹)
+  status      String    @default("Active") // "Active", "Inactive"
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+

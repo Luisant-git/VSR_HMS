@@ -20,6 +20,7 @@ import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CanteenModule } from './canteen/canteen.module';
 import { MessAttendanceModule } from './mess-attendance/mess-attendance.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -40,7 +41,8 @@ import { MessAttendanceModule } from './mess-attendance/mess-attendance.module';
     MessDeductionModule,
     SystemSettingsModule,
     CanteenModule,
-    MessAttendanceModule
+    MessAttendanceModule,
+    StaffModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],
