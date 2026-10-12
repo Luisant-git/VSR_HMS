@@ -1,16 +1,33 @@
-import axios from 'axios';
-
 const API_URL = `${import.meta.env.VITE_API_URL}/system-settings`;
 
+const getHeaders = () => {
+  const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
 export const getSystemSettings = async () => {
-  const response = await axios.get(API_URL);
-  return response.data;
+  const response = await fetch(API_URL, {
+    headers: getHeaders()
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Failed to fetch system settings');
+  }
+  return response.json();
 };
 
 export const updateSystemSettings = async (data: any) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-  const response = await axios.post(API_URL, data, {
-    headers: { Authorization: `Bearer ${token}` }
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data)
   });
-  return response.data;
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Failed to update system settings');
+  }
+  return response.json();
 };

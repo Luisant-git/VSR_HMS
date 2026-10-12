@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Coffee, Sun, Sunset, Moon, FileText } from 'lucide-react';
+import { MessAttendanceAPI, type MessAttendanceReportItem } from '../api/mess-attendance.api';
 
 export const MessAttendanceReport: React.FC = () => {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<MessAttendanceReportItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReports = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/mess-attendance/reports`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setReports(res.data);
+      const data = await MessAttendanceAPI.getReports();
+      setReports(data);
     } catch (err) {
       console.error(err);
     } finally {

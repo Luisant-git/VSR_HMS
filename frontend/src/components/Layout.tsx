@@ -149,7 +149,7 @@ const Layout = () => {
               College Master
             </NavLink>
           )}
-          <NavLink to="/staff" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/staff" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Users size={18} /></div>
             Staff Master
           </NavLink>

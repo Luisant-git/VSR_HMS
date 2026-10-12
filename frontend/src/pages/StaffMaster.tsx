@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
 import {
-  Users, UserPlus, Search, Edit2, Trash2, CheckCircle2,
-  X, Calendar, Phone, Mail, DollarSign,
-  ShieldCheck, RefreshCw, Check, Eye
+  Users, UserPlus, Search, Edit2, Trash2,
+  X, Phone, DollarSign,
+  ShieldCheck, RefreshCw, Check, Eye, Clock
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { PageHeader } from '../components/PageHeader';
 import { StaffAPI, type StaffMember } from '../api/staff.api';
 
 const STANDARD_ROLES = [
@@ -27,6 +29,95 @@ const SALARY_BASIS_OPTIONS = [
   'Hourly Rate'
 ];
 
+const roleFilterOptions = [
+  { value: 'ALL', label: '-- All Roles --' },
+  ...STANDARD_ROLES.map(r => ({ value: r, label: r }))
+];
+
+const modalRoleOptions = [
+  ...STANDARD_ROLES.map(r => ({ value: r, label: r })),
+  { value: 'Other', label: 'Other / Custom Role...' }
+];
+
+export const getRoleBadgeStyle = (role: string) => {
+  const r = (role || '').toLowerCase();
+  if (r.includes('warden')) {
+    return { bg: '#f3e8ff', color: '#6b21a8', border: '#e9d5ff' };
+  }
+  if (r.includes('security') || r.includes('guard')) {
+    return { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' };
+  }
+  if (r.includes('cook') || r.includes('canteen')) {
+    return { bg: '#ffedd5', color: '#c2410c', border: '#fed7aa' };
+  }
+  if (r.includes('clean') || r.includes('housekeep')) {
+    return { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' };
+  }
+  if (r.includes('electric') || r.includes('plumb') || r.includes('maint')) {
+    return { bg: '#fef3c7', color: '#b45309', border: '#fde68a' };
+  }
+  return { bg: '#f1f5f9', color: '#334155', border: '#cbd5e1' };
+};
+
+const filterRoleSelectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: '38px',
+    height: '38px',
+    borderRadius: '8px',
+    borderColor: state.isFocused ? 'var(--sidebar-active)' : 'var(--border-color)',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+    '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1' },
+    fontSize: '13px',
+    cursor: 'pointer',
+    width: '210px',
+    background: '#f8fafc'
+  }),
+  valueContainer: (base: any) => ({
+    ...base,
+    padding: '0 8px'
+  }),
+  input: (base: any) => ({
+    ...base,
+    margin: 0,
+    padding: 0
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f1f5f9' : 'white',
+    color: state.isSelected ? 'white' : '#334155',
+    cursor: 'pointer'
+  }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+};
+
+const modalRoleSelectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: '40px',
+    borderRadius: '8px',
+    borderColor: state.isFocused ? '#2563eb' : 'var(--border-color)',
+    boxShadow: state.isFocused ? '0 0 0 3px rgba(37, 99, 235, 0.12)' : 'none',
+    '&:hover': { borderColor: state.isFocused ? '#2563eb' : '#cbd5e1' },
+    fontSize: '13px',
+    cursor: 'pointer',
+    background: '#ffffff'
+  }),
+  valueContainer: (base: any) => ({
+    ...base,
+    padding: '0 10px'
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#f1f5f9' : 'white',
+    color: state.isSelected ? 'white' : '#0f172a',
+    cursor: 'pointer'
+  }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 99999 })
+};
+
 export default function StaffMaster() {
   const navigate = useNavigate();
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -35,6 +126,10 @@ export default function StaffMaster() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [salaryFilter, setSalaryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Pagination matching Hostellers.tsx
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,13 +155,8 @@ export default function StaffMaster() {
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const data = await StaffAPI.getAll({
-        search: searchTerm || undefined,
-        role: roleFilter !== 'ALL' ? roleFilter : undefined,
-        salaryBasis: salaryFilter !== 'ALL' ? salaryFilter : undefined,
-        status: statusFilter !== 'ALL' ? statusFilter : undefined,
-      });
-      setStaffList(data);
+      const data = await StaffAPI.getAll();
+      setStaffList(data || []);
     } catch (err: any) {
       console.error(err);
       Swal.fire({
@@ -82,7 +172,35 @@ export default function StaffMaster() {
 
   useEffect(() => {
     fetchStaff();
-  }, [searchTerm, roleFilter, salaryFilter, statusFilter]);
+  }, []);
+
+  // Filter & Pagination Calculations
+  const filteredStaff = useMemo(() => {
+    return staffList.filter(s => {
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matchName = s.name.toLowerCase().includes(term);
+        const matchCode = s.staffCode.toLowerCase().includes(term);
+        const matchRole = s.role.toLowerCase().includes(term);
+        const matchPhone = s.phone?.toLowerCase().includes(term);
+        const matchEmail = s.email?.toLowerCase().includes(term);
+        if (!matchName && !matchCode && !matchRole && !matchPhone && !matchEmail) return false;
+      }
+      if (roleFilter !== 'ALL' && s.role !== roleFilter) return false;
+      if (salaryFilter !== 'ALL' && s.salaryBasis !== salaryFilter) return false;
+      if (statusFilter !== 'ALL' && s.status !== statusFilter) return false;
+      return true;
+    });
+  }, [staffList, searchTerm, roleFilter, salaryFilter, statusFilter]);
+
+  const totalRecords = filteredStaff.length;
+  const totalPages = Math.ceil(totalRecords / limit) || 1;
+
+  const paginatedStaff = useMemo(() => {
+    if (limit >= 99999) return filteredStaff;
+    const start = (page - 1) * limit;
+    return filteredStaff.slice(start, start + limit);
+  }, [filteredStaff, page, limit]);
 
   const openRegisterModal = async () => {
     setEditingStaff(null);
@@ -116,13 +234,13 @@ export default function StaffMaster() {
     setFormData({
       staffCode: staff.staffCode,
       name: staff.name,
-      joiningDate: staff.joiningDate ? new Date(staff.joiningDate).toISOString().split('T')[0] : '',
+      joiningDate: staff.joiningDate ? staff.joiningDate.split('T')[0] : new Date().toISOString().split('T')[0],
       role: isStandard ? staff.role : 'Other',
       customRole: isStandard ? '' : staff.role,
       phone: staff.phone || '',
       email: staff.email || '',
       salaryBasis: staff.salaryBasis || 'Monthly Fixed',
-      baseSalary: staff.baseSalary !== undefined ? String(staff.baseSalary) : '0.00',
+      baseSalary: String(staff.baseSalary || 0),
       status: staff.status || 'Active',
       notes: staff.notes || ''
     });
@@ -132,27 +250,22 @@ export default function StaffMaster() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      Swal.fire({ icon: 'warning', title: 'Full Name Required', text: 'Please enter the staff member legal name.', confirmButtonColor: '#2563eb' });
+      Swal.fire({ icon: 'warning', title: 'Name Required', text: 'Please enter staff member name.' });
       return;
     }
 
-    const finalRole = formData.role === 'Other' ? formData.customRole.trim() : formData.role;
-    if (!finalRole) {
-      Swal.fire({ icon: 'warning', title: 'Role Required', text: 'Please select or enter a role/job title.', confirmButtonColor: '#2563eb' });
-      return;
-    }
-
+    const finalRole = formData.role === 'Other' ? (formData.customRole.trim() || 'Staff') : formData.role;
     const payload = {
       staffCode: formData.staffCode.trim(),
       name: formData.name.trim(),
       joiningDate: formData.joiningDate,
       role: finalRole,
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
+      phone: formData.phone.trim() || undefined,
+      email: formData.email.trim() || undefined,
       salaryBasis: formData.salaryBasis,
       baseSalary: parseFloat(formData.baseSalary) || 0,
       status: formData.status,
-      notes: formData.notes.trim()
+      notes: formData.notes.trim() || undefined
     };
 
     setSubmitting(true);
@@ -162,27 +275,28 @@ export default function StaffMaster() {
         Swal.fire({
           icon: 'success',
           title: 'Staff Updated',
-          text: `"${payload.name}" details updated successfully!`,
+          text: `"${payload.name}" updated successfully.`,
           confirmButtonColor: '#2563eb',
-          timer: 2000
+          timer: 1500
         });
       } else {
         await StaffAPI.create(payload);
         Swal.fire({
           icon: 'success',
           title: 'Staff Registered',
-          text: `Staff member "${payload.name}" (${payload.staffCode}) registered successfully!`,
+          text: `"${payload.name}" registered successfully with code ${payload.staffCode}.`,
           confirmButtonColor: '#2563eb',
-          timer: 2000
+          timer: 1800
         });
       }
       setModalOpen(false);
       fetchStaff();
     } catch (err: any) {
+      console.error(err);
       Swal.fire({
         icon: 'error',
         title: 'Save Failed',
-        text: err.message || err.response?.data?.message || 'Failed to save staff record',
+        text: err.message || err.response?.data?.message || 'Could not save staff member',
         confirmButtonColor: '#ef4444'
       });
     } finally {
@@ -193,7 +307,7 @@ export default function StaffMaster() {
   const handleDelete = async (staff: StaffMember) => {
     const result = await Swal.fire({
       title: 'Delete Staff Member?',
-      html: `Are you sure you want to remove <b>${staff.name}</b> (<code>${staff.staffCode}</code>)?<br/>This action cannot be undone.`,
+      text: `Are you sure you want to delete "${staff.name}" (${staff.staffCode})? This action cannot be undone.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -256,87 +370,55 @@ export default function StaffMaster() {
     try {
       const d = new Date(dStr);
       if (isNaN(d.getTime())) return dStr;
-      return d.toLocaleDateString('en-GB'); // DD/MM/YYYY
+      return d.toLocaleDateString('en-GB');
     } catch {
       return dStr;
     }
   };
 
-  // Today formatted pill
-  const todayFormatted = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
-
   return (
-    <div className="staff-master-page" style={{ padding: '24px 30px', background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
+    <div className="page-container" style={{ padding: '24px 30px', background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
       <style>{`
-        .staff-header-banner {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-          gap: 16px;
-        }
-
         .staff-stat-card {
           background: #ffffff;
-          border-radius: 14px;
+          border-radius: 12px;
           padding: 16px 20px;
-          border: 1px solid #e2e8f0;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          border: 1px solid var(--border-color);
+          box-shadow: 0 2px 10px rgba(0,0,0,0.02);
           display: flex;
           align-items: center;
           gap: 14px;
           flex: 1;
-          min-width: 200px;
+          min-width: 220px;
         }
 
-        .staff-table-card {
-          background: #ffffff;
-          border-radius: 16px;
-          border: 1px solid #e2e8f0;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-          overflow: hidden;
-        }
-
-        .staff-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: left;
-          font-size: 13.5px;
-        }
-
-        .staff-table th {
-          background: #f8fafc;
-          padding: 13px 18px;
-          font-size: 11.5px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+        .data-table th {
+          padding: 15px 20px;
+          font-size: 12px;
           color: #64748b;
-          border-bottom: 1px solid #e2e8f0;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          background: #ffffff;
+          border-bottom: 1px solid #eaedf1;
           white-space: nowrap;
         }
 
-        .staff-table td {
-          padding: 14px 18px;
+        .data-table td {
+          padding: 15px 20px;
           border-bottom: 1px solid #f1f5f9;
           vertical-align: middle;
+          font-size: 13.5px;
         }
 
-        .staff-table tr:hover td {
-          background: #fbfcfe;
+        .data-table tr:hover td {
+          background: #f8fafc;
         }
 
         .staff-code-badge {
-          color: #0284c7;
+          color: var(--sidebar-active);
           font-weight: 700;
-          font-size: 13.5px;
-          letter-spacing: -0.2px;
+          font-size: 13px;
         }
 
         .salary-basis-pill {
@@ -373,7 +455,6 @@ export default function StaffMaster() {
           border: 1px solid #fecaca;
         }
 
-        /* Modal Styles */
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -443,12 +524,11 @@ export default function StaffMaster() {
         .form-control {
           width: 100%;
           padding: 9px 12px;
-          border-radius: 9px;
-          border: 1px solid #cbd5e1;
-          font-size: 13.5px;
+          border-radius: 8px;
+          border: 1px solid var(--border-color);
+          font-size: 13px;
           color: #0f172a;
           outline: none;
-          transition: border-color 0.15s ease, box-shadow 0.15s ease;
           background: #ffffff;
           box-sizing: border-box;
         }
@@ -459,22 +539,18 @@ export default function StaffMaster() {
         }
 
         .btn-blue-primary {
-          background: #1d4ed8;
+          background: var(--sidebar-active);
           color: #ffffff;
           border: none;
-          padding: 9px 20px;
-          border-radius: 9px;
+          padding: 10px 20px;
+          border-radius: 8px;
           font-weight: 600;
-          font-size: 13.5px;
+          font-size: 14px;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           gap: 7px;
           transition: all 0.15s ease;
-        }
-
-        .btn-blue-primary:hover {
-          background: #1e40af;
         }
 
         .btn-cancel {
@@ -482,34 +558,10 @@ export default function StaffMaster() {
           color: #ffffff;
           border: none;
           padding: 9px 18px;
-          border-radius: 9px;
+          border-radius: 8px;
           font-weight: 600;
           font-size: 13.5px;
           cursor: pointer;
-          transition: background 0.15s ease;
-        }
-
-        .btn-cancel:hover {
-          background: #334155;
-        }
-
-        .btn-dark {
-          background: #0f172a;
-          color: #ffffff;
-          border: none;
-          padding: 9px 18px;
-          border-radius: 9px;
-          font-weight: 600;
-          font-size: 13.5px;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 7px;
-          transition: all 0.15s ease;
-        }
-
-        .btn-dark:hover {
-          background: #1e293b;
         }
 
         @media (max-width: 640px) {
@@ -519,37 +571,62 @@ export default function StaffMaster() {
         }
       `}</style>
 
-      {/* Top Banner Header */}
-      <div className="staff-header-banner">
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', fontSize: '12px', color: '#475569', fontWeight: 600, marginBottom: '8px' }}>
-            <Calendar size={13} color="#64748b" />
-            <span>{todayFormatted}</span>
+      {/* PageHeader matching Hostellers.tsx */}
+      <PageHeader
+        title="Hostel Staff Master"
+        subtitle="Manage wardens, security guards, canteen staff, housekeeping & payroll details"
+        showBack={false}
+        rightContent={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={() => navigate('/staff/attendance')}
+              style={{
+                background: '#0f172a',
+                color: 'white',
+                border: 'none',
+                padding: '12px 20px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Clock size={16} />
+              Staff Gate In / Out
+            </button>
+            <button
+              onClick={openRegisterModal}
+              style={{
+                background: 'var(--sidebar-active)',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '8px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(74, 114, 250, 0.25)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <UserPlus size={18} />
+              + Register New Staff
+            </button>
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 4px', color: '#0f172a', letterSpacing: '-0.3px' }}>
-            Hostel Staff Master Data
-          </h1>
-          <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b' }}>
-            Manage wardens, security guards, canteen staff, housekeeping & payroll details
-          </p>
-        </div>
+        }
+      />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={openRegisterModal} className="btn-blue-primary">
-            <UserPlus size={16} />
-            <span>Register New Staff</span>
-          </button>
-          <button onClick={() => navigate('/staff/attendance')} className="btn-dark">
-            <CheckCircle2 size={16} />
-            <span>Staff Attendance</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div style={{ display: 'flex', gap: '14px', marginBottom: '22px', flexWrap: 'wrap' }}>
+      {/* Stats Summary Cards */}
+      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <div className="staff-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
             <Users size={22} />
           </div>
           <div>
@@ -559,7 +636,7 @@ export default function StaffMaster() {
         </div>
 
         <div className="staff-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
             <ShieldCheck size={22} />
           </div>
           <div>
@@ -569,7 +646,7 @@ export default function StaffMaster() {
         </div>
 
         <div className="staff-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#faf5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9333ea' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#faf5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9333ea' }}>
             <DollarSign size={22} />
           </div>
           <div>
@@ -579,138 +656,213 @@ export default function StaffMaster() {
         </div>
       </div>
 
-      {/* Directory Table Card */}
-      <div className="staff-table-card">
-        {/* Table Filters Toolbar */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: '#ffffff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
-              Staff Directory <span style={{ color: '#64748b', fontWeight: 500, fontSize: '13px' }}>({staffList.length} Staff Members)</span>
-            </div>
-          </div>
+      {/* Filter and Search Bar matching Hostellers.tsx */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '15px',
+        padding: '15px 20px',
+        background: 'white',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px',
+        marginBottom: '20px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+      }}>
+        {/* Entries per page */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+          <select
+            value={limit}
+            onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+            style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={99999}>All</option>
+          </select>
+          <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+        </div>
+        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Search Box */}
-            <div style={{ position: 'relative', width: '220px' }}>
-              <Search size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#94a3b8' }} />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search staff, code, role..."
-                className="form-control"
-                style={{ paddingLeft: '32px', fontSize: '12.5px' }}
-              />
-            </div>
-
-            {/* Role Filter */}
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="form-control"
-              style={{ width: '160px', fontSize: '12.5px' }}
-            >
-              <option value="ALL">All Roles</option>
-              {STANDARD_ROLES.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-
-            {/* Salary Basis Filter */}
-            <select
-              value={salaryFilter}
-              onChange={(e) => setSalaryFilter(e.target.value)}
-              className="form-control"
-              style={{ width: '140px', fontSize: '12.5px' }}
-            >
-              <option value="ALL">All Basis</option>
-              {SALARY_BASIS_OPTIONS.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-control"
-              style={{ width: '110px', fontSize: '12.5px' }}
-            >
-              <option value="ALL">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-
-            <button
-              onClick={fetchStaff}
-              title="Refresh Directory"
-              style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <RefreshCw size={14} color="#64748b" />
-            </button>
-          </div>
+        {/* Search input with icon */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+          <input
+            type="text"
+            placeholder="Search by name, ID, code, role, phone..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            style={{
+              padding: '8px 12px 8px 36px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              fontSize: '13px',
+              outline: 'none',
+              width: '280px'
+            }}
+          />
         </div>
 
-        {/* Table Content */}
-        <div style={{ overflowX: 'auto' }}>
-          <table className="staff-table">
-            <thead>
+        {/* Searchable Role Filter using react-select */}
+        <div style={{ width: '210px' }}>
+          <Select
+            options={roleFilterOptions}
+            value={roleFilterOptions.find(o => o.value === roleFilter) || roleFilterOptions[0]}
+            onChange={(opt) => {
+              setRoleFilter(opt?.value || 'ALL');
+              setPage(1);
+            }}
+            styles={filterRoleSelectStyles}
+            placeholder="Search role..."
+            isSearchable={true}
+          />
+        </div>
+
+        {/* Salary Basis Filter */}
+        <select
+          value={salaryFilter}
+          onChange={(e) => { setSalaryFilter(e.target.value); setPage(1); }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+        >
+          <option value="ALL">-- All Salary Basis --</option>
+          {SALARY_BASIS_OPTIONS.map(b => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+
+        {/* Status Filter */}
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+        >
+          <option value="ALL">-- All Status --</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+
+        {/* Clear All Filters button */}
+        {(searchTerm !== '' || roleFilter !== 'ALL' || salaryFilter !== 'ALL' || statusFilter !== 'ALL') && (
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setRoleFilter('ALL');
+              setSalaryFilter('ALL');
+              setStatusFilter('ALL');
+              setPage(1);
+            }}
+            title="Clear all filters"
+            style={{
+              background: '#f1f5f9',
+              color: '#64748b',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+          >
+            <X size={14} strokeWidth={3} /> Clear All
+          </button>
+        )}
+
+        <div style={{ flex: 1 }}></div>
+
+        {/* Refresh button */}
+        <button
+          onClick={fetchStaff}
+          title="Refresh Directory"
+          style={{
+            background: '#f8fafc',
+            color: '#475569',
+            border: '1px solid var(--border-color)',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <RefreshCw size={14} /> Refresh
+        </button>
+      </div>
+
+      {/* Directory Table Card matching Hostellers.tsx */}
+      <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
+              <th>STAFF ID / CODE</th>
+              <th>FULL NAME & CONTACT</th>
+              <th>ROLE / JOB TITLE</th>
+              <th>SALARY BASIS</th>
+              <th>BASE SALARY</th>
+              <th>DUTY STATUS</th>
+              <th>JOINING DATE</th>
+              <th style={{ textAlign: 'right' }}>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>STAFF CODE</th>
-                <th>FULL NAME</th>
-                <th>ROLE / JOB TITLE</th>
-                <th>MOBILE PHONE</th>
-                <th>JOINING DATE</th>
-                <th>SALARY BASIS</th>
-                <th>BASE WAGE</th>
-                <th>STATUS</th>
-                <th style={{ textAlign: 'right' }}>ACTIONS</th>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                  Loading Staff Directory...
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                    Loading Staff Directory...
-                  </td>
-                </tr>
-              ) : staffList.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                    <Users size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
-                    <div style={{ fontWeight: 600, color: '#334155' }}>No staff members found</div>
-                    <div style={{ fontSize: '12px', marginTop: '4px' }}>Click "+ Register New Staff" to add staff members.</div>
-                  </td>
-                </tr>
-              ) : (
-                staffList.map((staff) => (
+            ) : paginatedStaff.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                  <Users size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
+                  <div style={{ fontWeight: 600, color: '#334155' }}>No staff members found</div>
+                  <div style={{ fontSize: '12px', marginTop: '4px' }}>Click "+ Register New Staff" to add staff members.</div>
+                </td>
+              </tr>
+            ) : (
+              paginatedStaff.map((staff) => {
+                const roleBadge = getRoleBadgeStyle(staff.role);
+                return (
                   <tr key={staff.id}>
                     <td>
                       <span className="staff-code-badge">{staff.staffCode}</span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{staff.name}</div>
-                      {staff.email && (
-                        <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
-                          <Mail size={11} /> {staff.email}
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{staff.name}</div>
+                      {staff.phone && (
+                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                          <Phone size={11} /> {staff.phone}
                         </div>
                       )}
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600, color: '#334155' }}>{staff.role}</span>
-                    </td>
-                    <td>
-                      {staff.phone ? (
-                        <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Phone size={12} color="#94a3b8" />
-                          {staff.phone}
-                        </span>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      <span style={{ color: '#475569' }}>{formatDate(staff.joiningDate)}</span>
+                      <span style={{
+                        background: roleBadge.bg,
+                        color: roleBadge.color,
+                        border: `1px solid ${roleBadge.border}`,
+                        padding: '5px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        display: 'inline-block',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                      }}>
+                        {staff.role}
+                      </span>
                     </td>
                     <td>
                       <span className="salary-basis-pill">
@@ -734,42 +886,75 @@ export default function StaffMaster() {
                         </span>
                       </button>
                     </td>
+                    <td>
+                      <span style={{ color: '#64748b', fontSize: '13px' }}>{formatDate(staff.joiningDate)}</span>
+                    </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        onClick={() => setViewingStaff(staff)}
-                        title="View Staff Details"
-                        style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#eef2ff', color: '#4f46e5', cursor: 'pointer', marginRight: '6px' }}
-                      >
-                        <Eye size={14} />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(staff)}
-                        title="Edit Staff Member"
-                        style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0284c7', cursor: 'pointer', marginRight: '6px' }}
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(staff)}
-                        title="Delete Staff Member"
-                        style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #fee2e2', background: '#fff5f5', color: '#ef4444', cursor: 'pointer' }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                        <button
+                          onClick={() => setViewingStaff(staff)}
+                          title="View Staff Profile"
+                          style={{ padding: '6px 9px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', cursor: 'pointer' }}
+                        >
+                          <Eye size={15} color="#0284c7" />
+                        </button>
+                        <button
+                          onClick={() => openEditModal(staff)}
+                          title="Edit Staff Member"
+                          style={{ padding: '6px 9px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', cursor: 'pointer' }}
+                        >
+                          <Edit2 size={15} color="#475569" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(staff)}
+                          title="Delete Staff Member"
+                          style={{ padding: '6px 9px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fff5f5', color: '#ef4444', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination Controls matching Hostellers.tsx */}
+        {totalPages > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                Showing {totalRecords === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                Previous
+              </button>
+              <button
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+                {page}
+              </button>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || totalPages === 0}
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* REGISTER / EDIT STAFF MODAL */}
       {modalOpen && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            {/* Modal Blue Header matching screenshot */}
             <div className="modal-header-blue">
               <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.2px' }}>
                 {editingStaff ? 'Edit Staff Member' : 'Register New Staff Member'}
@@ -782,10 +967,8 @@ export default function StaffMaster() {
               </button>
             </div>
 
-            {/* Modal Form */}
             <form onSubmit={handleSave}>
               <div className="modal-form-body">
-                {/* Row 1: Staff Code & Joining Date */}
                 <div className="form-row-2">
                   <div className="form-group">
                     <label>Staff Code</label>
@@ -811,7 +994,6 @@ export default function StaffMaster() {
                   </div>
                 </div>
 
-                {/* Row 2: Full Name */}
                 <div className="form-group">
                   <label>Full Name</label>
                   <input
@@ -824,19 +1006,21 @@ export default function StaffMaster() {
                   />
                 </div>
 
-                {/* Row 3: Role / Job Title */}
+                {/* Searchable Role Dropdown in Modal using react-select */}
                 <div className="form-group">
                   <label>Role / Job Title</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="form-control"
-                  >
-                    {STANDARD_ROLES.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                    <option value="Other">Other / Custom Role...</option>
-                  </select>
+                  <Select
+                    options={modalRoleOptions}
+                    value={modalRoleOptions.find(o => o.value === formData.role) || { value: formData.role, label: formData.role }}
+                    onChange={(opt) => {
+                      setFormData(prev => ({ ...prev, role: opt?.value || 'Gate Security Guard' }));
+                    }}
+                    styles={modalRoleSelectStyles}
+                    placeholder="Search or select role..."
+                    isSearchable={true}
+                    menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
+                    menuPosition="fixed"
+                  />
                   {formData.role === 'Other' && (
                     <input
                       type="text"
@@ -850,7 +1034,6 @@ export default function StaffMaster() {
                   )}
                 </div>
 
-                {/* Row 4: Mobile Phone & Email */}
                 <div className="form-row-2">
                   <div className="form-group">
                     <label>Mobile Phone</label>
@@ -874,7 +1057,6 @@ export default function StaffMaster() {
                   </div>
                 </div>
 
-                {/* Row 5: Salary Basis & Base Salary */}
                 <div className="form-row-2">
                   <div className="form-group">
                     <label>Salary Basis</label>
@@ -904,7 +1086,6 @@ export default function StaffMaster() {
                 </div>
               </div>
 
-              {/* Modal Buttons matching screenshot */}
               <div style={{ padding: '16px 24px', background: '#ffffff', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
@@ -925,11 +1106,11 @@ export default function StaffMaster() {
           </div>
         </div>
       )}
+
       {/* VIEW STAFF DETAILS MODAL */}
       {viewingStaff && (
         <div className="modal-overlay" onClick={() => setViewingStaff(null)}>
           <div className="modal-card" style={{ maxWidth: '540px' }} onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div style={{ background: '#0f172a', color: '#ffffff', padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={18} color="#38bdf8" />
@@ -943,7 +1124,6 @@ export default function StaffMaster() {
               </button>
             </div>
 
-            {/* Profile Summary Card */}
             <div style={{ padding: '22px 24px', background: '#ffffff' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '18px', borderBottom: '1px solid #f1f5f9' }}>
                 <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 800 }}>
@@ -958,7 +1138,15 @@ export default function StaffMaster() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
-                    <span style={{ background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                    <span style={{
+                      background: getRoleBadgeStyle(viewingStaff.role).bg,
+                      color: getRoleBadgeStyle(viewingStaff.role).color,
+                      border: `1px solid ${getRoleBadgeStyle(viewingStaff.role).border}`,
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700
+                    }}>
                       {viewingStaff.role}
                     </span>
                     <span style={{ color: '#0284c7', fontWeight: 700, fontSize: '12.5px' }}>
@@ -968,7 +1156,6 @@ export default function StaffMaster() {
                 </div>
               </div>
 
-              {/* Detail Items Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', paddingTop: '18px' }}>
                 <div>
                   <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Staff Code</div>
@@ -1019,7 +1206,6 @@ export default function StaffMaster() {
               )}
             </div>
 
-            {/* Footer */}
             <div style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 type="button"
