@@ -411,7 +411,27 @@ model Staff {
   baseSalary  Float     @default(0.0) // Base Salary (₹)
   status      String    @default("Active") // "Active", "Inactive"
   notes       String?
+  attendances StaffAttendance[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+
+// ---------------------------------------------------------
+// Staff Gate In / Out Daily Attendance
+// ---------------------------------------------------------
+model StaffAttendance {
+  id           String    @id @default(uuid())
+  staffId      String
+  staff        Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  dateStr      String    // Format: YYYY-MM-DD
+  checkInTime  String?   // e.g. "01:14 PM"
+  checkOutTime String?   // e.g. "05:30 PM"
+  status       String    @default("Not Marked") // "Present", "Absent", "Half Day", "On Leave", "Not Marked"
+  remarks      String?   // Optional duty note
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([staffId, dateStr])
+}
+
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users, UserPlus, Search, Edit2, Trash2, CheckCircle2,
   X, Calendar, Phone, Mail, DollarSign,
@@ -27,6 +28,7 @@ const SALARY_BASIS_OPTIONS = [
 ];
 
 export default function StaffMaster() {
+  const navigate = useNavigate();
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -537,7 +539,7 @@ export default function StaffMaster() {
             <UserPlus size={16} />
             <span>Register New Staff</span>
           </button>
-          <button className="btn-dark">
+          <button onClick={() => navigate('/staff/attendance')} className="btn-dark">
             <CheckCircle2 size={16} />
             <span>Staff Attendance</span>
           </button>

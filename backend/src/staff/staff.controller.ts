@@ -27,6 +27,16 @@ export class StaffController {
     return this.staffService.findAll({ search, role, salaryBasis, status });
   }
 
+  @Get('attendance/roster')
+  getAttendanceRoster(@Query('date') date?: string) {
+    return this.staffService.getAttendanceRoster(date);
+  }
+
+  @Post('attendance')
+  saveAttendance(@Body() body: any) {
+    return this.staffService.saveAttendance(body);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.staffService.findOne(id);

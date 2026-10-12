@@ -165,4 +165,84 @@ export class StaffService {
       data: { status: newStatus }
     });
   }
+
+  private get attendanceModel() {
+    return (this.prisma as any).staffAttendance || (this.prisma as any)['staffAttendance'];
+  }
+
+  async getAttendanceRoster(dateStr?: string) {
+    const todayStr = dateStr || new Date().toISOString().split('T')[0];
+
+    const allStaff = await this.staffModel.findMany({
+      where: { status: 'Active' },
+      orderBy: { staffCode: 'asc' }
+    });
+
+    let attendances: any[] = [];
+    if (this.attendanceModel?.findMany) {
+      attendances = await this.attendanceModel.findMany({
+        where: { dateStr: todayStr }
+      });
+    }
+
+    const attendanceMap = new Map();
+    for (const a of attendances) {
+      attendanceMap.set(a.staffId, a);
+    }
+
+    return allStaff.map((staff: any) => {
+      const att = attendanceMap.get(staff.id);
+      return {
+        staffId: staff.id,
+        staffCode: staff.staffCode,
+        name: staff.name,
+        role: staff.role,
+        phone: staff.phone,
+        dateStr: todayStr,
+        attendanceId: att?.id || null,
+        checkInTime: att?.checkInTime || '--:--',
+        checkOutTime: att?.checkOutTime || '--:--',
+        status: att?.status || 'Not Marked',
+        remarks: att?.remarks || ''
+      };
+    });
+  }
+
+  async saveAttendance(dto: any) {
+    const { staffId, dateStr, checkInTime, checkOutTime, status, remarks } = dto;
+    await this.findOne(staffId);
+
+    if (!this.attendanceModel) {
+      throw new BadRequestException('Staff attendance service is not initialized');
+    }
+
+    const existing = await this.attendanceModel.findUnique({
+      where: {
+        staffId_dateStr: { staffId, dateStr }
+      }
+    });
+
+    if (existing) {
+      return this.attendanceModel.update({
+        where: { id: existing.id },
+        data: {
+          checkInTime: checkInTime || null,
+          checkOutTime: checkOutTime || null,
+          status: status || 'Present',
+          remarks: remarks || null
+        }
+      });
+    } else {
+      return this.attendanceModel.create({
+        data: {
+          staffId,
+          dateStr,
+          checkInTime: checkInTime || null,
+          checkOutTime: checkOutTime || null,
+          status: status || 'Present',
+          remarks: remarks || null
+        }
+      });
+    }
+  }
 }

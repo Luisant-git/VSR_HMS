@@ -93,5 +93,44 @@ export const StaffAPI = {
       headers: getHeaders()
     });
     return handleResponse(res);
+  },
+
+  getAttendanceRoster: async (date?: string) => {
+    const query = date ? `?date=${date}` : '';
+    const res = await fetch(`${API_URL}/staff/attendance/roster${query}`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
+  },
+
+  saveAttendance: async (data: {
+    staffId: string;
+    dateStr: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    status?: string;
+    remarks?: string;
+  }) => {
+    const res = await fetch(`${API_URL}/staff/attendance`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
   }
 };
+
+export interface StaffAttendanceItem {
+  staffId: string;
+  staffCode: string;
+  name: string;
+  role: string;
+  phone?: string;
+  dateStr: string;
+  attendanceId?: string | null;
+  checkInTime: string;
+  checkOutTime: string;
+  status: string;
+  remarks?: string;
+}
+
