@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Users, UserPlus, Search, Edit2, Trash2, CheckCircle2,
   X, Calendar, Phone, Mail, DollarSign,
-  ShieldCheck, RefreshCw, Check
+  ShieldCheck, RefreshCw, Check, Eye
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { StaffAPI, type StaffMember } from '../api/staff.api';
@@ -37,6 +37,7 @@ export default function StaffMaster() {
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
+  const [viewingStaff, setViewingStaff] = useState<StaffMember | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form State
@@ -733,6 +734,13 @@ export default function StaffMaster() {
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button
+                        onClick={() => setViewingStaff(staff)}
+                        title="View Staff Details"
+                        style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #e0e7ff', background: '#eef2ff', color: '#4f46e5', cursor: 'pointer', marginRight: '6px' }}
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
                         onClick={() => openEditModal(staff)}
                         title="Edit Staff Member"
                         style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#f8fafc', color: '#0284c7', cursor: 'pointer', marginRight: '6px' }}
@@ -912,6 +920,125 @@ export default function StaffMaster() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* VIEW STAFF DETAILS MODAL */}
+      {viewingStaff && (
+        <div className="modal-overlay" onClick={() => setViewingStaff(null)}>
+          <div className="modal-card" style={{ maxWidth: '540px' }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ background: '#0f172a', color: '#ffffff', padding: '16px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={18} color="#38bdf8" />
+                <span style={{ fontSize: '16px', fontWeight: 700 }}>Staff Member Details</span>
+              </div>
+              <button
+                onClick={() => setViewingStaff(null)}
+                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', opacity: 0.8 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Profile Summary Card */}
+            <div style={{ padding: '22px 24px', background: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '18px', borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#e0f2fe', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 800 }}>
+                  {viewingStaff.name.charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>{viewingStaff.name}</h3>
+                    <span className={`status-pill ${viewingStaff.status === 'Active' ? 'status-active' : 'status-inactive'}`}>
+                      {viewingStaff.status === 'Active' ? <Check size={11} strokeWidth={3} /> : <X size={11} strokeWidth={3} />}
+                      <span>{viewingStaff.status}</span>
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                    <span style={{ background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                      {viewingStaff.role}
+                    </span>
+                    <span style={{ color: '#0284c7', fontWeight: 700, fontSize: '12.5px' }}>
+                      {viewingStaff.staffCode}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detail Items Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', paddingTop: '18px' }}>
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Staff Code</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0284c7', marginTop: '3px' }}>{viewingStaff.staffCode}</div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Joining Date</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginTop: '3px' }}>{formatDate(viewingStaff.joiningDate)}</div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Mobile Phone</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginTop: '3px' }}>
+                    {viewingStaff.phone || <span style={{ color: '#94a3b8' }}>Not Provided</span>}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Email Address</div>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginTop: '3px', wordBreak: 'break-all' }}>
+                    {viewingStaff.email || <span style={{ color: '#94a3b8' }}>Not Provided</span>}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Salary Basis</div>
+                  <div style={{ marginTop: '4px' }}>
+                    <span className="salary-basis-pill">
+                      {viewingStaff.salaryBasis ? viewingStaff.salaryBasis.toUpperCase().replace(' FIXED', '') : 'MONTHLY'}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Base Wage / Salary</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', marginTop: '3px' }}>
+                    {formatCurrency(viewingStaff.baseSalary)}
+                  </div>
+                </div>
+              </div>
+
+              {viewingStaff.notes && (
+                <div style={{ marginTop: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Notes</div>
+                  <div style={{ fontSize: '13px', color: '#334155', marginTop: '4px' }}>{viewingStaff.notes}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setViewingStaff(null)}
+                className="btn-cancel"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const s = viewingStaff;
+                  setViewingStaff(null);
+                  openEditModal(s);
+                }}
+                className="btn-blue-primary"
+              >
+                <Edit2 size={14} />
+                <span>Edit Staff</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
