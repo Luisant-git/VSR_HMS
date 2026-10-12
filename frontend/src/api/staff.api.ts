@@ -117,6 +117,22 @@ export const StaffAPI = {
       body: JSON.stringify(data)
     });
     return handleResponse(res);
+  },
+
+  recordPunch: async (data: {
+    staffId?: string;
+    staffCode?: string;
+    dateStr?: string;
+    timeStr?: string;
+    timestamp?: string;
+    type?: 'IN' | 'OUT' | 'AUTO';
+  }) => {
+    const res = await fetch(`${API_URL}/staff/attendance/punch`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
   }
 };
 
@@ -131,6 +147,9 @@ export interface StaffAttendanceItem {
   checkInTime: string;
   checkOutTime: string;
   status: string;
+  workDuration?: string;
+  durationMinutes?: number | null;
+  classification?: 'FULL_DAY' | 'HALF_DAY' | 'INSUFFICIENT' | 'PENDING' | 'NOT_MARKED';
   remarks?: string;
 }
 

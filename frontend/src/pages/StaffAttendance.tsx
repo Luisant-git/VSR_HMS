@@ -66,11 +66,79 @@ export default function StaffAttendance() {
     });
   };
 
+  const parseTimeToMinutes = (timeStr?: string | null): number | null => {
+    if (!timeStr) return null;
+    const s = timeStr.trim();
+    if (s === '' || s === '--:--') return null;
+
+    if (s.includes('T') || (s.includes('-') && s.length >= 10)) {
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
+    }
+
+    const match12 = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+    if (match12) {
+      let hours = parseInt(match12[1], 10);
+      const minutes = parseInt(match12[2], 10);
+      const meridiem = match12[3].toUpperCase();
+      if (hours === 12 && meridiem === 'AM') hours = 0;
+      else if (hours < 12 && meridiem === 'PM') hours += 12;
+      return hours * 60 + minutes;
+    }
+
+    const match24 = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (match24) {
+      const hours = parseInt(match24[1], 10);
+      const minutes = parseInt(match24[2], 10);
+      if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+        return hours * 60 + minutes;
+      }
+    }
+
+    return null;
+  };
+
+  const calculateTimeDuration = (inTime?: string, outTime?: string) => {
+    const inMin = parseTimeToMinutes(inTime);
+    const outMin = parseTimeToMinutes(outTime);
+    if (inMin === null || outMin === null) return null;
+
+    const diff = outMin >= inMin ? outMin - inMin : (1440 - inMin) + outMin;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    const text = `${h}h ${m}m`;
+
+    let suggestedStatus = 'Present';
+    let badgeColor = '#16a34a';
+    let label = 'Full Day (≥ 8 hrs)';
+    if (diff >= 480) {
+      suggestedStatus = 'Present';
+      badgeColor = '#16a34a';
+      label = 'Full Day (≥ 8 hrs)';
+    } else if (diff >= 240) {
+      suggestedStatus = 'Half Day';
+      badgeColor = '#ea580c';
+      label = 'Half Day (≥ 4 hrs)';
+    } else {
+      suggestedStatus = 'Absent';
+      badgeColor = '#dc2626';
+      label = 'Insufficient (< 4 hrs)';
+    }
+
+    return { minutes: diff, text, suggestedStatus, badgeColor, label };
+  };
+
   const openAttendanceModal = (item: StaffAttendanceItem) => {
     setActiveItem(item);
     const existingCheckIn = item.checkInTime && item.checkInTime !== '--:--' ? item.checkInTime : getCurrentTimeString();
     const existingCheckOut = item.checkOutTime && item.checkOutTime !== '--:--' ? item.checkOutTime : '';
-    const existingStatus = item.status && item.status !== 'Not Marked' ? item.status : 'Present';
+    let existingStatus = item.status && item.status !== 'Not Marked' ? item.status : 'Present';
+
+    // Auto classify if check-in and check-out exist and not manually set to On Leave/Absent
+    const dur = calculateTimeDuration(existingCheckIn, existingCheckOut);
+    if (dur && existingStatus !== 'On Leave' && existingStatus !== 'Absent') {
+      existingStatus = dur.suggestedStatus;
+    }
 
     setFormData({
       checkInTime: existingCheckIn,
@@ -149,7 +217,9 @@ export default function StaffAttendance() {
   const totalCount = roster.length;
   const presentCount = roster.filter(r => r.status === 'Present').length;
   const notMarkedCount = roster.filter(r => r.status === 'Not Marked' || !r.status).length;
-  const absentCount = roster.filter(r => r.status === 'Absent' || r.status === 'On Leave' || r.status === 'Half Day').length;
+  const absentCount = roster.filter(r => r.status === 'Absent' || r.status === 'On Leave').length;
+  const halfDayCount = roster.filter(r => r.status === 'Half Day').length;
+  const fullDayCount = roster.filter(r => r.status === 'Present' && r.checkOutTime && r.checkOutTime !== '--:--').length;
 
   const formatDisplayDate = (dStr: string) => {
     try {
@@ -453,6 +523,9 @@ export default function StaffAttendance() {
           <div>
             <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Present on Duty</div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a' }}>{presentCount}</div>
+            <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, marginTop: '1px' }}>
+              Full: {fullDayCount} • Half: {halfDayCount}
+            </div>
           </div>
         </div>
 
@@ -676,9 +749,25 @@ export default function StaffAttendance() {
 
                     <td>
                       {isCheckedOut ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0284c7', fontWeight: 700, fontSize: '13px' }}>
-                          <Clock size={13} /> {item.checkOutTime}
-                        </span>
+                        <div>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0284c7', fontWeight: 700, fontSize: '13px' }}>
+                            <Clock size={13} /> {item.checkOutTime}
+                          </span>
+                          {item.workDuration && item.workDuration !== '--' && (
+                            <div style={{ fontSize: '11px', color: '#475569', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#334155' }}>
+                                ⏱️ {item.workDuration}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : isCheckedIn ? (
+                        <div>
+                          <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>--:--</span>
+                          <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 600, marginTop: '2px' }}>
+                            (On Duty • Pending Out)
+                          </div>
+                        </div>
                       ) : (
                         <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>--:--</span>
                       )}
@@ -688,7 +777,10 @@ export default function StaffAttendance() {
                       <span className={`att-status-pill ${statusClass}`}>
                         {item.status === 'Present' && <Check size={11} strokeWidth={3} />}
                         {item.status === 'Absent' && <X size={11} strokeWidth={3} />}
-                        <span>{item.status || 'Not Marked'}</span>
+                        {item.status === 'Half Day' && <Clock size={11} strokeWidth={3} />}
+                        <span>
+                          {item.status === 'Present' && isCheckedOut ? 'Full Day' : (item.status === 'Present' ? 'Present (On Duty)' : (item.status || 'Not Marked'))}
+                        </span>
                       </span>
                     </td>
 
@@ -789,13 +881,29 @@ export default function StaffAttendance() {
                       <input
                         type="text"
                         value={formData.checkOutTime}
-                        onChange={(e) => setFormData({ ...formData, checkOutTime: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const dur = calculateTimeDuration(formData.checkInTime, val);
+                          setFormData(prev => ({
+                            ...prev,
+                            checkOutTime: val,
+                            status: (dur && prev.status !== 'On Leave' && prev.status !== 'Absent') ? dur.suggestedStatus : prev.status
+                          }));
+                        }}
                         placeholder="06:00 PM"
                         className="form-control"
                       />
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, checkOutTime: getCurrentTimeString() })}
+                        onClick={() => {
+                          const nowStr = getCurrentTimeString();
+                          const dur = calculateTimeDuration(formData.checkInTime, nowStr);
+                          setFormData(prev => ({
+                            ...prev,
+                            checkOutTime: nowStr,
+                            status: (dur && prev.status !== 'On Leave' && prev.status !== 'Absent') ? dur.suggestedStatus : prev.status
+                          }));
+                        }}
                         style={{ position: 'absolute', right: '6px', top: '7px', fontSize: '11px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         Now
@@ -803,6 +911,29 @@ export default function StaffAttendance() {
                     </div>
                   </div>
                 </div>
+
+                {/* Real-time Working Duration & Auto Classification Info */}
+                {(() => {
+                  const dur = calculateTimeDuration(formData.checkInTime, formData.checkOutTime);
+                  if (dur) {
+                    return (
+                      <div style={{ background: '#f8fafc', border: `1px solid ${dur.badgeColor}33`, padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Working Duration: </span>
+                          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{dur.text}</strong>
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: dur.badgeColor, background: `${dur.badgeColor}15`, padding: '3px 10px', borderRadius: '6px' }}>
+                          Auto: {dur.label}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ fontSize: '11.5px', color: '#64748b', marginBottom: '14px', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                      💡 <strong>Biometric Policy:</strong> ≥ 8 hrs = Full Day • ≥ 4 hrs = Half Day • &lt; 4 hrs = Insufficient
+                    </div>
+                  );
+                })()}
 
                 <div className="form-group">
                   <label>Attendance Status</label>

@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { BiometricPunchDto } from './dto/biometric-punch.dto';
+import { classifyAttendance, parseTimeToMinutes, ATTENDANCE_RULES } from './staff-attendance-calculator';
 
 @Injectable()
 export class StaffService {
@@ -192,6 +194,13 @@ export class StaffService {
 
     return allStaff.map((staff: any) => {
       const att = attendanceMap.get(staff.id);
+      const classificationResult = classifyAttendance({
+        checkInTime: att?.checkInTime,
+        checkOutTime: att?.checkOutTime,
+        currentStatus: att?.status,
+        isManualOverride: att?.status === 'On Leave' || att?.status === 'Absent'
+      });
+
       return {
         staffId: staff.id,
         staffCode: staff.staffCode,
@@ -203,6 +212,9 @@ export class StaffService {
         checkInTime: att?.checkInTime || '--:--',
         checkOutTime: att?.checkOutTime || '--:--',
         status: att?.status || 'Not Marked',
+        workDuration: classificationResult.workDuration,
+        durationMinutes: classificationResult.durationMinutes,
+        classification: classificationResult.classification,
         remarks: att?.remarks || ''
       };
     });
@@ -216,33 +228,203 @@ export class StaffService {
       throw new BadRequestException('Staff attendance service is not initialized');
     }
 
+    const isManualOverride = status === 'On Leave' || status === 'Absent';
+    const autoResult = classifyAttendance({
+      checkInTime,
+      checkOutTime,
+      currentStatus: status,
+      isManualOverride
+    });
+
+    // If manual override (On Leave or Absent), respect it; otherwise auto-detect Full Day / Half Day if both checkIn and checkOut exist
+    let effectiveStatus = status || 'Present';
+    if (!isManualOverride && checkInTime && checkOutTime && checkInTime !== '--:--' && checkOutTime !== '--:--') {
+      effectiveStatus = autoResult.status;
+    }
+
     const existing = await this.attendanceModel.findUnique({
       where: {
         staffId_dateStr: { staffId, dateStr }
       }
     });
 
+    let record;
     if (existing) {
-      return this.attendanceModel.update({
+      record = await this.attendanceModel.update({
         where: { id: existing.id },
         data: {
           checkInTime: checkInTime || null,
           checkOutTime: checkOutTime || null,
-          status: status || 'Present',
+          status: effectiveStatus,
           remarks: remarks || null
         }
       });
     } else {
-      return this.attendanceModel.create({
+      record = await this.attendanceModel.create({
         data: {
           staffId,
           dateStr,
           checkInTime: checkInTime || null,
           checkOutTime: checkOutTime || null,
-          status: status || 'Present',
+          status: effectiveStatus,
           remarks: remarks || null
         }
       });
     }
+
+    return {
+      ...record,
+      workDuration: autoResult.workDuration,
+      durationMinutes: autoResult.durationMinutes,
+      classification: autoResult.classification
+    };
+  }
+
+  async recordBiometricPunch(dto: BiometricPunchDto) {
+    if (!this.attendanceModel) {
+      throw new BadRequestException('Staff attendance service is not initialized');
+    }
+
+    // 1. Identify staff member
+    let staff: any = null;
+    if (dto.staffId) {
+      staff = await this.staffModel.findUnique({ where: { id: dto.staffId } });
+    } else if (dto.staffCode) {
+      staff = await this.staffModel.findUnique({ where: { staffCode: dto.staffCode.trim() } });
+    }
+
+    if (!staff) {
+      throw new NotFoundException(`Staff member not found for ID "${dto.staffId || ''}" or Code "${dto.staffCode || ''}"`);
+    }
+
+    // 2. Resolve date and time
+    let dateStr = dto.dateStr;
+    let timeStr = dto.timeStr;
+
+    if (dto.timestamp) {
+      const d = new Date(dto.timestamp);
+      if (!isNaN(d.getTime())) {
+        if (!dateStr) dateStr = d.toISOString().split('T')[0];
+        if (!timeStr) {
+          timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        }
+      }
+    }
+
+    const now = new Date();
+    if (!dateStr) {
+      dateStr = now.toISOString().split('T')[0];
+    }
+    if (!timeStr) {
+      timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    // 3. Find existing attendance record for today
+    const existing = await this.attendanceModel.findUnique({
+      where: {
+        staffId_dateStr: { staffId: staff.id, dateStr }
+      }
+    });
+
+    const punchMinutes = parseTimeToMinutes(timeStr);
+    const punchType = (dto.type || 'AUTO').toUpperCase();
+
+    // 4. Check for duplicate/debounce scans within 2 minutes
+    if (existing?.checkInTime && punchMinutes !== null) {
+      const existingInMinutes = parseTimeToMinutes(existing.checkInTime);
+      if (existingInMinutes !== null && Math.abs(punchMinutes - existingInMinutes) < ATTENDANCE_RULES.DEBOUNCE_MINUTES && punchType !== 'OUT') {
+        const currentClassified = classifyAttendance({
+          checkInTime: existing.checkInTime,
+          checkOutTime: existing.checkOutTime,
+          currentStatus: existing.status
+        });
+        return {
+          ...existing,
+          isDuplicateIgnored: true,
+          workDuration: currentClassified.workDuration,
+          classification: currentClassified.classification
+        };
+      }
+    }
+
+    if (existing?.checkOutTime && punchMinutes !== null) {
+      const existingOutMinutes = parseTimeToMinutes(existing.checkOutTime);
+      if (existingOutMinutes !== null && Math.abs(punchMinutes - existingOutMinutes) < ATTENDANCE_RULES.DEBOUNCE_MINUTES) {
+        const currentClassified = classifyAttendance({
+          checkInTime: existing.checkInTime,
+          checkOutTime: existing.checkOutTime,
+          currentStatus: existing.status
+        });
+        return {
+          ...existing,
+          isDuplicateIgnored: true,
+          workDuration: currentClassified.workDuration,
+          classification: currentClassified.classification
+        };
+      }
+    }
+
+    // 5. Determine Check-In vs Check-Out
+    let newCheckIn = existing?.checkInTime || null;
+    let newCheckOut = existing?.checkOutTime || null;
+    const existingStatus = existing?.status || 'Present';
+    const remarks = existing?.remarks || null;
+
+    if (punchType === 'IN') {
+      newCheckIn = timeStr;
+    } else if (punchType === 'OUT') {
+      newCheckOut = timeStr;
+    } else {
+      // AUTO mode
+      if (!newCheckIn) {
+        newCheckIn = timeStr;
+      } else {
+        newCheckOut = timeStr;
+      }
+    }
+
+    // 6. Calculate total duration and auto-classify
+    const isManualOverride = existingStatus === 'On Leave' || existingStatus === 'Absent';
+    const classificationResult = classifyAttendance({
+      checkInTime: newCheckIn,
+      checkOutTime: newCheckOut,
+      currentStatus: existingStatus,
+      isManualOverride
+    });
+
+    const statusToSave = isManualOverride ? existingStatus : classificationResult.status;
+
+    let savedRecord;
+    if (existing) {
+      savedRecord = await this.attendanceModel.update({
+        where: { id: existing.id },
+        data: {
+          checkInTime: newCheckIn,
+          checkOutTime: newCheckOut,
+          status: statusToSave,
+          remarks
+        }
+      });
+    } else {
+      savedRecord = await this.attendanceModel.create({
+        data: {
+          staffId: staff.id,
+          dateStr,
+          checkInTime: newCheckIn,
+          checkOutTime: newCheckOut,
+          status: statusToSave,
+          remarks
+        }
+      });
+    }
+
+    return {
+      ...savedRecord,
+      staffName: staff.name,
+      staffCode: staff.staffCode,
+      workDuration: classificationResult.workDuration,
+      durationMinutes: classificationResult.durationMinutes,
+      classification: classificationResult.classification
+    };
   }
 }

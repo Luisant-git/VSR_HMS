@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestj
 import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { BiometricPunchDto } from './dto/biometric-punch.dto';
 
 @Controller('staff')
 export class StaffController {
@@ -35,6 +36,11 @@ export class StaffController {
   @Post('attendance')
   saveAttendance(@Body() body: any) {
     return this.staffService.saveAttendance(body);
+  }
+
+  @Post('attendance/punch')
+  recordBiometricPunch(@Body() dto: BiometricPunchDto) {
+    return this.staffService.recordBiometricPunch(dto);
   }
 
   @Get(':id')
