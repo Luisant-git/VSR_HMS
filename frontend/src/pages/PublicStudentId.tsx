@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { StudentAPI } from '../api/student.api';
 import { MessAttendanceCheckin } from '../components/MessAttendanceCheckin';
-import { AlertCircle, Building2, LogOut, Calendar } from 'lucide-react';
-import { getSystemSettings } from '../api/settings.api';
+import { AlertCircle, LogOut, Calendar } from 'lucide-react';
 
 export default function PublicStudentId() {
   const { id } = useParams();
@@ -11,13 +10,6 @@ export default function PublicStudentId() {
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [hostelName, setHostelName] = useState('Hostel Management System');
-
-  useEffect(() => {
-    getSystemSettings().then(data => {
-      if (data && data.hostelName) setHostelName(data.hostelName);
-    }).catch(() => { });
-  }, []);
 
   useEffect(() => {
     if (id) {
@@ -56,7 +48,6 @@ export default function PublicStudentId() {
 
   const displayRegNo = student.manualRegsiName || student.regNo || student.id || 'N/A';
   const displayRoom = student.roomNo || student.room || 'N/A';
-  const displayCollege = student.college?.name || student.college || 'N/A';
 
   // Format today's date
   const today = new Date();

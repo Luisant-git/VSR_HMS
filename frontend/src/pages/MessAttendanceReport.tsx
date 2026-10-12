@@ -57,7 +57,7 @@ export const MessAttendanceReport: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {reports.map((r, i) => (
+            {reports.map((r) => (
               <tr key={r.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                 <td style={{ padding: '16px', color: '#64748b', fontSize: '14px' }}>
                   {new Date(r.scannedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
