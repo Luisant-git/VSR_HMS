@@ -19,6 +19,7 @@ import { DeveloperSeedService } from './developer/developer.seed.service';
 import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { CanteenModule } from './canteen/canteen.module';
+import { MessAttendanceModule } from './mess-attendance/mess-attendance.module';
 
 @Module({
   imports: [
@@ -38,7 +39,8 @@ import { CanteenModule } from './canteen/canteen.module';
     DeveloperModule,
     MessDeductionModule,
     SystemSettingsModule,
-    CanteenModule
+    CanteenModule,
+    MessAttendanceModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],
