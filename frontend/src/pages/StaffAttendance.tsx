@@ -363,7 +363,7 @@ export default function StaffAttendance() {
           padding: 16px;
         }
 
-        .modal-card-dark-header {
+        .modal-card-blue-header {
           background: #ffffff;
           border-radius: 14px;
           width: 100%;
@@ -384,8 +384,8 @@ export default function StaffAttendance() {
           }
         }
 
-        .modal-header-dark {
-          background: #1e293b;
+        .modal-header-blue {
+          background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
           color: #ffffff;
           padding: 16px 20px;
           display: flex;
@@ -834,13 +834,13 @@ export default function StaffAttendance() {
       {/* QUICK UPDATE ATTENDANCE MODAL (without Shift field) */}
       {modalOpen && activeItem && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-card-dark-header" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-dark">
+          <div className="modal-card-blue-header" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-blue">
               <div>
                 <div style={{ fontSize: '15px', fontWeight: 700 }}>
                   Staff Attendance: {activeItem.name}
                 </div>
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                <div style={{ fontSize: '12px', color: '#bfdbfe', marginTop: '2px' }}>
                   {activeItem.staffCode} • {activeItem.role}
                 </div>
               </div>
