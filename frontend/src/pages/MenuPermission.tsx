@@ -14,7 +14,9 @@ const MenuPermission = () => {
   const roles = [
     'ADMIN', 
     'WARDEN',
-    'SUPER_ADMIN'
+    'SUPER_ADMIN',
+    'DEVELOPER',
+    'CANTEEN_MANAGER'
   ];
 
   const fetchPermissions = async () => {

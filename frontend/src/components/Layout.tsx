@@ -334,6 +334,13 @@ const Layout = () => {
                     <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', backgroundColor: '#f8f9fa' }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px' }}>{user?.name || 'Admin User'}</div>
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user?.email || 'admin@hostel.com'}</div>
+                      {user?.role && (
+                        <div style={{ marginTop: '8px' }}>
+                          <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', background: user.role === 'ADMIN' ? '#f3e8ff' : user.role === 'DEVELOPER' ? '#fee2e2' : '#e0f2fe', color: user.role === 'ADMIN' ? '#7e22ce' : user.role === 'DEVELOPER' ? '#991b1b' : '#0369a1', textTransform: 'uppercase' }}>
+                            {user.role}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div style={{ padding: '8px' }}>
                       <button
