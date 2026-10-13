@@ -20,8 +20,12 @@ const Layout = () => {
         setUser(payload);
         if (payload.role) {
           MenuPermissionAPI.getByRole(payload.role).then(res => {
-            if (res) {
-              setPermissions(res.permissions || res);
+            const perms = res?.permissions || res;
+            // Empty object (no record yet) => show all menus instead of hiding everything
+            if (perms && typeof perms === 'object' && Object.keys(perms).length > 0) {
+              setPermissions(perms);
+            } else {
+              setPermissions(null);
             }
           }).catch(console.error);
         }
@@ -140,7 +144,7 @@ const Layout = () => {
             </NavLink>
           )}
 
-          {(!permissions || permissions.colleges === true || permissions.canteen_master === true) && (
+          {(!permissions || permissions.colleges === true || permissions.staff_master === true || permissions.staff_attendance === true || permissions.staff_salary === true || permissions.canteen_master === true || permissions.mess_attendance_reports === true) && (
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>MASTER</div>
           )}
           {(!permissions || permissions.colleges === true) && (
@@ -149,26 +153,32 @@ const Layout = () => {
               College Master
             </NavLink>
           )}
-          <NavLink to="/staff" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Users size={18} /></div>
-            Staff Master
-          </NavLink>
-          <NavLink to="/staff/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Clock size={18} /></div>
-            Staff Gate In / Out
-          </NavLink>
-          <NavLink to="/staff/salary" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <div className="nav-icon"><Banknote size={18} /></div>
-            Staff Salary Register
-          </NavLink>
-          {(!permissions || permissions.canteen_master === true) && (
+          {(!permissions || permissions.staff_master === true) && (
+            <NavLink to="/staff" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Users size={18} /></div>
+              Staff Master
+            </NavLink>
+          )}
+          {(!permissions || permissions.staff_attendance === true) && (
+            <NavLink to="/staff/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Clock size={18} /></div>
+              Staff Gate In / Out
+            </NavLink>
+          )}
+          {(!permissions || permissions.staff_salary === true) && (
+            <NavLink to="/staff/salary" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Banknote size={18} /></div>
+              Staff Salary Register
+            </NavLink>
+          )}
+          {(!permissions || permissions.canteen_master === true || permissions.canteen_products === true || permissions.canteen_categories === true || permissions.canteen_units === true || permissions.canteen_suppliers === true || permissions.canteen_payment_modes === true || permissions.canteen_purchase_entry === true || permissions.canteen_purchase_reports === true || permissions.canteen_supplier_payments === true) && (
             <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Utensils size={18} /></div>
               Canteen Master
             </NavLink>
           )}
 
-          {(!permissions || permissions.canteen_master === true) && (
+          {(!permissions || permissions.canteen_master === true || permissions.mess_attendance_reports === true) && (
             <NavLink to="/mess-attendance-reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><FileText size={18} /></div>
               Mess Attendance Reports

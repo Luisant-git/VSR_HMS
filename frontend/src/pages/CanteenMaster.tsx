@@ -55,7 +55,7 @@ export default function CanteenMaster() {
         { id: 'purchase-entry', permKey: 'canteen_purchase_entry' },
         { id: 'supplier-payments', permKey: 'canteen_supplier_payments' },
         { id: 'purchase-reports', permKey: 'canteen_purchase_reports' }
-      ].filter(t => permissions[t.permKey] === true);
+      ].filter(t => !permissions || permissions[t.permKey] === true || permissions.canteen_master === true);
 
       if (availableTabs.length > 0 && !availableTabs.find(t => t.id === activeTab)) {
         setActiveTab(availableTabs[0].id as any);
