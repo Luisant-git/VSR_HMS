@@ -95,16 +95,76 @@ export default function DeveloperSettings() {
             onClick={() => requestTruncate('OUTPASSES', 'All Outpasses')}
           />
           <TruncateCard 
-            title="Truncate Gate Logs" 
-            desc="Wipe all entry and exit logs from the gate."
+            title="Truncate Gate Logs & Attendance" 
+            desc="Wipe all gate entry/exit logs, late warnings and mess attendance."
             btnText="Wipe Gate Logs"
-            onClick={() => requestTruncate('GATELOGS', 'All Gate Logs')}
+            onClick={() => requestTruncate('GATELOGS', 'All Gate Logs, Warnings & Mess Attendance')}
           />
           <TruncateCard 
             title="Truncate Rooms" 
             desc="Wipe all rooms directory data."
             btnText="Wipe Rooms"
             onClick={() => requestTruncate('ROOMS', 'All Rooms')}
+          />
+          <TruncateCard 
+            title="Truncate Clearance Records" 
+            desc="Wipe all student clearance / vacate records."
+            btnText="Wipe Clearance"
+            onClick={() => requestTruncate('CLEARANCE', 'All Clearance Records')}
+          />
+          <TruncateCard 
+            title="Truncate Staff" 
+            desc="Wipe all staff master, attendance and salary records."
+            btnText="Wipe Staff"
+            onClick={() => requestTruncate('STAFF', 'All Staff Data')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Products Master" 
+            desc="Wipe all canteen products (and their purchase line items)."
+            btnText="Wipe Products"
+            onClick={() => requestTruncate('CANTEEN_PRODUCTS', 'Canteen Products')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Categories" 
+            desc="Wipe all canteen categories (products unlinked)."
+            btnText="Wipe Categories"
+            onClick={() => requestTruncate('CANTEEN_CATEGORIES', 'Canteen Categories')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Units" 
+            desc="Wipe all canteen units (products unlinked)."
+            btnText="Wipe Units"
+            onClick={() => requestTruncate('CANTEEN_UNITS', 'Canteen Units')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Suppliers" 
+            desc="Wipe all canteen suppliers and their payment history."
+            btnText="Wipe Suppliers"
+            onClick={() => requestTruncate('CANTEEN_SUPPLIERS', 'Canteen Suppliers')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Payment Modes" 
+            desc="Wipe all canteen payment modes (purchases unlinked)."
+            btnText="Wipe Payment Modes"
+            onClick={() => requestTruncate('CANTEEN_PAYMENT_MODES', 'Canteen Payment Modes')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Purchase Entry" 
+            desc="Wipe all canteen purchase entries and line items."
+            btnText="Wipe Purchases"
+            onClick={() => requestTruncate('CANTEEN_PURCHASES', 'Canteen Purchase Entries')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — Supplier Payments" 
+            desc="Wipe all canteen supplier payment records."
+            btnText="Wipe Supplier Payments"
+            onClick={() => requestTruncate('CANTEEN_SUPPLIER_PAYMENTS', 'Canteen Supplier Payments')}
+          />
+          <TruncateCard 
+            title="Truncate Canteen — ALL" 
+            desc="Wipe ALL canteen data: purchases, payments, products, suppliers, modes, categories, units."
+            btnText="Wipe Entire Canteen"
+            onClick={() => requestTruncate('CANTEEN', 'All Canteen Data')}
           />
 
         </div>
