@@ -39,7 +39,7 @@ export default function StaffAttendance() {
   const [activeTab, setActiveTab] = useState<'daily' | 'history'>('daily');
 
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    new Date().toISOString().split('T')[0] ?? ''
   );
   const [roster, setRoster] = useState<StaffAttendanceItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
