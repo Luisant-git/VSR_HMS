@@ -52,12 +52,33 @@ export default function StaffAttendance() {
     fetchRoster();
   }, [selectedDate]);
 
-  const getCurrentTimeString = () => {
-    return new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+  // Returns current time as HH:MM (24-hour) for <input type="time">
+  const getCurrentTime24 = () => {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  };
+
+  // Converts stored time strings ("09:00 AM" or "13:30") to HH:MM for <input type="time">
+  const to24h = (timeStr: string): string => {
+    if (!timeStr || timeStr === '--:--') return '';
+    // Already HH:MM (24h)
+    const match24 = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (match24) {
+      return `${String(parseInt(match24[1], 10)).padStart(2, '0')}:${match24[2]}`;
+    }
+    // 12-hour format
+    const match12 = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+    if (match12) {
+      let h = parseInt(match12[1], 10);
+      const mn = match12[2];
+      const mer = match12[3].toUpperCase();
+      if (mer === 'AM' && h === 12) h = 0;
+      else if (mer === 'PM' && h !== 12) h += 12;
+      return `${String(h).padStart(2, '0')}:${mn}`;
+    }
+    return '';
   };
 
   const parseTimeToMinutes = (timeStr?: string | null): number | null => {
@@ -124,8 +145,13 @@ export default function StaffAttendance() {
 
   const openAttendanceModal = (item: StaffAttendanceItem) => {
     setActiveItem(item);
-    const existingCheckIn = item.checkInTime && item.checkInTime !== '--:--' ? item.checkInTime : getCurrentTimeString();
-    const existingCheckOut = item.checkOutTime && item.checkOutTime !== '--:--' ? item.checkOutTime : '';
+    // Convert to HH:MM 24h for <input type="time">
+    const existingCheckIn = item.checkInTime && item.checkInTime !== '--:--'
+      ? to24h(item.checkInTime)
+      : getCurrentTime24();
+    const existingCheckOut = item.checkOutTime && item.checkOutTime !== '--:--'
+      ? to24h(item.checkOutTime)
+      : '';
     let existingStatus = item.status && item.status !== 'Not Marked' ? item.status : 'Present';
 
     // Auto classify if check-in and check-out exist and not manually set to On Leave/Absent
@@ -865,15 +891,15 @@ export default function StaffAttendance() {
                     <label>Check-In Time</label>
                     <div style={{ position: 'relative' }}>
                       <input
-                        type="text"
+                        type="time"
                         value={formData.checkInTime}
                         onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
-                        placeholder="09:00 AM"
                         className="form-control"
+                        style={{ paddingRight: '70px' }}
                       />
                       <button
                         type="button"
-                        onClick={() => setFormData({ ...formData, checkInTime: getCurrentTimeString() })}
+                        onClick={() => setFormData({ ...formData, checkInTime: getCurrentTime24() })}
                         style={{ position: 'absolute', right: '6px', top: '7px', fontSize: '11px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         Now
@@ -885,7 +911,7 @@ export default function StaffAttendance() {
                     <label>Check-Out Time</label>
                     <div style={{ position: 'relative' }}>
                       <input
-                        type="text"
+                        type="time"
                         value={formData.checkOutTime}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -896,13 +922,13 @@ export default function StaffAttendance() {
                             status: (dur && prev.status !== 'On Leave' && prev.status !== 'Absent') ? dur.suggestedStatus : prev.status
                           }));
                         }}
-                        placeholder="06:00 PM"
                         className="form-control"
+                        style={{ paddingRight: '70px' }}
                       />
                       <button
                         type="button"
                         onClick={() => {
-                          const nowStr = getCurrentTimeString();
+                          const nowStr = getCurrentTime24();
                           const dur = calculateTimeDuration(formData.checkInTime, nowStr);
                           setFormData(prev => ({
                             ...prev,
