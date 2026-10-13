@@ -732,6 +732,27 @@ rightContent={
         </div>
         <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
 
+        {/* Date filter */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Calendar size={16} color="var(--text-muted)" />
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            style={{
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              fontSize: '13px',
+              outline: 'none',
+              background: '#f8fafc',
+              color: '#0f172a'
+            }}
+          />
+        </div>
+
+        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+
         {/* Search input with icon */}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
