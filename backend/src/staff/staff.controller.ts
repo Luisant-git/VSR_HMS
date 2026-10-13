@@ -28,6 +28,25 @@ export class StaffController {
     return this.staffService.findAll({ search, role, salaryBasis, status });
   }
 
+  @Get('attendance/history')
+  getAttendanceHistory(
+    @Query('staffId') staffId?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.staffService.getAttendanceHistory({
+      staffId,
+      fromDate,
+      toDate,
+      search,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
   @Get('attendance/roster')
   getAttendanceRoster(@Query('date') date?: string) {
     return this.staffService.getAttendanceRoster(date);

@@ -1,16 +1,43 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
 import {
   Users, Clock, Check, X, Search,
-  RefreshCw, CheckCircle2, AlertCircle, Calendar, Phone
+  RefreshCw, CheckCircle2, AlertCircle, Calendar, Phone, History
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
-import { StaffAPI, type StaffAttendanceItem } from '../api/staff.api';
+import { StaffAPI, type StaffAttendanceItem, type StaffMember } from '../api/staff.api';
 import { getRoleBadgeStyle } from './StaffMaster';
+
+const historyStaffSelectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: '38px',
+    borderRadius: '8px',
+    borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+    '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#94a3b8' },
+    fontSize: '13px',
+    background: '#f8fafc',
+    minWidth: '220px'
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+    color: state.isSelected ? 'white' : '#334155',
+    cursor: 'pointer'
+  }),
+  menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+};
 
 export default function StaffAttendance() {
   const navigate = useNavigate();
+
+  // Active tab: 'daily' | 'history'
+  const [activeTab, setActiveTab] = useState<'daily' | 'history'>('daily');
+
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -36,6 +63,28 @@ export default function StaffAttendance() {
     remarks: ''
   });
 
+  // ── Logs History Tab State ──────────────────────────────────────────────
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [historyFromDate, setHistoryFromDate] = useState<string>('');
+  const [historyToDate, setHistoryToDate] = useState<string>('');
+  const [historyStaffId, setHistoryStaffId] = useState<string>('ALL');
+  const [historySearch, setHistorySearch] = useState<string>('');
+  const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+  const [historyTotal, setHistoryTotal] = useState<number>(0);
+  const [historySummary, setHistorySummary] = useState<{ present: number; absent: number; halfDay: number; onLeave: number }>({ present: 0, absent: 0, halfDay: 0, onLeave: 0 });
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const [historyLimit, setHistoryLimit] = useState<number>(25);
+  const [historyTotalPages, setHistoryTotalPages] = useState<number>(1);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+  // ───────────────────────────────────────────────────────────────────────
+
+  const historyStaffOptions = useMemo(() => {
+    return [
+      { value: 'ALL', label: 'All Staff Members' },
+      ...staffList.map(s => ({ value: s.id, label: `${s.name} (${s.staffCode})` }))
+    ];
+  }, [staffList]);
+
   const fetchRoster = async () => {
     try {
       setLoading(true);
@@ -48,10 +97,50 @@ export default function StaffAttendance() {
     }
   };
 
+  const fetchStaffList = async () => {
+    try {
+      const data = await StaffAPI.getAll({ status: 'Active' });
+      setStaffList(data || []);
+    } catch (err) {
+      console.error('Failed to load staff list:', err);
+    }
+  };
+
+  const fetchHistory = async (pg = historyPage) => {
+    setHistoryLoading(true);
+    try {
+      const res = await StaffAPI.getAttendanceHistory({
+        staffId: historyStaffId !== 'ALL' ? historyStaffId : undefined,
+        fromDate: historyFromDate || undefined,
+        toDate: historyToDate || undefined,
+        search: historySearch || undefined,
+        page: pg,
+        limit: historyLimit,
+      });
+      setHistoryRecords(res.records || []);
+      setHistoryTotal(res.total || 0);
+      setHistorySummary(res.summary || { present: 0, absent: 0, halfDay: 0, onLeave: 0 });
+      setHistoryTotalPages(res.totalPages || 1);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchRoster();
   }, [selectedDate]);
 
+  useEffect(() => {
+    fetchStaffList();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory(historyPage);
+    }
+  }, [activeTab, historyPage, historyStaffId, historyFromDate, historyToDate, historySearch, historyLimit]);
   // Returns current time as HH:MM (24-hour) for <input type="time">
   const getCurrentTime24 = () => {
     const now = new Date();
@@ -111,6 +200,19 @@ export default function StaffAttendance() {
     }
 
     return null;
+  };
+
+  // Converts stored time strings ("09:00", "18:00", "05:30 PM") to 12-hour format ("09:00 AM", "06:00 PM")
+  const to12h = (timeStr?: string): string => {
+    if (!timeStr || timeStr === '--:--') return '--:--';
+    const mins = parseTimeToMinutes(timeStr);
+    if (mins === null) return timeStr;
+    let h = Math.floor(mins / 60);
+    const m = mins % 60;
+    const mer = h >= 12 ? 'PM' : 'AM';
+    if (h === 0) h = 12;
+    else if (h > 12) h -= 12;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} ${mer}`;
   };
 
   const calculateTimeDuration = (inTime?: string, outTime?: string) => {
@@ -234,12 +336,18 @@ export default function StaffAttendance() {
   }, [filteredRoster, page, limit]);
 
   // Summary counts
-  const totalCount = roster.length;
   const presentCount = roster.filter(r => r.status === 'Present').length;
-  const notMarkedCount = roster.filter(r => r.status === 'Not Marked' || !r.status).length;
-  const absentCount = roster.filter(r => r.status === 'Absent' || r.status === 'On Leave').length;
+  const absentCount = roster.filter(r => r.status === 'Absent').length;
+  const onLeaveCount = roster.filter(r => r.status === 'On Leave').length;
   const halfDayCount = roster.filter(r => r.status === 'Half Day').length;
-  const fullDayCount = roster.filter(r => r.status === 'Present' && r.checkOutTime && r.checkOutTime !== '--:--').length;
+
+  // When filtering the Logs History, top stats cards reflect the filtered result set
+  const hasHistoryFilter = historyStaffId !== 'ALL' || !!historyFromDate || !!historyToDate || !!historySearch.trim();
+  const showHistoryStats = activeTab === 'history' && hasHistoryFilter;
+  const statsPresent = showHistoryStats ? historySummary.present : presentCount;
+  const statsHalfDay = showHistoryStats ? historySummary.halfDay : halfDayCount;
+  const statsAbsent = showHistoryStats ? historySummary.absent : absentCount;
+  const statsOnLeave = showHistoryStats ? historySummary.onLeave : onLeaveCount;
 
   const formatDisplayDate = (dStr: string) => {
     try {
@@ -489,22 +597,9 @@ export default function StaffAttendance() {
         title="Staff Gate In / Out Daily Attendance"
         subtitle={`Record duty check-in/out timestamps and monitor staff presence for ${formatDisplayDate(selectedDate)}`}
         showBack={true}
-        rightContent={
+rightContent={
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Date Picker matching Hostellers UI style */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <Calendar size={16} color="#64748b" />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Date:</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setPage(1);
-                }}
-                style={{ border: 'none', outline: 'none', fontSize: '13.5px', fontWeight: 700, color: '#0f172a', background: 'transparent', cursor: 'pointer' }}
-              />
-            </div>
+           
 
             <button
               onClick={() => navigate('/staff')}
@@ -533,35 +628,22 @@ export default function StaffAttendance() {
       {/* Quick Stats Summary */}
       <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
-            <Users size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Active Staff</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>{totalCount}</div>
-          </div>
-        </div>
-
-        <div className="att-stat-card">
           <div style={{ width: 44, height: 44, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Present on Duty</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a' }}>{presentCount}</div>
-            <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600, marginTop: '1px' }}>
-              Full: {fullDayCount} • Half: {halfDayCount}
-            </div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Present</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a' }}>{statsPresent}</div>
           </div>
         </div>
 
         <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#fefce8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ca8a04' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
             <Clock size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Not Marked Yet</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#ca8a04' }}>{notMarkedCount}</div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Half Day</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#b45309' }}>{statsHalfDay}</div>
           </div>
         </div>
 
@@ -570,12 +652,55 @@ export default function StaffAttendance() {
             <AlertCircle size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Absent / On Leave</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>{absentCount}</div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Absent</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>{statsAbsent}</div>
+          </div>
+        </div>
+
+        <div className="att-stat-card">
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+            <Calendar size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>On Leave</div>
+            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1d4ed8' }}>{statsOnLeave}</div>
           </div>
         </div>
       </div>
 
+      {/* ── Tab Navigation ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'white', padding: '6px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)', width: 'fit-content' }}>
+        <button
+          onClick={() => setActiveTab('daily')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '9px 20px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600,
+            cursor: 'pointer', border: 'none', transition: 'all 0.15s',
+            background: activeTab === 'daily' ? 'var(--sidebar-active)' : 'transparent',
+            color: activeTab === 'daily' ? 'white' : '#64748b',
+            boxShadow: activeTab === 'daily' ? '0 2px 8px rgba(37,99,235,0.2)' : 'none'
+          }}
+        >
+          <Calendar size={15} /> Daily Roster
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '7px',
+            padding: '9px 20px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600,
+            cursor: 'pointer', border: 'none', transition: 'all 0.15s',
+            background: activeTab === 'history' ? 'var(--sidebar-active)' : 'transparent',
+            color: activeTab === 'history' ? 'white' : '#64748b',
+            boxShadow: activeTab === 'history' ? '0 2px 8px rgba(37,99,235,0.2)' : 'none'
+          }}
+        >
+          <History size={15} /> Logs History
+        </button>
+      </div>
+
+      {/* ── DAILY ROSTER TAB ────────────────────────────────────── */}
+      {activeTab === 'daily' && (
+      <>
       {/* Filter and Search Bar matching Hostellers.tsx */}
       <div style={{
         display: 'flex',
@@ -783,7 +908,7 @@ export default function StaffAttendance() {
                       {isCheckedOut ? (
                         <div>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0284c7', fontWeight: 700, fontSize: '13px' }}>
-                            <Clock size={13} /> {item.checkOutTime}
+                            <Clock size={13} /> {to12h(item.checkOutTime)}
                           </span>
                           {item.workDuration && item.workDuration !== '--' && (
                             <div style={{ fontSize: '11px', color: '#475569', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -862,8 +987,206 @@ export default function StaffAttendance() {
           </div>
         )}
       </div>
+      </> /* end daily tab */
+      )}
 
-      {/* QUICK UPDATE ATTENDANCE MODAL (without Shift field) */}
+      {/* ── LOGS HISTORY TAB ────────────────────────────────────── */}
+      {activeTab === 'history' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* Filters bar */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+            {/* Entries per page */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+              <select
+                value={historyLimit}
+                onChange={e => { setHistoryLimit(Number(e.target.value)); setHistoryPage(1); }}
+                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={99999}>All</option>
+              </select>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+            </div>
+            <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+
+            {/* Search bar */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px' }} />
+              <input
+                type="text"
+                placeholder="Search logs by name, code, status..."
+                value={historySearch}
+                onChange={(e) => { setHistorySearch(e.target.value); setHistoryPage(1); }}
+                style={{ padding: '8px 12px 8px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '260px', background: '#f8fafc' }}
+              />
+            </div>
+
+            {/* Staff filter (searchable) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={15} color="#64748b" />
+              <Select
+                options={historyStaffOptions}
+                value={historyStaffOptions.find(o => o.value === historyStaffId) || null}
+                onChange={(opt) => { setHistoryStaffId(opt ? opt.value : 'ALL'); setHistoryPage(1); }}
+                placeholder="Search staff..."
+                styles={historyStaffSelectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                menuPosition="fixed"
+                isClearable={false}
+              />
+            </div>
+
+            {/* Date From */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>From:</span>
+              <input
+                type="date"
+                value={historyFromDate}
+                onChange={(e) => { setHistoryFromDate(e.target.value); setHistoryPage(1); }}
+                style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#f8fafc' }}
+              />
+            </div>
+
+            {/* Date To */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>To:</span>
+              <input
+                type="date"
+                value={historyToDate}
+                onChange={(e) => { setHistoryToDate(e.target.value); setHistoryPage(1); }}
+                style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#f8fafc' }}
+              />
+            </div>
+
+            {/* Clear */}
+            {(historyStaffId !== 'ALL' || historyFromDate || historyToDate) && (
+              <button
+                onClick={() => { setHistoryStaffId('ALL'); setHistoryFromDate(''); setHistoryToDate(''); setHistoryPage(1); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                <X size={14} strokeWidth={3} /> Clear
+              </button>
+            )}
+
+            <div style={{ flex: 1 }} />
+
+            {/* Refresh */}
+            <button
+              onClick={() => fetchHistory(1)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
+
+          {/* History Table */}
+          <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
+                  <th>DATE</th>
+                  <th>STAFF CODE</th>
+                  <th>STAFF MEMBER</th>
+                  <th>DESIGNATION</th>
+                  <th>CHECK-IN</th>
+                  <th>CHECK-OUT</th>
+                  <th>STATUS</th>
+                  <th>REMARKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyLoading ? (
+                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Loading logs...</td></tr>
+                ) : historyRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
+                      <History size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
+                      <div style={{ fontWeight: 600, color: '#334155' }}>No attendance logs found</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Try adjusting the date range or staff filter.</div>
+                    </td>
+                  </tr>
+                ) : (
+                  historyRecords.map((r: any) => {
+                    const roleBadge = getRoleBadgeStyle(r.staffRole || 'Staff');
+                    let statusBg = '#f1f5f9'; let statusColor = '#64748b'; let statusBorder = '#e2e8f0';
+                    if (r.status === 'Present') { statusBg = '#f0fdf4'; statusColor = '#16a34a'; statusBorder = '#bbf7d0'; }
+                    else if (r.status === 'Absent') { statusBg = '#fef2f2'; statusColor = '#dc2626'; statusBorder = '#fecaca'; }
+                    else if (r.status === 'Half Day') { statusBg = '#fffbeb'; statusColor = '#d97706'; statusBorder = '#fde68a'; }
+                    else if (r.status === 'On Leave') { statusBg = '#eff6ff'; statusColor = '#2563eb'; statusBorder = '#bfdbfe'; }
+
+                    return (
+                      <tr key={r.id}>
+                        <td>
+                          <span style={{ fontWeight: 700, color: '#334155', fontFamily: 'monospace', fontSize: '13px' }}>{r.dateStr}</span>
+                        </td>
+                        <td>
+                          <span className="staff-code-badge">{r.staffCode}</span>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{r.staffName}</div>
+                          {r.phone && <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}><Phone size={10} />{r.phone}</div>}
+                        </td>
+                        <td>
+                          <span style={{ background: roleBadge.bg, color: roleBadge.color, border: `1px solid ${roleBadge.border}`, padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'inline-block' }}>
+                            {r.staffRole || 'Staff'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: r.checkInTime && r.checkInTime !== '--:--' ? '#15803d' : '#94a3b8', fontWeight: r.checkInTime && r.checkInTime !== '--:--' ? 700 : 400, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            {r.checkInTime && r.checkInTime !== '--:--' ? <><Clock size={12} />{r.checkInTime}</> : '--:--'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: r.checkOutTime && r.checkOutTime !== '--:--' ? '#0284c7' : '#94a3b8', fontWeight: r.checkOutTime && r.checkOutTime !== '--:--' ? 700 : 400, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            {r.checkOutTime && r.checkOutTime !== '--:--' ? <><Clock size={12} />{to12h(r.checkOutTime)}</> : '--:--'}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ background: statusBg, color: statusColor, border: `1px solid ${statusBorder}`, padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            {r.status === 'Present' && <Check size={11} strokeWidth={3} />}
+                            {r.status === 'Absent' && <X size={11} strokeWidth={3} />}
+                            {r.status === 'Half Day' && <Clock size={11} strokeWidth={2.5} />}
+                            {r.status || 'Not Marked'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: '#64748b' }}>{r.remarks || '—'}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+
+            {/* History Pagination */}
+            {historyTotal > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                  Showing {historyTotal === 0 ? 0 : (historyPage - 1) * historyLimit + 1} to {Math.min(historyPage * historyLimit, historyTotal)} of {historyTotal} records
+                </div>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => { const np = Math.max(1, historyPage - 1); setHistoryPage(np); }}
+                    disabled={historyPage === 1}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: historyPage === 1 ? '#f1f5f9' : 'white', color: historyPage === 1 ? '#94a3b8' : '#334155', cursor: historyPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                  >Previous</button>
+                  <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>{historyPage}</button>
+                  <button
+                    onClick={() => { const np = Math.min(historyTotalPages, historyPage + 1); setHistoryPage(np); }}
+                    disabled={historyPage >= historyTotalPages}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: historyPage >= historyTotalPages ? '#f1f5f9' : 'white', color: historyPage >= historyTotalPages ? '#94a3b8' : '#334155', cursor: historyPage >= historyTotalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                  >Next</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {modalOpen && activeItem && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}>
           <div className="modal-card-blue-header" onClick={(e) => e.stopPropagation()}>

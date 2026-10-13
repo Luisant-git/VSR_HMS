@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
 import {
   Banknote, Users, CheckCircle2, Search,
-  RefreshCw, X, Plus, Calendar, Trash2, Eye
+  RefreshCw, X, Plus, Trash2, Eye
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
@@ -33,7 +33,7 @@ export default function StaffSalaryRegister() {
   const [loading, setLoading] = useState<boolean>(true);
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(10);
+  const [limit] = useState<number>(10);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -431,7 +431,7 @@ export default function StaffSalaryRegister() {
           background: #ffffff;
           border-radius: 12px;
           width: 100%;
-          max-width: 520px;
+          max-width: 580px;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           overflow: hidden;
           animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -842,7 +842,7 @@ export default function StaffSalaryRegister() {
                 Previous
               </button>
               <button
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #15803d', background: '#15803d', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
                 {page}
               </button>
               <button
@@ -918,51 +918,41 @@ export default function StaffSalaryRegister() {
                   </div>
                 </div>
 
-                {/* Live Attendance Present Days for Selected Month */}
+                {/* Live Attendance Summary for Selected Month */}
                 {loadingAttendance ? (
-                  <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', padding: '2px 0' }}>
-                    Fetching attendance for {modalMonth} {modalYear}...
+                  <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    ⏳ Fetching attendance for {modalMonth} {modalYear}...
                   </div>
                 ) : attendanceStats ? (
-                  <div style={{
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '9px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '6px'
-                  }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                      {modalMonth} Attendance:
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>
-                        ✓ {attendanceStats.presentDays} Days Present
-                      </span>
-                      {attendanceStats.halfDays > 0 && (
-                        <span style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', padding: '2px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600 }}>
-                          ½ {attendanceStats.halfDays} Half Days
-                        </span>
-                      )}
-                      {attendanceStats.leaveDays > 0 && (
-                        <span style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600 }}>
-                          {attendanceStats.leaveDays} Leaves
-                        </span>
-                      )}
-                      {attendanceStats.absentDays > 0 && (
-                        <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', padding: '2px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 600 }}>
-                          {attendanceStats.absentDays} Absent
-                        </span>
-                      )}
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                        ({attendanceStats.payableDays} payable / {attendanceStats.totalDays} days)
-                      </span>
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📋 Attendance Summary — {modalMonth} {modalYear}
+                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 400 }}>({attendanceStats.recordedDays} of {attendanceStats.totalDays} days recorded)</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#16a34a', lineHeight: 1 }}>{attendanceStats.presentDays}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', marginTop: '4px' }}>Present</div>
+                      </div>
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>{attendanceStats.halfDays}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', marginTop: '4px' }}>Half Day</div>
+                      </div>
+                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#dc2626', lineHeight: 1 }}>{attendanceStats.absentDays}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', marginTop: '4px' }}>Absent</div>
+                      </div>
+                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#2563eb', lineHeight: 1 }}>{attendanceStats.leaveDays}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#1d4ed8', marginTop: '4px' }}>On Leave</div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '8px', fontSize: '11.5px', color: '#475569', fontWeight: 600, textAlign: 'right' }}>
+                      Payable Days: <span style={{ color: '#15803d', fontSize: '13px', fontWeight: 800 }}>{attendanceStats.payableDays}</span> / {attendanceStats.totalDays}
                     </div>
                   </div>
                 ) : null}
+
 
                 {/* Base Salary (₹) */}
                 <div className="form-group">

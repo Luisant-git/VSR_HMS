@@ -427,4 +427,85 @@ export class StaffService {
       classification: classificationResult.classification
     };
   }
+
+  /**
+   * Returns paginated attendance history records across multiple dates,
+   * filterable by staffId and/or a date range.
+   */
+  async getAttendanceHistory(params: {
+    staffId?: string;
+    fromDate?: string;
+    toDate?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    if (!this.attendanceModel)
+      return { records: [], total: 0, summary: { present: 0, absent: 0, halfDay: 0, onLeave: 0 }, page: 1, limit: 10 };
+
+    const where: any = {};
+
+    if (params.staffId && params.staffId !== 'ALL') {
+      where.staffId = params.staffId;
+    }
+
+    if (params.search && params.search.trim()) {
+      const s = params.search.trim();
+      where.OR = [
+        { staff: { is: { name: { contains: s, mode: 'insensitive' } } } },
+        { staff: { is: { staffCode: { contains: s, mode: 'insensitive' } } } },
+        { staff: { is: { role: { contains: s, mode: 'insensitive' } } } },
+        { status: { contains: s, mode: 'insensitive' } },
+        { remarks: { contains: s, mode: 'insensitive' } },
+        { dateStr: { contains: s } },
+      ];
+    }
+
+    if (params.fromDate || params.toDate) {
+      where.dateStr = {};
+      if (params.fromDate) where.dateStr.gte = params.fromDate;
+      if (params.toDate) where.dateStr.lte = params.toDate;
+    }
+
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.max(1, Math.min(200, params.limit || 25));
+    const skip = (page - 1) * limit;
+
+    const [rawRecords, total, statusRows] = await Promise.all([
+      this.attendanceModel.findMany({
+        where,
+        include: { staff: { select: { id: true, staffCode: true, name: true, role: true, phone: true } } },
+        orderBy: [{ dateStr: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+      }),
+      this.attendanceModel.count({ where }),
+      this.attendanceModel.findMany({ where, select: { status: true } }),
+    ]);
+
+    const summary = { present: 0, absent: 0, halfDay: 0, onLeave: 0 };
+    for (const row of (statusRows as any[]) || []) {
+      const s = row.status || 'Not Marked';
+      if (s === 'Present') summary.present++;
+      else if (s === 'Absent') summary.absent++;
+      else if (s === 'Half Day') summary.halfDay++;
+      else if (s === 'On Leave') summary.onLeave++;
+    }
+
+    const records = rawRecords.map((r: any) => ({
+      id: r.id,
+      staffId: r.staffId,
+      staffCode: r.staff?.staffCode || '',
+      staffName: r.staff?.name || '',
+      staffRole: r.staff?.role || '',
+      phone: r.staff?.phone || '',
+      dateStr: r.dateStr,
+      checkInTime: r.checkInTime || '--:--',
+      checkOutTime: r.checkOutTime || '--:--',
+      status: r.status || 'Not Marked',
+      remarks: r.remarks || '',
+    }));
+
+    return { records, total, summary, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
 }

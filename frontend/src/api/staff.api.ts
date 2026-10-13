@@ -133,6 +133,28 @@ export const StaffAPI = {
       body: JSON.stringify(data)
     });
     return handleResponse(res);
+  },
+
+  getAttendanceHistory: async (params?: {
+    staffId?: string;
+    fromDate?: string;
+    toDate?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params?.staffId && params.staffId !== 'ALL') query.append('staffId', params.staffId);
+    if (params?.fromDate) query.append('fromDate', params.fromDate);
+    if (params?.toDate) query.append('toDate', params.toDate);
+    if (params?.search && params.search.trim()) query.append('search', params.search.trim());
+    if (params?.page) query.append('page', String(params.page));
+    if (params?.limit) query.append('limit', String(params.limit));
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`${API_URL}/staff/attendance/history${qs}`, {
+      headers: getHeaders()
+    });
+    return handleResponse(res);
   }
 };
 
