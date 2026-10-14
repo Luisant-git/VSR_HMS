@@ -434,12 +434,114 @@ export class CanteenService {
     if (!purchase) throw new NotFoundException('Purchase entry not found');
 
     return this.prisma.$transaction(async (tx: any) => {
+      // Delete the purchase (items cascade via onDelete: Cascade - delete items first for safety)
+      await tx.canteenPurchaseItem.deleteMany({ where: { purchaseId: id } });
+      await tx.canteenPurchase.delete({ where: { id } });
+
+      // REVERSE: restore each linked product's costPrice to its latest
+      // remaining purchase price (or 0 when no other purchase exists).
       for (const item of purchase.items) {
         if (item.productId) {
-          // No longer tracking stock
+          const latest = await tx.canteenPurchaseItem.findFirst({
+            where: { productId: item.productId },
+            orderBy: { createdAt: 'desc' },
+          });
+          await tx.canteenProduct.update({
+            where: { id: item.productId },
+            data: { costPrice: latest ? Number(latest.price) || 0 : 0 },
+          });
         }
       }
-      return tx.canteenPurchase.delete({ where: { id } });
+      return { message: 'Purchase entry deleted and product cost reversed.' };
+    });
+  }
+
+  async updatePurchase(id: string, data: {
+    supplierId?: string;
+    paymentModeId?: string;
+    notes?: string;
+    purchaseDate?: string;
+    items: Array<{
+      productId?: string;
+      productName: string;
+      qty: number;
+      unit?: string;
+      price: number;
+    }>;
+  }) {
+    const existing = await this.prisma.canteenPurchase.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!existing) throw new NotFoundException('Purchase entry not found');
+
+    if (!data.items || data.items.length === 0) {
+      throw new BadRequestException('Purchase entry must contain at least one item.');
+    }
+
+    let totalAmount = 0;
+    const itemDataList: any[] = [];
+
+    for (const item of data.items) {
+      const qty = Number(item.qty) || 0;
+      const price = Number(item.price) || 0;
+      if (!item.productName || item.productName.trim() === '' || qty <= 0) {
+        throw new BadRequestException('Each item must have a product name and quantity > 0.');
+      }
+      const totalItemAmt = qty * price;
+      totalAmount += totalItemAmt;
+
+      itemDataList.push({
+        productId: item.productId || null,
+        productName: item.productName.trim(),
+        qty,
+        unit: item.unit || null,
+        price,
+        totalAmount: totalItemAmt
+      });
+    }
+
+    return this.prisma.$transaction(async (tx: any) => {
+      const updated = await tx.canteenPurchase.update({
+        where: { id },
+        data: {
+          purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : undefined,
+          supplierId: data.supplierId !== undefined ? (data.supplierId || null) : undefined,
+          paymentModeId: data.paymentModeId !== undefined ? (data.paymentModeId || null) : undefined,
+          totalAmount,
+          notes: data.notes !== undefined ? (data.notes || null) : undefined,
+        },
+      });
+
+      // Replace line items (delete + recreate keeps logic simple & atomic)
+      await tx.canteenPurchaseItem.deleteMany({ where: { purchaseId: id } });
+      for (const itemData of itemDataList) {
+        await tx.canteenPurchaseItem.create({
+          data: { ...itemData, purchaseId: id },
+        });
+      }
+
+      // REVERSE + RE-APPLY cost: for every product touched by old OR new
+      // items, set costPrice to its latest remaining purchase price.
+      const touched = new Set<string>();
+      for (const it of existing.items) if ((it as any).productId) touched.add((it as any).productId);
+      for (const it of itemDataList) if (it.productId) touched.add(it.productId);
+
+      for (const productId of touched) {
+        const latest = await tx.canteenPurchaseItem.findFirst({
+          where: { productId },
+          orderBy: { createdAt: 'desc' },
+        });
+        await tx.canteenProduct.update({
+          where: { id: productId },
+          data: { costPrice: latest ? Number((latest as any).price) || 0 : 0 },
+        });
+      }
+
+      return tx.canteenPurchase.findUnique({
+        where: { id },
+        include: { supplier: true, paymentMode: true, items: true },
+      });
     });
   }
 

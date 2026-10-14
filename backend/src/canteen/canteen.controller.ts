@@ -174,6 +174,23 @@ export class CanteenController {
     return this.canteenService.deletePurchase(id);
   }
 
+  @Put('purchases/:id')
+  updatePurchase(@Param('id') id: string, @Body() body: {
+    supplierId?: string;
+    paymentModeId?: string;
+    notes?: string;
+    purchaseDate?: string;
+    items: Array<{
+      productId?: string;
+      productName: string;
+      qty: number;
+      unit?: string;
+      price: number;
+    }>;
+  }) {
+    return this.canteenService.updatePurchase(id, body);
+  }
+
   // ---------------------------------------------------------
   // SUPPLIER PAYMENTS & PAYOUTS
   // ---------------------------------------------------------

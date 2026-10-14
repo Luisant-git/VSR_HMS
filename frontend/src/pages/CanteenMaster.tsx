@@ -104,6 +104,7 @@ export default function CanteenMaster() {
   const [viewMasterType, setViewMasterType] = useState<string>('');
 
   // Purchase Entry Form State (POS-Suite360 Style Multi-row Grid)
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
   const [purchaseHeader, setPurchaseHeader] = useState({
     supplierId: '',
     paymentModeId: '',
@@ -294,8 +295,9 @@ export default function CanteenMaster() {
     setPurchaseRows(purchaseRows.filter((_, i) => i !== index));
   };
 
-  // Clear Purchase Form
+  // Clear Purchase Form (also exits edit mode)
   const handleClearPurchaseForm = () => {
+    setEditingPurchaseId(null);
     setPurchaseHeader({
       supplierId: '',
       paymentModeId: '',
@@ -320,7 +322,7 @@ export default function CanteenMaster() {
     return calculateTotalAmount();
   };
 
-  // Submit Purchase Entry
+  // Submit Purchase Entry (create OR update when editing)
   const handlePurchaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -355,14 +357,49 @@ export default function CanteenMaster() {
         }))
       };
 
-      await CanteenAPI.createPurchase(payload);
-      toast.success('🎉 Purchase Entry saved successfully!');
+      if (editingPurchaseId) {
+        await CanteenAPI.updatePurchase(editingPurchaseId, payload);
+        toast.success('🎉 Purchase Entry updated! Product cost re-applied.');
+      } else {
+        await CanteenAPI.createPurchase(payload);
+        toast.success('🎉 Purchase Entry saved successfully!');
+      }
 
       handleClearPurchaseForm();
       await loadAllData();
       setActiveTab('purchase-reports');
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.message || 'Failed to submit purchase entry');
+    }
+  };
+
+  // Load a purchase into the entry form for editing
+  const handleEditPurchase = async (id: string) => {
+    try {
+      setLoading(true);
+      const p = await CanteenAPI.getPurchaseById(id);
+      setEditingPurchaseId(p.id);
+      setPurchaseHeader({
+        supplierId: p.supplierId || '',
+        paymentModeId: p.paymentModeId || '',
+        purchaseDate: p.purchaseDate ? new Date(p.purchaseDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+        notes: p.notes || ''
+      });
+      const rows: PurchaseItemRow[] = (p.items || []).map((it: any) => ({
+        productId: it.productId || '',
+        productName: it.productName || '',
+        qty: Number(it.qty) || 0,
+        unit: it.unit || '',
+        price: Number(it.price) || 0,
+        totalAmount: Number(it.totalAmount) || (Number(it.qty) * Number(it.price))
+      }));
+      setPurchaseRows(rows.length > 0 ? rows : [{ productId: '', productName: '', qty: 1, unit: '', price: 0, totalAmount: 0 }]);
+      setActiveTab('purchase-entry');
+      toast.info(`Editing ${p.invoiceNo} — submit to save changes.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load purchase for editing.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -423,11 +460,14 @@ export default function CanteenMaster() {
     }
   };
 
-  // Delete Item
+  // Delete Item (purchase delete also reverses linked product costPrice on backend)
   const handleDeleteItem = (type: string, id: string, name: string) => {
+    const isPurchase = type === 'purchase';
     Swal.fire({
-      title: 'Delete Item?',
-      text: `Are you sure you want to delete "${name}"?`,
+      title: isPurchase ? 'Delete Purchase Entry?' : 'Delete Item?',
+      text: isPurchase
+        ? `Delete "${name}"? Linked product cost price will be reversed to the previous purchase price.`
+        : `Are you sure you want to delete "${name}"?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
@@ -443,7 +483,7 @@ export default function CanteenMaster() {
           else if (type === 'payment-mode') await CanteenAPI.deletePaymentMode(id);
           else if (type === 'purchase') await CanteenAPI.deletePurchase(id);
 
-          toast.success(`Deleted successfully!`);
+          toast.success(isPurchase ? `Purchase deleted & product cost reversed!` : `Deleted successfully!`);
           loadAllData();
         } catch (err: any) {
           toast.error(err.response?.data?.message || err.message || 'Failed to delete');
@@ -987,7 +1027,7 @@ export default function CanteenMaster() {
           <div style={{ background: '#F8FAFC', padding: '20px', borderBottom: '1px solid #E2E8F0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShoppingCart color="#10b981" size={22} /> Purchase Entry
+                <ShoppingCart color="#10b981" size={22} /> Purchase Entry {editingPurchaseId ? '(Editing)' : ''}
               </h3>
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -1316,6 +1356,7 @@ export default function CanteenMaster() {
                     <button onClick={() => setViewPurchase(purc)} style={{ padding: '6px 12px', borderRadius: '6px', background: '#f1f5f9', border: 'none', color: '#0284c7', marginRight: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <Eye size={16} /> View Details
                     </button>
+                    <button onClick={() => handleEditPurchase(purc.id)} title="Edit purchase" style={{ padding: '6px 10px', borderRadius: '6px', background: '#eff6ff', border: 'none', color: '#2563eb', marginRight: '6px', cursor: 'pointer' }}><Edit size={16} /></button>
                     <button onClick={() => handleDeleteItem('purchase', purc.id, purc.invoiceNo)} style={{ padding: '6px 10px', borderRadius: '6px', background: '#fff1f2', border: 'none', color: '#e11d48', cursor: 'pointer' }}><Trash2 size={16} /></button>
                   </td>
                 </tr>

@@ -187,6 +187,14 @@ export const CanteenAPI = {
     });
     return handleResponse(res);
   },
+  updatePurchase: async (id: string, data: any) => {
+    const res = await fetch(`${API_URL}/canteen/purchases/${id}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return handleResponse(res);
+  },
 
   // Supplier Payments
   getSupplierPayments: async () => {
