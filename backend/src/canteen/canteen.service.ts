@@ -5,6 +5,40 @@ import { PrismaService } from '../prisma.service';
 export class CanteenService {
   constructor(private prisma: PrismaService) {}
 
+  private isUniqueConstraintError(error: any, target: string) {
+    return error?.code === 'P2002' && Array.isArray(error?.meta?.target) && error.meta.target.includes(target);
+  }
+
+  private async generateUniqueReferenceNumber(
+    args: {
+      tx?: any;
+      modelName: 'canteenPurchase' | 'canteenSupplierPayment';
+      fieldName: 'invoiceNo' | 'paymentNo';
+      prefix: 'PUR' | 'PAY';
+      startAt?: number;
+    }
+  ) {
+    const year = new Date().getFullYear();
+    const model = (args.tx ?? this.prisma)[args.modelName];
+    let sequence = args.startAt ?? 1;
+    let number = `${args.prefix}-${year}-${sequence.toString().padStart(4, '0')}`;
+
+    for (let attempt = 0; attempt < 1000; attempt += 1) {
+      const existing = await model.findUnique({
+        where: { [args.fieldName]: number },
+      });
+
+      if (!existing) {
+        return number;
+      }
+
+      sequence += 1;
+      number = `${args.prefix}-${year}-${sequence.toString().padStart(4, '0')}`;
+    }
+
+    throw new Error(`Unable to generate a unique ${args.prefix} reference number after multiple attempts.`);
+  }
+
   // ---------------------------------------------------------
   // CATEGORIES
   // ---------------------------------------------------------
@@ -345,9 +379,6 @@ export class CanteenService {
       throw new BadRequestException('Purchase entry must contain at least one item.');
     }
 
-    const count = await this.prisma.canteenPurchase.count();
-    const invoiceNo = `PUR-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}`;
-
     let totalAmount = 0;
     const itemDataList: any[] = [];
 
@@ -368,24 +399,49 @@ export class CanteenService {
     }
 
     return this.prisma.$transaction(async (tx: any) => {
-      const purchase = await tx.canteenPurchase.create({
-        data: {
-          invoiceNo,
-          purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
-          supplierId: data.supplierId || null,
-          paymentModeId: data.paymentModeId || null,
-          totalAmount,
-          notes: data.notes || null,
-          items: {
-            create: itemDataList
+      let purchase: any = null;
+      let invoiceNo = '';
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        invoiceNo = await this.generateUniqueReferenceNumber({
+          tx,
+          modelName: 'canteenPurchase',
+          fieldName: 'invoiceNo',
+          prefix: 'PUR',
+          startAt: attempt + 1,
+        });
+
+        try {
+          purchase = await tx.canteenPurchase.create({
+            data: {
+              invoiceNo,
+              purchaseDate: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
+              supplierId: data.supplierId || null,
+              paymentModeId: data.paymentModeId || null,
+              totalAmount,
+              notes: data.notes || null,
+              items: {
+                create: itemDataList
+              }
+            },
+            include: {
+              supplier: true,
+              paymentMode: true,
+              items: true
+            }
+          });
+          break;
+        } catch (error) {
+          if (this.isUniqueConstraintError(error, 'invoiceNo')) {
+            continue;
           }
-        },
-        include: {
-          supplier: true,
-          paymentMode: true,
-          items: true
+          throw error;
         }
-      });
+      }
+
+      if (!purchase) {
+        throw new Error('Unable to create a unique purchase invoice after multiple retries.');
+      }
 
       for (const item of data.items) {
         if (item.productId) {
@@ -403,23 +459,40 @@ export class CanteenService {
       });
 
       if (paymentMode && paymentMode.name.toLowerCase() !== 'credit' && totalAmount > 0) {
-        const paymentCount = await tx.canteenSupplierPayment.count();
-        const paymentNo = `PAY-${new Date().getFullYear()}-${(paymentCount + 1).toString().padStart(4, '0')}`;
-        
-        await tx.canteenSupplierPayment.create({
-          data: {
-            paymentNo,
-            date: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
-            supplierId: data.supplierId,
-            amount: totalAmount,
-            paymentType: paymentMode.name,
-            reference: `Auto-payment for ${invoiceNo}`,
-            remarks: JSON.stringify({
-              userRemarks: `Purchase ${invoiceNo} paid via ${paymentMode.name}`,
-              bills: [{ entryNo: invoiceNo, date: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : new Date().toISOString(), amount: totalAmount }]
-            })
+        let paymentNo = '';
+
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          paymentNo = await this.generateUniqueReferenceNumber({
+            tx,
+            modelName: 'canteenSupplierPayment',
+            fieldName: 'paymentNo',
+            prefix: 'PAY',
+            startAt: attempt + 1,
+          });
+
+          try {
+            await tx.canteenSupplierPayment.create({
+              data: {
+                paymentNo,
+                date: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
+                supplierId: data.supplierId,
+                amount: totalAmount,
+                paymentType: paymentMode.name,
+                reference: `Auto-payment for ${invoiceNo}`,
+                remarks: JSON.stringify({
+                  userRemarks: `Purchase ${invoiceNo} paid via ${paymentMode.name}`,
+                  bills: [{ entryNo: invoiceNo, date: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : new Date().toISOString(), amount: totalAmount }]
+                })
+              }
+            });
+            break;
+          } catch (error) {
+            if (this.isUniqueConstraintError(error, 'paymentNo')) {
+              continue;
+            }
+            throw error;
           }
-        });
+        }
       }
 
       return purchase;
@@ -558,8 +631,12 @@ export class CanteenService {
   }
 
   async getNextPaymentNo() {
-    const count = await this.prisma.canteenSupplierPayment.count();
-    return { paymentNo: `PAY-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}` };
+    const paymentNo = await this.generateUniqueReferenceNumber({
+      modelName: 'canteenSupplierPayment',
+      fieldName: 'paymentNo',
+      prefix: 'PAY',
+    });
+    return { paymentNo };
   }
 
   async getSupplierBalance(supplierId: string) {
@@ -624,8 +701,11 @@ export class CanteenService {
 
     let paymentNo = data.paymentNo;
     if (!paymentNo || paymentNo === 'Generating...') {
-      const nextNo = await this.getNextPaymentNo();
-      paymentNo = nextNo.paymentNo;
+      paymentNo = await this.generateUniqueReferenceNumber({
+        modelName: 'canteenSupplierPayment',
+        fieldName: 'paymentNo',
+        prefix: 'PAY',
+      });
     }
 
     return this.prisma.canteenSupplierPayment.create({
