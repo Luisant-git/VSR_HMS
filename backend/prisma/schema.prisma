@@ -333,8 +333,10 @@ model CanteenProduct {
   unit          CanteenUnit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
   price         Float                 @default(0.0)
   costPrice     Float                 @default(0.0)
+  availableStock Float                @default(0.0)
   status        String                @default("Active")
   purchaseItems CanteenPurchaseItem[]
+  kitchenConsumptions KitchenConsumption[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 }
@@ -460,4 +462,25 @@ model StaffSalary {
   @@unique([staffId, salaryMonth])
 }
 
+// ---------------------------------------------------------
+// Kitchen Construction – Daily Consumption Tracker
+// ---------------------------------------------------------
+model KitchenConsumption {
+  id              String          @id @default(uuid())
+  batchId         String?         // Groups rows entered together in one entry form
+  date            DateTime        @default(now())
+  dateStr         String          // Format: YYYY-MM-DD
+  mealType        String          // Breakfast, Lunch, Evening Snacks, Dinner
+  productId       String
+  product         CanteenProduct  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  availableStock  Float           @default(0.0)  // Snapshot of stock at the time of entry
+  quantityTaken   Float           @default(0.0)  // Gross qty brought out from store
+  unit            String          @default("Kg")
+  wastage         Float           @default(0.0)
+  netConsumed     Float           @default(0.0)  // quantityTaken - wastage
+  remarks         String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
+  @@index([batchId])
+}

@@ -38,6 +38,7 @@ import { MessAttendanceReport } from './pages/MessAttendanceReport';
 import StaffMaster from './pages/StaffMaster';
 import StaffAttendance from './pages/StaffAttendance';
 import StaffSalaryRegister from './pages/StaffSalaryRegister';
+import KitchenConstruction from './pages/KitchenConstruction';
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center" style={{ height: '60vh', color: 'var(--text-muted)' }}>
@@ -116,6 +117,7 @@ function App() {
           <Route path="staff/attendance" element={<StaffAttendance />} />
           <Route path="staff/salary" element={<StaffSalaryRegister />} />
           <Route path="staff-attendance" element={<StaffAttendance />} />
+          <Route path="kitchen-construction" element={<KitchenConstruction />} />
           <Route path="admin" element={<ComingSoon title="Admin" />} />
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -22,6 +22,7 @@ import { CanteenModule } from './canteen/canteen.module';
 import { MessAttendanceModule } from './mess-attendance/mess-attendance.module';
 import { StaffModule } from './staff/staff.module';
 import { StaffSalaryModule } from './staff-salary/staff-salary.module';
+import { KitchenModule } from './kitchen/kitchen.module';
 
 @Module({
   imports: [
@@ -44,7 +45,8 @@ import { StaffSalaryModule } from './staff-salary/staff-salary.module';
     CanteenModule,
     MessAttendanceModule,
     StaffModule,
-    StaffSalaryModule
+    StaffSalaryModule,
+    KitchenModule
   ],
   controllers: [],
   providers: [DeveloperSeedService],

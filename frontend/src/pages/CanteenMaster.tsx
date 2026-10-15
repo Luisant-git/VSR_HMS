@@ -415,7 +415,7 @@ export default function CanteenMaster() {
       });
     } else {
       if (type === 'product') {
-        setFormData({ name: '', code: '', categoryId: '', unitId: '', price: 0, costPrice: 0, stock: 0, status: 'Active' });
+        setFormData({ name: '', code: '', categoryId: '', unitId: '', price: 0, costPrice: 0, availableStock: 0, status: 'Active' });
       } else if (type === 'category') {
         setFormData({ name: '', description: '' });
       } else if (type === 'unit') {
@@ -466,7 +466,7 @@ export default function CanteenMaster() {
     Swal.fire({
       title: isPurchase ? 'Delete Purchase Entry?' : 'Delete Item?',
       text: isPurchase
-        ? `Delete "${name}"? Linked product cost price will be reversed to the previous purchase price.`
+        ? `Delete "${name}"? The purchased quantity will be removed from stock and linked product cost price will be reversed to the previous purchase price.`
         : `Are you sure you want to delete "${name}"?`,
       icon: 'warning',
       showCancelButton: true,
@@ -743,6 +743,16 @@ export default function CanteenMaster() {
                           style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none' }}
                         />
                       </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Stock (Available)</label>
+                        <input
+                          type="number"
+                          step="any"
+                          value={formData.availableStock ?? 0}
+                          onChange={e => setFormData({ ...formData, availableStock: Number(e.target.value) })}
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none' }}
+                        />
+                      </div>
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Status</label>
@@ -900,6 +910,7 @@ export default function CanteenMaster() {
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Category</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Unit</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Price (₹)</th>
+                        <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Stock</th>
                         <th style={{ padding: '10px 14px', borderRight: '1px solid #334155' }}>Status</th>
                       </>
                     )}
@@ -930,6 +941,11 @@ export default function CanteenMaster() {
                       <td style={{ padding: '10px 14px' }}><span style={{ background: '#E0F2FE', color: '#0369A1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>{p.category?.name || '-'}</span></td>
                       <td style={{ padding: '10px 14px' }}><span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{p.unit?.symbol || p.unit?.name || '-'}</span></td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#16A34A' }}>₹{p.price}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: (p.availableStock ?? 0) <= 0 ? '#EF4444' : (p.availableStock <= 5 ? '#D97706' : '#0369A1'), background: (p.availableStock ?? 0) <= 0 ? '#FEF2F2' : (p.availableStock <= 5 ? '#FFFBEB' : '#E0F2FE') }}>
+                          {p.availableStock ?? 0} {p.unit?.symbol || ''}
+                        </span>
+                      </td>
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, color: p.status === 'Inactive' ? '#EF4444' : '#16A34A', background: p.status === 'Inactive' ? '#FEF2F2' : '#F0FDF4' }}>
                           {p.status || 'Active'}
@@ -1427,6 +1443,10 @@ export default function CanteenMaster() {
                     <input type="number" step="any" value={formData.price || 0} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                   </div>
                   <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Stock (Available)</label>
+                    <input type="number" step="any" value={formData.availableStock ?? 0} onChange={e => setFormData({ ...formData, availableStock: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Status</label>
                     <SearchableSelect
                       options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]}
@@ -1604,6 +1624,12 @@ export default function CanteenMaster() {
                   <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', alignItems: 'center' }}>
                     <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Price</span>
                     <span style={{ color: '#16a34a', fontSize: '14px', fontWeight: 800 }}>₹{viewMasterItem.price}</span>
+                  </div>
+                )}
+                {viewMasterType === 'Product' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', alignItems: 'center' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>Stock (Available)</span>
+                    <span style={{ color: '#0369A1', fontSize: '14px', fontWeight: 800 }}>{viewMasterItem.availableStock ?? 0} {viewMasterItem.unit?.symbol || ''}</span>
                   </div>
                 )}
                 {viewMasterType === 'Product' && (
