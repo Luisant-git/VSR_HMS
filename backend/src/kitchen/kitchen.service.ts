@@ -66,7 +66,8 @@ export class KitchenService {
       );
     }
 
-    // Transaction: create consumption + deduct stock
+    // Transaction: create consumption + deduct FULL qty taken (gross).
+    // Both net-consumed AND wastage physically leave the stock.
     return this.prisma.$transaction(async (tx) => {
       const consumption = await tx.kitchenConsumption.create({
         data: {
@@ -87,7 +88,7 @@ export class KitchenService {
         },
       });
 
-      // Deduct stock from product
+      // Deduct full quantity taken (gross = net + wastage) from product stock
       await tx.canteenProduct.update({
         where: { id: data.productId },
         data: { availableStock: { decrement: data.quantityTaken } },
@@ -141,7 +142,7 @@ export class KitchenService {
         );
       }
     } else {
-      // Same product: only the delta needs to be available.
+      // Same product: only the gross delta needs to be available.
       const qtyDelta = newQty - existing.quantityTaken;
       const currentStock = existing.product.availableStock;
       if (qtyDelta > 0 && qtyDelta > currentStock) {
@@ -170,7 +171,7 @@ export class KitchenService {
       });
 
       if (productChanging) {
-        // Restore the old product's stock, then deduct from the new product.
+        // Restore the old product's gross, then deduct gross from the new product.
         await tx.canteenProduct.update({
           where: { id: existing.productId },
           data: { availableStock: { increment: existing.quantityTaken } },
@@ -200,7 +201,7 @@ export class KitchenService {
     return this.prisma.$transaction(async (tx) => {
       await tx.kitchenConsumption.delete({ where: { id } });
 
-      // Restore stock to product
+      // Restore gross stock to product (full qty taken was deducted)
       await tx.canteenProduct.update({
         where: { id: existing.productId },
         data: { availableStock: { increment: existing.quantityTaken } },

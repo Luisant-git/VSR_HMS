@@ -41,17 +41,43 @@ export default function KitchenConstruction() {
   const [consumptions, setConsumptions] = useState<Consumption[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Form
+  // Form (multi-row: one meal + date can have many product items)
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
+
+  interface FormRow {
+    key: number;
+    productId: string;
+    quantityTaken: string;
+    wastage: string;
+    remarks: string;
+  }
+  const emptyRow = (key: number): FormRow => ({ key, productId: '', quantityTaken: '', wastage: '', remarks: '' });
+
+  const [formHeader, setFormHeader] = useState({
     dateStr: new Date().toISOString().split('T')[0],
     mealType: '',
-    productId: '',
-    quantityTaken: '',
-    wastage: '',
-    remarks: '',
   });
+  const [formRows, setFormRows] = useState<FormRow[]>([emptyRow(Date.now())]);
+
+  const rowProduct = (row: FormRow) => products.find(p => p.id === row.productId);
+  const rowUnit = (row: FormRow) => rowProduct(row)?.unit?.symbol || rowProduct(row)?.unit?.name || 'Kg';
+  const rowStock = (row: FormRow) => rowProduct(row)?.availableStock ?? 0;
+  const rowNet = (row: FormRow) => Math.max(0, (parseFloat(row.quantityTaken) || 0) - (parseFloat(row.wastage) || 0));
+
+  // Backward-compat for old single-row summary UI pieces
+  const firstRow = formRows[0] || emptyRow(0);
+  const formData = {
+    dateStr: formHeader.dateStr,
+    mealType: formHeader.mealType,
+    productId: firstRow.productId,
+    quantityTaken: firstRow.quantityTaken,
+    wastage: firstRow.wastage,
+    remarks: firstRow.remarks,
+  };
+  const selectedProduct = products.find(p => p.id === firstRow.productId);
+  const unitLabel = selectedProduct?.unit?.symbol || selectedProduct?.unit?.name || 'Kg';
+  const availableStock = selectedProduct?.availableStock ?? 0;
 
   // Filters
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
@@ -62,21 +88,16 @@ export default function KitchenConstruction() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Selected product info
-  const selectedProduct = products.find(p => p.id === formData.productId);
-  const unitLabel = selectedProduct?.unit?.symbol || selectedProduct?.unit?.name || 'Kg';
-  const availableStock = selectedProduct?.availableStock ?? 0;
-
-  // Searchable product options for the Raw Material dropdown
+  // Searchable product options
   const productOptions: SelectOption[] = products.map(p => ({
     value: p.id,
     label: `${p.name}${p.category ? ` (${p.category.name})` : ''}`,
     sublabel: `Stock: ${p.availableStock}`,
   }));
 
-  // Auto-calculate net consumed
-  const grossQty = parseFloat(formData.quantityTaken) || 0;
-  const wastageQty = parseFloat(formData.wastage) || 0;
+  // Auto-calculate net consumed (first row, for summary display)
+  const grossQty = parseFloat(firstRow.quantityTaken) || 0;
+  const wastageQty = parseFloat(firstRow.wastage) || 0;
   const netConsumed = Math.max(0, grossQty - wastageQty);
 
   useEffect(() => {
@@ -94,7 +115,7 @@ export default function KitchenConstruction() {
       const data = await KitchenAPI.getProducts();
       setProducts(data);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load products');
+      console.error(err.message || 'Failed to load products');
     }
   };
 
@@ -107,53 +128,145 @@ export default function KitchenConstruction() {
       const data = await KitchenAPI.getConsumptions(filters);
       setConsumptions(data);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load consumption entries');
+      console.error(err.message || 'Failed to load consumption entries');
     } finally {
       setLoading(false);
     }
   };
 
+  // Edit-group tracking: when editing, ALL entries of that date+meal load into the form
+  const [editingGroupKey, setEditingGroupKey] = useState<string | null>(null);
+  // ids of existing entries currently loaded in the form (for update vs create decision)
+  const [rowEntryIds, setRowEntryIds] = useState<Record<number, string>>({});
+  // ids removed from the group during edit → delete on save
+  const [removedEntryIds, setRemovedEntryIds] = useState<string[]>([]);
+
+  const updateRow = (key: number, patch: Partial<FormRow>) =>
+    setFormRows(prev => prev.map(r => (r.key === key ? { ...r, ...patch } : r)));
+
+  const addRow = () => setFormRows(prev => [...prev, emptyRow(Date.now() + Math.random())]);
+
+  const removeRow = (key: number) => {
+    const linkedId = rowEntryIds[key];
+    if (linkedId) {
+      setRemovedEntryIds(prev => [...prev, linkedId]);
+      setRowEntryIds(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+    setFormRows(prev => {
+      if (prev.length <= 1 && !editingGroupKey) return prev; // keep 1 row in create mode
+      if (prev.length <= 1 && editingGroupKey) return [emptyRow(Date.now())]; // allow clearing group
+      return prev.filter(r => r.key !== key);
+    });
+  };
+
   const resetForm = () => {
-    setFormData({
+    setFormHeader({
       dateStr: filterDate || new Date().toISOString().split('T')[0],
       mealType: '',
-      productId: '',
-      quantityTaken: '',
-      wastage: '',
-      remarks: '',
     });
+    setFormRows([emptyRow(Date.now())]);
     setEditingId(null);
+    setEditingGroupKey(null);
+    setRowEntryIds({});
+    setRemovedEntryIds([]);
     setShowForm(false);
   };
 
   const handleSubmit = async () => {
-    if (!formData.mealType) return toast.error('Please select Meal Type');
-    if (!formData.productId) return toast.error('Please select Raw Material Item');
-    if (!formData.quantityTaken || grossQty <= 0) return toast.error('Please enter Quantity Taken');
-    if (grossQty > availableStock && !editingId) return toast.error(`Insufficient stock! Available: ${availableStock} ${unitLabel}`);
+    if (!formHeader.mealType) return toast.error('Please select Meal Type');
 
-    try {
-      if (editingId) {
+    // ---- EDIT-GROUP MODE: update existing, create new rows, delete removed ----
+    if (editingGroupKey) {
+      const valid = formRows.filter(r => r.productId && (parseFloat(r.quantityTaken) || 0) > 0);
+      // stock check for rows that grow qty (best-effort: check against current stock + own taken)
+      try {
+        for (const [idx, r] of valid.entries()) {
+          const gross = parseFloat(r.quantityTaken) || 0;
+          const waste = parseFloat(r.wastage) || 0;
+          if (rowEntryIds[r.key]) {
+            await KitchenAPI.updateConsumption(rowEntryIds[r.key], {
+              mealType: formHeader.mealType,
+              productId: r.productId,
+              dateStr: formHeader.dateStr,
+              quantityTaken: gross,
+              wastage: waste,
+              remarks: r.remarks || undefined,
+            });
+          } else {
+            await KitchenAPI.createConsumption({
+              dateStr: formHeader.dateStr,
+              mealType: formHeader.mealType,
+              productId: r.productId,
+              quantityTaken: gross,
+              wastage: waste,
+              remarks: r.remarks || undefined,
+            });
+          }
+          void idx;
+        }
+        for (const id of removedEntryIds) {
+          await KitchenAPI.deleteConsumption(id);
+        }
+        toast.success('Meal entries updated');
+        resetForm();
+        loadConsumptions();
+        loadProducts();
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to save');
+      }
+      return;
+    }
+
+    // ---- Single legacy edit (kept for safety, normally unused now) ----
+    if (editingId) {
+      const r = formRows[0];
+      const gross = parseFloat(r.quantityTaken) || 0;
+      const waste = parseFloat(r.wastage) || 0;
+      if (!r.productId) return toast.error('Please select Raw Material Item');
+      if (gross <= 0) return toast.error('Please enter Quantity Taken');
+      try {
         await KitchenAPI.updateConsumption(editingId, {
-          mealType: formData.mealType,
-          productId: formData.productId,
-          dateStr: formData.dateStr,
-          quantityTaken: grossQty,
-          wastage: wastageQty,
-          remarks: formData.remarks || undefined,
+          mealType: formHeader.mealType,
+          productId: r.productId,
+          dateStr: formHeader.dateStr,
+          quantityTaken: gross,
+          wastage: waste,
+          remarks: r.remarks || undefined,
         });
         toast.success('Consumption entry updated');
-      } else {
-        await KitchenAPI.createConsumption({
-          dateStr: formData.dateStr,
-          mealType: formData.mealType,
-          productId: formData.productId,
-          quantityTaken: grossQty,
-          wastage: wastageQty,
-          remarks: formData.remarks || undefined,
-        });
-        toast.success('Consumption entry added');
+        resetForm();
+        loadConsumptions();
+        loadProducts();
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to save');
       }
+      return;
+    }
+    // Create mode = save ALL rows for this date + meal
+    const valid = formRows.filter(r => r.productId && (parseFloat(r.quantityTaken) || 0) > 0);
+    if (valid.length === 0) return toast.error('Add at least one item with product + quantity');
+    // stock check per row
+    for (const r of valid) {
+      const stock = rowStock(r);
+      if ((parseFloat(r.quantityTaken) || 0) > stock)
+        return toast.error(`Insufficient stock for ${rowProduct(r)?.name}! Available: ${stock} ${rowUnit(r)}`);
+    }
+    try {
+      for (const r of valid) {
+        await KitchenAPI.createConsumption({
+          dateStr: formHeader.dateStr,
+          mealType: formHeader.mealType,
+          productId: r.productId,
+          quantityTaken: parseFloat(r.quantityTaken) || 0,
+          wastage: parseFloat(r.wastage) || 0,
+          remarks: r.remarks || undefined,
+        });
+      }
+      toast.success(`${valid.length} item(s) added for ${formHeader.mealType}`);
       resetForm();
       loadConsumptions();
       loadProducts(); // Refresh stock
@@ -162,18 +275,32 @@ export default function KitchenConstruction() {
     }
   };
 
-  const handleEdit = (c: Consumption) => {
-    setFormData({
-      dateStr: c.dateStr,
-      mealType: c.mealType,
-      productId: c.productId,
-      quantityTaken: String(c.quantityTaken),
-      wastage: String(c.wastage),
-      remarks: c.remarks || '',
-    });
-    setEditingId(c.id);
+  const groupKey = (c: Consumption) => `${c.dateStr}__${c.mealType}`;
+
+  // Edit = load the WHOLE date+meal group into the form (all items)
+  const handleEditGroup = (c: Consumption) => {
+    const key = groupKey(c);
+    const group = consumptions.filter(x => groupKey(x) === key);
+    const rows: FormRow[] = group.map((g, i) => ({
+      key: Date.now() + i,
+      productId: g.productId,
+      quantityTaken: String(g.quantityTaken),
+      wastage: String(g.wastage),
+      remarks: g.remarks || '',
+    }));
+    const ids: Record<number, string> = {};
+    rows.forEach((r, i) => { ids[r.key] = group[i].id; });
+    setFormHeader({ dateStr: c.dateStr, mealType: c.mealType });
+    setFormRows(rows.length ? rows : [emptyRow(Date.now())]);
+    setRowEntryIds(ids);
+    setRemovedEntryIds([]);
+    setEditingGroupKey(key);
+    setEditingId(null);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const handleEdit = (c: Consumption) => handleEditGroup(c);
 
   const handleDelete = async (c: Consumption) => {
     const result = await Swal.fire({
@@ -406,32 +533,30 @@ export default function KitchenConstruction() {
         <div style={{ ...cardStyle, marginBottom: '24px', borderTop: '3px solid #4a72fa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
-              {editingId ? '✏️ Edit Consumption Entry' : '➕ New Consumption Entry'}
+              {editingGroupKey ? `✏️ Edit ${formHeader.mealType} — ${formHeader.dateStr} (${formRows.length} item(s))` : editingId ? '✏️ Edit Consumption Entry' : '➕ New Consumption Entry'}
             </h3>
             <button onClick={resetForm} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#64748b' }}>
               <X size={18} />
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'flex-start', gap: '14px', overflowX: 'auto', paddingBottom: '8px' }}>
-            {/* Date */}
-            <div style={fieldWrap}>
+          {/* Shared Date + Meal for all rows */}
+          <div style={{ display: 'flex', gap: '14px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <div style={{ ...fieldWrap, maxWidth: '200px' }}>
               <label style={labelStyle}>Date</label>
               <input
                 type="date"
                 style={inputStyle}
-                value={formData.dateStr}
-                onChange={e => setFormData({ ...formData, dateStr: e.target.value })}
+                value={formHeader.dateStr}
+                onChange={e => setFormHeader({ ...formHeader, dateStr: e.target.value })}
               />
             </div>
-
-            {/* Meal Type */}
-            <div style={fieldWrap}>
+            <div style={{ ...fieldWrap, maxWidth: '240px' }}>
               <label style={labelStyle}>Meal Type <span style={{ color: '#ef4444' }}>*</span></label>
               <select
                 style={selectStyle}
-                value={formData.mealType}
-                onChange={e => setFormData({ ...formData, mealType: e.target.value })}
+                value={formHeader.mealType}
+                onChange={e => setFormHeader({ ...formHeader, mealType: e.target.value })}
               >
                 <option value="">— Select Meal —</option>
                 {MEAL_TYPES.map(m => (
@@ -439,14 +564,19 @@ export default function KitchenConstruction() {
                 ))}
               </select>
             </div>
+          </div>
 
+          {/* Item rows — one row per raw material */}
+          {formRows.map((row, idx) => (
+          <div key={row.key} style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'flex-start', gap: '14px', overflowX: 'auto', padding: '12px', marginBottom: '10px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #eef2f7' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#94a3b8', paddingTop: '32px', minWidth: '24px' }}>#{idx + 1}</span>
             {/* Raw Material Item */}
             <div style={{ ...fieldWrap, flex: '1.6 0 220px', minWidth: '220px' }}>
               <label style={labelStyle}>Raw Material Item <span style={{ color: '#ef4444' }}>*</span></label>
               <SearchableSelect
                 options={productOptions}
-                value={formData.productId}
-                onChange={val => setFormData({ ...formData, productId: val })}
+                value={row.productId}
+                onChange={val => updateRow(row.key, { productId: val })}
                 placeholder="Search item..."
               />
             </div>
@@ -458,9 +588,9 @@ export default function KitchenConstruction() {
                 type="text"
                 style={{
                   ...readOnlyStyle,
-                  color: availableStock <= 0 ? '#ef4444' : availableStock <= 5 ? '#f59e0b' : '#059669',
+                  color: rowStock(row) <= 0 ? '#ef4444' : rowStock(row) <= 5 ? '#f59e0b' : '#059669',
                 }}
-                value={selectedProduct ? `${availableStock} ${unitLabel}` : '—'}
+                value={rowProduct(row) ? `${rowStock(row)} ${rowUnit(row)}` : '—'}
                 readOnly
               />
             </div>
@@ -474,19 +604,12 @@ export default function KitchenConstruction() {
                   step="0.1"
                   min="0"
                   style={{ ...inputStyle, paddingRight: '45px' }}
-                  placeholder="e.g. 10"
-                  value={formData.quantityTaken}
-                  onChange={e => setFormData({ ...formData, quantityTaken: e.target.value })}
+                  placeholder="0"
+                  value={row.quantityTaken}
+                  onChange={e => updateRow(row.key, { quantityTaken: e.target.value })}
                 />
-                <span style={suffixStyle}>{unitLabel}</span>
+                <span style={suffixStyle}>{rowUnit(row)}</span>
               </div>
-              
-            </div>
-
-            {/* Unit (Auto-filled) */}
-            <div style={fieldWrap}>
-              <label style={labelStyle}>Unit</label>
-              <input type="text" style={readOnlyStyle} value={unitLabel} readOnly />
               
             </div>
 
@@ -499,11 +622,11 @@ export default function KitchenConstruction() {
                   step="0.1"
                   min="0"
                   style={{ ...inputStyle, paddingRight: '45px' }}
-                  placeholder="e.g. 0.5"
-                  value={formData.wastage}
-                  onChange={e => setFormData({ ...formData, wastage: e.target.value })}
+                  placeholder="0"
+                  value={row.wastage}
+                  onChange={e => updateRow(row.key, { wastage: e.target.value })}
                 />
-                <span style={suffixStyle}>{unitLabel}</span>
+                <span style={suffixStyle}>{rowUnit(row)}</span>
               </div>
               
             </div>
@@ -515,10 +638,10 @@ export default function KitchenConstruction() {
                 type="text"
                 style={{
                   ...readOnlyStyle,
-                  color: netConsumed > 0 ? '#059669' : '#64748b',
+                  color: rowNet(row) > 0 ? '#059669' : '#64748b',
                   fontSize: '15px',
                 }}
-                value={grossQty > 0 ? `${netConsumed} ${unitLabel}` : '—'}
+                value={(parseFloat(row.quantityTaken) || 0) > 0 ? `${rowNet(row)} ${rowUnit(row)}` : '—'}
                 readOnly
               />
              
@@ -530,19 +653,38 @@ export default function KitchenConstruction() {
               <input
                 type="text"
                 style={inputStyle}
-                placeholder='e.g. "Tomatoes were overripe"'
-                value={formData.remarks}
-                onChange={e => setFormData({ ...formData, remarks: e.target.value })}
+                placeholder="—"
+                value={row.remarks}
+                onChange={e => updateRow(row.key, { remarks: e.target.value })}
               />
             </div>
-          </div>
 
-          {/* Submit buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
-            <button onClick={resetForm} style={btnSecondary}>Cancel</button>
-            <button onClick={handleSubmit} style={btnPrimary}>
-              {editingId ? 'Update Entry' : 'Save Entry'}
-            </button>
+            {(!editingId || editingGroupKey) && (
+              <button
+                onClick={() => removeRow(row.key)}
+                disabled={formRows.length <= 1 && !editingGroupKey}
+                title="Remove row"
+                style={{ marginTop: '26px', background: '#fef2f2', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#ef4444', flexShrink: 0 }}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+          </div>
+          ))}
+
+          {/* Add Row + Submit */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
+            {(!editingId || editingGroupKey) ? (
+              <button onClick={addRow} style={{ ...btnSecondary, borderStyle: 'dashed' }}>
+                <Plus size={16} /> Add Row
+              </button>
+            ) : <span />}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={resetForm} style={btnSecondary}>Cancel</button>
+              <button onClick={handleSubmit} style={btnPrimary}>
+                {editingGroupKey ? `Update ${formRows.length} Item(s)` : editingId ? 'Update Entry' : 'Save Entry'}
+              </button>
+            </div>
           </div>
         </div>
       )}
