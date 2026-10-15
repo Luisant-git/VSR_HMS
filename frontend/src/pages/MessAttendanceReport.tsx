@@ -259,12 +259,7 @@ export const MessAttendanceReport: React.FC = () => {
                       <span style={{ color: '#0d6efd' }}>{r.student?.regNo || 'N/A'}</span>
                     </td>
                     <td style={{ padding: '15px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#0d6efd', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, overflow: 'hidden' }}>
-                          {(r.student?.name || 'NA').substring(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{r.student?.name || 'N/A'}</div>
-                      </div>
+                      <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{r.student?.name || 'N/A'}</div>
                     </td>
                     <td style={{ padding: '15px 20px' }}>
                       <span style={{ background: '#0d6efd', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'white' }}>Room {r.student?.roomNo || 'N/A'}</span>
