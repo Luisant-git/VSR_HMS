@@ -144,7 +144,7 @@ export default function CanteenMaster() {
       setPaymentModes(pmodes);
       setPurchases(purcs);
     } catch (e: any) {
-      toast.error(e.message || 'Failed to load canteen data.');
+      console.error('Failed to load canteen data.', e);
     }
     setLoading(false);
   };
