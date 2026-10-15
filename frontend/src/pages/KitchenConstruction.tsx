@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
 import {
   ChefHat, Plus, Trash2, Search, Edit, X, Download, Filter,
   Package, AlertTriangle, RefreshCw
@@ -11,6 +12,30 @@ import { SearchableSelect, type SelectOption } from '../components/SearchableSel
 import * as XLSX from 'xlsx';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Evening Snacks', 'Dinner'];
+
+// Exact copy of Hostellers react-select styles
+const selectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    padding: '2px',
+    borderRadius: '8px',
+    borderColor: state.isFocused ? 'var(--sidebar-active)' : 'var(--border-color)',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+    '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1' },
+    fontSize: '13px',
+    cursor: 'pointer',
+    width: '200px',
+    background: 'white'
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+    color: state.isSelected ? 'white' : '#334155',
+    cursor: 'pointer'
+  }),
+  menu: (base: any) => ({ ...base, zIndex: 50 }),
+};
 
 interface Product {
   id: string;
@@ -79,16 +104,18 @@ export default function KitchenConstruction() {
   const unitLabel = selectedProduct?.unit?.symbol || selectedProduct?.unit?.name || 'Kg';
   const availableStock = selectedProduct?.availableStock ?? 0;
 
-  // Filters
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-  const [filterMeal, setFilterMeal] = useState('');
+  // Filters (Hostellers style: '-- All --' sentinels)
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [filterMeal, setFilterMeal] = useState('-- All Meals --');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // Searchable product options
+  const mealOptions = ['-- All Meals --', ...MEAL_TYPES].map(m => ({ value: m, label: m }));
+  // Searchable product options (for the entry form rows)
   const productOptions: SelectOption[] = products.map(p => ({
     value: p.id,
     label: `${p.name}${p.category ? ` (${p.category.name})` : ''}`,
@@ -108,7 +135,7 @@ export default function KitchenConstruction() {
   useEffect(() => {
     loadConsumptions();
     setCurrentPage(1);
-  }, [filterDate, filterMeal]);
+  }, [filterFromDate, filterToDate, filterMeal]);
 
   const loadProducts = async () => {
     try {
@@ -123,8 +150,12 @@ export default function KitchenConstruction() {
     setLoading(true);
     try {
       const filters: any = {};
-      if (filterDate) filters.dateStr = filterDate;
-      if (filterMeal) filters.mealType = filterMeal;
+      if (filterFromDate && filterToDate && filterFromDate === filterToDate) filters.dateStr = filterFromDate;
+      else {
+        if (filterFromDate) filters.fromDate = filterFromDate;
+        if (filterToDate) filters.toDate = filterToDate;
+      }
+      if (filterMeal && filterMeal !== '-- All Meals --') filters.mealType = filterMeal;
       const data = await KitchenAPI.getConsumptions(filters);
       setConsumptions(data);
     } catch (err: any) {
@@ -165,7 +196,7 @@ export default function KitchenConstruction() {
 
   const resetForm = () => {
     setFormHeader({
-      dateStr: filterDate || new Date().toISOString().split('T')[0],
+      dateStr: filterFromDate || new Date().toISOString().split('T')[0],
       mealType: '',
     });
     setFormRows([emptyRow(Date.now())]);
@@ -339,7 +370,7 @@ export default function KitchenConstruction() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Kitchen Consumption');
-    XLSX.writeFile(wb, `kitchen_consumption_${filterDate || 'all'}.xlsx`);
+    XLSX.writeFile(wb, `kitchen_consumption_${filterFromDate || 'all'}.xlsx`);
   };
 
   // Search + filter
@@ -533,7 +564,7 @@ export default function KitchenConstruction() {
         <div style={{ ...cardStyle, marginBottom: '24px', borderTop: '3px solid #4a72fa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
-              {editingGroupKey ? `✏️ Edit ${formHeader.mealType} — ${formHeader.dateStr} (${formRows.length} item(s))` : editingId ? '✏️ Edit Consumption Entry' : '➕ New Consumption Entry'}
+              {editingGroupKey ? `Edit ${formHeader.mealType} — ${formHeader.dateStr} (${formRows.length} item(s))` : editingId ? 'Edit Consumption Entry' : 'New Consumption Entry'}
             </h3>
             <button onClick={resetForm} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#64748b' }}>
               <X size={18} />
@@ -689,55 +720,112 @@ export default function KitchenConstruction() {
         </div>
       )}
 
-      {/* Filters + Table */}
-      <div style={cardStyle}>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Date filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Filter size={14} color="#64748b" />
-              <input
-                type="date"
-                style={{ ...inputStyle, width: '160px', padding: '8px 12px' }}
-                value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-              />
-            </div>
-
-            {/* Meal filter */}
+      {/* Filters + Table — EXACT Hostellers filter-bar copy */}
+      <div className="card">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
             <select
-              style={{ ...selectStyle, width: '160px', padding: '8px 12px' }}
-              value={filterMeal}
-              onChange={e => setFilterMeal(e.target.value)}
+              value={pageSize}
+              onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+              style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
             >
-              <option value="">All Meals</option>
-              {MEAL_TYPES.map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={250}>250</option>
+              <option value={500}>500</option>
+              <option value={1000}>1000</option>
+              <option value={99999}>All</option>
             </select>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+          </div>
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
 
-            {/* Search */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '8px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <Search size={14} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search items..."
-                style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: '13px', color: '#1e293b', width: '140px' }}
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              />
-            </div>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+            <input
+              type="text"
+              placeholder="Search items..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              style={{
+                padding: '8px 12px 8px 36px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                fontSize: '13px',
+                outline: 'none',
+                width: '280px'
+              }}
+            />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button onClick={() => { loadConsumptions(); loadProducts(); }} style={{ ...btnSecondary, padding: '8px 14px' }}>
-              <RefreshCw size={14} /> Refresh
+          <Select
+            options={mealOptions}
+            value={mealOptions.find(o => o.value === filterMeal)}
+            onChange={(opt) => { setFilterMeal(opt?.value || '-- All Meals --'); setCurrentPage(1); }}
+            styles={selectStyles}
+            placeholder="Search meal..."
+            isSearchable={true}
+          />
+
+          <input
+            type="date"
+            value={filterFromDate}
+            onChange={e => setFilterFromDate(e.target.value)}
+            title="From Date"
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'white', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '13px', color: '#64748b' }}>to</span>
+          <input
+            type="date"
+            value={filterToDate}
+            onChange={e => setFilterToDate(e.target.value)}
+            title="To Date"
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'white', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+          />
+
+          {(searchTerm !== '' || filterMeal !== '-- All Meals --' || filterFromDate !== '' || filterToDate !== '') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setFilterMeal('-- All Meals --');
+                setFilterFromDate('');
+                setFilterToDate('');
+                setCurrentPage(1);
+              }}
+              title="Clear all filters"
+              style={{
+                background: '#f1f5f9',
+                color: '#64748b',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+            >
+              <X size={14} strokeWidth={3} /> Clear All
             </button>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>
-              {filteredConsumptions.length} entries
-            </span>
-          </div>
+          )}
+          <div style={{ flex: 1 }}></div>
+
+          <button onClick={() => { loadConsumptions(); loadProducts(); }} style={{ padding: '8px 14px', borderRadius: '8px', background: 'white', border: '1px solid var(--border-color)', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
+            <RefreshCw size={14} /> Refresh
+          </button>
+        </div>
+        <div style={{ padding: '0 20px 12px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+            {filteredConsumptions.length} entries
+          </span>
         </div>
 
         {/* Table */}
@@ -769,7 +857,7 @@ export default function KitchenConstruction() {
                   <td colSpan={10} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
                     <div style={{ marginBottom: '8px' }}><ChefHat size={32} color="#cbd5e1" /></div>
                     <div style={{ fontSize: '14px', fontWeight: 500 }}>No consumption entries found</div>
-                    <div style={{ fontSize: '12px', marginTop: '4px' }}>Click "Add Consumption" to start recording</div>
+
                   </td>
                 </tr>
               ) : paginatedData.map((c) => {
