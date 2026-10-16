@@ -747,11 +747,13 @@ export default function CanteenMaster() {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1F2937', marginBottom: '4px' }}>Stock (Available)</label>
                         <input
                           type="number"
-                          step="any"
                           value={formData.availableStock ?? 0}
-                          onChange={e => setFormData({ ...formData, availableStock: Number(e.target.value) })}
-                          style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none' }}
+                          readOnly
+                          disabled
+                          title="Stock is managed via Purchase Entry and Kitchen Consumption"
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', outline: 'none', background: '#f1f5f9', color: '#475569', cursor: 'not-allowed' }}
                         />
+                        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>Auto-managed (Purchase / Consumption)</div>
                       </div>
                     </div>
                     <div>
@@ -1444,7 +1446,8 @@ export default function CanteenMaster() {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Stock (Available)</label>
-                    <input type="number" step="any" value={formData.availableStock ?? 0} onChange={e => setFormData({ ...formData, availableStock: Number(e.target.value) })} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
+                    <input type="number" value={formData.availableStock ?? 0} readOnly disabled title="Managed via Purchase / Consumption" style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f1f5f9', color: '#475569', cursor: 'not-allowed' }} />
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>Auto-managed (Purchase / Consumption)</div>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>Status</label>

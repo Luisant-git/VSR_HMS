@@ -23,6 +23,14 @@ export const KitchenAPI = {
     return handleResponse(res);
   },
 
+  // Stock report (closing stock as on a given date)
+  getStockReport: async (date: string) => {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    const res = await fetch(`${API_URL}/kitchen/stock-report?${params.toString()}`, { headers: getHeaders() });
+    return handleResponse(res);
+  },
+
   // Consumptions
   getConsumptions: async (filters?: { dateStr?: string; mealType?: string; productId?: string; fromDate?: string; toDate?: string }) => {
     const params = new URLSearchParams();

@@ -337,8 +337,30 @@ model CanteenProduct {
   status        String                @default("Active")
   purchaseItems CanteenPurchaseItem[]
   kitchenConsumptions KitchenConsumption[]
+  stockMovements CanteenStockMovement[]
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
+}
+
+// Dated ledger of every stock change for a CanteenProduct.
+// `availableStock` on CanteenProduct stays the live/cached balance, while
+// this table records each individual change so that "stock as on <date>"
+// can be computed exactly — including manual stock edits in Product Master.
+//   quantity is SIGNED:  + increases stock, - decreases stock.
+model CanteenStockMovement {
+  id            String         @id @default(uuid())
+  productId     String
+  product       CanteenProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          String         // OPENING | PURCHASE | CONSUMPTION | ADJUSTMENT
+  quantity      Float          // signed quantity (+ in / - out)
+  dateStr       String         // business date, YYYY-MM-DD (used for "as on" reporting)
+  referenceId   String?        // purchaseId / consumptionId (null for manual)
+  referenceType String?        // PURCHASE | CONSUMPTION | MANUAL | MIGRATION
+  remarks       String?
+  createdAt     DateTime       @default(now())
+
+  @@index([productId, dateStr])
+  @@index([referenceType, referenceId])
 }
 
 model CanteenPurchase {

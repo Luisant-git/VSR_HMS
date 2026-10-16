@@ -14,6 +14,14 @@ export class KitchenController {
   }
 
   // ---------------------------------------------------------
+  // STOCK REPORT (stock as on a given date)
+  // ---------------------------------------------------------
+  @Get('stock-report')
+  getStockReport(@Query('date') date: string) {
+    return this.kitchenService.getStockReport(date);
+  }
+
+  // ---------------------------------------------------------
   // CONSUMPTION ENTRIES
   // ---------------------------------------------------------
   @Get('consumptions')

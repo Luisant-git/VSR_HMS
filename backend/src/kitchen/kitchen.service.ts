@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { applyStockMovement, reverseMovementsForReference } from '../canteen/stock-ledger';
 
 @Injectable()
 export class KitchenService {
@@ -13,6 +14,50 @@ export class KitchenService {
       where: { status: 'Active' },
       include: { unit: true, category: true },
       orderBy: { name: 'asc' },
+    });
+  }
+
+  // ---------------------------------------------------------
+  // STOCK REPORT — "Stock as on date" (closing balance)
+  // ---------------------------------------------------------
+  // The balance as on any date is the sum of every ledger movement
+  // (opening / purchase / consumption / manual adjustment) dated on or
+  // before that date. Because ALL stock changes are recorded, the figure
+  // always tallies — even when stock was manually adjusted.
+  async getStockReport(dateStr: string) {
+    if (!dateStr) throw new BadRequestException('date query parameter is required');
+
+    const products = await this.prisma.canteenProduct.findMany({
+      where: { status: 'Active' },
+      include: { unit: true, category: true },
+      orderBy: { name: 'asc' },
+    });
+
+    const sums = await this.prisma.canteenStockMovement.groupBy({
+      by: ['productId'],
+      where: { dateStr: { lte: dateStr } },
+      _sum: { quantity: true },
+    });
+
+    const asOnMap = new Map<string, number>();
+    for (const row of sums) {
+      asOnMap.set(row.productId, Number(row._sum.quantity) || 0);
+    }
+
+    const round = (n: number) => Math.round((Number(n) || 0) * 1000) / 1000;
+
+    return products.map((p) => {
+      const currentStock = Number(p.availableStock) || 0;
+      const stockAsOn = asOnMap.get(p.id) ?? 0;
+      return {
+        productId: p.id,
+        name: p.name,
+        code: p.code,
+        category: p.category?.name || '—',
+        unit: p.unit?.symbol || p.unit?.name || '',
+        currentStock: round(currentStock),
+        stockAsOn: round(stockAsOn),
+      };
     });
   }
 
@@ -88,10 +133,16 @@ export class KitchenService {
         },
       });
 
-      // Deduct full quantity taken (gross = net + wastage) from product stock
-      await tx.canteenProduct.update({
-        where: { id: data.productId },
-        data: { availableStock: { decrement: data.quantityTaken } },
+      // Deduct full quantity taken (gross = net + wastage) from product stock,
+      // recording the movement in the stock ledger.
+      await applyStockMovement(tx, {
+        productId: data.productId,
+        type: 'CONSUMPTION',
+        quantity: -Number(data.quantityTaken),
+        dateStr: data.dateStr,
+        referenceId: consumption.id,
+        referenceType: 'CONSUMPTION',
+        remarks: `${data.mealType} consumption`,
       });
 
       return consumption;
@@ -170,25 +221,19 @@ export class KitchenService {
         include: { product: { include: { unit: true } } },
       });
 
-      if (productChanging) {
-        // Restore the old product's gross, then deduct gross from the new product.
-        await tx.canteenProduct.update({
-          where: { id: existing.productId },
-          data: { availableStock: { increment: existing.quantityTaken } },
-        });
-        await tx.canteenProduct.update({
-          where: { id: newProductId },
-          data: { availableStock: { decrement: newQty } },
-        });
-      } else {
-        const qtyDelta = newQty - existing.quantityTaken;
-        if (qtyDelta !== 0) {
-          await tx.canteenProduct.update({
-            where: { id: existing.productId },
-            data: { availableStock: { decrement: qtyDelta } },
-          });
-        }
-      }
+      // Undo the entry's previous movement, then record the new one. This
+      // handles product switches and quantity changes in one consistent step
+      // and keeps exactly one CONSUMPTION movement per entry.
+      await reverseMovementsForReference(tx, 'CONSUMPTION', id);
+      await applyStockMovement(tx, {
+        productId: newProductId,
+        type: 'CONSUMPTION',
+        quantity: -newQty,
+        dateStr: updated.dateStr,
+        referenceId: id,
+        referenceType: 'CONSUMPTION',
+        remarks: `${updated.mealType} consumption`,
+      });
 
       return updated;
     });
@@ -201,11 +246,8 @@ export class KitchenService {
     return this.prisma.$transaction(async (tx) => {
       await tx.kitchenConsumption.delete({ where: { id } });
 
-      // Restore gross stock to product (full qty taken was deducted)
-      await tx.canteenProduct.update({
-        where: { id: existing.productId },
-        data: { availableStock: { increment: existing.quantityTaken } },
-      });
+      // Undo the ledger movement (restores the gross quantity that was deducted)
+      await reverseMovementsForReference(tx, 'CONSUMPTION', id);
 
       return { message: 'Deleted successfully' };
     });

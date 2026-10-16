@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import {
+  applyStockMovement,
+  reverseMovementsForReference,
+  toDateStr,
+} from './stock-ledger';
 
 @Injectable()
 export class CanteenService {
@@ -241,7 +246,6 @@ export class CanteenService {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    availableStock?: number;
     status?: string;
   }) {
     if (!data.name || data.name.trim() === '') {
@@ -275,7 +279,10 @@ export class CanteenService {
         unitId: data.unitId || null,
         price: data.price !== undefined ? Number(data.price) : 0.0,
         costPrice: data.costPrice !== undefined ? Number(data.costPrice) : 0.0,
-        availableStock: data.availableStock !== undefined ? Number(data.availableStock) : 0.0,
+        // Stock is NEVER set directly here. A new product starts at 0 and stock
+        // only moves through Purchase Entry or Kitchen Consumption — both of
+        // which write to the stock ledger.
+        availableStock: 0.0,
         status: data.status || 'Active'
       },
       include: {
@@ -292,7 +299,6 @@ export class CanteenService {
     unitId?: string;
     price?: number;
     costPrice?: number;
-    availableStock?: number;
     status?: string;
   }) {
     const existing = await this.prisma.canteenProduct.findUnique({ where: { id } });
@@ -304,6 +310,9 @@ export class CanteenService {
       if (clash) throw new BadRequestException(`Product code "${code}" is already in use.`);
     }
 
+    // NOTE: `availableStock` is intentionally NOT accepted here. Stock can only
+    // be changed through Purchase Entry or Kitchen Consumption, so the API can
+    // no longer silently overwrite it.
     return this.prisma.canteenProduct.update({
       where: { id },
       data: {
@@ -313,7 +322,6 @@ export class CanteenService {
         unitId: data.unitId !== undefined ? (data.unitId || null) : undefined,
         price: data.price !== undefined ? Number(data.price) : undefined,
         costPrice: data.costPrice !== undefined ? Number(data.costPrice) : undefined,
-        availableStock: data.availableStock !== undefined ? Number(data.availableStock) : undefined,
         status: data.status !== undefined ? data.status : undefined,
       },
       include: {
@@ -447,15 +455,22 @@ export class CanteenService {
         throw new Error('Unable to create a unique purchase invoice after multiple retries.');
       }
 
+      const purchaseDateStr = toDateStr(data.purchaseDate ? new Date(data.purchaseDate) : new Date());
       for (const item of data.items) {
         if (item.productId) {
           await tx.canteenProduct.update({
             where: { id: item.productId },
-            data: {
-              costPrice: Number(item.price) || 0,
-              // Purchased quantity adds to available stock.
-              availableStock: { increment: Number(item.qty) || 0 }
-            }
+            data: { costPrice: Number(item.price) || 0 }
+          });
+          // Purchased quantity adds to stock — recorded in the ledger.
+          await applyStockMovement(tx, {
+            productId: item.productId,
+            type: 'PURCHASE',
+            quantity: Number(item.qty) || 0,
+            dateStr: purchaseDateStr,
+            referenceId: purchase.id,
+            referenceType: 'PURCHASE',
+            remarks: `Purchase ${invoiceNo}`,
           });
         }
       }
@@ -517,24 +532,21 @@ export class CanteenService {
       await tx.canteenPurchaseItem.deleteMany({ where: { purchaseId: id } });
       await tx.canteenPurchase.delete({ where: { id } });
 
-      // REVERSE: restore each linked product's costPrice to its latest
-      // remaining purchase price (or 0 when no other purchase exists) and
-      // remove the quantity this purchase had added to stock.
+      // REVERSE: undo the exact ledger movements this purchase created so the
+      // stock balance (and every historical "as on" figure) stays consistent.
+      await reverseMovementsForReference(tx, 'PURCHASE', id);
+
+      // Restore each linked product's costPrice to its latest remaining
+      // purchase price (or 0 when no other purchase exists).
       for (const item of purchase.items) {
         if (item.productId) {
           const latest = await tx.canteenPurchaseItem.findFirst({
             where: { productId: item.productId },
             orderBy: { createdAt: 'desc' },
           });
-          const product = await tx.canteenProduct.findUnique({ where: { id: item.productId } });
-          const currentStock = product ? Number(product.availableStock) || 0 : 0;
-          const newStock = Math.max(0, currentStock - (Number(item.qty) || 0));
           await tx.canteenProduct.update({
             where: { id: item.productId },
-            data: {
-              costPrice: latest ? Number(latest.price) || 0 : 0,
-              availableStock: newStock,
-            },
+            data: { costPrice: latest ? Number(latest.price) || 0 : 0 },
           });
         }
       }
@@ -599,18 +611,10 @@ export class CanteenService {
         },
       });
 
-      // Reverse the stock previously added by the old line items.
-      for (const oldItem of existing.items) {
-        if ((oldItem as any).productId) {
-          const product = await tx.canteenProduct.findUnique({ where: { id: (oldItem as any).productId } });
-          const currentStock = product ? Number(product.availableStock) || 0 : 0;
-          const newStock = Math.max(0, currentStock - (Number((oldItem as any).qty) || 0));
-          await tx.canteenProduct.update({
-            where: { id: (oldItem as any).productId },
-            data: { availableStock: newStock },
-          });
-        }
-      }
+      // Reverse the ledger movements previously created by this purchase, then
+      // re-apply the new line items. This keeps exactly one movement per line
+      // item (no duplicates) while rebuilding historical balances correctly.
+      await reverseMovementsForReference(tx, 'PURCHASE', id);
 
       // Replace line items (delete + recreate keeps logic simple & atomic)
       await tx.canteenPurchaseItem.deleteMany({ where: { purchaseId: id } });
@@ -620,12 +624,18 @@ export class CanteenService {
         });
       }
 
-      // Apply the stock added by the new line items.
+      // Apply the stock added by the new line items via the ledger.
+      const newPurchaseDateStr = toDateStr(data.purchaseDate ? new Date(data.purchaseDate) : existing.purchaseDate);
       for (const itemData of itemDataList) {
         if (itemData.productId) {
-          await tx.canteenProduct.update({
-            where: { id: itemData.productId },
-            data: { availableStock: { increment: Number(itemData.qty) || 0 } },
+          await applyStockMovement(tx, {
+            productId: itemData.productId,
+            type: 'PURCHASE',
+            quantity: Number(itemData.qty) || 0,
+            dateStr: newPurchaseDateStr,
+            referenceId: id,
+            referenceType: 'PURCHASE',
+            remarks: `Purchase ${existing.invoiceNo}`,
           });
         }
       }

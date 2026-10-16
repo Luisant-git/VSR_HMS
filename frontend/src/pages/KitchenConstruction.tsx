@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import {
-  ChefHat, Plus, Trash2, Search, Edit, X, Download, Filter,
+  ChefHat, Plus, Trash2, Search, Edit, X, Download,
   Package, AlertTriangle, RefreshCw, Eye
 } from 'lucide-react';
 import { toast } from 'react-toastify';
@@ -93,20 +93,6 @@ export default function KitchenConstruction() {
   const rowStock = (row: FormRow) => rowProduct(row)?.availableStock ?? 0;
   const rowNet = (row: FormRow) => Math.max(0, (parseFloat(row.quantityTaken) || 0) - (parseFloat(row.wastage) || 0));
 
-  // Backward-compat for old single-row summary UI pieces
-  const firstRow = formRows[0] || emptyRow(0);
-  const formData = {
-    dateStr: formHeader.dateStr,
-    mealType: formHeader.mealType,
-    productId: firstRow.productId,
-    quantityTaken: firstRow.quantityTaken,
-    wastage: firstRow.wastage,
-    remarks: firstRow.remarks,
-  };
-  const selectedProduct = products.find(p => p.id === firstRow.productId);
-  const unitLabel = selectedProduct?.unit?.symbol || selectedProduct?.unit?.name || 'Kg';
-  const availableStock = selectedProduct?.availableStock ?? 0;
-
   // Filters (Hostellers style: '-- All --' sentinels)
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
@@ -129,11 +115,6 @@ export default function KitchenConstruction() {
     label: `${p.name}${p.category ? ` (${p.category.name})` : ''}`,
     sublabel: `Stock: ${p.availableStock}`,
   }));
-
-  // Auto-calculate net consumed (first row, for summary display)
-  const grossQty = parseFloat(firstRow.quantityTaken) || 0;
-  const wastageQty = parseFloat(firstRow.wastage) || 0;
-  const netConsumed = Math.max(0, grossQty - wastageQty);
 
   useEffect(() => {
     loadProducts();
@@ -450,13 +431,6 @@ export default function KitchenConstruction() {
     marginBottom: '6px',
     display: 'block',
     whiteSpace: 'nowrap',
-  };
-
-  const helperStyle: React.CSSProperties = {
-    fontSize: '11px',
-    color: '#94a3b8',
-    marginTop: '4px',
-    lineHeight: 1.3,
   };
 
   const fieldWrap: React.CSSProperties = {
