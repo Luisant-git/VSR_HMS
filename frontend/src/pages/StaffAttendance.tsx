@@ -9,6 +9,7 @@ import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
 import { StaffAPI, type StaffAttendanceItem, type StaffMember } from '../api/staff.api';
 import { getRoleBadgeStyle } from './StaffMaster';
+import { formatDateDMY } from '../utils/date';
 
 const historyStaffSelectStyles = {
   control: (base: any, state: any) => ({
@@ -354,8 +355,8 @@ export default function StaffAttendance() {
       const d = new Date(dStr);
       return d.toLocaleDateString('en-GB', {
         weekday: 'short',
-        day: 'numeric',
-        month: 'short',
+        day: '2-digit',
+        month: '2-digit',
         year: 'numeric'
       });
     } catch {
@@ -1143,7 +1144,7 @@ rightContent={
                     return (
                       <tr key={r.id}>
                         <td>
-                          <span style={{ fontWeight: 700, color: '#334155', fontFamily: 'monospace', fontSize: '13px' }}>{r.dateStr}</span>
+                          <span style={{ fontWeight: 700, color: '#334155', fontFamily: 'monospace', fontSize: '13px' }}>{formatDateDMY(r.dateStr)}</span>
                         </td>
                         <td>
                           <span className="staff-code-badge">{r.staffCode}</span>

@@ -190,11 +190,11 @@ const Dashboard = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                     <div>
                       <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Exit Time:</div>
-                      <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.outTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                                    <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.outTime).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ color: '#991b1b', opacity: 0.8, marginBottom: '2px' }}>Expected In:</div>
-                      <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.expectedInTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                      <div style={{ fontWeight: 600, color: '#991b1b' }}>{new Date(log.expectedInTime).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                   </div>
                   <button onClick={() => handleCheckIn(log.studentId)} style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '8px', background: '#ef4444', border: 'none', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'} onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}>
@@ -347,11 +347,11 @@ const Dashboard = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', background: '#f8f9fa', padding: '10px', borderRadius: '6px', fontSize: '12px' }}>
                       <div>
                         <div style={{ color: 'var(--text-muted)' }}>Leave:</div>
-                        <div style={{ fontWeight: 500 }}>{new Date(op.leaveDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div style={{ fontWeight: 500 }}>{new Date(op.leaveDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ color: 'var(--text-muted)' }}>Return:</div>
-                        <div style={{ fontWeight: 500 }}>{new Date(op.returnDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div style={{ fontWeight: 500 }}>{new Date(op.returnDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                       </div>
                     </div>
                   </div>

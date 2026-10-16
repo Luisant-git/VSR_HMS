@@ -51,7 +51,7 @@ export default function PublicStudentId() {
 
   // Format today's date
   const today = new Date();
-  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' };
+  const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
   const formattedDate = today.toLocaleDateString('en-GB', dateOptions);
 
   return (

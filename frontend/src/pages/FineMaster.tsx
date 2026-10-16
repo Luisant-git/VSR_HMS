@@ -274,7 +274,7 @@ const FineMaster = () => {
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#1e40af', fontWeight: 600, background: '#eff6ff', padding: '6px 12px', borderRadius: '20px', border: '1px solid #bfdbfe' }}>
-                      <Calendar size={14} color="#2563eb" /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      <Calendar size={14} color="#2563eb" /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>
@@ -322,7 +322,7 @@ const FineMaster = () => {
                   </td>
                   <td style={{ padding: '16px 24px' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#1e40af', fontWeight: 600, background: '#eff6ff', padding: '6px 12px', borderRadius: '20px', border: '1px solid #bfdbfe' }}>
-                      <Calendar size={14} color="#2563eb" /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                      <Calendar size={14} color="#2563eb" /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </div>
                   </td>
                   <td style={{ padding: '16px 24px' }}>

@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import {
   ChefHat, Plus, Trash2, Search, Edit, X, Download, Filter,
-  Package, AlertTriangle, RefreshCw
+  Package, AlertTriangle, RefreshCw, Eye
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { KitchenAPI } from '../api/kitchen.api';
 import { Pagination } from '../components/Pagination';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
+import { formatDateDMY } from '../utils/date';
 import * as XLSX from 'xlsx';
 
 const MEAL_TYPES = ['Breakfast', 'Lunch', 'Evening Snacks', 'Dinner'];
@@ -59,6 +60,8 @@ interface Consumption {
   remarks?: string;
   createdAt: string;
 }
+
+// ---------- View-modal building blocks (module scope so they don't remount) ----------
 
 export default function KitchenConstruction() {
   // Data
@@ -114,6 +117,11 @@ export default function KitchenConstruction() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // View modal state — neat popup for a single consumption entry
+  const [viewRecord, setViewRecord] = useState<Consumption | null>(null);
+  const openViewModal = (c: Consumption) => setViewRecord(c);
+  const closeViewModal = () => setViewRecord(null);
+
   const mealOptions = ['-- All Meals --', ...MEAL_TYPES].map(m => ({ value: m, label: m }));
   // Searchable product options (for the entry form rows)
   const productOptions: SelectOption[] = products.map(p => ({
@@ -136,6 +144,14 @@ export default function KitchenConstruction() {
     loadConsumptions();
     setCurrentPage(1);
   }, [filterFromDate, filterToDate, filterMeal]);
+
+  // Close the view popup with ESC
+  useEffect(() => {
+    if (!viewRecord) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeViewModal(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewRecord]);
 
   const loadProducts = async () => {
     try {
@@ -336,7 +352,7 @@ export default function KitchenConstruction() {
   const handleDelete = async (c: Consumption) => {
     const result = await Swal.fire({
       title: 'Delete Entry?',
-      html: `<b>${c.product?.name}</b> — ${c.mealType} on ${c.dateStr}<br/>Qty: ${c.quantityTaken} ${c.unit} will be restored to stock.`,
+      html: `<b>${c.product?.name}</b> — ${c.mealType} on ${formatDateDMY(c.dateStr)}<br/>Qty: ${c.quantityTaken} ${c.unit} will be restored to stock.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -357,7 +373,7 @@ export default function KitchenConstruction() {
   const handleExport = () => {
     const exportData = filteredConsumptions.map((c, i) => ({
       '#': i + 1,
-      'Date': c.dateStr,
+      'Date': formatDateDMY(c.dateStr),
       'Meal Type': c.mealType,
       'Raw Material': c.product?.name || '',
       'Stock (Available)': c.availableStock,
@@ -501,6 +517,16 @@ export default function KitchenConstruction() {
     'Dinner': { bg: '#d1fae5', color: '#065f46' },
   };
 
+  // Detail rows for the view popup — same layout as CanteenMaster "Product Details"
+  const viewRows: { label: string; value: React.ReactNode; color?: string; bold?: boolean; align?: 'center' | 'flex-start' }[] = viewRecord ? [
+    { label: 'Raw Material', value: viewRecord.product?.name || '-' },
+    { label: 'Stock (Available)', value: `${viewRecord.availableStock} ${viewRecord.unit}`, color: '#0369A1', bold: true },
+    { label: 'Quantity Taken', value: `${viewRecord.quantityTaken} ${viewRecord.unit}` },
+    { label: 'Wastage', value: `${viewRecord.wastage} ${viewRecord.unit}`, color: viewRecord.wastage > 0 ? '#EF4444' : undefined },
+    { label: 'Net Consumed', value: `${viewRecord.netConsumed} ${viewRecord.unit}`, color: '#16a34a', bold: true },
+    ...(viewRecord.remarks ? [{ label: 'Remarks', value: viewRecord.remarks, align: 'flex-start' as const }] : []),
+  ] : [];
+
   return (
     <div>
       {/* Page Header */}
@@ -564,7 +590,7 @@ export default function KitchenConstruction() {
         <div style={{ ...cardStyle, marginBottom: '24px', borderTop: '3px solid #4a72fa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
-              {editingGroupKey ? `Edit ${formHeader.mealType} — ${formHeader.dateStr} (${formRows.length} item(s))` : editingId ? 'Edit Consumption Entry' : 'New Consumption Entry'}
+              {editingGroupKey ? `Edit ${formHeader.mealType} — ${formatDateDMY(formHeader.dateStr)} (${formRows.length} item(s))` : editingId ? 'Edit Consumption Entry' : 'New Consumption Entry'}
             </h3>
             <button onClick={resetForm} style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', color: '#64748b' }}>
               <X size={18} />
@@ -678,13 +704,14 @@ export default function KitchenConstruction() {
              
             </div>
 
-            {/* Remarks */}
+            {/* Remarks — description box (multi-line), original width */}
             <div style={fieldWrapWide}>
-              <label style={labelStyle}>Remarks</label>
-              <input
-                type="text"
-                style={inputStyle}
-                placeholder="—"
+              <label style={labelStyle}>
+                Remarks <span style={{ fontWeight: 500, color: '#94a3b8' }}>(optional)</span>
+              </label>
+              <textarea
+                style={{ ...inputStyle, minHeight: '68px', height: 'auto', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                placeholder="Add any notes…"
                 value={row.remarks}
                 onChange={e => updateRow(row.key, { remarks: e.target.value })}
               />
@@ -865,7 +892,7 @@ export default function KitchenConstruction() {
                 return (
                   <tr key={c.id} style={{ transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = '#fafbfd')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <td style={{ padding: '12px 10px', fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>
-                      {c.dateStr}
+                      {formatDateDMY(c.dateStr)}
                     </td>
                     <td style={{ padding: '12px 10px' }}>
                       <span style={{
@@ -899,6 +926,13 @@ export default function KitchenConstruction() {
                     </td>
                     <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                        <button
+                          onClick={() => openViewModal(c)}
+                          style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: '#16a34a', transition: 'all 0.15s' }}
+                          title="View Details"
+                        >
+                          <Eye size={14} />
+                        </button>
                         <button
                           onClick={() => handleEdit(c)}
                           style={{ background: '#eff6ff', border: 'none', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: '#3b82f6', transition: 'all 0.15s' }}
@@ -937,12 +971,112 @@ export default function KitchenConstruction() {
         )}
       </div>
 
+      {/* VIEW CONSUMPTION DETAILS — same layout as CanteenMaster "Product Details" modal */}
+      {viewRecord && (
+        <div className="modal-overlay" onClick={closeViewModal}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', borderRadius: '12px' }}>
+            {/* Header */}
+            <div style={{
+              background: '#3B82F6',
+              color: 'white',
+              padding: '16px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Consumption Details</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  borderRadius: '999px',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {viewRecord.mealType}
+                  <span style={{ width: '1px', height: '12px', background: 'rgba(255, 255, 255, 0.35)' }} />
+                  <span style={{ color: '#dbeafe', fontWeight: 500 }}>{formatDateDMY(viewRecord.dateStr)}</span>
+                </span>
+                <button
+                  onClick={closeViewModal}
+                  title="Close"
+                  style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', padding: 0 }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {viewRows.map(row => (
+                  <div
+                    key={row.label}
+                    style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '10px', alignItems: row.align || 'center' }}
+                  >
+                    <span style={{ color: '#64748b', fontSize: '13px', fontWeight: 600 }}>{row.label}</span>
+                    <span style={{ color: row.color || '#0f172a', fontSize: '14px', fontWeight: row.bold ? 800 : 700, wordBreak: 'break-word' }}>
+                      {row.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={closeViewModal}
+                  style={{ padding: '8px 20px', borderRadius: '6px', background: '#334155', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Spin animation */}
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.65);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          padding: 16px;
+        }
+
+        .modal-card {
+          background: #ffffff;
+          border-radius: 12px;
+          width: 100%;
+          max-width: 580px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          overflow: hidden;
+          animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalAppear {
+          from { opacity: 0; transform: scale(0.96) translateY(8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
       `}</style>
     </div>
   );

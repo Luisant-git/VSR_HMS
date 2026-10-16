@@ -534,7 +534,7 @@ export default function StudentAdmissionForm() {
           <dl className="sa-dl">
             <div className="sa-row"><dt>Registration no</dt><dd>{student.manualRegsiName || student.regNo}</dd></div>
             <div className="sa-row"><dt>College</dt><dd>{student.college?.name || '-'}</dd></div>
-            <div className="sa-row"><dt>Date of joining</dt><dd>{student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString() : '-'}</dd></div>
+            <div className="sa-row"><dt>Date of joining</dt><dd>{student.dateOfJoining ? new Date(student.dateOfJoining).toLocaleDateString('en-GB') : '-'}</dd></div>
             <div className="sa-row"><dt>Student mobile</dt><dd>{student.mobileNo}</dd></div>
             <div className="sa-row"><dt>Room</dt><dd>{student.room ? `${student.room.block} - Room ${student.room.id.replace(/^[a-zA-Z\\s_-]+/, '')}` : (student.roomNo || '-')} {student.bedNo ? `(${student.bedNo})` : ''}</dd></div>
             <div className="sa-row"><dt>Monthly Rent</dt><dd>₹{student.rent || 0}</dd></div>

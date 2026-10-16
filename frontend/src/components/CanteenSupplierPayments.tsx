@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { CanteenAPI } from '../api/canteen.api';
 import { SearchableSelect } from './SearchableSelect';
 import { Pagination } from './Pagination';
+import { formatDateDMY } from '../utils/date';
 
 interface CanteenSupplierPaymentsProps {
   suppliers: any[];
@@ -398,7 +399,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
                                 return (
                                   <tr key={idx} style={{ borderBottom: '1px solid #E2E8F0', backgroundColor: isCleared ? '#ECFDF5' : 'transparent' }}>
                                     <td style={{ padding: '8px 12px', fontWeight: 700, color: '#1E293B' }}>{bill.entryNo}</td>
-                                    <td style={{ padding: '8px 12px', color: '#475569' }}>{new Date(bill.date).toISOString().split('T')[0]}</td>
+                                    <td style={{ padding: '8px 12px', color: '#475569' }}>{formatDateDMY(bill.date)}</td>
                                     <td style={{ padding: '8px 12px', textAlign: 'right', color: '#475569' }}>{formatCurrency(bill.total)}</td>
                                     <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10B981', fontWeight: 500 }}>{formatCurrency(0)}</td>
                                     <td style={{ padding: '8px 12px', textAlign: 'right', color: '#10B981' }}>{formatCurrency(bill.received)}</td>
@@ -637,7 +638,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
                           <td style={{ padding: '8px 12px', borderRight: '1px solid #E5E7EB', color: '#475569', fontWeight: 'bold' }}>
                             {p.paymentNo}
                           </td>
-                          <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B' }}>{new Date(p.date).toISOString().split('T')[0]}</td>
+                          <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', color: '#64748B' }}>{formatDateDMY(p.date)}</td>
                           <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0', fontWeight: 500, color: '#334155' }}>{p.supplier?.name}</td>
                           <td style={{ padding: '8px 12px', borderRight: '1px solid #E2E8F0' }}>
                             <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, backgroundColor: '#64748B', color: 'white' }}>
@@ -670,7 +671,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
                                     {billsPaid.map((b: any, bIdx: number) => (
                                       <tr key={bIdx} style={{ borderBottom: '1px solid #E2E8F0' }}>
                                         <td style={{ padding: '6px 8px', fontWeight: 700, color: '#1E293B' }}>{b.entryNo}</td>
-                                        <td style={{ padding: '6px 8px', color: '#475569' }}>{new Date(b.date).toISOString().split('T')[0]}</td>
+                                        <td style={{ padding: '6px 8px', color: '#475569' }}>{formatDateDMY(b.date)}</td>
                                         <td style={{ padding: '6px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency(b.total)}</td>
                                         <td style={{ padding: '6px 8px', textAlign: 'right', color: '#475569' }}>₹0.00</td>
                                         <td style={{ padding: '6px 8px', textAlign: 'right', color: '#10B981' }}>{formatCurrency(b.received)}</td>

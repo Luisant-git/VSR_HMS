@@ -139,7 +139,7 @@ const StudentProfile = () => {
           name: data.name,
           status: data.status || 'Active',
           room: `${data.roomNo || 'N/A'}`,
-          joined: new Date(data.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          joined: new Date(data.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           gender: data.gender || 'N/A',
           dob: data.dob ? new Date(data.dob).toLocaleDateString('en-GB') : 'N/A',
           mobile: data.mobileNo,
@@ -794,7 +794,7 @@ const StudentProfile = () => {
                         const formatDateTime = (dateStr: string | null) => {
                           if (!dateStr) return '—';
                           const d = new Date(dateStr);
-                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}<br />{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
+                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}<br />{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
                         };
 
                         return (
@@ -864,7 +864,7 @@ const StudentProfile = () => {
                           advanceTransactions.map(txn => (
                             <tr key={txn.id} style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
                               <td style={{ padding: '15px', color: '#475569' }}>
-                                {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                 <br/>
                                 <span style={{ fontSize: '11px', color: '#94a3b8' }}>{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                               </td>

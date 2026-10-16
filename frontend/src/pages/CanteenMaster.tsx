@@ -1363,7 +1363,7 @@ export default function CanteenMaster() {
               {getPurchaseReportData().paginatedList.map(purc => (
                 <tr key={purc.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0f172a' }}>{purc.invoiceNo}</td>
-                  <td style={{ padding: '14px 18px', color: '#475569' }}>{new Date(purc.purchaseDate).toLocaleDateString()}</td>
+                  <td style={{ padding: '14px 18px', color: '#475569' }}>{new Date(purc.purchaseDate).toLocaleDateString('en-GB')}</td>
                   <td style={{ padding: '14px 18px', color: '#334155' }}>{purc.supplier?.name || '-'}</td>
                   <td style={{ padding: '14px 18px' }}><span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '12px' }}>{purc.paymentMode?.name || '-'}</span></td>
                   <td style={{ padding: '14px 18px', fontWeight: 600 }}>{purc.items?.length || 0} Item(s)</td>
@@ -1544,7 +1544,7 @@ export default function CanteenMaster() {
             <div style={{ padding: '20px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', padding: '15px', background: '#f8fafc', borderRadius: '8px', marginBottom: '20px' }}>
                 <div><strong>Entry #:</strong> {viewPurchase.invoiceNo}</div>
-                <div><strong>Date:</strong> {new Date(viewPurchase.purchaseDate).toLocaleDateString()}</div>
+                <div><strong>Date:</strong> {new Date(viewPurchase.purchaseDate).toLocaleDateString('en-GB')}</div>
                 <div><strong>Supplier:</strong> {viewPurchase.supplier?.name || '-'}</div>
                 <div><strong>Payment Mode:</strong> {viewPurchase.paymentMode?.name || '-'}</div>
               </div>

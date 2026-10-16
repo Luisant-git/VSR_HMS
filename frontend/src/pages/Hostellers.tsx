@@ -77,8 +77,8 @@ const Hostellers = () => {
           advance: `₹${h.advance || 0}`,
           pending: `₹${pendingFeesAmount}`,
           feeStatus: currentFeeStatus,
-          date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+          date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           avatar: h.name.substring(0, 2).toUpperCase(),
           raw: h
         };
@@ -506,7 +506,7 @@ const Hostellers = () => {
                           </div>
                           {h.raw.profileUpdatedAt && (
                             <div style={{ fontSize: '11px', color: '#10b981', display: 'inline-block', padding: '2px 6px', background: '#ecfdf5', borderRadius: '4px', marginTop: '4px', fontWeight: 600 }}>
-                              Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </div>
                           )}
                         </div>
@@ -772,7 +772,7 @@ const Hostellers = () => {
                 <div>
                   <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>DOB</div>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                    {selectedHosteller.raw?.dob ? new Date(selectedHosteller.raw.dob).toLocaleDateString() : 'N/A'}
+                    {selectedHosteller.raw?.dob ? new Date(selectedHosteller.raw.dob).toLocaleDateString('en-GB') : 'N/A'}
                   </div>
                 </div>
                 <div>
@@ -813,7 +813,7 @@ const Hostellers = () => {
                 <div>
                   <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Date of Joining</div>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
-                    {selectedHosteller.raw?.dateOfJoining ? new Date(selectedHosteller.raw.dateOfJoining).toLocaleDateString() : 'N/A'}
+                    {selectedHosteller.raw?.dateOfJoining ? new Date(selectedHosteller.raw.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
                   </div>
                 </div>
                 <div>

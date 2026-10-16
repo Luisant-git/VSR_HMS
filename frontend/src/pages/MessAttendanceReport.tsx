@@ -4,6 +4,7 @@ import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
 import { MessAttendanceAPI, type MessAttendanceReportItem } from '../api/mess-attendance.api';
+import { formatDateDMY } from '../utils/date';
 
 const MEAL_OPTIONS = [
   { value: '-- All Meals --', label: '-- All Meals --' },
@@ -99,7 +100,7 @@ export const MessAttendanceReport: React.FC = () => {
       'ROOM NO': r.student?.roomNo || '',
       'MEAL TYPE': r.mealType,
       'FOOD TYPE': r.student?.foodType || '',
-      'DATE': r.date || ''
+      'DATE': formatDateDMY(r.date),
     }));
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();

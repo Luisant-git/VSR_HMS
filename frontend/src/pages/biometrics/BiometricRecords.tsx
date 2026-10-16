@@ -168,7 +168,7 @@ const BiometricRecords = () => {
                       )}
                     </td>
                     <td style={{ padding: '15px 20px', fontSize: '13px', color: '#475569' }}>
-                      {student.biometric.lastVerified ? new Date(student.biometric.lastVerified).toLocaleDateString() : 'Never'}
+                      {student.biometric.lastVerified ? new Date(student.biometric.lastVerified).toLocaleDateString('en-GB') : 'Never'}
                     </td>
                     <td style={{ padding: '15px 20px' }}>
                       {student.biometric.faceRegistered && student.biometric.fingerRegistered ? (

@@ -113,7 +113,7 @@ const ClearanceRecords = () => {
                 records.map(record => (
                   <tr key={record.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '16px 24px', fontSize: '14px', color: '#334155' }}>
-                      {new Date(record.clearanceDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {new Date(record.clearanceDate).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                     <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
                       {record.student?.name || 'Unknown'} <br/>

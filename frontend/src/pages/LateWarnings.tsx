@@ -175,7 +175,7 @@ const LateWarnings = () => {
                         <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{log.student.manualRegsiName || log.student.regNo} | Room {log.student.room?.id || '-'}</div>
                       </td>
                       <td style={{ padding: '16px 20px', color: '#334155', textTransform: 'capitalize' }}>{log.reason || '-'}</td>
-                      <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{new Date(log.expectedInTime).toLocaleString()}</td>
+                      <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{new Date(log.expectedInTime).toLocaleString('en-GB')}</td>
                       <td style={{ padding: '16px 20px' }}><span style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: '4px', background: isHistorical ? '#f59e0b' : '#e11d48', color: 'white', fontWeight: 700, fontSize: '12px' }}>{getDelayString(log.expectedInTime, log.inTime)}</span></td>
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ color: '#0d6efd', fontWeight: 500 }}>{log.student.mobileNo || '-'} (Self)</div>

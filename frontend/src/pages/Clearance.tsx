@@ -99,7 +99,7 @@ const Clearance = () => {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>Hostel Admission Date</label>
-                <div style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>{new Date(student.createdAt).toLocaleDateString()}</div>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#334155' }}>{new Date(student.createdAt).toLocaleDateString('en-GB')}</div>
               </div>
             </div>
           </div>
