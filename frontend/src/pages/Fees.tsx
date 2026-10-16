@@ -288,9 +288,7 @@ const Fees = () => {
             <button onClick={handleExportExcel} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
               <FileSpreadsheet size={16} /> Export Excel
             </button>
-            <button onClick={() => setFilter('ALL')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-              <FileText size={16} color="#64748b" /> View All
-            </button>
+            
           </div>
         }
       />
