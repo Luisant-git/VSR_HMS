@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings, Utensils, Clock, Banknote, Package } from 'lucide-react';
+import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings, Utensils, Clock, Banknote, Package, ChevronDown } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
+import { formatDateDMY } from '../utils/date';
 
 const Layout = () => {
 
@@ -47,12 +48,16 @@ const Layout = () => {
 
       {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-brand" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>HMS</span>
+        <div className="sidebar-brand">
+          <div className="brand-logo"><Building2 size={18} /></div>
+          <div className="brand-text">
+            <span className="brand-title">HMS</span>
+            <span className="brand-sub">Hostel Management</span>
+          </div>
           <button
             className="mobile-close-btn"
             onClick={() => setIsSidebarOpen(false)}
-            style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '5px' }}
+            aria-label="Close menu"
           >
             <X size={20} />
           </button>
@@ -67,7 +72,7 @@ const Layout = () => {
           )}
 
           {(!permissions || permissions.hostellers === true || permissions.student_register === true) && (
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>HOSTELLERS</div>
+            <div className="nav-section">HOSTELLERS</div>
           )}
 
           {(!permissions || permissions.hostellers === true) && (
@@ -120,7 +125,7 @@ const Layout = () => {
           )}
 
           {(!permissions || permissions.hostel_blocks === true || permissions.rooms_master === true || permissions.eb_bills === true) && (
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>ROOMS</div>
+            <div className="nav-section">ROOMS</div>
           )}
           
           {(!permissions || permissions.hostel_blocks === true) && (
@@ -145,7 +150,7 @@ const Layout = () => {
           )}
 
           {(!permissions || permissions.colleges === true || permissions.staff_master === true || permissions.staff_attendance === true || permissions.staff_salary === true || permissions.canteen_master === true || permissions.mess_attendance_reports === true) && (
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>MASTER</div>
+            <div className="nav-section">MASTER</div>
           )}
           {(!permissions || permissions.colleges === true) && (
             <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -200,7 +205,7 @@ const Layout = () => {
           )}
 
           {(!permissions || permissions.fine_master === true || permissions.mess_deduction === true || permissions.user_management === true || permissions.menu_permission === true || permissions.system_settings === true) && (
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>SETTINGS</div>
+            <div className="nav-section">SETTINGS</div>
           )}
           
           {(!permissions || permissions.system_settings === true) && (
@@ -240,7 +245,7 @@ const Layout = () => {
 
           {user?.role === 'DEVELOPER' && (
             <>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>DEVELOPER</div>
+              <div className="nav-section">DEVELOPER</div>
               <NavLink to="/developer/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                 <div className="nav-icon"><Zap size={18} /></div>
                 System Truncate
@@ -257,7 +262,7 @@ const Layout = () => {
           )}
 
           {/* BIOMETRICS
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>BIOMETRICS</div>
+          <div className="nav-section">BIOMETRICS</div>
           <NavLink to="/biometrics" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Database size={18} /></div>
             Dashboard
@@ -277,7 +282,7 @@ const Layout = () => {
           */}
 
           {/* 
-          <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.05em', padding: '15px 15px 5px 15px', marginTop: '10px' }}>CANTEEN</div>
+          <div className="nav-section">CANTEEN</div>
           <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <div className="nav-icon"><Coffee size={18} /></div>
             Meal In/Out Follows
@@ -295,100 +300,55 @@ const Layout = () => {
       </aside>
 
       {/* Right Side (Header + Content Wrapper) */}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+      <div className="app-body">
 
-        {/* Top Header (Dark, separate from white body) */}
-        <header className="topbar" style={{ height: '55px', padding: '0 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Top Header */}
+        <header className="topbar">
 
           {/* Mobile Menu Button (Visible only on mobile) */}
-          <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)} style={{ background: 'transparent', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '5px' }}>
-            <Menu size={24} />
+          <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
+            <Menu size={22} />
           </button>
 
-          {/* Spacer for desktop to keep profile on the right */}
-          <div className="topbar-spacer" style={{ flex: 1 }}></div>
+          <div className="topbar-title">
+            <span className="topbar-title-main">Welcome back</span>
+            <span className="topbar-title-sub">{formatDateDMY(new Date())}</span>
+          </div>
 
-          <div className="topbar-icons" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          <div className="topbar-icons">
 
             {/* Profile Dropdown Container */}
             <div style={{ position: 'relative' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: 'var(--sidebar-active)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  border: '2px solid rgba(255,255,255,0.2)'
-                }}
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-              >
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+              <div className="topbar-user" onClick={() => setIsProfileOpen(!isProfileOpen)}>
+                <div className="topbar-user-info">
+                  <span className="topbar-user-name">{user?.name || 'Admin User'}</span>
+                  <span className="topbar-user-role">{user?.role || 'ADMIN'}</span>
+                </div>
+                <div className="topbar-avatar">{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</div>
+                <ChevronDown size={15} color="#94a3b8" />
               </div>
 
               {/* Dropdown Menu (Click to open, click away to close) */}
               {isProfileOpen && (
                 <>
                   {/* Invisible Overlay for click-outside */}
-                  <div
-                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
-                    onClick={() => setIsProfileOpen(false)}
-                  ></div>
+                  <div className="profile-overlay" onClick={() => setIsProfileOpen(false)}></div>
 
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '40px',
-                      right: '0',
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                      width: '200px',
-                      zIndex: 100,
-                      overflow: 'hidden',
-                      border: '1px solid var(--border-color)'
-                    }}
-                  >
-                    <div style={{ padding: '15px', borderBottom: '1px solid var(--border-color)', backgroundColor: '#f8f9fa' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px' }}>{user?.name || 'Admin User'}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{user?.email || 'admin@hostel.com'}</div>
+                  <div className="profile-dropdown">
+                    <div className="profile-dropdown-head">
+                      <div className="profile-name">{user?.name || 'Admin User'}</div>
+                      <div className="profile-email">{user?.email || 'admin@hostel.com'}</div>
                       {user?.role && (
-                        <div style={{ marginTop: '8px' }}>
-                          <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', background: user.role === 'ADMIN' ? '#f3e8ff' : user.role === 'DEVELOPER' ? '#fee2e2' : '#e0f2fe', color: user.role === 'ADMIN' ? '#7e22ce' : user.role === 'DEVELOPER' ? '#991b1b' : '#0369a1', textTransform: 'uppercase' }}>
-                            {user.role}
-                          </span>
-                        </div>
+                        <span className="profile-role">{user.role}</span>
                       )}
                     </div>
-                    <div style={{ padding: '8px' }}>
+                    <div className="profile-dropdown-body">
                       <button
+                        className="profile-logout"
                         onClick={() => {
                           localStorage.removeItem('access_token');
                           navigate('/login');
                         }}
-                        style={{
-                          width: '100%',
-                          padding: '10px 15px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#d93025',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          borderRadius: '6px',
-                          textAlign: 'left'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(217, 48, 37, 0.05)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         <LogOut size={16} /> Logout
                       </button>
@@ -400,8 +360,8 @@ const Layout = () => {
           </div>
         </header>
 
-        {/* Main Wrapper (White card with rounded corner) */}
-        <div className="main-wrapper" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Main Wrapper */}
+        <div className="main-wrapper">
 
           {/* Main Content Area */}
           <main className="main-content">
