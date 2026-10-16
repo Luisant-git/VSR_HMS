@@ -56,6 +56,7 @@ export default function DeveloperSettings() {
       <PageHeader 
         title="Developer Tools" 
         subtitle="System administrative functions and dangerous operations"
+        icon={<ShieldAlert size={24} color="#fff" />} iconBg="linear-gradient(135deg, #1e293b 0%, #0f172a 100%)"
       />
       
       <div style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '25px' }}>

@@ -156,7 +156,7 @@ const StudentProfile = () => {
           guardianPhone: data.guardianMobileNo || 'N/A',
           emergencyContact: data.emergencyContact || 'N/A',
           roomType: data.room?.type || 'N/A',
-          blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id?.replace(/^[a-zA-Z\\s_-]+/, '') || '-'}`,
+          blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id?.replace(/^[a-zA-Z\s_-]+/, '') || '-'}`,
           monthlyRent: `₹${data.rent || 0}`,
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
@@ -204,16 +204,16 @@ const StudentProfile = () => {
   }, [id]);
 
   if (!student) {
-    return <div style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>Loading Profile...</div>;
+    return <div className="sp-loading">Loading Profile...</div>;
   }
 
   const renderDocPreview = (url: string, alt: string) => {
     if (url.toLowerCase().endsWith('.pdf')) {
       return (
-        <iframe src={`${url}#toolbar=0`} title={alt} style={{ width: '100%', height: '100%', border: 'none', objectFit: 'contain' }} />
+        <iframe src={`${url}#toolbar=0`} title={alt}></iframe>
       );
     }
-    return <img src={url} alt={alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+    return <img src={url} alt={alt} />;
   };
 
   const tabs = [
@@ -226,41 +226,41 @@ const StudentProfile = () => {
   ];
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
-      <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+    <div className="ui-page">
+      <div className="sp-header">
+        <div className="sp-header-left">
           <button
             onClick={() => navigate(-1)}
-            style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', marginRight: '15px' }}
+            className="ui-btn ui-btn-secondary sp-back"
           >
             <ArrowLeft size={18} /> Back
           </button>
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-heading)' }}>Student Profile - {student.name}</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '5px' }}>
+            <h2 className="sp-title">Student Profile - {student.name}</h2>
+            <p className="sp-subtitle">
               Friday, 25 Sep 2026
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => setShowIdCard(true)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)' }}>
+        <div className="sp-actions">
+          <button onClick={() => setShowIdCard(true)} className="ui-btn ui-btn-primary">
             <IdCard size={16} /> View ID Card
           </button>
-          <button onClick={() => navigate(`/register?edit=${student.uuid}`)} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #334155', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button onClick={() => navigate(`/register?edit=${student.uuid}`)} className="ui-btn ui-btn-secondary">
             <Camera size={16} /> Update Photo & KYC
           </button>
           {student.status !== 'Vacated' && (
             <>
-              <button onClick={() => navigate('/fees')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: '#198754', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(25, 135, 84, 0.2)' }}>
+              <button onClick={() => navigate('/fees')} className="ui-btn ui-btn-success">
                 <Wallet size={16} /> Collect Fee
               </button>
-              <button onClick={() => navigate('/outpass')} style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #0d6efd', color: '#0d6efd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button onClick={() => navigate('/outpass')} className="ui-btn ui-btn-secondary sp-btn-outline">
                 <FileText size={16} /> Issue Outpass
               </button>
               <button
                 onClick={() => navigate(`/hostellers/clearance/${student.uuid}`)}
-                style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, background: 'white', border: '1px solid #dc3545', color: '#dc3545', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                className="ui-btn ui-btn-outline-danger"
               >
                 <LogOut size={16} /> Checkout Student
               </button>
@@ -269,227 +269,200 @@ const StudentProfile = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+      <div className="sp-layout">
         {/* Left Sidebar Profile Summary & Navigation */}
-        <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="sp-sidebar">
           {/* Profile Card */}
-          <div style={{ background: 'white', borderRadius: '12px', padding: '25px 20px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--sidebar-active)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', fontWeight: 700, marginBottom: '15px', overflow: 'hidden' }}>
+          <div className="sp-profile-card">
+            <div className="sp-avatar">
               {student.photoUrl ? (
-                <img src={student.photoUrl} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={student.photoUrl} alt="Student" />
               ) : (
                 student.name.substring(0, 2).toUpperCase()
               )}
             </div>
-            <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1e293b', margin: '0 0 5px 0' }}>{student.name}</h3>
-            <span style={{
-              background: student.status === 'Vacated' ? '#f87171' : student.status === 'Out' ? '#fef3c7' : '#dcfce7',
-              color: student.status === 'Vacated' ? 'white' : student.status === 'Out' ? '#92400e' : '#166534',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 700,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              marginBottom: '15px'
-            }}>
+            <h3 className="sp-profile-name">{student.name}</h3>
+            <span className={`sp-status ${student.status === 'Vacated' ? 'is-inactive' : student.status === 'Out' ? 'is-out' : 'is-active'}`}>
               <CheckCircle2 size={14} /> {student.status === 'Vacated' ? 'Inactive' : student.status === 'Out' ? 'Active (Out)' : 'Active'}
             </span>
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px', color: '#475569', textAlign: 'left', background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>ID:</span>
+            <div className="sp-profile-meta">
+              <div className="sp-meta-row">
+                <span className="sp-meta-label">ID:</span>
                 <span>{student.id}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>Room:</span>
+              <div className="sp-meta-row">
+                <span className="sp-meta-label">Room:</span>
                 <span>{student.room}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>Joined:</span>
+              <div className="sp-meta-row">
+                <span className="sp-meta-label">Joined:</span>
                 <span>{student.joined}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 600 }}>Category:</span>
-                <span style={{ textAlign: 'right', maxWidth: '120px' }}>{student.category || 'N/A'}</span>
+              <div className="sp-meta-row">
+                <span className="sp-meta-label">Category:</span>
+                <span className="sp-meta-value-right">{student.category || 'N/A'}</span>
               </div>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+          <div className="sp-nav">
             {tabs.map(tab => (
               <button
                 key={tab.name}
                 onClick={() => setActiveTab(tab.name)}
-                style={{
-                  width: '100%',
-                  padding: '15px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  background: activeTab === tab.name ? '#f8f9fa' : 'white',
-                  border: 'none',
-                  borderBottom: '1px solid #f1f5f9',
-                  borderLeft: activeTab === tab.name ? '3px solid var(--sidebar-active)' : '3px solid transparent',
-                  color: activeTab === tab.name ? 'var(--sidebar-active)' : '#475569',
-                  fontWeight: activeTab === tab.name ? 700 : 500,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.2s'
-                }}
+                className={`sp-nav-btn${activeTab === tab.name ? ' is-active' : ''}`}
               >
-                {tab.icon} <span style={{ flex: 1 }}>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
+                {tab.icon} <span>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Right Content Area */}
-        <div style={{ flex: 1, background: 'white', borderRadius: '12px', padding: '30px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+        <div className="sp-content">
           {activeTab === 'Master Profile' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div>
+              <h3 className="sp-section-title">
                 <User size={20} color="var(--sidebar-active)" /> Personal Details
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Manual Regsi Name</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.manualRegsiName}</div>
+              <div className="ui-kv-grid sp-detail-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Manual Regsi Name</div>
+                  <div className="ui-kv-value">{student.manualRegsiName}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Biometric ID</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.biometricId}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Biometric ID</div>
+                  <div className="ui-kv-value">{student.biometricId}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Aadhar Number</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.aadharNo || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Aadhar Number</div>
+                  <div className="ui-kv-value">{student.aadharNo || 'N/A'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Blood Group</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.bloodGroup}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Blood Group</div>
+                  <div className="ui-kv-value">{student.bloodGroup}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Gender</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.gender}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Gender</div>
+                  <div className="ui-kv-value">{student.gender}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Date of Birth</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.dob}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Date of Birth</div>
+                  <div className="ui-kv-value">{student.dob}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Marital Status</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.maritalStatus}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Marital Status</div>
+                  <div className="ui-kv-value">{student.maritalStatus}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Mobile Phone</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.mobile}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Mobile Phone</div>
+                  <div className="ui-kv-value">{student.mobile}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Email</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.email || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Email</div>
+                  <div className="ui-kv-value">{student.email || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Address</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.address}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Address</div>
+                  <div className="ui-kv-value">{student.address}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 className="sp-section-title">
                 <FileText size={20} color="#8b5cf6" /> Academic & Additional Info
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>VSR Ledger-1</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.vsrLedger1}</div>
+              <div className="ui-kv-grid sp-detail-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">VSR Ledger-1</div>
+                  <div className="ui-kv-value">{student.vsrLedger1}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Date of Joining</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.dateOfJoining}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Date of Joining</div>
+                  <div className="ui-kv-value">{student.dateOfJoining}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Pursuing Year</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.pursuingYear}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Pursuing Year</div>
+                  <div className="ui-kv-value">{student.pursuingYear}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Course Duration</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.courseDuration || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Course Duration</div>
+                  <div className="ui-kv-value">{student.courseDuration || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>College / Dept</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.college}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">College / Dept</div>
+                  <div className="ui-kv-value">{student.college}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Category</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.category}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Category</div>
+                  <div className="ui-kv-value">{student.category}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 className="sp-section-title">
                 <Phone size={20} color="#f59e0b" /> Guardian & Emergency Contacts
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Guardian Name</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.guardianName}</div>
+              <div className="ui-kv-grid sp-detail-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Guardian Name</div>
+                  <div className="ui-kv-value">{student.guardianName}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Guardian Phone</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.guardianPhone || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Guardian Phone</div>
+                  <div className="ui-kv-value">{student.guardianPhone || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Emergency Contact</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.emergencyContact || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Emergency Contact</div>
+                  <div className="ui-kv-value">{student.emergencyContact || '-'}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '30px' }}>
+              <h3 className="sp-section-title sp-gap-top">
                 <User size={20} color="#3b82f6" /> Parent Information
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '35px' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Father's Name</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.fatherName || '-'}</div>
+              <div className="ui-kv-grid sp-detail-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Father's Name</div>
+                  <div className="ui-kv-value">{student.fatherName || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Father's Phone</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.fatherMobileNo || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Father's Phone</div>
+                  <div className="ui-kv-value">{student.fatherMobileNo || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Mother's Name</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.motherName || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Mother's Name</div>
+                  <div className="ui-kv-value">{student.motherName || '-'}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Mother's Phone</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.motherMobileNo || '-'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Mother's Phone</div>
+                  <div className="ui-kv-value">{student.motherMobileNo || '-'}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 className="sp-section-title">
                 <Bed size={20} color="#8b5cf6" /> Room & Accommodation
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Room Type</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.roomType}</div>
+              <div className="ui-kv-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Room Type</div>
+                  <div className="ui-kv-value">{student.roomType}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Block / Room No</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.blockRoom}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Block / Room No</div>
+                  <div className="ui-kv-value">{student.blockRoom}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Rent</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{student.monthlyRent}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Monthly Rent</div>
+                  <div className="ui-kv-value sp-kv-strong">{student.monthlyRent}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Monthly Mess Fee</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Monthly Mess Fee</div>
+                  <div className="ui-kv-value sp-kv-strong">
                     ₹{(() => {
                       const tList = fees?.filter(f => f.transactionType === 'MESS') || [];
                       if (tList.length === 0) return (student.monthlyMessFee || 0).toLocaleString('en-IN');
@@ -508,44 +481,44 @@ const StudentProfile = () => {
                     })()}
                   </div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Advance Paid</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>₹{student.advance}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Advance Paid</div>
+                  <div className="ui-kv-value sp-kv-strong">₹{student.advance}</div>
                 </div>
-                <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, marginBottom: '4px' }}>Food Type</div>
-                  <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: 500 }}>{student.foodType}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Food Type</div>
+                  <div className="ui-kv-value">{student.foodType}</div>
                 </div>
               </div>
 
               {student.status === 'Vacated' && student.clearance && (
-                <div style={{ background: '#fef2f2', padding: '25px', borderRadius: '12px', border: '1px solid #fca5a5', marginTop: '25px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#991b1b', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 15px 0' }}>
+                <div className="sp-clearance">
+                  <h3 className="sp-clearance-title">
                     <LogOut size={20} color="#dc2626" /> Exit & Clearance Details
                   </h3>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '20px', marginBottom: '20px' }}>
+                  <div className="sp-clearance-grid">
                     <div>
-                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Date</div>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#450a0a' }}>{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
+                      <div className="sp-clearance-label">Clearance Date</div>
+                      <div className="sp-clearance-value">{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Exit Reason</div>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#450a0a' }}>{student.clearance.reason}</div>
+                      <div className="sp-clearance-label">Exit Reason</div>
+                      <div className="sp-clearance-value">{student.clearance.reason}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Deductions</div>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626' }}>₹{student.clearance.deductions.toFixed(2)}</div>
+                      <div className="sp-clearance-label">Deductions</div>
+                      <div className="sp-clearance-value is-danger">₹{student.clearance.deductions.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Net Refund Settled</div>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#059669' }}>₹{student.clearance.netRefund.toFixed(2)}</div>
+                      <div className="sp-clearance-label">Net Refund Settled</div>
+                      <div className="sp-clearance-value is-success">₹{student.clearance.netRefund.toFixed(2)}</div>
                     </div>
                   </div>
 
                   <div>
-                    <div style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: 600, marginBottom: '5px' }}>Clearance Remarks</div>
-                    <div style={{ fontSize: '14px', color: '#450a0a', background: 'white', padding: '15px', borderRadius: '8px', border: '1px solid #fecaca' }}>
+                    <div className="sp-clearance-label">Clearance Remarks</div>
+                    <div className="sp-clearance-remarks">
                       {student.clearance.remarks || 'No remarks provided.'}
                     </div>
                   </div>
@@ -556,34 +529,34 @@ const StudentProfile = () => {
           )}
 
           {activeTab === 'KYC Documents' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div>
+              <h3 className="sp-section-title">
                 <FileText size={20} color="var(--sidebar-active)" /> KYC Documents
               </h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '30px' }}>
+              <div className="sp-stat-grid">
                 {/* Document 1 Card */}
                 {student.doc1Url ? (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                    <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
+                  <div className="sp-kyc-card">
+                    <div className="sp-kyc-head">
+                      <div className="sp-kyc-title">
                         <FileText size={18} color="#0ea5e9" />
                         <span>Document 1: {student.doc1Type || 'Aadhar Card'}</span>
                       </div>
-                      <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
+                      <span className="sp-kyc-badge">Uploaded</span>
                     </div>
 
-                    <div style={{ padding: '20px' }}>
-                      <div style={{ marginBottom: '15px' }}>
-                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> {student.doc1Type || 'Aadhar Card'}
+                    <div className="sp-kyc-body">
+                      <div className="sp-kyc-meta">
+                        <div className="sp-kyc-meta-row">
+                          <span>Document Type:</span> {student.doc1Type || 'Aadhar Card'}
                         </div>
-                        <div style={{ fontSize: '14px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.doc1Number || 'Not Provided'}
+                        <div>
+                          <span>Document / ID Number:</span> {student.doc1Number || 'Not Provided'}
                         </div>
                       </div>
 
-                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
+                      <div className="sp-kyc-preview">
                         {renderDocPreview(student.doc1Url, student.doc1Type || "Aadhar Card")}
                       </div>
 
@@ -591,40 +564,40 @@ const StudentProfile = () => {
                         href={student.doc1Url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
+                        className="sp-kyc-open"
                       >
-                        <Upload size={16} style={{ transform: 'rotate(180deg)' }} /> Open / Download Full Document
+                        <Upload size={16} className="sp-icon-flip" /> Open / Download Full Document
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '350px', color: '#64748b' }}>
+                  <div className="sp-kyc-empty">
                     No Primary ID Uploaded
                   </div>
                 )}
 
                 {/* Document 2 Card */}
                 {student.doc2Url ? (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: 'white', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                    <div style={{ padding: '15px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
+                  <div className="sp-kyc-card">
+                    <div className="sp-kyc-head">
+                      <div className="sp-kyc-title">
                         <FileText size={18} color="#0ea5e9" />
                         <span>Document 2: {student.doc2Type || 'Secondary ID'}</span>
                       </div>
-                      <span style={{ background: '#10b981', color: 'white', fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px' }}>Uploaded</span>
+                      <span className="sp-kyc-badge">Uploaded</span>
                     </div>
 
-                    <div style={{ padding: '20px' }}>
-                      <div style={{ marginBottom: '15px' }}>
-                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document Type:</span> {student.doc2Type || 'Secondary ID'}
+                    <div className="sp-kyc-body">
+                      <div className="sp-kyc-meta">
+                        <div className="sp-kyc-meta-row">
+                          <span>Document Type:</span> {student.doc2Type || 'Secondary ID'}
                         </div>
-                        <div style={{ fontSize: '14px' }}>
-                          <span style={{ fontWeight: 600, color: '#1e293b' }}>Document / ID Number:</span> {student.doc2Number || 'Not Provided'}
+                        <div>
+                          <span>Document / ID Number:</span> {student.doc2Number || 'Not Provided'}
                         </div>
                       </div>
 
-                      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#f8f9fa', height: '240px', marginBottom: '15px' }}>
+                      <div className="sp-kyc-preview">
                         {renderDocPreview(student.doc2Url, student.doc2Type || "Secondary ID")}
                       </div>
 
@@ -632,14 +605,14 @@ const StudentProfile = () => {
                         href={student.doc2Url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', padding: '10px', background: '#0d6efd', color: 'white', textDecoration: 'none', borderRadius: '6px', fontWeight: 500, fontSize: '14px' }}
+                        className="sp-kyc-open"
                       >
-                        <Upload size={16} style={{ transform: 'rotate(180deg)' }} /> Open / Download Full Document
+                        <Upload size={16} className="sp-icon-flip" /> Open / Download Full Document
                       </a>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '350px', color: '#64748b' }}>
+                  <div className="sp-kyc-empty">
                     No Secondary ID Uploaded
                   </div>
                 )}
@@ -648,251 +621,250 @@ const StudentProfile = () => {
           )}
 
           {activeTab === 'Fees & Receipts' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <div>
+              <div className="sp-tab-head">
+                <h3 className="sp-section-title sp-tab-title">
                   <CreditCard size={20} color="#10b981" /> Fee Transactions
                 </h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '25px' }}>
-                <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Paid (Receipts)</div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              <div className="sp-stat-grid">
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Paid (Receipts)</div>
+                  <div className="sp-stat-value">₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
-                <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ color: '#64748b', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Total Pending Dues</div>
-                  <div style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Pending Dues</div>
+                  <div className="sp-stat-value">₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
               {fees.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div className="sp-empty">
                   No fee records found for this student.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
-                      <tr>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Invoice No</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Payment Date</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Advance</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Rent</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>EB</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Mess</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Fine</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569', textAlign: 'right' }}>Total Paid</th>
-                        <th style={{ padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Status</th>
-                        <th style={{ textAlign: 'right', padding: '12px 15px', fontSize: '12px', fontWeight: 600, color: '#475569' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {displayFees.map(fee => (
-                        <tr key={fee.id} style={{ borderBottom: '1px solid #f1f5f9', background: fee.status === 'PENDING' ? '#fff1f2' : 'transparent' }}>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#0d6efd', fontWeight: 700 }}>
-                            {fee.status === 'COMPLETED' ? (fee.feesList[0] ? (() => {
-                              const f = fee.feesList[0];
-                              const ymStr = new Date(f.createdAt).toISOString().slice(0, 7).replace('-', '');
-                              const purpose = fee.feesList.length > 1 ? 'MUL' : (f.transactionType || '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'FEE';
-                              const studentStr = student?.id || 'UNKN';
-                              return `INV-${purpose}-${ymStr}-${studentStr}`;
-                            })() : '—') : '—'}
-                          </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155' }}>
-                            {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
-                          </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#198754', fontWeight: 600, textAlign: 'right' }}>₹{fee.advance.toLocaleString('en-IN')}</td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>
-                            <div>₹{fee.rent.toLocaleString('en-IN')}</div>
-                            {fee.status === 'COMPLETED' && (() => {
-                              const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
-                              const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
-                              if (match) {
-                                const parts = match[1].split('-');
-                                return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
-                              }
-                              return null;
-                            })()}
-                          </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>
-                            <div>₹{fee.mess.toLocaleString('en-IN')}</div>
-                            {fee.status === 'COMPLETED' && (() => {
-                              const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS'));
-                              const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
-                              if (match) {
-                                const parts = match[1].split('-');
-                                return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
-                              }
-                              return null;
-                            })()}
-                          </td>
-                          <td style={{ padding: '15px', fontSize: '13px', color: '#334155', textAlign: 'right' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
-
-                          <td style={{ padding: '15px', fontSize: '14px', color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontWeight: 700, textAlign: 'right' }}>
-                            ₹{fee.totalAmount.toLocaleString('en-IN')}
-                          </td>
-
-                          <td style={{ padding: '15px', fontSize: '12px' }}>
-                            <span style={{
-                              padding: '4px 8px', borderRadius: '4px', fontWeight: 600,
-                              background: fee.status === 'COMPLETED' ? '#dcfce7' : fee.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
-                              color: fee.status === 'COMPLETED' ? '#166534' : fee.status === 'PENDING' ? '#92400e' : '#991b1b'
-                            }}>
-                              {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'right', padding: '15px' }}>
-                            {fee.status === 'PENDING' ? (
-                              <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <Wallet size={14} /> Pay Now
-                              </button>
-                            ) : (
-                              <button onClick={() => setSelectedReceipt({ ...fee, student: { name: student.name, regNo: student.id, roomNo: student.room } })} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <FileText size={14} color="#64748b" /> View Receipt
-                              </button>
-                            )}
-                          </td>
+                <div className="ui-card ui-card--flush">
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice No</th>
+                          <th>Payment Date</th>
+                          <th className="num">Advance</th>
+                          <th className="num">Rent</th>
+                          <th className="num">EB</th>
+                          <th className="num">Mess</th>
+                          <th className="num">Fine</th>
+                          <th className="num">Total Paid</th>
+                          <th>Status</th>
+                          <th className="num">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {displayFees.map(fee => (
+                          <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
+                            <td className="sp-invoice">
+                              {fee.status === 'COMPLETED' ? (fee.feesList[0] ? (() => {
+                                const f = fee.feesList[0];
+                                const ymStr = new Date(f.createdAt).toISOString().slice(0, 7).replace('-', '');
+                                const purpose = fee.feesList.length > 1 ? 'MUL' : (f.transactionType || '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'FEE';
+                                const studentStr = student?.id || 'UNKN';
+                                return `INV-${purpose}-${ymStr}-${studentStr}`;
+                              })() : '—') : '—'}
+                            </td>
+                            <td>
+                              {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
+                            </td>
+                            <td className="num sp-advance-amount">₹{fee.advance.toLocaleString('en-IN')}</td>
+                            <td className="num">
+                              <div>₹{fee.rent.toLocaleString('en-IN')}</div>
+                              {fee.status === 'COMPLETED' && (() => {
+                                const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
+                                const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                                if (match) {
+                                  const parts = match[1].split('-');
+                                  return <div className="sp-paid-till">Paid till {parts[parts.length - 1].trim()}</div>;
+                                }
+                                return null;
+                              })()}
+                            </td>
+                            <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                            <td className="num">
+                              <div>₹{fee.mess.toLocaleString('en-IN')}</div>
+                              {fee.status === 'COMPLETED' && (() => {
+                                const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS'));
+                                const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                                if (match) {
+                                  const parts = match[1].split('-');
+                                  return <div className="sp-paid-till">Paid till {parts[parts.length - 1].trim()}</div>;
+                                }
+                                return null;
+                              })()}
+                            </td>
+                            <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
+
+                            <td className={`num sp-total${fee.status === 'PENDING' ? ' is-pending' : ''}`}>
+                              ₹{fee.totalAmount.toLocaleString('en-IN')}
+                            </td>
+
+                            <td>
+                              <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-success' : fee.status === 'PENDING' ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                                {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </td>
+                            <td className="num">
+                              {fee.status === 'PENDING' ? (
+                                <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} className="ui-btn ui-btn-primary ui-btn-sm">
+                                  <Wallet size={14} /> Pay Now
+                                </button>
+                              ) : (
+                                <button onClick={() => setSelectedReceipt({ ...fee, student: { name: student.name, regNo: student.id, roomNo: student.room } })} className="ui-btn ui-btn-secondary ui-btn-sm">
+                                  <FileText size={14} color="#64748b" /> View Receipt
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {activeTab === 'Gate Logs' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <div>
+              <div className="sp-tab-head">
+                <h3 className="sp-section-title sp-tab-title">
                   <Clock size={20} color="#0d6efd" /> Gate Movement History
                 </h3>
               </div>
 
               {gateLogs.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div className="sp-empty">
                   No gate movements found for this student.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                    <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
-                      <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
-                        <th style={{ padding: '12px 15px' }}>Movement Status</th>
-                        <th style={{ padding: '12px 15px' }}>Purpose</th>
-                        <th style={{ padding: '12px 15px' }}>Exit Time</th>
-                        <th style={{ padding: '12px 15px' }}>Expected Return</th>
-                        <th style={{ padding: '12px 15px' }}>Entry Time</th>
-                        <th style={{ padding: '12px 15px' }}>Return Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gateLogs.map(log => {
-                        const status = log.movementType === 'ENTRY' || log.inTime ? 'Entry' : 'Exit';
-                        const formatDateTime = (dateStr: string | null) => {
-                          if (!dateStr) return '—';
-                          const d = new Date(dateStr);
-                          return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}<br />{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
-                        };
+                <div className="ui-card ui-card--flush">
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th>Movement Status</th>
+                          <th>Purpose</th>
+                          <th>Exit Time</th>
+                          <th>Expected Return</th>
+                          <th>Entry Time</th>
+                          <th>Return Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gateLogs.map(log => {
+                          const status = log.movementType === 'ENTRY' || log.inTime ? 'Entry' : 'Exit';
 
-                        return (
-                          <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '15px' }}>
-                              {status === 'Entry' ? (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#0d6efd', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600, minWidth: '50px' }}>
-                                  Entry
-                                </div>
-                              ) : (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#64748b', color: '#ffffff', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600, minWidth: '50px' }}>
-                                  Exit
-                                </div>
-                              )}
-                            </td>
-                            <td style={{ padding: '15px', color: '#475569', textTransform: 'capitalize' }}>{log.reason || '—'}</td>
-                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.outTime)}</td>
-                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.expectedInTime)}</td>
-                            <td style={{ padding: '15px', color: '#475569' }}>{formatDateTime(log.inTime)}</td>
-                            <td style={{ padding: '15px', color: '#475569' }}>{log.lateRemarks || '—'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                          const formatDateTime = (dateStr: string | null) => {
+                            if (!dateStr) return '—';
+                            const d = new Date(dateStr);
+                            return <>{d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}<br />{d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</>;
+                          };
+
+                          return (
+                            <tr key={log.id}>
+                              <td>
+                                {status === 'Entry' ? (
+                                  <div className="sp-move-badge is-entry">
+                                    Entry
+                                  </div>
+                                ) : (
+                                  <div className="sp-move-badge is-exit">
+                                    Exit
+                                  </div>
+                                )}
+                              </td>
+                              <td className="sp-capitalize">{log.reason || '—'}</td>
+                              <td>{formatDateTime(log.outTime)}</td>
+                              <td>{formatDateTime(log.expectedInTime)}</td>
+                              <td>{formatDateTime(log.inTime)}</td>
+                              <td>{log.lateRemarks || '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {activeTab === 'Advance Deposit' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <div>
+              <div className="sp-tab-head">
+                <h3 className="sp-section-title sp-tab-title">
                   <ShieldCheck size={20} color="#10b981" /> Advance Deposit Details
                 </h3>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
-                <div style={{ background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', textAlign: 'center', border: '1px solid #e2e8f0', minWidth: '350px' }}>
-                  <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Total Advance Deposit Held</div>
-                  <div style={{ fontSize: '36px', color: '#10b981', fontWeight: 800, letterSpacing: '-0.02em' }}>₹{(student.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+              <div className="sp-advance-wrap">
+                <div className="sp-advance-hero">
+                  <div className="sp-advance-label">Total Advance Deposit Held</div>
+                  <div className="sp-advance-value">₹{(student.advance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
               {(() => {
                 const advanceTransactions = fees.filter(f => (f.transactionType || '').toUpperCase() === 'ADVANCE');
                 return (
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                      <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
-                        <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
-                          <th style={{ padding: '12px 15px' }}>Date</th>
-                          <th style={{ padding: '12px 15px' }}>Invoice No</th>
-                          <th style={{ padding: '12px 15px' }}>Payment Mode</th>
-                          <th style={{ padding: '12px 15px', textAlign: 'right' }}>Amount</th>
-                          <th style={{ padding: '12px 15px', textAlign: 'center' }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {advanceTransactions.length === 0 ? (
+                  <div className="ui-card ui-card--flush">
+                    <div className="ui-table-wrap">
+                      <table className="ui-table">
+                        <thead>
                           <tr>
-                            <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa' }}>
-                              No advance payment records found.
-                            </td>
+                            <th>Date</th>
+                            <th>Invoice No</th>
+                            <th>Payment Mode</th>
+                            <th className="num">Amount</th>
+                            <th className="sp-center">Status</th>
                           </tr>
-                        ) : (
-                          advanceTransactions.map(txn => (
-                            <tr key={txn.id} style={{ borderBottom: '1px solid #f1f5f9', background: 'white' }}>
-                              <td style={{ padding: '15px', color: '#475569' }}>
-                                {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                <br/>
-                                <span style={{ fontSize: '11px', color: '#94a3b8' }}>{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                              </td>
-                              <td style={{ padding: '15px', color: '#475569', fontWeight: 500 }}>
-                                {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }) : '—'}
-                              </td>
-                              <td style={{ padding: '15px', color: '#475569' }}>
-                                <span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 500 }}>
-                                  {txn.paymentMode || 'N/A'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '15px', color: '#0f172a', fontWeight: 700, textAlign: 'right' }}>
-                                ₹{txn.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td style={{ padding: '15px', textAlign: 'center' }}>
-                                <span style={{
-                                  padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px',
-                                  background: txn.status === 'COMPLETED' ? '#dcfce7' : txn.status === 'PENDING' ? '#fef3c7' : '#fee2e2',
-                                  color: txn.status === 'COMPLETED' ? '#166534' : txn.status === 'PENDING' ? '#92400e' : '#991b1b'
-                                }}>
-                                  {txn.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
-                                </span>
+                        </thead>
+                        <tbody>
+                          {advanceTransactions.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="ui-table-state">
+                                No advance payment records found.
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                          ) : (
+                            advanceTransactions.map(txn => (
+                              <tr key={txn.id}>
+                                <td>
+                                  {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                  <br/>
+                                  <span className="ui-cell-sub">{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </td>
+                                <td>
+                                  {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }) : '—'}
+                                </td>
+                                <td>
+                                  <span className="ui-badge ui-badge-neutral">
+                                    {txn.paymentMode || 'N/A'}
+                                  </span>
+                                </td>
+                                <td className="num sp-total">
+                                  ₹{txn.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                                <td className="sp-center">
+                                  <span className={`ui-badge ${txn.status === 'COMPLETED' ? 'ui-badge-success' : txn.status === 'PENDING' ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                                    {txn.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })()}
@@ -900,87 +872,85 @@ const StudentProfile = () => {
           )}
 
           {activeTab === 'Outpasses & Travel' && (
-            <div style={{ animation: 'fadeIn 0.3s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <div>
+              <div className="sp-tab-head">
+                <h3 className="sp-section-title sp-tab-title">
                   <MapPin size={20} color="#0d6efd" /> Outpasses & Travel History
                 </h3>
               </div>
               {outpasses.length === 0 ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: '#f8f9fa', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div className="sp-empty">
                   No outpasses found for this student.
                 </div>
               ) : (
-                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                    <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #e2e8f0' }}>
-                      <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 600, letterSpacing: '0.05em' }}>
-                        <th style={{ padding: '12px 15px' }}>Destination</th>
-                        <th style={{ padding: '12px 15px' }}>Reason</th>
-                        <th style={{ padding: '12px 15px' }}>From Date</th>
-                        <th style={{ padding: '12px 15px' }}>To Date</th>
-                        <th style={{ padding: '12px 15px' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {outpasses.map(op => (
-                        <tr key={op.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '15px', color: '#475569', fontWeight: 600 }}>{op.destination}</td>
-                          <td style={{ padding: '15px', color: '#475569' }}>{op.reason}</td>
-                          <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.leaveDate).toLocaleDateString('en-GB')}</td>
-                          <td style={{ padding: '15px', color: '#475569' }}>{new Date(op.returnDate).toLocaleDateString('en-GB')}</td>
-                          <td style={{ padding: '15px' }}>
-                            <span style={{
-                              padding: '4px 8px', borderRadius: '4px', fontWeight: 600, fontSize: '12px',
-                              background: op.status === 'Approved' ? '#dcfce7' : op.status === 'Active Out' ? '#fef3c7' : op.status === 'Closed Returned' ? '#e2e8f0' : '#fee2e2',
-                              color: op.status === 'Approved' ? '#166534' : op.status === 'Active Out' ? '#92400e' : op.status === 'Closed Returned' ? '#475569' : '#991b1b'
-                            }}>
-                              {op.status}
-                            </span>
-                          </td>
+                <div className="ui-card ui-card--flush">
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th>Destination</th>
+                          <th>Reason</th>
+                          <th>From Date</th>
+                          <th>To Date</th>
+                          <th>Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {outpasses.map(op => (
+                          <tr key={op.id}>
+                            <td className="sp-kv-strong">{op.destination}</td>
+                            <td>{op.reason}</td>
+                            <td>{new Date(op.leaveDate).toLocaleDateString('en-GB')}</td>
+                            <td>{new Date(op.returnDate).toLocaleDateString('en-GB')}</td>
+                            <td>
+                              <span className={`ui-badge ${op.status === 'Approved' ? 'ui-badge-success' : op.status === 'Active Out' ? 'ui-badge-warning' : op.status === 'Closed Returned' ? 'ui-badge-neutral' : 'ui-badge-danger'}`}>
+                                {op.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           )}
 
           {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && activeTab !== 'Outpasses & Travel' && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', color: '#94a3b8' }}>
-              <Lock size={48} style={{ marginBottom: '15px', opacity: 0.5 }} />
-              <div style={{ fontSize: '16px', fontWeight: 600 }}>{activeTab} Data</div>
-              <div style={{ fontSize: '14px', marginTop: '5px' }}>This module will be connected to the database soon.</div>
+            <div className="sp-placeholder">
+              <Lock size={48} className="sp-placeholder-icon" />
+              <div className="sp-placeholder-title">{activeTab} Data</div>
+              <div className="sp-placeholder-text">This module will be connected to the database soon.</div>
             </div>
           )}
 
           {showUpdateModal && (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-              <div style={{ background: 'white', padding: '25px', borderRadius: '12px', width: '500px', maxWidth: '90%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                  <h3 style={{ margin: 0 }}>Update Photo & KYC</h3>
-                  <button onClick={() => setShowUpdateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+            <div className="ui-modal-overlay">
+              <div className="ui-modal ui-modal--md">
+                <div className="ui-modal-head">
+                  <h3 className="ui-modal-title">Update Photo & KYC</h3>
+                  <button onClick={() => setShowUpdateModal(false)} className="ui-modal-close"><X size={20} /></button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Profile Photo</label>
-                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                <div className="ui-modal-body">
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Profile Photo</label>
+                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files?.[0] || null)} className="sp-file-input" />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Primary ID Proof</label>
-                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Primary ID Proof</label>
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc1File(e.target.files?.[0] || null)} className="sp-file-input" />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '5px' }}>Secondary ID Proof</label>
-                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }} />
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Secondary ID Proof</label>
+                    <input type="file" accept="image/*,.pdf" onChange={e => setDoc2File(e.target.files?.[0] || null)} className="sp-file-input" />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '25px' }}>
-                  <button onClick={() => setShowUpdateModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer' }}>Cancel</button>
-                  <button onClick={handleUpdateKyc} disabled={isUpdating} style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', color: 'white', border: 'none', cursor: isUpdating ? 'not-allowed' : 'pointer' }}>
+                <div className="ui-modal-foot">
+                  <button onClick={() => setShowUpdateModal(false)} className="ui-btn ui-btn-soft">Cancel</button>
+                  <button onClick={handleUpdateKyc} disabled={isUpdating} className="ui-btn ui-btn-primary">
                     {isUpdating ? 'Uploading...' : 'Upload & Save'}
                   </button>
                 </div>
@@ -1009,12 +979,12 @@ const StudentProfile = () => {
       )}
 
       {showIdCard && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: '800px', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease' }}>
-             <button onClick={() => setShowIdCard(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: '#f1f5f9', color: '#64748b', border: 'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}>
+        <div className="ui-modal-overlay sp-idcard-overlay">
+          <div className="sp-idcard">
+             <button onClick={() => setShowIdCard(false)} className="sp-idcard-close">
                <X size={20} />
              </button>
-             <div style={{ padding: '10px' }}>
+             <div className="sp-idcard-body">
                <StudentAcknowledgementCard 
                  student={{ ...student, regNo: student.id, collegeId: student.college }} 
                  collegeName={student.college?.split('(')[0]?.trim()}

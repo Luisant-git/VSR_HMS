@@ -99,10 +99,10 @@ const Fees = () => {
 
   const selectStyles = {
     control: (base: any, state: any) => ({
-      ...base, padding: '2px', borderRadius: '8px', borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1', boxShadow: 'none', '&:hover': { borderColor: 'var(--sidebar-active)' }, fontSize: '13px', cursor: 'pointer', minWidth: '220px'
+      ...base, padding: '2px', borderRadius: '8px', borderColor: state.isFocused ? 'var(--accent)' : 'var(--border)', boxShadow: 'none', '&:hover': { borderColor: 'var(--accent)' }, fontSize: '13px', cursor: 'pointer', minWidth: '220px'
     }),
     option: (base: any, state: any) => ({
-      ...base, fontSize: '13px', backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white', color: state.isSelected ? 'white' : '#334155', cursor: 'pointer', padding: '10px 14px'
+      ...base, fontSize: '13px', backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? '#f8f9fa' : 'white', color: state.isSelected ? 'white' : 'var(--text-main)', cursor: 'pointer', padding: '10px 14px'
     })
   };
 
@@ -278,73 +278,69 @@ const Fees = () => {
   };
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
+    <div className="ui-page">
       <PageHeader
         title="Fees Paid / Unpaid"
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
+        icon={<Wallet size={24} color="#fff" />} iconBg="linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
         rightContent={
-          <div style={{ display: 'flex', gap: '10px' }}>
-
-            <button onClick={handleExportExcel} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
-              <FileSpreadsheet size={16} /> Export Excel
-            </button>
-            
-          </div>
+          <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
         }
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px', marginBottom: '25px' }}>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ background: '#e0e7ff', width: '50px', height: '50px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
+      <div className="ui-stat-grid fees-stats">
+        <div className="ui-card ui-stat">
+          <div className="ui-stat-icon ui-stat-icon--indigo">
             <FileText size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Total Invoiced</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-label">Total Invoiced</div>
+            <div className="ui-stat-value">₹{totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ background: '#e6f4ea', width: '50px', height: '50px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#188038' }}>
+        <div className="ui-card ui-stat">
+          <div className="ui-stat-icon ui-stat-icon--green">
             <IndianRupee size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Total Fees Collected</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-label">Total Fees Collected</div>
+            <div className="ui-stat-value">₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
-        <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <div style={{ background: '#fce8e6', width: '50px', height: '50px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d93025' }}>
+        <div className="ui-card ui-stat">
+          <div className="ui-stat-icon ui-stat-icon--red">
             <IndianRupee size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500, marginBottom: '4px' }}>Pending Unpaid Fees</div>
-            <div style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-heading)' }}>₹{pendingFeesAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-label">Pending Unpaid Fees</div>
+            <div className="ui-stat-value">₹{pendingFeesAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
           </div>
         </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Hostel Fee Invoices</h3>
-          </div>
+      <div className="ui-card ui-card--flush">
+        <div className="fees-toolbar">
+          <h3 className="ui-card-title">Hostel Fee Invoices</h3>
 
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="ui-filters">
             <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
             <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
             <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '150px' }) }} />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>From:</span>
-              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
+            <div className="ui-field-inline">
+              <span className="ui-field-label">From:</span>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b' }}>To:</span>
-              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: '#475569' }} />
+            <div className="ui-field-inline">
+              <span className="ui-field-label">To:</span>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
             </div>
 
             <button
+              className="ui-btn ui-btn-secondary ui-btn-sm"
               onClick={() => {
                 setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
                 setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
@@ -354,70 +350,69 @@ const Fees = () => {
                 setSearchQuery('');
                 setPage(1);
               }}
-              style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}
             >
               <X size={14} /> Clear All
             </button>
 
-            <div style={{ position: 'relative', marginLeft: 'auto' }}>
-              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} placeholder="Search Invoice..." style={{ padding: '8px 12px 8px 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '200px' }} />
+            <div className="ui-search ui-spacer">
+              <Search size={14} />
+              <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} placeholder="Search Invoice..." />
             </div>
           </div>
         </div>
 
         <div className="table-responsive">
-          <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <table className="ui-table">
             <thead>
-              <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <th style={{ padding: '16px 12px' }}>Invoice No</th>
-                <th style={{ padding: '16px 12px' }}>Reg. No</th>
-                <th style={{ padding: '16px 12px' }}>Student Name</th>
-                <th style={{ padding: '16px 12px' }}>Room</th>
-                <th style={{ padding: '16px 12px' }}>Payment Date</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Advance</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Rent</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>EB</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Mess</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Fine</th>
-                <th style={{ padding: '16px 12px', textAlign: 'right' }}>Total Paid</th>
-                <th style={{ padding: '16px 12px' }}>Payment Method</th>
-                <th style={{ padding: '16px 12px' }}>Status</th>
-                <th style={{ textAlign: 'right', padding: '16px 12px' }}>Action</th>
+              <tr>
+                <th>Invoice No</th>
+                <th>Reg. No</th>
+                <th>Student Name</th>
+                <th>Room</th>
+                <th>Payment Date</th>
+                <th className="num">Advance</th>
+                <th className="num">Rent</th>
+                <th className="num">EB</th>
+                <th className="num">Mess</th>
+                <th className="num">Fine</th>
+                <th className="num">Total Paid</th>
+                <th>Payment Method</th>
+                <th>Status</th>
+                <th className="num">Action</th>
               </tr>
             </thead>
             <tbody>
               {paginatedFees.map((fee: any) => (
-                <tr key={fee.id} style={{ borderBottom: '1px solid #e2e8f0', background: fee.status === 'PENDING' ? '#fff1f2' : 'white' }}>
-                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#0d6efd' }}>
+                <tr key={fee.id} className={fee.status === 'PENDING' ? 'ui-row-pending' : ''}>
+                  <td className="ui-cell-link">
                     {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—'}
                   </td>
-                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 600 }}>{fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}</td>
-                  <td style={{ padding: '16px 12px', fontWeight: 700, color: '#1e293b' }}>{fee.student?.name || 'Unknown'}</td>
-                  <td style={{ padding: '16px 12px', color: '#475569' }}>Room {fee.student?.roomNo || 'N/A'}</td>
-                  <td style={{ padding: '16px 12px', color: '#334155' }}>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
+                  <td className="fees-reg">{fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}</td>
+                  <td className="ui-cell-name">{fee.student?.name || 'Unknown'}</td>
+                  <td>Room {fee.student?.roomNo || 'N/A'}</td>
+                  <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
 
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#198754', fontWeight: 600 }}>₹{fee.advance.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
+                  <td className="num fees-credit">₹{fee.advance.toLocaleString('en-IN')}</td>
+                  <td className="num">
                     <div>₹{fee.rent.toLocaleString('en-IN')}</div>
                     {fee.status === 'COMPLETED' && (() => {
                       const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
                       const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                       if (match) {
                         const parts = match[1].split('-');
-                        return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                        return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
                       }
                       return null;
                     })()}
                   </td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.eb.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>
+                  <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                  <td className="num">
                     <div>₹{fee.mess.toLocaleString('en-IN')}</div>
                     {fee.feesList?.filter((x: any) => x.transactionType === 'MESS DEDUCTION').map((d: any, idx: number) => {
                       const match = d.description?.match(/\((\d+\s*days)\)/i);
                       const daysText = match ? match[1] : '';
                       return (
-                        <div key={idx} style={{ fontSize: '11px', color: '#b91c1c', marginTop: '4px', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        <div key={idx} className="fees-note fees-note--danger">
                           Inc. -₹{Math.abs(d.amount).toLocaleString('en-IN')} {daysText ? `(${daysText})` : ''}
                         </div>
                       );
@@ -427,31 +422,31 @@ const Fees = () => {
                       const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                       if (match) {
                         const parts = match[1].split('-');
-                        return <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '4px', whiteSpace: 'nowrap' }}>Paid till {parts[parts.length - 1].trim()}</div>;
+                        return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
                       }
                       return null;
                     })()}
                   </td>
-                  <td style={{ padding: '16px 12px', textAlign: 'right', color: '#334155' }}>₹{fee.fine.toLocaleString('en-IN')}</td>
+                  <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
-                  <td style={{ padding: '16px 12px', textAlign: 'right', fontWeight: 800, color: fee.status === 'PENDING' ? '#dc3545' : '#0f172a', fontSize: '14px' }}>
+                  <td className={`num fees-total${fee.status === 'PENDING' ? ' fees-total--pending' : ''}`}>
                     ₹{fee.totalAmount.toLocaleString('en-IN')}
                   </td>
 
-                  <td style={{ padding: '16px 12px', color: '#475569', fontWeight: 500 }}>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
-                  <td style={{ padding: '16px 12px' }}>
-                    <span style={{ display: 'inline-flex', padding: '4px 12px', borderRadius: '4px', background: fee.status === 'COMPLETED' ? '#198754' : '#e11d48', color: 'white', fontWeight: 600, fontSize: '12px' }}>
+                  <td>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
+                  <td>
+                    <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-success' : 'ui-badge-danger'}`}>
                       {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right', padding: '16px 12px' }}>
+                  <td className="num">
                     {fee.status === 'PENDING' ? (
-                      <button onClick={() => setFeesToCollect(fee.feesList)} style={{ padding: '6px 14px', fontSize: '13px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 4px rgba(13, 110, 253, 0.2)' }}>
+                      <button onClick={() => setFeesToCollect(fee.feesList)} className="ui-btn ui-btn-primary ui-btn-sm">
                         <Wallet size={14} /> Pay Now
                       </button>
                     ) : (
-                      <button onClick={() => setSelectedReceipt(fee)} style={{ padding: '6px 14px', fontSize: '13px', background: 'white', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <FileText size={14} color="#64748b" /> View Receipt
+                      <button onClick={() => setSelectedReceipt(fee)} className="ui-btn ui-btn-secondary ui-btn-sm">
+                        <FileText size={14} /> View Receipt
                       </button>
                     )}
                   </td>
@@ -459,11 +454,11 @@ const Fees = () => {
               ))}
               {error ? (
                 <tr>
-                  <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#ef4444' }}>{error}</td>
+                  <td colSpan={14} className="ui-empty ui-empty--danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 && (
                 <tr>
-                  <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>No fee transactions found.</td>
+                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
                 </tr>
               )}
             </tbody>
@@ -472,27 +467,24 @@ const Fees = () => {
 
         {/* Pagination */}
         {totalPages > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-                Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
-              </div>
+          <div className="ui-pagination">
+            <div>
+              Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="ui-pager">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn">
                 Previous
               </button>
-              <button
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+              <button className="ui-page-btn ui-page-btn--active">
                 {page}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages || totalPages === 0}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn">
                 Next
               </button>
             </div>

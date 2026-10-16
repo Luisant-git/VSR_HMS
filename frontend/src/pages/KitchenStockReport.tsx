@@ -132,10 +132,11 @@ export default function KitchenStockReport() {
 
   return (
     <div>
-      <div className="content-card" style={{ background: 'transparent', boxShadow: 'none', marginBottom: 0 }}>
+      <div className="content-card" style={{ background: 'transparent', boxShadow: 'none', marginBottom: 0, padding: 0 }}>
         <PageHeader
           title="Stock Report"
           subtitle={`Raw material stock as on ${formatDateDMY(asOnDate)}`}
+          icon={<Package size={24} color="#fff" />} iconBg="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
           rightContent={
             <>
               <div style={{ background: '#eff6ff', color: '#2563eb', padding: '10px 18px', borderRadius: '10px', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>

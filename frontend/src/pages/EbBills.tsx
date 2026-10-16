@@ -127,6 +127,7 @@ const EbBills = () => {
       <PageHeader
         title="Rooms EB Bill Sharing Calculator"
         subtitle="Sub-meter electricity calculation and automatic equal cost distribution across room hostellers"
+        icon={<Calculator size={24} color="#fff" />} iconBg="linear-gradient(135deg, #eab308 0%, #ca8a04 100%)"
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '25px' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { toast } from 'react-toastify';
+import { ShieldCheck } from 'lucide-react';
 
 const MenuPermission = () => {
   const [permissions, setPermissions] = useState<any[]>([]);
@@ -116,7 +117,7 @@ const MenuPermission = () => {
         title="Menu Permission"
         subtitle="Configure access control for different roles"
         showBack={true}
-        
+        icon={<ShieldCheck size={24} color="#fff" />} iconBg="linear-gradient(135deg, #d946ef 0%, #c026d3 100%)"
       />
 
       <div style={{ background: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #e2e8f0', overflow: 'hidden', marginTop: '20px' }}>

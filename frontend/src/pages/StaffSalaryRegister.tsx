@@ -78,9 +78,9 @@ export default function StaffSalaryRegister() {
       ...base,
       minHeight: '38px',
       borderRadius: '8px',
-      borderColor: state.isFocused ? '#15803d' : '#cbd5e1',
-      boxShadow: state.isFocused ? '0 0 0 3px rgba(21, 128, 61, 0.12)' : 'none',
-      '&:hover': { borderColor: '#15803d' },
+      borderColor: state.isFocused ? 'var(--accent)' : 'var(--border-strong)',
+      boxShadow: state.isFocused ? '0 0 0 3px var(--accent-soft)' : 'none',
+      '&:hover': { borderColor: 'var(--accent)' },
       fontSize: '13.5px',
       background: 'white'
     }),
@@ -89,9 +89,9 @@ export default function StaffSalaryRegister() {
       fontSize: '13px',
       padding: '8px 12px',
       backgroundColor: state.isSelected
-        ? '#15803d'
+        ? 'var(--accent)'
         : state.isFocused
-          ? '#f0fdf4'
+          ? 'var(--surface-muted)'
           : 'white',
       color: state.isSelected ? 'white' : '#0f172a',
       cursor: 'pointer'
@@ -356,174 +356,18 @@ export default function StaffSalaryRegister() {
   const totalPages = Math.ceil(totalRecords / limit) || 1;
 
   return (
-    <div className="page-container" style={{ padding: '24px 32px', background: 'var(--bg-main, #f8fafc)', minHeight: '100vh' }}>
-      {/* CSS Styles */}
-      <style>{`
-        .salary-stat-card {
-          background: white;
-          border-radius: 12px;
-          padding: 18px 22px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          flex: 1;
-          min-width: 220px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-          border: 1px solid var(--border-color, #eaedf1);
-        }
-
-        .data-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13.5px;
-        }
-
-        .data-table th {
-          background: white;
-          padding: 14px 16px;
-          color: #64748b;
-          font-weight: 700;
-          font-size: 11.5px;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          border-bottom: 1px solid #eaedf1;
-        }
-
-        .data-table td {
-          padding: 14px 16px;
-          color: #1e293b;
-          border-bottom: 1px solid #f1f5f9;
-          vertical-align: middle;
-        }
-
-        .data-table tr:hover td {
-          background-color: #f8fafc;
-        }
-
-        .staff-code-badge {
-          background: #eff6ff;
-          color: #2563eb;
-          border: 1px solid #bfdbfe;
-          padding: 4px 8px;
-          border-radius: 6px;
-          font-size: 11.5px;
-          font-weight: 700;
-          font-family: monospace;
-          display: inline-block;
-        }
-
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(15, 23, 42, 0.65);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          padding: 16px;
-        }
-
-        .modal-card {
-          background: #ffffff;
-          border-radius: 12px;
-          width: 100%;
-          max-width: 580px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          overflow: hidden;
-          animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes modalAppear {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        .modal-header-green {
-          background: #15803d;
-          color: #ffffff;
-          padding: 16px 22px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .modal-body {
-          padding: 22px 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .form-row-2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .form-group label {
-          font-size: 13px;
-          font-weight: 600;
-          color: #334155;
-        }
-
-        .form-control {
-          width: 100%;
-          padding: 9px 12px;
-          border-radius: 8px;
-          border: 1px solid #cbd5e1;
-          font-size: 13.5px;
-          color: #0f172a;
-          outline: none;
-          box-sizing: border-box;
-          background: white;
-          transition: border-color 0.15s;
-        }
-        .form-control:focus {
-          border-color: #15803d;
-          box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
-        }
-      `}</style>
-
+    <div className="ui-page">
       {/* Page Header */}
       <PageHeader
         title="Salary Management"
         subtitle="Manage staff salaries, wages, overtime bonus, and track monthly disbursements."
         showBack={false}
+        icon={<Banknote size={24} color="#fff" />} iconBg="linear-gradient(135deg, #10b981 0%, #059669 100%)"
         rightContent={
           <button
             id="btn-open-salary-modal"
             onClick={openDisburseModal}
-            style={{
-              background: '#15803d',
-              color: 'white',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 2px 6px rgba(21, 128, 61, 0.25)',
-              transition: 'all 0.15s ease'
-            }}
+            className="ui-btn ui-btn-primary"
           >
             <Plus size={16} />
             <span>Disburse Staff Salary</span>
@@ -532,76 +376,57 @@ export default function StaffSalaryRegister() {
       />
 
       {/* Top Summary Cards */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '22px', flexWrap: 'wrap' }}>
-        <div className="salary-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}>
+      <div className="ui-stat-grid">
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-success">
             <Banknote size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Disbursed</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#15803d' }}>{formatCurrency(summary.totalDisbursed)}</div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>Cumulative salary payout</div>
+            <div className="ui-stat-label">Total Disbursed</div>
+            <div className="ui-stat-value is-success">{formatCurrency(summary.totalDisbursed)}</div>
+            <div className="ui-stat-sub">Cumulative salary payout</div>
           </div>
         </div>
 
-        <div className="salary-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-info">
             <Users size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Staff Paid</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>{summary.staffCount}</div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>Staff members with payouts</div>
+            <div className="ui-stat-label">Total Staff Paid</div>
+            <div className="ui-stat-value">{summary.staffCount}</div>
+            <div className="ui-stat-sub">Staff members with payouts</div>
           </div>
         </div>
 
-        <div className="salary-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }}>
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-neutral">
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Transactions</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a' }}>{summary.totalRecords}</div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>Disbursement records</div>
+            <div className="ui-stat-label">Total Transactions</div>
+            <div className="ui-stat-value">{summary.totalRecords}</div>
+            <div className="ui-stat-sub">Disbursement records</div>
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: '15px',
-        padding: '15px 20px',
-        background: 'white',
-        border: '1px solid var(--border-color, #eaedf1)',
-        borderRadius: '12px',
-        marginBottom: '20px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}>
+      <div className="ui-toolbar">
         {/* Search */}
-        <div style={{ position: 'relative', flex: '1', minWidth: '220px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <div className="ui-search sal-search">
+          <Search size={16} />
           <input
             type="text"
             placeholder="Search by staff name, code, or salary ID..."
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-            style={{
-              width: '100%',
-              padding: '9px 12px 9px 36px',
-              border: '1px solid #cbd5e1',
-              borderRadius: '8px',
-              fontSize: '13.5px',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
+            className="ui-input"
           />
         </div>
 
         {/* Month Filter (Searchable) */}
-        <div style={{ minWidth: '150px' }}>
+        <div className="sal-filter-month">
           <Select
             options={monthFilterOptions}
             value={monthFilterOptions.find(o => o.value === filterMonth) || null}
@@ -614,7 +439,7 @@ export default function StaffSalaryRegister() {
         </div>
 
         {/* Year Filter (Searchable) */}
-        <div style={{ minWidth: '130px' }}>
+        <div className="sal-filter-year">
           <Select
             options={yearFilterOptions}
             value={yearFilterOptions.find(o => o.value === filterYear) || null}
@@ -627,7 +452,7 @@ export default function StaffSalaryRegister() {
         </div>
 
         {/* Staff Filter (Searchable) */}
-        <div style={{ minWidth: '220px' }}>
+        <div className="sal-filter-staff">
           <Select
             options={staffFilterOptions}
             value={staffFilterOptions.find(o => o.value === filterStaffId) || null}
@@ -649,51 +474,27 @@ export default function StaffSalaryRegister() {
               setFilterStaffId('ALL');
               setPage(1);
             }}
-            style={{
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              color: '#475569',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
+            className="ui-btn ui-btn-secondary"
           >
             <X size={14} /> Clear
           </button>
         )}
 
-        <div style={{ flex: 1 }}></div>
+        <div className="ui-toolbar-spacer"></div>
 
         {/* Refresh */}
         <button
           onClick={fetchSalaries}
           title="Refresh"
-          style={{
-            background: '#f8fafc',
-            color: '#475569',
-            border: '1px solid #cbd5e1',
-            padding: '8px 14px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className="ui-btn ui-btn-secondary"
         >
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
 
       {/* Salary Disbursement History Table */}
-      <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid var(--border-color, #eaedf1)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-        <table className="data-table">
+      <div className="ui-table-wrap">
+        <table className="ui-table">
           <thead>
             <tr>
               <th>RECORD ID</th>
@@ -707,22 +508,24 @@ export default function StaffSalaryRegister() {
               <th>NET AMOUNT DISBURSED</th>
               <th>PAYMENT DATE</th>
               <th>PAYMENT MODE</th>
-              <th style={{ textAlign: 'right' }}>ACTIONS</th>
+              <th className="is-right">ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={12} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                <td colSpan={12} className="ui-table-state">
                   Loading Salary Disbursements...
                 </td>
               </tr>
             ) : salaries.length === 0 ? (
               <tr>
-                <td colSpan={12} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                  <Banknote size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
-                  <div style={{ fontWeight: 600, color: '#334155' }}>No salary disbursements found</div>
-                  <div style={{ fontSize: '12px', marginTop: '4px', color: '#64748b' }}>Click "+ Disburse Staff Salary" above to record a new payment.</div>
+                <td colSpan={12}>
+                  <div className="ui-empty">
+                    <Banknote size={36} />
+                    <div className="ui-empty-title">No salary disbursements found</div>
+                    <div className="ui-empty-text">Click "+ Disburse Staff Salary" above to record a new payment.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -732,72 +535,58 @@ export default function StaffSalaryRegister() {
                 return (
                   <tr key={item.id}>
                     <td>
-                      <span className="staff-code-badge">{item.salaryCode}</span>
+                      <span className="ui-code-box">{item.salaryCode}</span>
                     </td>
                     <td>
-                      <span style={{ fontWeight: 600, color: '#475569' }}>{item.staff?.staffCode || '--'}</span>
+                      <span className="sal-muted is-strong">{item.staff?.staffCode || '--'}</span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.staff?.name || 'Staff Member'}</div>
+                      <div className="ui-cell-title">{item.staff?.name || 'Staff Member'}</div>
                     </td>
                     <td>
-                      <span style={{
-                        background: roleBadge.bg,
-                        color: roleBadge.color,
-                        border: `1px solid ${roleBadge.border}`,
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        display: 'inline-block'
-                      }}>
+                      <span
+                        className="ui-badge"
+                        style={{
+                          background: roleBadge.bg,
+                          color: roleBadge.color,
+                          borderColor: roleBadge.border
+                        }}
+                      >
                         {item.staff?.role || 'Staff'}
                       </span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.month} {item.year}</div>
+                      <div className="ui-cell-title">{item.month} {item.year}</div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#475569' }}>{formatCurrency(item.baseSalary)}</div>
+                      <div className="sal-muted is-strong">{formatCurrency(item.baseSalary)}</div>
                     </td>
                     <td>
-                      <div style={{ color: item.bonus > 0 ? '#15803d' : '#64748b', fontWeight: item.bonus > 0 ? 600 : 400 }}>
+                      <div className={item.bonus > 0 ? 'sal-plus' : 'sal-zero'}>
                         {formatCurrency(item.bonus)}
                       </div>
                     </td>
                     <td>
-                      <div style={{ color: item.deductions > 0 ? '#dc2626' : '#64748b', fontWeight: item.deductions > 0 ? 600 : 400 }}>
+                      <div className={item.deductions > 0 ? 'sal-minus' : 'sal-zero'}>
                         {formatCurrency(item.deductions)}
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 800, color: '#15803d', fontSize: '14.5px' }}>
+                      <div className="sal-net">
                         {formatCurrency(item.netAmount)}
                       </div>
                     </td>
                     <td>
-                      <div style={{ color: '#475569', fontSize: '13px' }}>{formatDateDisplay(item.paymentDate)}</div>
+                      <div className="sal-date">{formatDateDisplay(item.paymentDate)}</div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '12.5px', color: '#334155', fontWeight: 500 }}>{item.paymentMode}</div>
+                      <div className="sal-mode">{item.paymentMode}</div>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                    <td className="is-right">
+                      <div className="sal-actions">
                         <button
                           onClick={() => openViewModal(item)}
-                          style={{
-                            background: '#eff6ff',
-                            border: '1px solid #bfdbfe',
-                            color: '#2563eb',
-                            cursor: 'pointer',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
+                          className="ui-btn ui-btn-secondary"
                           title="View Details"
                         >
                           <Eye size={14} />
@@ -805,16 +594,7 @@ export default function StaffSalaryRegister() {
                         </button>
                         <button
                           onClick={() => handleDeleteRecord(item)}
-                          style={{
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            color: '#dc2626',
-                            cursor: 'pointer',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
-                            display: 'inline-flex',
-                            alignItems: 'center'
-                          }}
+                          className="ui-btn ui-btn-icon ui-btn-danger"
                           title="Delete Record"
                         >
                           <Trash2 size={14} />
@@ -830,25 +610,26 @@ export default function StaffSalaryRegister() {
 
         {/* Pagination */}
         {totalRecords > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+          <div className="ui-pagination">
+            <div className="ui-page-info">
               Showing {totalRecords === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="ui-page-controls">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn"
+              >
                 Previous
               </button>
-              <button
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+              <button className="ui-page-btn is-current">
                 {page}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page >= totalPages ? '#f1f5f9' : 'white', color: page >= totalPages ? '#94a3b8' : '#334155', cursor: page >= totalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn"
+              >
                 Next
               </button>
             </div>
@@ -860,14 +641,14 @@ export default function StaffSalaryRegister() {
       {/* EXACT MODAL FROM SCREENSHOT: "Disburse Staff Salary"     */}
       {/* ========================================================= */}
       {modalOpen && (
-        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            {/* Green Header */}
-            <div className="modal-header-green">
-              <span style={{ fontSize: '17px', fontWeight: 700 }}>Disburse Staff Salary</span>
+        <div className="ui-modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="ui-modal" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="ui-modal-header is-accent">
+              <span className="ui-modal-title">Disburse Staff Salary</span>
               <button
                 onClick={() => setModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
+                className="ui-modal-close"
               >
                 <X size={20} />
               </button>
@@ -875,10 +656,10 @@ export default function StaffSalaryRegister() {
 
             {/* Form */}
             <form onSubmit={handleRecordDisbursement}>
-              <div className="modal-body">
+              <div className="ui-modal-body">
                 {/* Staff Member (Searchable Dropdown) */}
-                <div className="form-group">
-                  <label>Staff Member</label>
+                <div className="ui-form-group">
+                  <label className="ui-form-label">Staff Member</label>
                   <Select
                     options={staffSelectOptions}
                     value={staffSelectOptions.find(o => o.value === selectedStaffId) || null}
@@ -892,9 +673,9 @@ export default function StaffSalaryRegister() {
                 </div>
 
                 {/* Salary Month & Salary Year */}
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Salary Month</label>
+                <div className="ui-form-row">
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Salary Month</label>
                     <Select
                       options={monthSelectOptions}
                       value={monthSelectOptions.find(o => o.value === modalMonth) || null}
@@ -906,13 +687,13 @@ export default function StaffSalaryRegister() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Salary Year</label>
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Salary Year</label>
                     <input
                       type="number"
                       value={modalYear}
                       onChange={(e) => setModalYear(parseInt(e.target.value, 10) || currentYear)}
-                      className="form-control"
+                      className="ui-form-control"
                       required
                     />
                   </div>
@@ -920,99 +701,99 @@ export default function StaffSalaryRegister() {
 
                 {/* Live Attendance Summary for Selected Month */}
                 {loadingAttendance ? (
-                  <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div className="ui-note sal-center">
                     ⏳ Fetching attendance for {modalMonth} {modalYear}...
                   </div>
                 ) : attendanceStats ? (
-                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="sal-att-summary">
+                    <div className="sal-att-head">
                       📋 Attendance Summary — {modalMonth} {modalYear}
-                      <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 400 }}>({attendanceStats.recordedDays} of {attendanceStats.totalDays} days recorded)</span>
+                      <span>({attendanceStats.recordedDays} of {attendanceStats.totalDays} days recorded)</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
-                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#16a34a', lineHeight: 1 }}>{attendanceStats.presentDays}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#15803d', marginTop: '4px' }}>Present</div>
+                    <div className="sal-att-grid">
+                      <div className="sal-att-tile is-success">
+                        <div className="sal-att-value">{attendanceStats.presentDays}</div>
+                        <div className="sal-att-label">Present</div>
                       </div>
-                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#d97706', lineHeight: 1 }}>{attendanceStats.halfDays}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b45309', marginTop: '4px' }}>Half Day</div>
+                      <div className="sal-att-tile is-warning">
+                        <div className="sal-att-value">{attendanceStats.halfDays}</div>
+                        <div className="sal-att-label">Half Day</div>
                       </div>
-                      <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#dc2626', lineHeight: 1 }}>{attendanceStats.absentDays}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#b91c1c', marginTop: '4px' }}>Absent</div>
+                      <div className="sal-att-tile is-danger">
+                        <div className="sal-att-value">{attendanceStats.absentDays}</div>
+                        <div className="sal-att-label">Absent</div>
                       </div>
-                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 10px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '22px', fontWeight: 800, color: '#2563eb', lineHeight: 1 }}>{attendanceStats.leaveDays}</div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#1d4ed8', marginTop: '4px' }}>On Leave</div>
+                      <div className="sal-att-tile is-info">
+                        <div className="sal-att-value">{attendanceStats.leaveDays}</div>
+                        <div className="sal-att-label">On Leave</div>
                       </div>
                     </div>
-                    <div style={{ marginTop: '8px', fontSize: '11.5px', color: '#475569', fontWeight: 600, textAlign: 'right' }}>
-                      Payable Days: <span style={{ color: '#15803d', fontSize: '13px', fontWeight: 800 }}>{attendanceStats.payableDays}</span> / {attendanceStats.totalDays}
+                    <div className="sal-att-payable">
+                      Payable Days: <span className="sal-att-payable-value">{attendanceStats.payableDays}</span> / {attendanceStats.totalDays}
                     </div>
                   </div>
                 ) : null}
 
 
                 {/* Base Salary (₹) */}
-                <div className="form-group">
-                  <label>Base Salary (₹)</label>
+                <div className="ui-form-group">
+                  <label className="ui-form-label">Base Salary (₹)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={baseSalary}
                     onChange={(e) => setBaseSalary(e.target.value)}
-                    className="form-control"
+                    className="ui-form-control"
                     placeholder="0.00"
                     required
                   />
                 </div>
 
                 {/* Bonus / Overtime (₹) & Deductions (₹) */}
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Bonus / Overtime (₹)</label>
+                <div className="ui-form-row">
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Bonus / Overtime (₹)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={bonus}
                       onChange={(e) => setBonus(e.target.value)}
-                      className="form-control"
+                      className="ui-form-control"
                       placeholder="0.00"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Deductions (₹)</label>
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Deductions (₹)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={deductions}
                       onChange={(e) => setDeductions(e.target.value)}
-                      className="form-control"
+                      className="ui-form-control"
                       placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 {/* Payment Date & Payment Mode */}
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Payment Date</label>
+                <div className="ui-form-row">
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Payment Date</label>
                     <input
                       type="date"
                       value={paymentDate}
                       onChange={(e) => setPaymentDate(e.target.value)}
-                      className="form-control"
+                      className="ui-form-control"
                       required
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Payment Mode</label>
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Payment Mode</label>
                     <Select
                       options={paymentModeOptions}
                       value={paymentModeOptions.find(o => o.value === paymentMode) || null}
@@ -1026,67 +807,34 @@ export default function StaffSalaryRegister() {
                 </div>
 
                 {/* Net Amount Disbursed Live Display */}
-                <div style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: '8px',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
+                <div className="sal-net-box">
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#166534' }}>
+                    <div className="sal-net-label">
                       Net Amount to Disburse:
                     </div>
-                    <div style={{ fontSize: '11px', color: '#15803d', marginTop: '2px' }}>
+                    <div className="sal-net-breakdown">
                       {formatCurrency(parseFloat(baseSalary) || 0)} (Base) + {formatCurrency(parseFloat(bonus) || 0)} (Bonus) - {formatCurrency(parseFloat(deductions) || 0)} (Deductions)
                     </div>
                   </div>
-                  <strong style={{ fontSize: '20px', fontWeight: 800, color: '#15803d' }}>
+                  <strong className="sal-net-amount">
                     {formatCurrency(calculatedNetAmount)}
                   </strong>
                 </div>
               </div>
 
               {/* Modal Footer Buttons matching screenshot */}
-              <div style={{
-                padding: '16px 24px',
-                background: '#f8fafc',
-                borderTop: '1px solid #e2e8f0',
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: '10px'
-              }}>
+              <div className="ui-modal-footer">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  style={{
-                    background: '#475569',
-                    color: 'white',
-                    border: 'none',
-                    padding: '9px 20px',
-                    borderRadius: '6px',
-                    fontSize: '13.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
+                  className="ui-btn ui-btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{
-                    background: '#15803d',
-                    color: 'white',
-                    border: 'none',
-                    padding: '9px 22px',
-                    borderRadius: '6px',
-                    fontSize: '13.5px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
+                  className="ui-btn ui-btn-primary"
                 >
                   {submitting ? 'Recording...' : 'Record Disbursement'}
                 </button>
@@ -1098,162 +846,117 @@ export default function StaffSalaryRegister() {
 
       {/* VIEW SALARY RECORD MODAL - CLEAN, NEAT INVOICE/RECEIPT UI (NO NESTED CARDS) */}
       {viewModalOpen && viewRecord && (
-        <div className="modal-overlay" onClick={() => setViewModalOpen(false)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', borderRadius: '14px' }}>
+        <div className="ui-modal-overlay" onClick={() => setViewModalOpen(false)}>
+          <div className="ui-modal is-md" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div style={{
-              background: '#0f172a',
-              color: 'white',
-              padding: '16px 24px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+            <div className="ui-modal-header">
               <div>
-                <span style={{ fontSize: '16px', fontWeight: 700 }}>Salary Disbursement Details</span>
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                <span className="ui-modal-title">Salary Disbursement Details</span>
+                <div className="ui-modal-subtitle">
                   Record ID: {viewRecord.salaryCode}
                 </div>
               </div>
               <button
                 onClick={() => setViewModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 2, display: 'flex' }}
+                className="ui-modal-close"
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Neat Body without nested card boxes */}
-            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div className="ui-modal-body">
               {/* Staff Member Info Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div className="sal-view-info">
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
+                  <h3 className="sal-view-name">
                     {viewRecord.staff?.name}
                   </h3>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                    Staff Code: <strong style={{ color: '#334155' }}>{viewRecord.staff?.staffCode}</strong>
+                  <div className="sal-view-sub">
+                    Staff Code: <strong className="sal-meta-value">{viewRecord.staff?.staffCode}</strong>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    background: getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').bg,
-                    color: getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').color,
-                    border: `1px solid ${getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').border}`,
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 700
-                  }}>
+                <div className="sal-view-right">
+                  <span
+                    className="ui-badge"
+                    style={{
+                      background: getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').bg,
+                      color: getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').color,
+                      borderColor: getRoleBadgeStyle(viewRecord.staff?.role || 'Staff').border
+                    }}
+                  >
                     {viewRecord.staff?.role || 'Staff'}
                   </span>
-                  <div style={{ fontSize: '12.5px', color: '#475569', fontWeight: 600, marginTop: '6px' }}>
+                  <div className="sal-view-period">
                     {viewRecord.month} {viewRecord.year}
                   </div>
                 </div>
               </div>
 
               {/* Neat Line-Item Breakdown (clean list, no card divs!) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
+              <div className="sal-breakdown">
+                <div className="sal-line">
                   <span>Base Monthly Salary</span>
-                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatCurrency(viewRecord.baseSalary)}</span>
+                  <span className="sal-line-val">{formatCurrency(viewRecord.baseSalary)}</span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
+                <div className="sal-line">
                   <span>Bonus / Overtime</span>
-                  <span style={{ fontWeight: 600, color: viewRecord.bonus > 0 ? '#15803d' : '#64748b' }}>
+                  <span className={viewRecord.bonus > 0 ? 'sal-plus' : 'sal-zero'}>
                     + {formatCurrency(viewRecord.bonus)}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#475569' }}>
+                <div className="sal-line">
                   <span>Deductions</span>
-                  <span style={{ fontWeight: 600, color: viewRecord.deductions > 0 ? '#dc2626' : '#64748b' }}>
+                  <span className={viewRecord.deductions > 0 ? 'sal-minus' : 'sal-zero'}>
                     - {formatCurrency(viewRecord.deductions)}
                   </span>
                 </div>
               </div>
 
               {/* Total Disbursed Highlight */}
-              <div style={{
-                background: '#f0fdf4',
-                borderRadius: '8px',
-                padding: '12px 18px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                border: '1px solid #bbf7d0'
-              }}>
+              <div className="sal-net-box">
                 <div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#166534' }}>Net Amount Disbursed</span>
-                  <div style={{ fontSize: '11px', color: '#15803d' }}>Total payout for this period</div>
+                  <span className="sal-net-label">Net Amount Disbursed</span>
+                  <div className="sal-net-breakdown">Total payout for this period</div>
                 </div>
-                <span style={{ fontSize: '22px', fontWeight: 800, color: '#15803d' }}>
+                <span className="sal-net-amount">
                   {formatCurrency(viewRecord.netAmount)}
                 </span>
               </div>
 
               {/* Payment Details (Clean 2-column key-value) */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '12px',
-                paddingTop: '6px',
-                fontSize: '13px',
-                color: '#475569'
-              }}>
+              <div className="sal-meta">
                 <div>
-                  <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block' }}>Payment Date</span>
-                  <strong style={{ color: '#1e293b' }}>{formatDateDisplay(viewRecord.paymentDate)}</strong>
+                  <span className="sal-meta-label">Payment Date</span>
+                  <strong className="sal-meta-value">{formatDateDisplay(viewRecord.paymentDate)}</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block' }}>Payment Mode</span>
-                  <strong style={{ color: '#1e293b' }}>{viewRecord.paymentMode}</strong>
+                  <span className="sal-meta-label">Payment Mode</span>
+                  <strong className="sal-meta-value">{viewRecord.paymentMode}</strong>
                 </div>
                 {viewRecord.remarks && (
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block' }}>Remarks</span>
-                    <span style={{ color: '#334155' }}>{viewRecord.remarks}</span>
+                  <div className="sal-span-2">
+                    <span className="sal-meta-label">Remarks</span>
+                    <span className="sal-meta-value">{viewRecord.remarks}</span>
                   </div>
                 )}
               </div>
 
               {/* Footer Meta */}
-              <div style={{
-                fontSize: '11px',
-                color: '#94a3b8',
-                display: 'flex',
-                justifyContent: 'space-between',
-                borderTop: '1px solid #f1f5f9',
-                paddingTop: '10px'
-              }}>
+              <div className="sal-footer-meta">
                 <span>Created by: {viewRecord.createdBy || 'System Administrator'}</span>
                 <span>Recorded on: {new Date(viewRecord.createdAt).toLocaleDateString('en-GB')}</span>
               </div>
             </div>
 
             {/* Footer */}
-            <div style={{
-              padding: '14px 24px',
-              background: '#f8fafc',
-              borderTop: '1px solid #e2e8f0',
-              display: 'flex',
-              justifyContent: 'flex-end'
-            }}>
+            <div className="ui-modal-footer">
               <button
                 type="button"
                 onClick={() => setViewModalOpen(false)}
-                style={{
-                  background: '#334155',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 22px',
-                  borderRadius: '6px',
-                  fontSize: '13.5px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className="ui-btn ui-btn-secondary"
               >
                 Close
               </button>

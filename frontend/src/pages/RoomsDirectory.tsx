@@ -174,6 +174,7 @@ const RoomsDirectory = () => {
       <PageHeader
         title="Rooms & Live Occupancy Grid"
         subtitle="Dynamic room bed status strictly reflecting active resident hostellers"
+        icon={<Bed size={24} color="#fff" />} iconBg="linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
         rightContent={
           <>
             <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', marginRight: '10px' }}>

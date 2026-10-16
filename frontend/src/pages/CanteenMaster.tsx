@@ -496,7 +496,8 @@ export default function CanteenMaster() {
     <div style={{ height: '100vh', width: '100vw', backgroundColor: '#f5f7fa', padding: '10px 32px 40px 32px', boxSizing: 'border-box', overflowY: 'auto', overflowX: 'hidden' }}>
       <PageHeader
         title="Canteen & Inventory Master"
-        subtitle="Complete canteen management suite — products, categories, units, suppliers, payment modes & purchase entry"
+        subtitle="Complete canteen management suite - products, categories, units, suppliers, payment modes & purchase entry"
+        icon={<Package size={24} color="#fff" />} iconBg="linear-gradient(135deg, #b45309 0%, #92400e 100%)"
         rightContent={
           <button
             onClick={loadAllData}
@@ -1341,7 +1342,7 @@ export default function CanteenMaster() {
                   XLSX.utils.book_append_sheet(wb, ws, "Purchase Report");
                   XLSX.writeFile(wb, "Purchase_Report.xlsx");
                 }}
-                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
+                style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
                 title="Export Excel"
               >
                 <Download size={16} />

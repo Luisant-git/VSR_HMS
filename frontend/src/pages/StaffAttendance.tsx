@@ -16,17 +16,17 @@ const historyStaffSelectStyles = {
     ...base,
     minHeight: '38px',
     borderRadius: '8px',
-    borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1',
-    boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
-    '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#94a3b8' },
+    borderColor: state.isFocused ? 'var(--accent)' : 'var(--border)',
+    boxShadow: state.isFocused ? '0 0 0 3px var(--accent-soft)' : 'none',
+    '&:hover': { borderColor: state.isFocused ? 'var(--accent)' : 'var(--border-strong)' },
     fontSize: '13px',
-    background: '#f8fafc',
+    background: 'var(--surface-muted)',
     minWidth: '220px'
   }),
   option: (base: any, state: any) => ({
     ...base,
     fontSize: '13px',
-    backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+    backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? 'var(--surface-muted)' : 'white',
     color: state.isSelected ? 'white' : '#334155',
     cursor: 'pointer'
   }),
@@ -365,259 +365,18 @@ export default function StaffAttendance() {
   };
 
   return (
-    <div className="page-container" style={{ padding: '24px 30px', background: '#f8fafc', minHeight: '100vh', color: '#0f172a' }}>
-      <style>{`
-        .att-stat-card {
-          background: #ffffff;
-          border-radius: 12px;
-          padding: 16px 20px;
-          border: 1px solid var(--border-color);
-          box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          flex: 1;
-          min-width: 220px;
-        }
-
-        .data-table th {
-          padding: 15px 20px;
-          font-size: 12px;
-          color: #64748b;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          background: #ffffff;
-          border-bottom: 1px solid #eaedf1;
-          white-space: nowrap;
-        }
-
-        .data-table td {
-          padding: 15px 20px;
-          border-bottom: 1px solid #f1f5f9;
-          vertical-align: middle;
-          font-size: 13.5px;
-        }
-
-        .data-table tr:hover td {
-          background: #f8fafc;
-        }
-
-        .staff-code-badge {
-          color: var(--sidebar-active);
-          font-weight: 700;
-          font-size: 13px;
-        }
-
-        .designation-badge {
-          background: #f1f5f9;
-          color: #334155;
-          padding: 4px 10px;
-          border-radius: 6px;
-          font-size: 12.5px;
-          font-weight: 600;
-          display: inline-block;
-          border: 1px solid #e2e8f0;
-        }
-
-        .att-status-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          padding: 4px 10px;
-          border-radius: 9999px;
-          font-size: 11.5px;
-          font-weight: 700;
-          letter-spacing: 0.2px;
-        }
-
-        .att-status-present {
-          background: #dcfce7;
-          color: #15803d;
-          border: 1px solid #bbf7d0;
-        }
-
-        .att-status-not-marked {
-          background: #fef9c3;
-          color: #a16207;
-          border: 1px solid #fef08a;
-        }
-
-        .att-status-absent {
-          background: #fee2e2;
-          color: #b91c1c;
-          border: 1px solid #fecaca;
-        }
-
-        .att-status-halfday {
-          background: #ffedd5;
-          color: #c2410c;
-          border: 1px solid #fed7aa;
-        }
-
-        .att-status-leave {
-          background: #f3e8ff;
-          color: #7e22ce;
-          border: 1px solid #e9d5ff;
-        }
-
-        .btn-log-inout {
-          border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: #0284c7;
-          padding: 6px 14px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 12.5px;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          transition: all 0.15s ease;
-          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-        }
-
-        .btn-log-inout:hover {
-          background: #0284c7;
-          color: #ffffff;
-          border-color: #0284c7;
-        }
-
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(15, 23, 42, 0.65);
-          backdrop-filter: blur(4px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-          padding: 16px;
-        }
-
-        .modal-card-blue-header {
-          background: #ffffff;
-          border-radius: 14px;
-          width: 100%;
-          max-width: 480px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          overflow: hidden;
-          animation: modalAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes modalAppear {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        .modal-header-blue {
-          background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-          color: #ffffff;
-          padding: 16px 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .modal-body-pad {
-          padding: 22px 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .form-row-2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-        }
-
-        .form-group label {
-          display: block;
-          font-size: 13px;
-          font-weight: 600;
-          color: #334155;
-          margin-bottom: 6px;
-        }
-
-        .form-control {
-          width: 100%;
-          padding: 9px 12px;
-          border-radius: 8px;
-          border: 1px solid var(--border-color);
-          font-size: 13px;
-          color: #0f172a;
-          outline: none;
-          background: #ffffff;
-          box-sizing: border-box;
-        }
-
-        .form-control:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-        }
-
-        .btn-cancel {
-          background: #64748b;
-          color: #ffffff;
-          border: none;
-          padding: 9px 18px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 13.5px;
-          cursor: pointer;
-        }
-
-        .btn-save-attendance {
-          background: #2563eb;
-          color: #ffffff;
-          border: none;
-          padding: 9px 20px;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 13.5px;
-          cursor: pointer;
-        }
-
-        .btn-save-attendance:hover {
-          background: #1d4ed8;
-        }
-      `}</style>
-
+    <div className="ui-page">
       {/* PageHeader matching Hostellers.tsx */}
       <PageHeader
         title="Staff Gate In / Out Daily Attendance"
         subtitle={`Record duty check-in/out timestamps and monitor staff presence for ${formatDisplayDate(selectedDate)}`}
         showBack={true}
-rightContent={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-           
-
+        icon={<Clock size={24} color="#fff" />} iconBg="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"
+        rightContent={
+          <div className="att-header-actions">
             <button
               onClick={() => navigate('/staff')}
-              style={{
-                background: 'var(--sidebar-active)',
-                color: 'white',
-                border: 'none',
-                padding: '12px 22px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(74, 114, 250, 0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
+              className="ui-btn ui-btn-primary"
             >
               <Users size={16} />
               Staff Master
@@ -627,73 +386,59 @@ rightContent={
       />
 
       {/* Quick Stats Summary */}
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
+      <div className="ui-stat-grid">
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-success">
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Present</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#16a34a' }}>{statsPresent}</div>
+            <div className="ui-stat-label">Present</div>
+            <div className="ui-stat-value is-success">{statsPresent}</div>
           </div>
         </div>
 
-        <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-warning">
             <Clock size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Half Day</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#b45309' }}>{statsHalfDay}</div>
+            <div className="ui-stat-label">Half Day</div>
+            <div className="ui-stat-value is-warning">{statsHalfDay}</div>
           </div>
         </div>
 
-        <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626' }}>
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-danger">
             <AlertCircle size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Absent</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>{statsAbsent}</div>
+            <div className="ui-stat-label">Absent</div>
+            <div className="ui-stat-value is-danger">{statsAbsent}</div>
           </div>
         </div>
 
-        <div className="att-stat-card">
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+        <div className="ui-stat">
+          <div className="ui-stat-icon is-info">
             <Calendar size={22} />
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>On Leave</div>
-            <div style={{ fontSize: '20px', fontWeight: 800, color: '#1d4ed8' }}>{statsOnLeave}</div>
+            <div className="ui-stat-label">On Leave</div>
+            <div className="ui-stat-value is-accent">{statsOnLeave}</div>
           </div>
         </div>
       </div>
 
       {/* ── Tab Navigation ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'white', padding: '6px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 6px rgba(0,0,0,0.02)', width: 'fit-content' }}>
+      <div className="ui-tabs">
         <button
           onClick={() => setActiveTab('daily')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            padding: '9px 20px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600,
-            cursor: 'pointer', border: 'none', transition: 'all 0.15s',
-            background: activeTab === 'daily' ? 'var(--sidebar-active)' : 'transparent',
-            color: activeTab === 'daily' ? 'white' : '#64748b',
-            boxShadow: activeTab === 'daily' ? '0 2px 8px rgba(37,99,235,0.2)' : 'none'
-          }}
+          className={`ui-tab ${activeTab === 'daily' ? 'active' : ''}`}
         >
           <Calendar size={15} /> Daily Roster
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '7px',
-            padding: '9px 20px', borderRadius: '8px', fontSize: '13.5px', fontWeight: 600,
-            cursor: 'pointer', border: 'none', transition: 'all 0.15s',
-            background: activeTab === 'history' ? 'var(--sidebar-active)' : 'transparent',
-            color: activeTab === 'history' ? 'white' : '#64748b',
-            boxShadow: activeTab === 'history' ? '0 2px 8px rgba(37,99,235,0.2)' : 'none'
-          }}
+          className={`ui-tab ${activeTab === 'history' ? 'active' : ''}`}
         >
           <History size={15} /> Logs History
         </button>
@@ -703,25 +448,14 @@ rightContent={
       {activeTab === 'daily' && (
       <>
       {/* Filter and Search Bar matching Hostellers.tsx */}
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: '15px',
-        padding: '15px 20px',
-        background: 'white',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        marginBottom: '20px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-      }}>
+      <div className="ui-toolbar">
         {/* Entries per page */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+        <div className="ui-toolbar-group">
+          <span className="ui-toolbar-label">Show</span>
           <select
             value={limit}
             onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-            style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+            className="ui-select ui-select-sm"
           >
             <option value={10}>10</option>
             <option value={25}>25</option>
@@ -729,34 +463,26 @@ rightContent={
             <option value={100}>100</option>
             <option value={99999}>All</option>
           </select>
-          <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+          <span className="ui-toolbar-label">entries</span>
         </div>
-        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+        <div className="ui-toolbar-divider"></div>
 
         {/* Date filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="ui-toolbar-group">
           <Calendar size={16} color="var(--text-muted)" />
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            style={{
-              padding: '8px 10px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              fontSize: '13px',
-              outline: 'none',
-              background: '#f8fafc',
-              color: '#0f172a'
-            }}
+            className="ui-input"
           />
         </div>
 
-        <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+        <div className="ui-toolbar-divider"></div>
 
         {/* Search input with icon */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+        <div className="ui-search">
+          <Search size={16} />
           <input
             type="text"
             placeholder="Search by staff name, code, designation..."
@@ -765,14 +491,7 @@ rightContent={
               setSearchTerm(e.target.value);
               setPage(1);
             }}
-            style={{
-              padding: '8px 12px 8px 36px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              fontSize: '13px',
-              outline: 'none',
-              width: '280px'
-            }}
+            className="ui-input att-search-input"
           />
         </div>
 
@@ -780,7 +499,7 @@ rightContent={
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+          className="ui-select"
         >
           <option value="ALL">-- All Status --</option>
           <option value="Present">Present</option>
@@ -799,78 +518,53 @@ rightContent={
               setPage(1);
             }}
             title="Clear all filters"
-            style={{
-              background: '#f1f5f9',
-              color: '#64748b',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
-            onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+            className="ui-btn ui-btn-secondary"
           >
             <X size={14} strokeWidth={3} /> Clear All
           </button>
         )}
 
-        <div style={{ flex: 1 }}></div>
+        <div className="ui-toolbar-spacer"></div>
 
         {/* Refresh button */}
         <button
           onClick={fetchRoster}
           title="Refresh Roster"
-          style={{
-            background: '#f8fafc',
-            color: '#475569',
-            border: '1px solid var(--border-color)',
-            padding: '8px 14px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className="ui-btn ui-btn-secondary"
         >
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
 
       {/* Duty Attendance Roster Table Card matching Hostellers.tsx */}
-      <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="ui-table-wrap">
+        <table className="ui-table">
           <thead>
-            <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
+            <tr>
               <th>STAFF CODE</th>
               <th>STAFF MEMBER</th>
               <th>DESIGNATION</th>
               <th>CHECK-IN TIME</th>
               <th>CHECK-OUT TIME</th>
               <th>ATTENDANCE STATUS</th>
-              <th style={{ textAlign: 'right' }}>UPDATE / MARK</th>
+              <th className="is-right">UPDATE / MARK</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                <td colSpan={7} className="ui-table-state">
                   Loading Attendance Roster...
                 </td>
               </tr>
             ) : paginatedRoster.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                  <Users size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
-                  <div style={{ fontWeight: 600, color: '#334155' }}>No staff attendance records found</div>
-                  <div style={{ fontSize: '12px', marginTop: '4px' }}>All active staff members appear here automatically for the selected date.</div>
+                <td colSpan={7}>
+                  <div className="ui-empty">
+                    <Users size={36} />
+                    <div className="ui-empty-title">No staff attendance records found</div>
+                    <div className="ui-empty-text">All active staff members appear here automatically for the selected date.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -878,82 +572,77 @@ rightContent={
                 const isCheckedIn = item.checkInTime && item.checkInTime !== '--:--';
                 const isCheckedOut = item.checkOutTime && item.checkOutTime !== '--:--';
 
-                let statusClass = 'att-status-not-marked';
-                if (item.status === 'Present') statusClass = 'att-status-present';
-                else if (item.status === 'Absent') statusClass = 'att-status-absent';
-                else if (item.status === 'Half Day') statusClass = 'att-status-halfday';
-                else if (item.status === 'On Leave') statusClass = 'att-status-leave';
+                let statusVariant = 'ui-badge-neutral';
+                if (item.status === 'Present') statusVariant = 'ui-badge-success';
+                else if (item.status === 'Absent') statusVariant = 'ui-badge-danger';
+                else if (item.status === 'Half Day') statusVariant = 'ui-badge-warning';
+                else if (item.status === 'On Leave') statusVariant = 'ui-badge-purple';
 
                 const roleBadge = getRoleBadgeStyle(item.role);
 
                 return (
                   <tr key={item.staffId}>
                     <td>
-                      <span className="staff-code-badge">{item.staffCode}</span>
+                      <span className="ui-code">{item.staffCode}</span>
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{item.name}</div>
+                      <div className="ui-cell-title">{item.name}</div>
                       {item.phone && (
-                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                        <div className="ui-cell-sub">
                           <Phone size={11} /> {item.phone}
                         </div>
                       )}
                     </td>
 
                     <td>
-                      <span style={{
-                        background: roleBadge.bg,
-                        color: roleBadge.color,
-                        border: `1px solid ${roleBadge.border}`,
-                        padding: '5px 12px',
-                        borderRadius: '8px',
-                        fontSize: '12.5px',
-                        fontWeight: 700,
-                        display: 'inline-block',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                      }}>
+                      <span
+                        className="ui-badge"
+                        style={{
+                          background: roleBadge.bg,
+                          color: roleBadge.color,
+                          borderColor: roleBadge.border
+                        }}
+                      >
                         {item.role}
                       </span>
                     </td>
 
                     <td>
                       {isCheckedIn ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803d', fontWeight: 700, fontSize: '13px' }}>
+                        <span className="att-time-in">
                           <Clock size={13} /> {item.checkInTime}
                         </span>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>--:--</span>
+                        <span className="att-time-muted">--:--</span>
                       )}
                     </td>
 
                     <td>
                       {isCheckedOut ? (
                         <div>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#0284c7', fontWeight: 700, fontSize: '13px' }}>
+                          <span className="att-time-out">
                             <Clock size={13} /> {to12h(item.checkOutTime)}
                           </span>
                           {item.workDuration && item.workDuration !== '--' && (
-                            <div style={{ fontSize: '11px', color: '#475569', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span style={{ background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', color: '#334155' }}>
-                                ⏱️ {item.workDuration}
-                              </span>
+                            <div className="att-duration">
+                              <span className="att-duration-pill">⏱️ {item.workDuration}</span>
                             </div>
                           )}
                         </div>
                       ) : isCheckedIn ? (
                         <div>
-                          <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>--:--</span>
-                          <div style={{ fontSize: '11px', color: '#d97706', fontWeight: 600, marginTop: '2px' }}>
+                          <span className="att-time-muted">--:--</span>
+                          <div className="att-pending">
                             (On Duty • Pending Out)
                           </div>
                         </div>
                       ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>--:--</span>
+                        <span className="att-time-muted">--:--</span>
                       )}
                     </td>
 
                     <td>
-                      <span className={`att-status-pill ${statusClass}`}>
+                      <span className={`ui-badge ${statusVariant}`}>
                         {item.status === 'Present' && <Check size={11} strokeWidth={3} />}
                         {item.status === 'Absent' && <X size={11} strokeWidth={3} />}
                         {item.status === 'Half Day' && <Clock size={11} strokeWidth={3} />}
@@ -963,10 +652,10 @@ rightContent={
                       </span>
                     </td>
 
-                    <td style={{ textAlign: 'right' }}>
+                    <td className="is-right">
                       <button
                         onClick={() => openAttendanceModal(item)}
-                        className="btn-log-inout"
+                        className="ui-btn ui-btn-secondary"
                         title="Update check-in, check-out or status"
                       >
                         <Clock size={13} />
@@ -982,27 +671,26 @@ rightContent={
 
         {/* Pagination Controls matching Hostellers.tsx */}
         {totalPages > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-                Showing {totalRecords === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
-              </div>
+          <div className="ui-pagination">
+            <div className="ui-page-info">
+              Showing {totalRecords === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div className="ui-page-controls">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn"
+              >
                 Previous
               </button>
-              <button
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+              <button className="ui-page-btn is-current">
                 {page}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages || totalPages === 0}
-                style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                className="ui-page-btn"
+              >
                 Next
               </button>
             </div>
@@ -1014,17 +702,17 @@ rightContent={
 
       {/* ── LOGS HISTORY TAB ────────────────────────────────────── */}
       {activeTab === 'history' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="ui-section">
 
           {/* Filters bar */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+          <div className="ui-toolbar">
             {/* Entries per page */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+            <div className="ui-toolbar-group">
+              <span className="ui-toolbar-label">Show</span>
               <select
                 value={historyLimit}
                 onChange={e => { setHistoryLimit(Number(e.target.value)); setHistoryPage(1); }}
-                style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
+                className="ui-select ui-select-sm"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -1032,24 +720,24 @@ rightContent={
                 <option value={100}>100</option>
                 <option value={99999}>All</option>
               </select>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+              <span className="ui-toolbar-label">entries</span>
             </div>
-            <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+            <div className="ui-toolbar-divider"></div>
 
             {/* Search bar */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px' }} />
+            <div className="ui-search">
+              <Search size={16} />
               <input
                 type="text"
                 placeholder="Search logs by name, code, status..."
                 value={historySearch}
                 onChange={(e) => { setHistorySearch(e.target.value); setHistoryPage(1); }}
-                style={{ padding: '8px 12px 8px 36px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', width: '260px', background: '#f8fafc' }}
+                className="ui-input att-search-history"
               />
             </div>
 
             {/* Staff filter (searchable) */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="ui-toolbar-group">
               <Users size={15} color="#64748b" />
               <Select
                 options={historyStaffOptions}
@@ -1064,24 +752,24 @@ rightContent={
             </div>
 
             {/* Date From */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>From:</span>
+            <div className="ui-toolbar-group">
+              <span className="ui-toolbar-label is-strong">From:</span>
               <input
                 type="date"
                 value={historyFromDate}
                 onChange={(e) => { setHistoryFromDate(e.target.value); setHistoryPage(1); }}
-                style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#f8fafc' }}
+                className="ui-input"
               />
             </div>
 
             {/* Date To */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>To:</span>
+            <div className="ui-toolbar-group">
+              <span className="ui-toolbar-label is-strong">To:</span>
               <input
                 type="date"
                 value={historyToDate}
                 onChange={(e) => { setHistoryToDate(e.target.value); setHistoryPage(1); }}
-                style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#f8fafc' }}
+                className="ui-input"
               />
             </div>
 
@@ -1089,28 +777,28 @@ rightContent={
             {(historyStaffId !== 'ALL' || historyFromDate || historyToDate) && (
               <button
                 onClick={() => { setHistoryStaffId('ALL'); setHistoryFromDate(''); setHistoryToDate(''); setHistoryPage(1); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                className="ui-btn ui-btn-danger"
               >
                 <X size={14} strokeWidth={3} /> Clear
               </button>
             )}
 
-            <div style={{ flex: 1 }} />
+            <div className="ui-toolbar-spacer" />
 
             {/* Refresh */}
             <button
               onClick={() => fetchHistory(1)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              className="ui-btn ui-btn-secondary"
             >
               <RefreshCw size={14} /> Refresh
             </button>
           </div>
 
           {/* History Table */}
-          <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="ui-table-wrap">
+            <table className="ui-table">
               <thead>
-                <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
+                <tr>
                   <th>DATE</th>
                   <th>STAFF CODE</th>
                   <th>STAFF MEMBER</th>
@@ -1123,60 +811,65 @@ rightContent={
               </thead>
               <tbody>
                 {historyLoading ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>Loading logs...</td></tr>
+                  <tr><td colSpan={8} className="ui-table-state">Loading logs...</td></tr>
                 ) : historyRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '50px 20px', color: '#64748b' }}>
-                      <History size={36} color="#cbd5e1" style={{ margin: '0 auto 10px' }} />
-                      <div style={{ fontWeight: 600, color: '#334155' }}>No attendance logs found</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Try adjusting the date range or staff filter.</div>
+                    <td colSpan={8}>
+                      <div className="ui-empty">
+                        <History size={36} />
+                        <div className="ui-empty-title">No attendance logs found</div>
+                        <div className="ui-empty-text">Try adjusting the date range or staff filter.</div>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   historyRecords.map((r: any) => {
                     const roleBadge = getRoleBadgeStyle(r.staffRole || 'Staff');
-                    let statusBg = '#f1f5f9'; let statusColor = '#64748b'; let statusBorder = '#e2e8f0';
-                    if (r.status === 'Present') { statusBg = '#f0fdf4'; statusColor = '#16a34a'; statusBorder = '#bbf7d0'; }
-                    else if (r.status === 'Absent') { statusBg = '#fef2f2'; statusColor = '#dc2626'; statusBorder = '#fecaca'; }
-                    else if (r.status === 'Half Day') { statusBg = '#fffbeb'; statusColor = '#d97706'; statusBorder = '#fde68a'; }
-                    else if (r.status === 'On Leave') { statusBg = '#eff6ff'; statusColor = '#2563eb'; statusBorder = '#bfdbfe'; }
+                    let statusVariant = 'ui-badge-neutral';
+                    if (r.status === 'Present') statusVariant = 'ui-badge-success';
+                    else if (r.status === 'Absent') statusVariant = 'ui-badge-danger';
+                    else if (r.status === 'Half Day') statusVariant = 'ui-badge-warning';
+                    else if (r.status === 'On Leave') statusVariant = 'ui-badge-info';
 
                     return (
                       <tr key={r.id}>
                         <td>
-                          <span style={{ fontWeight: 700, color: '#334155', fontFamily: 'monospace', fontSize: '13px' }}>{formatDateDMY(r.dateStr)}</span>
+                          <span className="att-date">{formatDateDMY(r.dateStr)}</span>
                         </td>
                         <td>
-                          <span className="staff-code-badge">{r.staffCode}</span>
+                          <span className="ui-code">{r.staffCode}</span>
                         </td>
                         <td>
-                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{r.staffName}</div>
-                          {r.phone && <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}><Phone size={10} />{r.phone}</div>}
+                          <div className="ui-cell-title">{r.staffName}</div>
+                          {r.phone && <div className="ui-cell-sub"><Phone size={10} />{r.phone}</div>}
                         </td>
                         <td>
-                          <span style={{ background: roleBadge.bg, color: roleBadge.color, border: `1px solid ${roleBadge.border}`, padding: '3px 9px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'inline-block' }}>
+                          <span
+                            className="ui-badge"
+                            style={{ background: roleBadge.bg, color: roleBadge.color, borderColor: roleBadge.border }}
+                          >
                             {r.staffRole || 'Staff'}
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: r.checkInTime && r.checkInTime !== '--:--' ? '#15803d' : '#94a3b8', fontWeight: r.checkInTime && r.checkInTime !== '--:--' ? 700 : 400, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className={r.checkInTime && r.checkInTime !== '--:--' ? 'att-time-in' : 'att-time-muted'}>
                             {r.checkInTime && r.checkInTime !== '--:--' ? <><Clock size={12} />{r.checkInTime}</> : '--:--'}
                           </span>
                         </td>
                         <td>
-                          <span style={{ color: r.checkOutTime && r.checkOutTime !== '--:--' ? '#0284c7' : '#94a3b8', fontWeight: r.checkOutTime && r.checkOutTime !== '--:--' ? 700 : 400, fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className={r.checkOutTime && r.checkOutTime !== '--:--' ? 'att-time-out' : 'att-time-muted'}>
                             {r.checkOutTime && r.checkOutTime !== '--:--' ? <><Clock size={12} />{to12h(r.checkOutTime)}</> : '--:--'}
                           </span>
                         </td>
                         <td>
-                          <span style={{ background: statusBg, color: statusColor, border: `1px solid ${statusBorder}`, padding: '3px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <span className={`ui-badge ${statusVariant}`}>
                             {r.status === 'Present' && <Check size={11} strokeWidth={3} />}
                             {r.status === 'Absent' && <X size={11} strokeWidth={3} />}
                             {r.status === 'Half Day' && <Clock size={11} strokeWidth={2.5} />}
                             {r.status || 'Not Marked'}
                           </span>
                         </td>
-                        <td style={{ fontSize: '12.5px', color: '#64748b' }}>{r.remarks || '—'}</td>
+                        <td className="att-remarks">{r.remarks || '—'}</td>
                       </tr>
                     );
                   })
@@ -1186,21 +879,21 @@ rightContent={
 
             {/* History Pagination */}
             {historyTotal > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-                <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+              <div className="ui-pagination">
+                <div className="ui-page-info">
                   Showing {historyTotal === 0 ? 0 : (historyPage - 1) * historyLimit + 1} to {Math.min(historyPage * historyLimit, historyTotal)} of {historyTotal} records
                 </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="ui-page-controls">
                   <button
                     onClick={() => { const np = Math.max(1, historyPage - 1); setHistoryPage(np); }}
                     disabled={historyPage === 1}
-                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: historyPage === 1 ? '#f1f5f9' : 'white', color: historyPage === 1 ? '#94a3b8' : '#334155', cursor: historyPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    className="ui-page-btn"
                   >Previous</button>
-                  <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>{historyPage}</button>
+                  <button className="ui-page-btn is-current">{historyPage}</button>
                   <button
                     onClick={() => { const np = Math.min(historyTotalPages, historyPage + 1); setHistoryPage(np); }}
                     disabled={historyPage >= historyTotalPages}
-                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: historyPage >= historyTotalPages ? '#f1f5f9' : 'white', color: historyPage >= historyTotalPages ? '#94a3b8' : '#334155', cursor: historyPage >= historyTotalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    className="ui-page-btn"
                   >Next</button>
                 </div>
               </div>
@@ -1210,51 +903,50 @@ rightContent={
       )}
 
       {modalOpen && activeItem && (
-        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
-          <div className="modal-card-blue-header" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-blue">
+        <div className="ui-modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="ui-modal is-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="ui-modal-header is-accent">
               <div>
-                <div style={{ fontSize: '15px', fontWeight: 700 }}>
+                <div className="ui-modal-title">
                   Staff Attendance: {activeItem.name}
                 </div>
-                <div style={{ fontSize: '12px', color: '#bfdbfe', marginTop: '2px' }}>
+                <div className="ui-modal-subtitle">
                   {activeItem.staffCode} • {activeItem.role}
                 </div>
               </div>
               <button
                 onClick={() => setModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', opacity: 0.8 }}
+                className="ui-modal-close"
               >
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSaveAttendance}>
-              <div className="modal-body-pad">
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>Check-In Time</label>
-                    <div style={{ position: 'relative' }}>
+              <div className="ui-modal-body">
+                <div className="ui-form-row">
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Check-In Time</label>
+                    <div className="att-relative">
                       <input
                         type="time"
                         value={formData.checkInTime}
                         onChange={(e) => setFormData({ ...formData, checkInTime: e.target.value })}
-                        className="form-control"
-                        style={{ paddingRight: '70px' }}
+                        className="ui-form-control att-time-input"
                       />
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, checkInTime: getCurrentTime24() })}
-                        style={{ position: 'absolute', right: '6px', top: '7px', fontSize: '11px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', fontWeight: 600 }}
+                        className="att-now-btn"
                       >
                         Now
                       </button>
                     </div>
                   </div>
 
-                  <div className="form-group">
-                    <label>Check-Out Time</label>
-                    <div style={{ position: 'relative' }}>
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Check-Out Time</label>
+                    <div className="att-relative">
                       <input
                         type="time"
                         value={formData.checkOutTime}
@@ -1267,8 +959,7 @@ rightContent={
                             status: (dur && prev.status !== 'On Leave' && prev.status !== 'Absent') ? dur.suggestedStatus : prev.status
                           }));
                         }}
-                        className="form-control"
-                        style={{ paddingRight: '70px' }}
+                        className="ui-form-control att-time-input"
                       />
                       <button
                         type="button"
@@ -1281,7 +972,7 @@ rightContent={
                             status: (dur && prev.status !== 'On Leave' && prev.status !== 'Absent') ? dur.suggestedStatus : prev.status
                           }));
                         }}
-                        style={{ position: 'absolute', right: '6px', top: '7px', fontSize: '11px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', fontWeight: 600 }}
+                        className="att-now-btn"
                       >
                         Now
                       </button>
@@ -1294,31 +985,33 @@ rightContent={
                   const dur = calculateTimeDuration(formData.checkInTime, formData.checkOutTime);
                   if (dur) {
                     return (
-                      <div style={{ background: '#f8fafc', border: `1px solid ${dur.badgeColor}33`, padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="att-duration-box">
                         <div>
-                          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Total Working Duration: </span>
-                          <strong style={{ fontSize: '13px', color: '#0f172a' }}>{dur.text}</strong>
+                          <span className="att-duration-label">Total Working Duration: </span>
+                          <strong className="att-duration-value">{dur.text}</strong>
                         </div>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: dur.badgeColor, background: `${dur.badgeColor}15`, padding: '3px 10px', borderRadius: '6px' }}>
+                        <span
+                          className="att-duration-tag"
+                          style={{ color: dur.badgeColor, background: `${dur.badgeColor}15` }}
+                        >
                           Auto: {dur.label}
                         </span>
                       </div>
                     );
                   }
                   return (
-                    <div style={{ fontSize: '11.5px', color: '#64748b', marginBottom: '14px', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                    <div className="ui-note">
                       💡 <strong>Biometric Policy:</strong> ≥ 8 hrs = Full Day • ≥ 4 hrs = Half Day • &lt; 4 hrs = Insufficient
                     </div>
                   );
                 })()}
 
-                <div className="form-group">
-                  <label>Attendance Status</label>
+                <div className="ui-form-group">
+                  <label className="ui-form-label">Attendance Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="form-control"
-                    style={{ fontWeight: 600 }}
+                    className="ui-form-control is-strong"
                   >
                     <option value="Present">Present (Full Duty)</option>
                     <option value="Half Day">Half Day</option>
@@ -1328,31 +1021,30 @@ rightContent={
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Remarks / Duty Note (Optional)</label>
+                <div className="ui-form-group">
+                  <label className="ui-form-label">Remarks / Duty Note (Optional)</label>
                   <textarea
                     rows={2}
                     value={formData.remarks}
                     onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                     placeholder="e.g. Left early for medical reason, overtime duty..."
-                    className="form-control"
-                    style={{ resize: 'vertical' }}
+                    className="ui-form-control"
                   />
                 </div>
               </div>
 
-              <div style={{ padding: '16px 24px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="ui-modal-footer">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="btn-cancel"
+                  className="ui-btn ui-btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-save-attendance"
+                  className="ui-btn ui-btn-primary"
                 >
                   {submitting ? 'Saving...' : 'Save Attendance'}
                 </button>

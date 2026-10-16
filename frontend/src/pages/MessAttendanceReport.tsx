@@ -116,6 +116,7 @@ export const MessAttendanceReport: React.FC = () => {
         <PageHeader
           title="Daily Mess Attendance"
           subtitle="Live view of today's scanned meals"
+          icon={<Coffee size={24} color="#fff" />} iconBg="linear-gradient(135deg, #f97316 0%, #ea580c 100%)"
           rightContent={
             <>
               <div style={{ background: '#e0f2fe', color: '#0284c7', padding: '10px 18px', borderRadius: '10px', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>

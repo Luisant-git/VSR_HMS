@@ -584,7 +584,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
               <button 
                 type="button" 
                 onClick={handleExportExcel}
-                style={{ backgroundColor: '#1D4ED8', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
+                style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', width: '34px', height: '34px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}
                 title="Export Excel"
               >
                 <Download size={16} />

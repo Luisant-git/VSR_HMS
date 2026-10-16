@@ -22,141 +22,6 @@ const DOCS = [
   { key: 'doc2Url', typeKey: 'doc2Type', numKey: 'doc2Number', title: 'Document 2: Secondary / College Proof', hint: 'Any valid photo ID', options: ['College Student ID', 'Driving License', 'Voter ID', 'Passport', 'Other'] },
 ];
 
-const CSS = `
-.sa{--primary:#0ea5e9;--primary-d:#0284c7;--primary-soft:#f0f9ff;--ink:#0f172a;--text:#334155;--muted:#64748b;--line:#e2e8f0;--bg:#f8fafc;
-  min-height:100vh;height:100vh;overflow-y:auto;background:var(--bg);font-family:"Inter",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
-.sa *{box-sizing:border-box}
-.sa-wrap{max-width:960px;margin:0 auto;padding:100px 20px 120px}
-.sa-card{background:#fff;border:1px solid #f1f5f9;border-radius:24px;box-shadow:0 20px 40px -15px rgba(0,0,0,.05);padding:28px}
-.sa-stack{display:flex;flex-direction:column;gap:20px}
-.sa-icon{width:64px;height:64px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center}
-.sa-icon.sm{width:40px;height:40px;border-radius:12px}
-.sa h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin:0}
-.sa h2{font-size:17px;font-weight:700;margin:0}
-.sa p{margin:0}
-.sa-sub{color:var(--muted);font-size:15px}
-.sa-label{display:block;margin-bottom:8px;color:var(--text);font-size:14px;font-weight:600}
-.sa-field{position:relative}
-.sa-field svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none}
-.sa-input{width:100%;padding:14px 16px 14px 48px;border-radius:12px;border:2px solid var(--line);background:var(--bg);font:inherit;font-size:16px;color:#1e293b;outline:none;transition:all .2s ease}
-.sa-input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px rgba(14,165,233,.1)}
-.sa-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:12px;background:var(--primary);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s ease;white-space:nowrap}
-.sa-btn:hover:not(:disabled){background:var(--primary-d);transform:translateY(-2px);box-shadow:0 10px 25px -5px rgba(14,165,233,.4)}
-.sa-btn:disabled{opacity:.6;cursor:not-allowed}
-.sa-btn.block{width:100%}
-.sa-btn.ghost{background:#fff;color:var(--primary-d);border:2px solid var(--line);padding:10px 16px;font-size:14px}
-.sa-btn.ghost:hover:not(:disabled){background:var(--primary-soft);border-color:var(--primary);box-shadow:none;transform:none}
-.sa-btn.sm{padding:10px 16px;font-size:14px}
-.sa-btn.danger{background:#fff;color:#e11d48;border:2px solid #fecdd3}
-.sa-btn.danger:hover:not(:disabled){background:#fff1f2;box-shadow:none;transform:none}
-.sa :focus-visible:not(.sa-input){outline:3px solid rgba(14,165,233,.45);outline-offset:2px}
-.sa-error{display:flex;gap:10px;align-items:center;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;color:#ef4444;font-size:14px}
-
-/* login */
-.sa-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.sa-login .sa-card{width:100%;max-width:440px;padding:40px;text-align:center}
-.sa-login form{text-align:left;display:flex;flex-direction:column;gap:20px;margin-top:32px}
-
-/* page title */
-.sa-title { margin-bottom: 8px; padding: 0 4px; }
-.sa-title h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin: 0; color: var(--ink); }
-.sa-title p { margin-top: 8px; color: var(--muted); font-size: 16px; }
-
-/* topbar */
-.sa-topbar { position: fixed; top: 0; left: 0; right: 0; height: 72px; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); z-index: 40; display: flex; align-items: center; justify-content: center; }
-.sa-topbar-inner { width: 100%; max-width: 960px; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
-.sa-logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; color: var(--ink); }
-.sa-logo div { width: 36px; height: 36px; background: var(--primary); color: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-
-/* top */
-.sa-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.sa-who{display:flex;align-items:center;gap:16px;min-width:0}
-.sa-avatar{width:64px;height:64px;border-radius:50%;background:var(--bg);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;color:#94a3b8}
-.sa-avatar img{width:100%;height:100%;object-fit:cover}
-.sa-chips{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
-.sa-chip{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:#f1f5f9;color:#475569}
-.sa-chip.green{background:#f0fdf4;color:#166534}
-
-/* progress */
-.sa-progress{display:flex;align-items:center;gap:16px}
-.sa-bar{flex:1;height:8px;border-radius:99px;background:#f1f5f9;overflow:hidden}
-.sa-bar i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .4s ease}
-.sa-progress span{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap}
-
-/* sections */
-.sa-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
-.sa-head p{font-size:13px;color:var(--muted);margin-top:2px}
-.sa-dl{display:grid;grid-template-columns:1fr 1fr;column-gap:48px;margin:0}
-.sa-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;border-bottom:1px solid #f1f5f9}
-.sa-row dt{font-size:14px;color:var(--muted);flex-shrink:0}
-.sa-row dd{margin:0;font-size:14px;font-weight:600;color:var(--ink);text-align:right;word-break:break-word}
-.sa-row.wide{grid-column:1/-1}
-.sa-dl .sa-row:nth-last-child(-n+2):not(.wide){border-bottom:none}
-.sa-dl .sa-row.wide:last-child{border-bottom:none}
-.sa-grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-
-/* photo */
-.sa-photo{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
-.sa-frame{width:160px;height:160px;border-radius:24px;border:2px dashed #cbd5e1;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:12px;font-weight:500;gap:8px}
-.sa-frame img,.sa-frame video{width:100%;height:100%;object-fit:cover}
-.sa-frame.filled{border-style:solid;border-color:var(--line)}
-.sa-spin{width:24px;height:24px;border:3px solid #cbd5e1;border-top-color:var(--primary);border-radius:50%;animation:sa-spin 1s linear infinite}
-@keyframes sa-spin{to{transform:rotate(360deg)}}
-.sa-actions{display:flex;gap:10px;flex-wrap:wrap}
-.sa-note{font-size:12px;color:#94a3b8;margin-top:10px}
-
-/* docs */
-.sa-doc{border:2px solid var(--line);border-radius:18px;padding:20px;background:var(--bg)}
-.sa-doc.done{border-color:#bae6fd;background:var(--primary-soft)}
-.sa-doc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;gap:8px}
-.sa-doc-top b{display:block;font-size:15px}
-.sa-doc-top small{color:var(--muted);font-size:13px}
-.sa-tick{width:22px;height:22px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.sa-preview{height:150px;background:#fff;border:2px dashed #cbd5e1;border-radius:14px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#94a3b8;text-align:center;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s ease;width:100%}
-.sa-preview:hover{border-color:var(--primary);background:var(--primary-soft)}
-.sa-preview img{width:100%;height:100%;object-fit:contain}
-.sa-preview svg{display:block;margin:0 auto 6px}
-
-/* save bar */
-.sa-save{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:14px 20px;z-index:10}
-.sa-save div{max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
-.sa-save p{font-size:14px;color:var(--muted)}
-
-@media (max-width:720px){
-  .sa-wrap{padding:92px 12px calc(96px + env(safe-area-inset-bottom));gap:12px}
-  .sa-card{padding:16px;border-radius:18px;box-shadow:0 8px 20px -12px rgba(0,0,0,.08)}
-  .sa-title h1{font-size:22px}.sa-title p{font-size:13px}
-  .sa h1{font-size:24px}.sa h2{font-size:16px}
-  .sa-login .sa-card{padding:28px 20px}
-  .sa-top{flex-wrap:nowrap;gap:10px}
-  .sa-top h1{font-size:18px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .sa-avatar{width:52px;height:52px}
-  .sa-chip{font-size:12px;padding:3px 8px}
-  .sa-lo{display:none}
-  .sa-top .sa-btn.ghost{padding:10px;border-radius:12px;flex-shrink:0}
-  .sa-progress-card{padding:14px 16px!important}
-  .sa-head{margin-bottom:16px;gap:10px}
-  .sa-head p{font-size:12px}
-  .sa-icon.sm{width:36px;height:36px;border-radius:10px}
-  .sa-dl{grid-template-columns:1fr}
-  .sa-row,.sa-row.wide{padding:12px 0;grid-column:auto}
-  .sa-dl .sa-row:nth-last-child(2):not(.wide){border-bottom:1px solid #f1f5f9}
-  .sa-dl .sa-row:last-child{border-bottom:none}
-  .sa-row dt,.sa-row dd{font-size:13px}
-  .sa-grid2{grid-template-columns:1fr;gap:14px}
-  .sa-photo{flex-direction:column;align-items:center;gap:16px;text-align:center}
-  .sa-actions{width:100%}
-  .sa-actions .sa-btn{flex:1;padding:12px 6px;font-size:13px}
-  .sa-note{margin-top:16px;text-align:center;width:100%}
-  .sa-doc{padding:14px;border-radius:16px}
-  .sa-preview{height:120px;margin-bottom:12px}
-  .sa-input{padding:13px 14px 13px 44px;border-radius:12px}
-  .sa-save{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
-  .sa-save p{display:none}.sa-save .sa-btn{width:100%}
-}
-@media (prefers-reduced-motion:reduce){.sa *{transition:none!important;animation:none!important}}
-`;
-
 export default function StudentAdmissionForm() {
   const [mobileNo, setMobileNo] = useState('');
   const [student, setStudent] = useState<any>(null);
@@ -310,12 +175,11 @@ export default function StudentAdmissionForm() {
   if (!student) {
     return (
       <div className="sa">
-        <style>{CSS}</style>
         <div className="sa-login">
           <div className="sa-card">
-            <div className="sa-icon" style={{ margin: '0 auto 24px' }}><FileText size={32} /></div>
+            <div className="sa-icon center"><FileText size={32} /></div>
             <h1>Welcome back</h1>
-            <p className="sa-sub" style={{ marginTop: 8 }}>Enter your registered mobile number to open your portal.</p>
+            <p className="sa-sub">Enter your registered mobile number to open your portal.</p>
             <form onSubmit={handleSearch}>
               <div>
                 <label className="sa-label" htmlFor="sa-mobile">Registered mobile number</label>
@@ -324,7 +188,7 @@ export default function StudentAdmissionForm() {
                   <input id="sa-mobile" className="sa-input" inputMode="numeric" value={mobileNo} onChange={e => setMobileNo(e.target.value)} placeholder="e.g. 9876543210" />
                 </div>
               </div>
-              {error && <div className="sa-error" role="alert"><AlertCircle size={20} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+              {error && <div className="sa-error" role="alert"><AlertCircle size={20} /><span>{error}</span></div>}
               <button type="submit" className="sa-btn block" disabled={loading}>
                 {loading ? 'Searching…' : <>Continue to portal <ArrowRight size={18} /></>}
               </button>
@@ -344,7 +208,6 @@ export default function StudentAdmissionForm() {
 
   return (
     <div className="sa">
-      <style>{CSS}</style>
       {/* Modern Top Bar */}
       <header className="sa-topbar">
          <div className="sa-topbar-inner">
@@ -352,7 +215,7 @@ export default function StudentAdmissionForm() {
               <div><IdCard size={20} /></div>
               <span>Hostel</span>
            </div>
-           <button type="button" className="sa-btn ghost sm" style={{ border: 'none', background: 'transparent' }} onClick={logout} aria-label="Log out">
+           <button type="button" className="sa-btn ghost sm sa-logout" onClick={logout} aria-label="Log out">
              <LogOut size={16} /> <span className="sa-lo">Log out</span>
            </button>
          </div>
@@ -370,10 +233,10 @@ export default function StudentAdmissionForm() {
         <div className="sa-card sa-top">
           <div className="sa-who">
             <div className="sa-avatar">{formData.photoUrl ? <img src={formData.photoUrl} alt="Profile" /> : <User size={30} />}</div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                <h1 style={{ fontSize: 22, margin: 0 }}>{student.name}</h1>
-                <button type="button" onClick={() => setShowIdCard(true)} style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div className="sa-min0">
+              <div className="sa-name-row">
+                <h1 className="sa-name">{student.name}</h1>
+                <button type="button" onClick={() => setShowIdCard(true)} className="sa-btn xs">
                   <IdCard size={14} /> View ID Card
                 </button>
               </div>
@@ -381,7 +244,7 @@ export default function StudentAdmissionForm() {
                 <span className="sa-chip">{student.manualRegsiName || student.regNo}</span>
                 <span className="sa-chip green">Room {student.roomNo || 'N/A'}</span>
                 {student.biometricId && (
-                  <span className="sa-chip" style={{ background: '#f1f5f9', color: '#475569' }}>Bio ID: {student.biometricId}</span>
+                  <span className="sa-chip">Bio ID: {student.biometricId}</span>
                 )}
               </div>
             </div>
@@ -389,7 +252,7 @@ export default function StudentAdmissionForm() {
         </div>
 
         {/* Progress */}
-        <div className="sa-card sa-progress-card" style={{ padding: '20px 28px' }}>
+        <div className="sa-card sa-progress-card">
           <div className="sa-progress">
             <div className="sa-bar"><i style={{ width: `${(done / steps.length) * 100}%` }} /></div>
             <span>{done} of {steps.length} complete</span>
@@ -405,11 +268,11 @@ export default function StudentAdmissionForm() {
           <div className="sa-grid2">
             <div>
               <label className="sa-label">Full Name</label>
-              <input className="sa-input" value={formData.name} onChange={e => setField('name', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.name} onChange={e => setField('name', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Gender</label>
-              <select className="sa-input" value={formData.gender} onChange={e => setField('gender', e.target.value)} style={{ paddingLeft: '16px' }}>
+              <select className="sa-input no-icon" value={formData.gender} onChange={e => setField('gender', e.target.value)}>
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -418,7 +281,7 @@ export default function StudentAdmissionForm() {
             </div>
             <div>
               <label className="sa-label">Marital Status</label>
-              <select className="sa-input" value={formData.maritalStatus} onChange={e => setField('maritalStatus', e.target.value)} style={{ paddingLeft: '16px' }}>
+              <select className="sa-input no-icon" value={formData.maritalStatus} onChange={e => setField('maritalStatus', e.target.value)}>
                 <option value="">Select Status</option>
                 <option value="Single">Single</option>
                 <option value="Married">Married</option>
@@ -426,19 +289,19 @@ export default function StudentAdmissionForm() {
             </div>
             <div>
               <label className="sa-label">Date of Birth</label>
-              <input type="date" className="sa-input" value={formData.dob ? new Date(formData.dob).toISOString().split('T')[0] : ''} onChange={e => setField('dob', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input type="date" className="sa-input no-icon" value={formData.dob ? new Date(formData.dob).toISOString().split('T')[0] : ''} onChange={e => setField('dob', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Email Address</label>
-              <input type="email" className="sa-input" value={formData.emailId} onChange={e => setField('emailId', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input type="email" className="sa-input no-icon" value={formData.emailId} onChange={e => setField('emailId', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Aadhar Number</label>
-              <input className="sa-input" value={formData.aadharNo} onChange={e => setField('aadharNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={12} placeholder="12-digit Aadhar" />
+              <input className="sa-input no-icon" value={formData.aadharNo} onChange={e => setField('aadharNo', e.target.value)} maxLength={12} placeholder="12-digit Aadhar" />
             </div>
             <div>
               <label className="sa-label">Blood Group</label>
-              <select className="sa-input" value={formData.bloodGroup} onChange={e => setField('bloodGroup', e.target.value)} style={{ paddingLeft: '16px' }}>
+              <select className="sa-input no-icon" value={formData.bloodGroup} onChange={e => setField('bloodGroup', e.target.value)}>
                 <option value="">Select Blood Group</option>
                 <option value="A+">A+</option>
                 <option value="A-">A-</option>
@@ -452,7 +315,7 @@ export default function StudentAdmissionForm() {
             </div>
             <div>
               <label className="sa-label">Category</label>
-              <select className="sa-input" value={formData.category} onChange={e => setField('category', e.target.value)} style={{ paddingLeft: '16px' }}>
+              <select className="sa-input no-icon" value={formData.category} onChange={e => setField('category', e.target.value)}>
                 <option value="">Select Category</option>
                 <option value="Student">Student</option>
                 <option value="Job Seeker">Job Seeker</option>
@@ -462,15 +325,15 @@ export default function StudentAdmissionForm() {
             </div>
             <div>
               <label className="sa-label">Food Type</label>
-              <select className="sa-input" value={formData.foodType} onChange={e => setField('foodType', e.target.value)} style={{ paddingLeft: '16px' }}>
+              <select className="sa-input no-icon" value={formData.foodType} onChange={e => setField('foodType', e.target.value)}>
                 <option value="">Select Food Type</option>
                 <option value="Veg">Veg</option>
                 <option value="Non-Veg">Non-Veg</option>
               </select>
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div className="sa-span2">
               <label className="sa-label">Permanent Home Address</label>
-              <input className="sa-input" value={formData.address} onChange={e => setField('address', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.address} onChange={e => setField('address', e.target.value)} />
             </div>
           </div>
         </div>
@@ -484,43 +347,43 @@ export default function StudentAdmissionForm() {
           <div className="sa-grid2">
             <div>
               <label className="sa-label">Father's Name</label>
-              <input className="sa-input" value={formData.fatherName} onChange={e => setField('fatherName', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.fatherName} onChange={e => setField('fatherName', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Father's Mobile</label>
-              <input className="sa-input" value={formData.fatherMobileNo} onChange={e => setField('fatherMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+              <input className="sa-input no-icon" value={formData.fatherMobileNo} onChange={e => setField('fatherMobileNo', e.target.value)} maxLength={10} />
             </div>
             <div>
               <label className="sa-label">Mother's Name</label>
-              <input className="sa-input" value={formData.motherName} onChange={e => setField('motherName', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.motherName} onChange={e => setField('motherName', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Mother's Mobile</label>
-              <input className="sa-input" value={formData.motherMobileNo} onChange={e => setField('motherMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+              <input className="sa-input no-icon" value={formData.motherMobileNo} onChange={e => setField('motherMobileNo', e.target.value)} maxLength={10} />
             </div>
             <div>
               <label className="sa-label">Guardian's Name</label>
-              <input className="sa-input" value={formData.guardianName} onChange={e => setField('guardianName', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.guardianName} onChange={e => setField('guardianName', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Guardian's Mobile</label>
-              <input className="sa-input" value={formData.guardianMobileNo} onChange={e => setField('guardianMobileNo', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+              <input className="sa-input no-icon" value={formData.guardianMobileNo} onChange={e => setField('guardianMobileNo', e.target.value)} maxLength={10} />
             </div>
             <div>
               <label className="sa-label">Emergency Contact Number</label>
-              <input className="sa-input" value={formData.emergencyContact} onChange={e => setField('emergencyContact', e.target.value)} style={{ paddingLeft: '16px' }} maxLength={10} />
+              <input className="sa-input no-icon" value={formData.emergencyContact} onChange={e => setField('emergencyContact', e.target.value)} maxLength={10} />
             </div>
             <div>
               <label className="sa-label">Course / Department / Designation</label>
-              <input className="sa-input" value={formData.educationalQua} onChange={e => setField('educationalQua', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.educationalQua} onChange={e => setField('educationalQua', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Course Duration</label>
-              <input className="sa-input" value={formData.courseDuration} onChange={e => setField('courseDuration', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.courseDuration} onChange={e => setField('courseDuration', e.target.value)} />
             </div>
             <div>
               <label className="sa-label">Pursuing Year / Passing Year</label>
-              <input className="sa-input" value={formData.pursuingYear} onChange={e => setField('pursuingYear', e.target.value)} style={{ paddingLeft: '16px' }} />
+              <input className="sa-input no-icon" value={formData.pursuingYear} onChange={e => setField('pursuingYear', e.target.value)} />
             </div>
           </div>
         </div>
@@ -598,26 +461,26 @@ export default function StudentAdmissionForm() {
                     {url && <span className="sa-tick"><Check size={14} /></span>}
                   </div>
                   
-                  <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="sa-doc-fields">
                      <div>
-                       <label className="sa-label" style={{ fontSize: '13px' }}>Document type</label>
-                       <select className="sa-input" style={{ paddingLeft: '16px' }} value={(formData as any)[doc.typeKey] || ''} onChange={e => setField(doc.typeKey, e.target.value)}>
+                       <label className="sa-label sm">Document type</label>
+                       <select className="sa-input no-icon" value={(formData as any)[doc.typeKey] || ''} onChange={e => setField(doc.typeKey, e.target.value)}>
                           {doc.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                        </select>
                      </div>
                      <div>
-                       <label className="sa-label" style={{ fontSize: '13px' }}>Document / ID Number (Optional)</label>
-                       <input className="sa-input" style={{ paddingLeft: '16px' }} placeholder="e.g. 1234 5678 9012" value={(formData as any)[doc.numKey] || ''} onChange={e => setField(doc.numKey, e.target.value)} />
+                       <label className="sa-label sm">Document / ID Number (Optional)</label>
+                       <input className="sa-input no-icon" placeholder="e.g. 1234 5678 9012" value={(formData as any)[doc.numKey] || ''} onChange={e => setField(doc.numKey, e.target.value)} />
                      </div>
                   </div>
 
                   <label htmlFor={`upload-${doc.key}`} className="sa-preview">
                     {url ? (
                       url.toLowerCase().endsWith('.pdf')
-                        ? <div style={{ color: 'var(--primary)' }}><FileText size={36} />PDF uploaded</div>
+                        ? <div className="sa-doc-pdf"><FileText size={36} />PDF uploaded</div>
                         : <img src={url} alt={doc.title} />
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <div className="sa-upload-cta">
                         <Upload size={32} />
                         <span>Click to upload document</span>
                       </div>
@@ -645,12 +508,12 @@ export default function StudentAdmissionForm() {
       </form>
 
       {showIdCard && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', overflowY: 'auto' }}>
-          <div style={{ position: 'relative', width: '100%', maxWidth: '800px', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'fadeIn 0.3s ease' }}>
-             <button type="button" onClick={() => setShowIdCard(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: '#f1f5f9', color: '#64748b', border: 'none', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}>
+        <div className="sa-idcard-overlay">
+          <div className="sa-idcard">
+             <button type="button" onClick={() => setShowIdCard(false)} className="sa-idcard-close">
                <X size={20} />
              </button>
-             <div style={{ padding: '10px' }}>
+             <div className="sa-idcard-body">
                <StudentAcknowledgementCard 
                  student={{ ...student, regNo: student.manualRegsiName || student.regNo, collegeId: student.college?.name || student.college }} 
                  collegeName={student.college?.name || student.college}

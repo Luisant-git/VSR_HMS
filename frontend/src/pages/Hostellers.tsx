@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload, FileSpreadsheet } from 'lucide-react';
+import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload, FileSpreadsheet, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
@@ -219,55 +219,24 @@ const Hostellers = () => {
 
   return (
     <div>
-      <div className="content-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
+      <div>
         <PageHeader
           title="Active Hostellers Master"
           subtitle="Filter by room to view enrolled students"
+          icon={<Users size={24} color="#fff" />} iconBg="linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)"
           rightContent={
             <>
               <button
                 onClick={handleExportExcel}
-                style={{
-                  background: '#10b981',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px 24px',
-                  borderRadius: '8px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(16,185,129,0.2)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginRight: '12px'
-                }}>
+                className="ui-btn ui-btn-success">
                 <FileSpreadsheet size={18} />
                 Export Excel
               </button>
               <label
-                style={{
-                  background: isUploadingImport ? '#e2e8f0' : 'white',
-                  color: isUploadingImport ? '#94a3b8' : '#334155',
-                  border: '1px solid #cbd5e1',
-                  padding: '12px 24px',
-                  borderRadius: '8px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: isUploadingImport ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginRight: '12px',
-                  pointerEvents: isUploadingImport ? 'none' : 'auto',
-                  opacity: isUploadingImport ? 0.7 : 1
-                }}>
+                className={`ui-btn ui-btn-secondary${isUploadingImport ? ' is-disabled' : ''}`}>
                 {isUploadingImport ? (
                   <>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid #94a3b8', borderTopColor: '#0f172a', animation: 'spin 0.8s linear infinite' }} />
+                    <span className="ui-spinner" />
                     <span>Uploading...</span>
                   </>
                 ) : (
@@ -293,34 +262,20 @@ const Hostellers = () => {
               </label>
               <button
                 onClick={() => navigate('/register')}
-                style={{
-                  background: 'var(--sidebar-active)',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px 24px',
-                  borderRadius: '8px',
-                  fontSize: '15px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(74, 114, 250, 0.25)',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
+                className="ui-btn ui-btn-primary">
                 + Register New Student
               </button>
             </>
           }
         />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '15px', padding: '15px 20px', background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Show</span>
+        <div className="ui-toolbar">
+          <div className="ui-toolbar-group">
+            <span className="ui-toolbar-label">Show</span>
             <select
+              className="ui-select hostellers-limit"
               value={limit}
               onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
-              style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', outline: 'none', cursor: 'pointer', background: '#f8fafc' }}
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -331,27 +286,20 @@ const Hostellers = () => {
               <option value={1000}>1000</option>
               <option value={99999}>All</option>
             </select>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>entries</span>
+            <span className="ui-toolbar-label">entries</span>
           </div>
-          <div style={{ width: '1px', height: '24px', background: 'var(--border-color)', margin: '0 5px' }}></div>
+          <div className="hostellers-toolbar-divider"></div>
 
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px' }} />
+          <div className="ui-input-icon hostellers-search">
+            <Search size={16} />
             <input
               type="text"
+              className="ui-input"
               placeholder="Search by name, ID, Manual Reg Name, mobile..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setPage(1);
-              }}
-              style={{
-                padding: '8px 12px 8px 36px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                fontSize: '13px',
-                outline: 'none',
-                width: '280px'
               }}
             />
           </div>
@@ -419,235 +367,174 @@ const Hostellers = () => {
                 setPage(1);
               }}
               title="Clear all filters"
-              style={{
-                background: '#f1f5f9',
-                color: '#64748b',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#64748b'; }}
+              className="ui-btn ui-btn-soft ui-btn-sm"
             >
               <X size={14} strokeWidth={3} /> Clear All
             </button>
           )}
-          <div style={{ flex: 1 }}></div>
+          <div className="ui-spacer"></div>
 
-          <button onClick={() => navigate('/gate-logs')} style={{
-            background: '#0f172a',
-            color: 'white',
-            border: 'none',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
+          <button onClick={() => navigate('/gate-logs')} className="ui-btn ui-btn-dark">
             Gate Logs
           </button>
         </div>
 
-        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Student ID</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Full Name & Contact</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>College / Dept</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Advance Held</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fee Status</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pending Fees</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Joining Date</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {error ? (
+        <div className="ui-table-wrap">
+          <div className="ui-table-scroll">
+            <table className="ui-table">
+              <thead>
                 <tr>
-                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#ef4444', fontSize: '14px' }}>
-                    {error}
-                  </td>
+                  <th>Student ID</th>
+                  <th>Full Name & Contact</th>
+                  <th>Room</th>
+                  <th>College / Dept</th>
+                  <th>Advance Held</th>
+                  <th>Fee Status</th>
+                  <th>Pending Fees</th>
+                  <th>Joining Date</th>
+                  <th>Actions</th>
                 </tr>
-              ) : filteredHostellers.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
-                    No enrolled students found.
-                  </td>
-                </tr>
-              ) : (
-                filteredHostellers.map((h, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #eaedf1', background: 'white' }}>
-                    <td style={{ padding: '15px 20px', fontWeight: 600 }}>
-                      <a href="#" style={{ color: '#0d6efd', textDecoration: 'none' }} onClick={(e) => { e.preventDefault(); setSelectedHosteller(h); }}>{h.id}</a>
-                    </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#0d6efd', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, overflow: 'hidden' }}>
-                          {h.raw.photoUrl ? (
-                            <img src={h.raw.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            h.avatar
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '14px' }}>{h.name}</div>
-                          <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Phone size={12} /> {h.contact}
-                          </div>
-                          {h.raw.profileUpdatedAt && (
-                            <div style={{ fontSize: '11px', color: '#10b981', display: 'inline-block', padding: '2px 6px', background: '#ecfdf5', borderRadius: '4px', marginTop: '4px', fontWeight: 600 }}>
-                              Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                        <span style={{ background: '#0d6efd', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, color: 'white' }}>Room {h.room}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontWeight: 500, color: '#1e293b', fontSize: '14px' }}>{h.college?.name || h.college || '-'}</div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{h.dept}</div>
-                    </td>
-                    <td style={{ padding: '15px 20px', color: '#198754', fontWeight: 600, fontSize: '14px' }}>
-                      {h.advance}
-                    </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <span style={{
-                        background: h.feeStatus === 'Paid' ? '#dcfce7' : h.feeStatus === 'Un-Paid' ? '#fee2e2' : '#fef3c7',
-                        color: h.feeStatus === 'Paid' ? '#166534' : h.feeStatus === 'Un-Paid' ? '#991b1b' : '#92400e',
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600
-                      }}>
-                        {h.feeStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <span style={{ background: '#dc3545', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                        {h.pending}
-                      </span>
-                    </td>
-                    <td style={{ padding: '15px 20px', fontSize: '14px', color: '#475569', fontWeight: 500 }}>{h.date}</td>
-                    <td style={{ padding: '15px 20px', position: 'relative' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdown(activeDropdown === h.id ? null : h.id);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '4px',
-                          fontSize: '13px',
-                          background: 'white',
-                          border: '1px solid #cbd5e1',
-                          color: '#475569',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Manage <span style={{ fontSize: '10px' }}>▼</span>
-                      </button>
-
-                      {activeDropdown === h.id && (
-                        <div
-                          ref={dropdownRef}
-                          style={{
-                            position: 'absolute',
-                            top: '100%',
-                            right: '20px',
-                            background: 'white',
-                            borderRadius: '8px',
-                            boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                            border: '1px solid #e2e8f0',
-                            width: '220px',
-                            zIndex: 50,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            padding: '8px 0',
-                            marginTop: '4px'
-                          }}
-                        >
-                          <button
-                            onClick={() => navigate(`/hostellers/profile/${h.id}`)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
-                            onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <Eye size={16} color="#0d6efd" /> View 360 Profile
-                          </button>
-                          <button
-                            onClick={() => {
-                              navigate(`/fees?student=${h.id}`);
-                              setActiveDropdown(null);
-                            }}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
-                            onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <Wallet size={16} color="#198754" /> Collect Fees
-                          </button>
-                          <button
-                            onClick={() => navigate('/outpass')}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#334155', fontSize: '14px' }}
-                            onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <FileText size={16} color="#ffc107" /> Issue Outpass
-                          </button>
-                          <div style={{ height: '1px', background: '#e2e8f0', margin: '4px 0' }}></div>
-                          <button
-                            onClick={() => navigate(`/hostellers/clearance/${h.id}`)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 15px', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', color: '#dc3545', fontSize: '14px' }}
-                            onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                          >
-                            <LogOut size={16} color="#dc3545" /> Checkout / Exit (Free Bed)
-                          </button>
-                        </div>
-                      )}
+              </thead>
+              <tbody>
+                {error ? (
+                  <tr>
+                    <td colSpan={9} className="ui-empty ui-empty-danger">
+                      {error}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : filteredHostellers.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="ui-empty">
+                      No enrolled students found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredHostellers.map((h, i) => (
+                    <tr key={i}>
+                      <td>
+                        <a href="#" className="hostellers-link" onClick={(e) => { e.preventDefault(); setSelectedHosteller(h); }}>{h.id}</a>
+                      </td>
+                      <td>
+                        <div className="hostellers-person">
+                          <div className="ui-avatar">
+                            {h.raw.photoUrl ? (
+                              <img src={h.raw.photoUrl} alt="Avatar" />
+                            ) : (
+                              h.avatar
+                            )}
+                          </div>
+                          <div>
+                            <div className="hostellers-person-name">{h.name}</div>
+                            <div className="hostellers-person-meta">
+                              <Phone size={12} /> {h.contact}
+                            </div>
+                            {h.raw.profileUpdatedAt && (
+                              <span className="ui-badge ui-badge-green hostellers-updated">
+                                Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="ui-badge ui-badge-blue">Room {h.room}</span>
+                      </td>
+                      <td>
+                        <div className="hostellers-college-name">{h.college?.name || h.college || '-'}</div>
+                        <div className="hostellers-college-dept">{h.dept}</div>
+                      </td>
+                      <td className="hostellers-advance">
+                        {h.advance}
+                      </td>
+                      <td>
+                        <span className={
+                          h.feeStatus === 'Paid' ? 'ui-badge ui-badge-green'
+                            : h.feeStatus === 'Un-Paid' ? 'ui-badge ui-badge-red'
+                              : 'ui-badge ui-badge-amber'
+                        }>
+                          {h.feeStatus}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="ui-badge ui-badge-red">
+                          {h.pending}
+                        </span>
+                      </td>
+                      <td>{h.date}</td>
+                      <td className="hostellers-actions">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown === h.id ? null : h.id);
+                          }}
+                          className="ui-btn ui-btn-secondary ui-btn-sm"
+                        >
+                          Manage <span className="hostellers-caret">▼</span>
+                        </button>
+
+                        {activeDropdown === h.id && (
+                          <div
+                            ref={dropdownRef}
+                            className="ui-menu"
+                          >
+                            <button
+                              onClick={() => navigate(`/hostellers/profile/${h.id}`)}
+                              className="ui-menu-item"
+                            >
+                              <Eye size={16} color="#0d6efd" /> View 360 Profile
+                            </button>
+                            <button
+                              onClick={() => {
+                                navigate(`/fees?student=${h.id}`);
+                                setActiveDropdown(null);
+                              }}
+                              className="ui-menu-item"
+                            >
+                              <Wallet size={16} color="#198754" /> Collect Fees
+                            </button>
+                            <button
+                              onClick={() => navigate('/outpass')}
+                              className="ui-menu-item"
+                            >
+                              <FileText size={16} color="#ffc107" /> Issue Outpass
+                            </button>
+                            <div className="ui-menu-sep"></div>
+                            <button
+                              onClick={() => navigate(`/hostellers/clearance/${h.id}`)}
+                              className="ui-menu-item danger"
+                            >
+                              <LogOut size={16} color="#dc3545" /> Checkout / Exit (Free Bed)
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination Controls */}
           {totalPages > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <div style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-                  Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
-                </div>
+            <div className="ui-pagination">
+              <div className="ui-pagination-info">
+                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
               </div>
-              <div style={{ display: 'flex', gap: '4px' }}>
+              <div className="ui-pagination-pages">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f1f5f9' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                  className="ui-page-btn">
                   Previous
                 </button>
-                <button
-                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--sidebar-active)', background: 'var(--sidebar-active)', color: 'white', cursor: 'default', fontSize: '13px', fontWeight: 600 }}>
+                <button className="ui-page-btn active">
                   {page}
                 </button>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || totalPages === 0}
-                  style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: (page === totalPages || totalPages === 0) ? '#f1f5f9' : 'white', color: (page === totalPages || totalPages === 0) ? '#94a3b8' : '#334155', cursor: (page === totalPages || totalPages === 0) ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+                  className="ui-page-btn">
                   Next
                 </button>
               </div>
@@ -658,186 +545,162 @@ const Hostellers = () => {
 
       {/* Modal Overlay */}
       {selectedHosteller && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            width: '100%',
-            maxWidth: '850px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
-            overflow: 'hidden',
-            animation: 'fadeIn 0.2s ease-out'
-          }}>
+        <div className="ui-modal-overlay">
+          <div className="ui-modal ui-modal-lg">
             {/* Modal Header */}
-            <div style={{
-              background: 'linear-gradient(135deg, var(--sidebar-active), #3b5bdb)',
-              padding: '25px',
-              color: 'white',
-              position: 'relative'
-            }}>
-              <button
-                onClick={() => setSelectedHosteller(null)}
-                style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}
-              >
-                <X size={18} />
-              </button>
-
-              <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'white', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, overflow: 'hidden' }}>
+            <div className="ui-modal-head hostellers-modal-head">
+              <div className="hostellers-modal-who">
+                <div className="hostellers-modal-avatar">
                   {selectedHosteller.raw.photoUrl ? (
-                    <img src={selectedHosteller.raw.photoUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={selectedHosteller.raw.photoUrl} alt="Avatar" />
                   ) : (
                     selectedHosteller.name.charAt(0)
                   )}
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '22px', fontWeight: 700, margin: '0 0 5px 0' }}>{selectedHosteller.name}</h2>
-                  <p style={{ margin: 0, opacity: 0.9, fontSize: '14px' }}>{selectedHosteller.id} • {selectedHosteller.dept}</p>
+                  <div className="ui-modal-title hostellers-modal-name">{selectedHosteller.name}</div>
+                  <p className="hostellers-modal-sub">{selectedHosteller.id} • {selectedHosteller.dept}</p>
                 </div>
               </div>
+              <button
+                onClick={() => setSelectedHosteller(null)}
+                className="ui-modal-close hostellers-modal-close"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Modal Body */}
-            <div style={{ padding: '25px', maxHeight: '65vh', overflowY: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', marginBottom: '25px' }}>
-                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Room Number</div>
-                  <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)' }}>Room {selectedHosteller.room}</div>
+            <div className="ui-modal-body">
+              <div className="hostellers-tiles">
+                <div className="hostellers-tile">
+                  <div className="hostellers-tile-label">Room Number</div>
+                  <div className="hostellers-tile-value">Room {selectedHosteller.room}</div>
                 </div>
-                <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Current Status</div>
-                  <div style={{ fontSize: '16px', fontWeight: 600, color: selectedHosteller.raw?.status === 'In' ? '#188038' : '#d93025' }}>
+                <div className="hostellers-tile">
+                  <div className="hostellers-tile-label">Current Status</div>
+                  <div className={`hostellers-tile-value ${selectedHosteller.raw?.status === 'In' ? 'hostellers-status-in' : 'hostellers-status-out'}`}>
                     {selectedHosteller.raw?.status || 'In'} Campus
                   </div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '15px' }}>Contact Information</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Phone size={16} /></div>
+              <div className="hostellers-subhead">Contact Information</div>
+              <div className="hostellers-contact">
+                <div className="hostellers-contact-row">
+                  <div className="hostellers-contact-icon"><Phone size={16} /></div>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Phone Number</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.contact}</div>
+                    <div className="hostellers-contact-label">Phone Number</div>
+                    <div className="hostellers-contact-value">{selectedHosteller.contact}</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Mail size={16} /></div>
+                <div className="hostellers-contact-row">
+                  <div className="hostellers-contact-icon"><Mail size={16} /></div>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Email Address</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.emailId || 'N/A'}</div>
+                    <div className="hostellers-contact-label">Email Address</div>
+                    <div className="hostellers-contact-value">{selectedHosteller.raw?.emailId || 'N/A'}</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(74, 114, 250, 0.1)', color: 'var(--sidebar-active)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MapPin size={16} /></div>
+                <div className="hostellers-contact-row">
+                  <div className="hostellers-contact-icon"><MapPin size={16} /></div>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Home Address</div>
-                    <div style={{ fontSize: '14px', fontWeight: 500 }}>{selectedHosteller.raw?.address || 'N/A'}</div>
+                    <div className="hostellers-contact-label">Home Address</div>
+                    <div className="hostellers-contact-value">{selectedHosteller.raw?.address || 'N/A'}</div>
                   </div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Personal Details</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Biometric ID</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.biometricId || 'N/A'}</div>
+              <div className="hostellers-subhead hostellers-subhead-spaced">Personal Details</div>
+              <div className="ui-kv-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Biometric ID</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.biometricId || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">{selectedHosteller.raw?.doc1Type || 'Primary ID'}</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.doc1Number || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>{selectedHosteller.raw?.doc2Type || 'Secondary ID'}</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.doc2Number || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">{selectedHosteller.raw?.doc2Type || 'Secondary ID'}</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.doc2Number || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Aadhar Number</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Aadhar Number</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.aadharNo || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Blood Group</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#e11d48' }}>{selectedHosteller.raw?.bloodGroup || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Blood Group</div>
+                  <div className="ui-kv-value hostellers-danger">{selectedHosteller.raw?.bloodGroup || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>DOB</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">DOB</div>
+                  <div className="ui-kv-value">
                     {selectedHosteller.raw?.dob ? new Date(selectedHosteller.raw.dob).toLocaleDateString('en-GB') : 'N/A'}
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Marital Status</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.maritalStatus || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Marital Status</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.maritalStatus || 'N/A'}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Family & Guardian</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Father's Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.fatherName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.fatherMobileNo || 'No Mobile'}</div>
+              <div className="hostellers-subhead hostellers-subhead-spaced">Family & Guardian</div>
+              <div className="ui-kv-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Father's Name</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.fatherName || 'N/A'}</div>
+                  <div className="hostellers-guardian-mobile">{selectedHosteller.raw?.fatherMobileNo || 'No Mobile'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Mother's Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.motherName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.motherMobileNo || 'No Mobile'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Mother's Name</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.motherName || 'N/A'}</div>
+                  <div className="hostellers-guardian-mobile">{selectedHosteller.raw?.motherMobileNo || 'No Mobile'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Guardian Name</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.guardianName || 'N/A'}</div>
-                  <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{selectedHosteller.raw?.guardianMobileNo || 'No Mobile'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Guardian Name</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.guardianName || 'N/A'}</div>
+                  <div className="hostellers-guardian-mobile">{selectedHosteller.raw?.guardianMobileNo || 'No Mobile'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Emergency Contact</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#dc3545' }}>{selectedHosteller.raw?.emergencyContact || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Emergency Contact</div>
+                  <div className="ui-kv-value hostellers-danger">{selectedHosteller.raw?.emergencyContact || 'N/A'}</div>
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', margin: '20px 0 15px 0' }}>Academic & Additional Info</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>VSR Ledger-1</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>
+              <div className="hostellers-subhead hostellers-subhead-spaced">Academic & Additional Info</div>
+              <div className="ui-kv-grid">
+                <div className="ui-kv">
+                  <div className="ui-kv-label">VSR Ledger-1</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.vsrLedger1 || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Date of Joining</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Date of Joining</div>
+                  <div className="ui-kv-value">
                     {selectedHosteller.raw?.dateOfJoining ? new Date(selectedHosteller.raw.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>Pursuing Year</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.raw?.pursuingYear || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">Pursuing Year</div>
+                  <div className="ui-kv-value">{selectedHosteller.raw?.pursuingYear || 'N/A'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '12px', color: '#475569', fontWeight: 500, marginBottom: '4px' }}>College/Institute</div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{selectedHosteller.dept || 'N/A'}</div>
+                <div className="ui-kv">
+                  <div className="ui-kv-label">College/Institute</div>
+                  <div className="ui-kv-value">{selectedHosteller.dept || 'N/A'}</div>
                 </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div style={{ padding: '15px 25px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: '#f8f9fa' }}>
+            <div className="ui-modal-foot">
               <button
                 onClick={() => setSelectedHosteller(null)}
-                style={{ padding: '8px 16px', borderRadius: '6px', background: 'white', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+                className="ui-btn ui-btn-secondary"
               >
                 Close
               </button>
               <button
                 onClick={() => navigate(`/register?edit=${selectedHosteller.id}`)}
-                style={{ padding: '8px 16px', borderRadius: '6px', background: 'var(--sidebar-active)', border: 'none', color: 'white', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+                className="ui-btn ui-btn-primary"
               >
                 Edit Student
               </button>
@@ -846,23 +709,23 @@ const Hostellers = () => {
         </div>
       )}
       {showFeeModal && feeStudent && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', padding: '0', borderRadius: '12px', width: '450px', maxWidth: '90%', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
-            <div style={{ background: '#198754', color: 'white', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Record Fee Payment</h3>
-              <button onClick={() => setShowFeeModal(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '4px' }}><X size={20} /></button>
+        <div className="ui-modal-overlay">
+          <div className="ui-modal ui-modal-sm">
+            <div className="ui-modal-head hostellers-fee-head">
+              <div className="ui-modal-title">Record Fee Payment</div>
+              <button onClick={() => setShowFeeModal(false)} className="ui-modal-close hostellers-modal-close"><X size={20} /></button>
             </div>
 
-            <div style={{ padding: '20px' }}>
-              <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '20px' }}>
-                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: '15px', marginBottom: '4px' }}>{feeStudent.name} ({feeStudent.id}){feeStudent.room && feeStudent.room !== 'N/A' ? ` - Room ${feeStudent.room}` : ''} | {feeStudent.contact}</div>
-                <div style={{ color: '#64748b', fontSize: '13px' }}>Due: ₹{newFee.amount || '0.00'}</div>
+            <div className="ui-modal-body">
+              <div className="hostellers-fee-summary">
+                <div className="hostellers-fee-student">{feeStudent.name} ({feeStudent.id}){feeStudent.room && feeStudent.room !== 'N/A' ? ` - Room ${feeStudent.room}` : ''} | {feeStudent.contact}</div>
+                <div className="hostellers-fee-due">Due: ₹{newFee.amount || '0.00'}</div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Type <span style={{ color: '#dc3545' }}>*</span></label>
-                  <select value={newFee.transactionType} onChange={e => setNewFee({ ...newFee, transactionType: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
+              <div className="ui-stack">
+                <div className="ui-field">
+                  <label className="ui-label">Type <span className="hostellers-danger">*</span></label>
+                  <select className="ui-select" value={newFee.transactionType} onChange={e => setNewFee({ ...newFee, transactionType: e.target.value })}>
                     <option value="RENT">Rent</option>
                     <option value="MESS">Mess Fee</option>
                     <option value="EB_BILL">EB Bill</option>
@@ -870,32 +733,32 @@ const Hostellers = () => {
                     <option value="ADVANCE">Advance Deposit</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Amount Paid (₹) <span style={{ color: '#dc3545' }}>*</span></label>
-                  <input type="number" value={newFee.amount || ''} onChange={e => setNewFee({ ...newFee, amount: Number(e.target.value) })} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                <div className="ui-field">
+                  <label className="ui-label">Amount Paid (₹) <span className="hostellers-danger">*</span></label>
+                  <input type="number" className="ui-input" value={newFee.amount || ''} onChange={e => setNewFee({ ...newFee, amount: Number(e.target.value) })} />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Payment Mode</label>
-                  <select value={newFee.paymentMode} onChange={e => setNewFee({ ...newFee, paymentMode: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', outline: 'none' }}>
+                <div className="ui-field">
+                  <label className="ui-label">Payment Mode</label>
+                  <select className="ui-select" value={newFee.paymentMode} onChange={e => setNewFee({ ...newFee, paymentMode: e.target.value })}>
                     <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
                     <option value="CASH">Cash</option>
                     <option value="BANK_TRANSFER">Bank Transfer</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Transaction Reference Number</label>
-                  <input type="text" placeholder="UPI Ref ID, Cheque #, or Cash Voucher" value={newFee.referenceNumber} onChange={e => setNewFee({ ...newFee, referenceNumber: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                <div className="ui-field">
+                  <label className="ui-label">Transaction Reference Number</label>
+                  <input type="text" className="ui-input" placeholder="UPI Ref ID, Cheque #, or Cash Voucher" value={newFee.referenceNumber} onChange={e => setNewFee({ ...newFee, referenceNumber: e.target.value })} />
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>Notes</label>
-                  <input type="text" placeholder="Optional notes" value={newFee.description} onChange={e => setNewFee({ ...newFee, description: e.target.value })} style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }} />
+                <div className="ui-field">
+                  <label className="ui-label">Notes</label>
+                  <input type="text" className="ui-input" placeholder="Optional notes" value={newFee.description} onChange={e => setNewFee({ ...newFee, description: e.target.value })} />
                 </div>
               </div>
             </div>
 
-            <div style={{ background: '#f8f9fa', padding: '15px 20px', display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e2e8f0' }}>
-              <button onClick={() => setShowFeeModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', background: '#6c757d', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-              <button onClick={handleAddFee} disabled={isSubmittingFee} style={{ padding: '8px 16px', borderRadius: '6px', background: '#198754', color: 'white', border: 'none', cursor: isSubmittingFee ? 'not-allowed' : 'pointer', fontWeight: 500 }}>
+            <div className="ui-modal-foot">
+              <button onClick={() => setShowFeeModal(false)} className="ui-btn ui-btn-soft">Cancel</button>
+              <button onClick={handleAddFee} disabled={isSubmittingFee} className="ui-btn ui-btn-success">
                 {isSubmittingFee ? 'Saving...' : 'Save Record'}
               </button>
             </div>

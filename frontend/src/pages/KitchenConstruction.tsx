@@ -520,7 +520,7 @@ export default function KitchenConstruction() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={handleExport} style={btnSecondary}>
+          <button onClick={handleExport} style={{ ...btnSecondary, background: '#10b981', color: '#fff', border: 'none', boxShadow: '0 2px 4px rgba(16,185,129,0.2)' }}>
             <Download size={16} /> Export
           </button>
           <button onClick={() => { resetForm(); setShowForm(true); }} style={btnPrimary}>

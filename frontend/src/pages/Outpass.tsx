@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FileText, CheckCircle2, X, LogOut, Check, LogIn } from 'lucide-react';
+import { FileText, CheckCircle2, X, LogOut, Check, LogIn, FileSpreadsheet, Search } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { StudentAPI } from '../api/student.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { MessDeductionAPI } from '../api/mess-deduction.api';
+import { PageHeader } from '../components/PageHeader';
 import Select from 'react-select';
 
 const Outpass = () => {
@@ -108,84 +110,110 @@ const Outpass = () => {
 
   const filteredOutpasses = outpasses; // We handle filtering on backend now
 
-  return (
-    <div style={{ paddingBottom: '40px' }}>
-      <div style={{ marginBottom: '25px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-heading)' }}>Digital Outpass Management</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '5px' }}>
-            Issue, approve, and verify gate movement for student outpasses
-          </p>
-        </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          style={{ padding: '10px 20px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}
-        >
-          <FileText size={18} /> Issue Digital Outpass
-        </button>
-      </div>
+  const handleExportExcel = () => {
+    const data = filteredOutpasses.map((op: any) => {
+      const leave = formatDateTime(op.leaveDate);
+      const ret = formatDateTime(op.returnDate);
+      const daysOut = Math.max(1, Math.ceil((new Date(op.returnDate).getTime() - new Date(op.leaveDate).getTime()) / (1000 * 3600 * 24)));
+      return {
+        'OUTPASS #': op.outpassId || '',
+        'STUDENT NAME': op.student?.name || '',
+        'REGIS NO': op.student?.manualRegsiName || op.student?.regNo || '',
+        'ROOM NO': op.student?.room?.id || op.student?.roomNo || '',
+        'DESTINATION': op.destination || '',
+        'REASON': op.reason || '',
+        'SCHEDULED LEAVE': `${leave.dateStr} ${leave.timeStr}`.trim(),
+        'EXPECTED RETURN': `${ret.dateStr} ${ret.timeStr}`.trim(),
+        'DURATION (DAYS)': daysOut,
+        'PARENT CONSENT': op.parentConsent ? 'Verified' : 'Not Verified',
+        'STATUS': op.status || '',
+        'GATE ACTION': op.gateAction || ''
+      };
+    });
 
-      <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b' }}>Outpasses Master Register</h3>
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="text" 
-                placeholder="Search outpasses..." 
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Outpasses");
+    XLSX.writeFile(workbook, "Outpasses_Export.xlsx");
+  };
+
+  return (
+    <div className="ui-page">
+      <PageHeader
+        title="Digital Outpass Management"
+        subtitle="Issue, approve, and verify gate movement for student outpasses"
+        icon={<FileText size={24} color="#fff" />} iconBg="linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)"
+        rightContent={
+          <>
+            <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
+              <FileSpreadsheet size={18} />
+              Export Excel
+            </button>
+            <button onClick={() => setIsModalOpen(true)} className="ui-btn ui-btn-primary">
+              <FileText size={18} /> Issue Digital Outpass
+            </button>
+          </>
+        }
+      />
+
+      <div className="ui-card ui-card--flush">
+        <div className="ui-card-head">
+          <h3 className="ui-card-title">Outpasses Master Register</h3>
+          <div className="ui-filters">
+            <div className="ui-search">
+              <Search size={15} />
+              <input
+                type="text"
+                placeholder="Search outpasses..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                style={{ padding: '8px 30px 8px 15px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', width: '220px', outline: 'none' }}
               />
               {searchTerm && (
-                <button 
-                  onClick={() => { setSearchTerm(''); setPage(1); }}
-                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', padding: 0 }}
-                >
+                <button className="ui-search-clear" onClick={() => { setSearchTerm(''); setPage(1); }}>
                   <X size={16} />
                 </button>
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '13px', color: '#64748b' }}>From:</label>
-              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            <div className="ui-field-inline">
+              <label className="ui-field-label">From:</label>
+              <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '13px', color: '#64748b' }}>To:</label>
-              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155' }} />
+            <div className="ui-field-inline">
+              <label className="ui-field-label">To:</label>
+              <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} />
             </div>
             {(fromDate || toDate) && (
-              <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+              <button className="ui-btn ui-btn-soft ui-btn-sm" onClick={() => { setFromDate(''); setToDate(''); setPage(1); }}>
                 Clear Dates
               </button>
             )}
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div className="ui-table-wrap">
+          <table className="ui-table">
+            <thead>
               <tr>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Outpass #</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Student & Room</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason & Destination</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Scheduled Leave</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Expected Return</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration & Consent</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                <th style={{ padding: '15px 20px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Gate Action</th>
+                <th>Outpass #</th>
+                <th>Student &amp; Room</th>
+                <th>Reason &amp; Destination</th>
+                <th>Scheduled Leave</th>
+                <th>Expected Return</th>
+                <th>Duration &amp; Consent</th>
+                <th>Status</th>
+                <th className="outpass-center">Gate Action</th>
               </tr>
             </thead>
             <tbody>
               {error ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#ef4444', fontSize: '14px' }}>
+                  <td colSpan={8} className="ui-empty ui-empty--danger">
                     {error}
                   </td>
                 </tr>
               ) : filteredOutpasses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+                  <td colSpan={8} className="ui-empty">
                     No outpasses found.
                   </td>
                 </tr>
@@ -195,74 +223,62 @@ const Outpass = () => {
                 const ret = formatDateTime(op.returnDate);
                 const daysOut = Math.max(1, Math.ceil((new Date(op.returnDate).getTime() - new Date(op.leaveDate).getTime()) / (1000 * 3600 * 24)));
                 return (
-                  <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#f8fafc'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
-                    <td style={{ padding: '15px 20px', fontSize: '14px', fontWeight: 700, color: '#0284c7' }}>
-                      {op.outpassId}
+                  <tr key={idx}>
+                    <td className="ui-cell-link">{op.outpassId}</td>
+                    <td>
+                      <div className="ui-cell-name">{op.student?.name}</div>
+                      <div className="ui-cell-sub">{op.student?.manualRegsiName || op.student?.regNo} | <br/>{op.student?.room?.id}</div>
                     </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.student?.name}</div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.student?.manualRegsiName || op.student?.regNo} | <br/>{op.student?.room?.id}</div>
+                    <td>
+                      <div className="ui-cell-name">{op.destination}</div>
+                      <div className="ui-cell-sub">{op.reason}</div>
                     </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>{op.destination}</div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{op.reason}</div>
-                    </td>
-                    <td style={{ padding: '15px 20px', fontSize: '13px', color: '#1e293b' }}>
+                    <td>
                       {leave.dateStr}<br/>{leave.timeStr}
                     </td>
-                    <td style={{ padding: '15px 20px', fontSize: '13px', color: '#1e293b' }}>
+                    <td>
                       {ret.dateStr}<br/>{ret.timeStr}
                     </td>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', marginBottom: '6px' }}>
+                    <td>
+                      <div className="ui-cell-name outpass-days">
                         {daysOut} {daysOut === 1 ? 'Day' : 'Days'}
                       </div>
                       {daysOut > deductionThreshold && (
-                        <div style={{ marginBottom: '6px' }}>
-                          <span style={{ display: 'inline-block', background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                            Mess Deduction Eligible
-                          </span>
+                        <div className="outpass-days">
+                          <span className="ui-badge ui-badge-danger">Mess Deduction Eligible</span>
                         </div>
                       )}
                       {op.parentConsent && (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600 }}>
+                        <span className="ui-badge ui-badge-success">
                           <CheckCircle2 size={12} /> Verified
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '15px 20px' }}>
+                    <td>
                       {op.status === 'Approved' && (
-                        <span style={{ display: 'inline-block', background: '#22c55e', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                          Approved
-                        </span>
+                        <span className="ui-badge ui-badge-success">Approved</span>
                       )}
                       {op.status === 'Active Out' && (
-                        <span style={{ display: 'inline-block', background: '#ffc107', color: '#000', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                          Active Out
-                        </span>
+                        <span className="ui-badge ui-badge-warning">Active Out</span>
                       )}
                       {op.status === 'Closed Returned' && (
-                        <span style={{ display: 'inline-block', background: '#166534', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                          Closed Returned
-                        </span>
+                        <span className="ui-badge ui-badge-neutral">Closed Returned</span>
                       )}
                       {op.status === 'Pending' && (
-                        <span style={{ display: 'inline-block', background: '#facc15', color: 'white', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>
-                          Pending
-                        </span>
+                        <span className="ui-badge ui-badge-info">Pending</span>
                       )}
                     </td>
-                    <td style={{ padding: '15px 20px', textAlign: 'center' }}>
+                    <td className="outpass-center">
                       {op.gateAction === 'Verify Exit' ? (
-                        <button onClick={() => updateGateAction(op.id, op.gateAction)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                        <button onClick={() => updateGateAction(op.id, op.gateAction)} className="ui-btn ui-btn-sm ui-btn-outline-danger">
                           <LogOut size={14} /> Verify Exit
                         </button>
                       ) : op.gateAction === 'Verify Return' ? (
-                        <button onClick={() => updateGateAction(op.id, op.gateAction)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: '#198754', border: '1px solid #198754', color: 'white', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>
+                        <button onClick={() => updateGateAction(op.id, op.gateAction)} className="ui-btn ui-btn-sm ui-btn-success">
                           <LogIn size={14} /> Verify Return
                         </button>
                       ) : (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '13px', fontWeight: 500 }}>
+                        <span className="ui-cell-muted outpass-done">
                           <Check size={14} /> Done
                         </span>
                       )}
@@ -274,25 +290,23 @@ const Outpass = () => {
           </table>
         </div>
         
-        <div style={{ padding: '15px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748b', background: '#f8fafc' }}>
-          <div>Showing <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span style={{ fontWeight: 600, color: '#1e293b' }}>{Math.min(page * limit, totalRecords)}</span> of <span style={{ fontWeight: 600, color: '#1e293b' }}>{totalRecords}</span> entries</div>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <button 
+        <div className="ui-pagination">
+          <div>Showing <span className="ui-strong">{totalRecords === 0 ? 0 : (page - 1) * limit + 1}</span> to <span className="ui-strong">{Math.min(page * limit, totalRecords)}</span> of <span className="ui-strong">{totalRecords}</span> entries</div>
+          <div className="ui-pager">
+            <button
               disabled={page === 1}
               onClick={() => setPage(p => p - 1)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderRight: 'none', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', borderRadius: '6px 0 0 6px', color: page === 1 ? '#94a3b8' : '#64748b', fontSize: '13px', transition: 'all 0.2s' }}
+              className="ui-page-btn"
             >
               Previous
             </button>
-            <button
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', minWidth: '32px', padding: '0 12px', border: '1px solid #3b82f6', background: '#3b82f6', color: 'white', fontSize: '13px', fontWeight: 500, position: 'relative', zIndex: 1, cursor: 'default' }}
-            >
+            <button className="ui-page-btn ui-page-btn--active">
               {page}
             </button>
-            <button 
+            <button
               disabled={page >= totalPages || totalPages === 0}
               onClick={() => setPage(p => p + 1)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '32px', padding: '0 12px', border: '1px solid #e2e8f0', borderLeft: 'none', background: 'white', cursor: page >= totalPages || totalPages === 0 ? 'not-allowed' : 'pointer', borderRadius: '0 6px 6px 0', color: page >= totalPages || totalPages === 0 ? '#94a3b8' : '#0369a1', fontSize: '13px', transition: 'all 0.2s' }}
+              className="ui-page-btn"
             >
               Next
             </button>
@@ -302,18 +316,18 @@ const Outpass = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: 'white', borderRadius: '8px', width: '500px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
-            <div style={{ background: '#0d6efd', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ color: 'white', fontSize: '18px', fontWeight: 600, margin: 0 }}>Create & Approve Outpass</h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0', display: 'flex' }}>
+        <div className="ui-modal-overlay">
+          <div className="ui-modal">
+            <div className="ui-modal-head">
+              <h3 className="ui-modal-title">Create &amp; Approve Outpass</h3>
+              <button className="ui-modal-close" onClick={() => setIsModalOpen(false)}>
                 <X size={20} />
               </button>
             </div>
             
-            <div style={{ padding: '20px' }}>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Hosteller</label>
+            <div className="ui-modal-body">
+              <div>
+                <label className="ui-label">Hosteller</label>
                 <Select 
                   options={students.map(s => ({ value: s.id, label: `${s.name} (${s.manualRegsiName || s.regNo})` }))}
                   value={formData.studentId ? { value: formData.studentId, label: students.find(s => s.id === formData.studentId)?.name + ' (' + (students.find(s => s.id === formData.studentId)?.manualRegsiName || students.find(s => s.id === formData.studentId)?.regNo) + ')' } : null}
@@ -325,52 +339,48 @@ const Outpass = () => {
                       ...base,
                       padding: '2px',
                       borderRadius: '6px',
-                      borderColor: '#cbd5e1',
+                      borderColor: 'var(--border)',
                       fontSize: '14px'
                     })
                   }}
                 />
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Destination</label>
-                <input value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} type="text" placeholder="City, Event, or Home" style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
+              <div>
+                <label className="ui-label">Destination</label>
+                <input value={formData.destination} onChange={(e) => setFormData({...formData, destination: e.target.value})} type="text" placeholder="City, Event, or Home" className="ui-input" />
               </div>
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Reason</label>
-                <textarea value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} placeholder="Explain purpose..." rows={3} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', resize: 'vertical', color: '#334155' }}></textarea>
+              <div>
+                <label className="ui-label">Reason</label>
+                <textarea value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} placeholder="Explain purpose..." rows={3} className="ui-textarea"></textarea>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '15px', marginBottom: '20px' }}>
+              <div className="ui-grid-2">
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Leave Date & Time</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type="datetime-local" value={formData.leaveDate} onChange={(e) => setFormData({...formData, leaveDate: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
-                  </div>
+                  <label className="ui-label">Leave Date &amp; Time</label>
+                  <input type="datetime-local" value={formData.leaveDate} onChange={(e) => setFormData({...formData, leaveDate: e.target.value})} className="ui-input" />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#334155', marginBottom: '8px' }}>Expected Return</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type="datetime-local" value={formData.returnDate} onChange={(e) => setFormData({...formData, returnDate: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', outline: 'none', color: '#334155' }} />
-                  </div>
+                  <label className="ui-label">Expected Return</label>
+                  <input type="datetime-local" value={formData.returnDate} onChange={(e) => setFormData({...formData, returnDate: e.target.value})} className="ui-input" />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input type="checkbox" checked={formData.parentConsent} onChange={(e) => setFormData({...formData, parentConsent: e.target.checked})} id="parent-consent" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#0d6efd' }} />
-                <label htmlFor="parent-consent" style={{ fontSize: '14px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+              <div className="outpass-consent">
+                <input type="checkbox" checked={formData.parentConsent} onChange={(e) => setFormData({...formData, parentConsent: e.target.checked})} id="parent-consent" />
+                <label htmlFor="parent-consent">
                   Parent / Guardian consent verified via call or message
                 </label>
               </div>
             </div>
 
-            <div style={{ padding: '15px 20px', borderTop: '1px solid #e2e8f0', background: 'white', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setIsModalOpen(false)} style={{ padding: '10px 20px', background: '#64748b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+            <div className="ui-modal-foot">
+              <button className="ui-btn ui-btn-soft" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </button>
-              <button onClick={handleIssueOutpass} style={{ padding: '10px 20px', background: '#0d6efd', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
-                Approve & Issue Outpass
+              <button className="ui-btn ui-btn-primary" onClick={handleIssueOutpass}>
+                Approve &amp; Issue Outpass
               </button>
             </div>
           </div>

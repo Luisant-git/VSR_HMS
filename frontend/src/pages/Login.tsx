@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
 import { getSystemSettings } from '../api/settings.api';
@@ -39,146 +39,75 @@ const Login = () => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      width: '100vw',
-      backgroundColor: 'var(--sidebar-bg)', // Dark navy background
-      margin: 0,
-      padding: '20px',
-      boxSizing: 'border-box'
-    }}>
+    <div className="login-page">
 
-      {/* Centered White Card */}
-      <div style={{
-        backgroundColor: 'var(--content-bg)',
-        width: '100%',
-        maxWidth: '420px',
-        margin: '0 20px',
-        padding: '50px 40px',
-        borderRadius: '12px',
-        boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-        display: 'flex',
-        flexDirection: 'column',
-        boxSizing: 'border-box'
-      }}>
-
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
-            {hostelName}
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-            Sign in to your admin account
-          </p>
+      {/* Brand panel — logo + name only */}
+      <aside className="login-brand">
+        <div className="login-brand-inner">
+          <div className="login-logo">
+            <Building2 size={25} strokeWidth={2.2} />
+          </div>
+          <h1 className="login-brand-title">{hostelName}</h1>
         </div>
+      </aside>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', marginBottom: '8px' }}>
-              Email Address
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
+      {/* Form panel */}
+      <main className="login-panel">
+        <form className="login-form" onSubmit={handleLogin}>
+          <header className="login-head">
+            <h2 className="login-title">Welcome back</h2>
+            <p className="login-sub">Sign in to continue to your dashboard</p>
+          </header>
+
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-email">Email Address</label>
+            <div className="login-input-wrap">
+              <Mail size={17} className="login-input-icon" />
               <input
+                id="login-email"
                 type="email"
+                className="login-input"
                 placeholder="admin@sunrise.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 15px 12px 42px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  outline: 'none',
-                  fontSize: '14px',
-                  backgroundColor: '#fff',
-                  transition: 'border-color 0.2s',
-                  boxSizing: 'border-box'
-                }}
+                autoComplete="username"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)' }}>
-                Password
-              </label>
-              {/* <span style={{ fontSize: '12px', color: 'var(--card-blue)', cursor: 'pointer', fontWeight: 500 }}>
-                Forgot Password?
-              </span> */}
-            </div>
-
-            <div style={{ position: 'relative' }}>
-              <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
+          <div className="login-field">
+            <label className="login-label" htmlFor="login-password">Password</label>
+            <div className="login-input-wrap">
+              <Lock size={17} className="login-input-icon" />
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
+                className="login-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '12px 42px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  outline: 'none',
-                  fontSize: '14px',
-                  backgroundColor: '#fff',
-                  transition: 'border-color 0.2s',
-                  boxSizing: 'border-box'
-                }}
+                autoComplete="current-password"
                 required
               />
               <button
                 type="button"
+                className="login-eye"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '15px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            style={{
-              marginTop: '10px',
-              backgroundColor: 'var(--card-blue)',
-              color: 'white',
-              border: 'none',
-              padding: '14px',
-              borderRadius: '6px',
-              fontSize: '15px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s',
-              opacity: isLoading ? 0.7 : 1,
-              pointerEvents: isLoading ? 'none' : 'auto'
-            }}
-          >
-            <LogIn size={18} /> {isLoading ? 'Signing In...' : 'Sign In'}
+          <button type="submit" className="login-submit" disabled={isLoading}>
+            {isLoading ? <span className="login-spinner" /> : <LogIn size={17} />}
+            {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
+      </main>
 
-      </div>
     </div>
   );
 };

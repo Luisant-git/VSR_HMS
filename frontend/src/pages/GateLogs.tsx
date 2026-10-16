@@ -200,6 +200,7 @@ const GateLogs = () => {
         title="Gate In / Out Movement Tracking"
         subtitle="Record real-time gate exits and entries for hostel students"
         showBack={false}
+        icon={<LogIn size={24} color="#fff" />} iconBg="linear-gradient(135deg, #334155 0%, #0f172a 100%)"
         rightContent={
           <>
             <button onClick={() => navigate(-1)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }} onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
