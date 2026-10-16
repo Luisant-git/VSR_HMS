@@ -41,7 +41,6 @@ const Dashboard = () => {
   const totalBeds = dbRooms.reduce((sum, r) => sum + r.capacity, 0);
   const occupiedBeds = dbRooms.reduce((sum, r) => sum + r.occupiedCount, 0);
   const vacantBeds = totalBeds - occupiedBeds;
-  const vacantPercent = totalBeds > 0 ? Math.round((vacantBeds / totalBeds) * 100) : 0;
 
 
   const allBlocks = ['All', ...Array.from(new Set(dbRooms.map(r => r.block).filter(Boolean))).sort()];
@@ -91,68 +90,61 @@ const Dashboard = () => {
     <div className="ui-page">
 
       {/* ---------- Quick overview ---------- */}
-      <div className="ui-stat-grid">
-        <div className="ui-stat dash-stat" onClick={() => navigate('/hostellers')}>
-          <div className="ui-stat-icon is-accent"><Users size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Active Students</div>
-            <div className="ui-stat-value">{activeStudents.length}</div>
-            <div className="ui-stat-sub">Enrolled in hostel</div>
+      <div className="cards-row">
+        <div className="metric-card metric-card-blue" style={{ cursor: 'pointer' }} onClick={() => navigate('/hostellers')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Active Students
+            <Users size={18} />
           </div>
+          <div className="value">{activeStudents.length}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/rooms/directory')}>
-          <div className="ui-stat-icon is-success"><Bed size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Vacant Beds</div>
-            <div className="ui-stat-value">{vacantBeds} / {totalBeds}</div>
-            <div className="ui-stat-sub">{vacantPercent}% Available</div>
+        <div className="metric-card metric-card-green" style={{ cursor: 'pointer' }} onClick={() => navigate('/rooms/directory')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Vacant Beds
+            <Bed size={18} />
           </div>
+          <div className="value">{vacantBeds} / {totalBeds}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/gate-logs')}>
-          <div className="ui-stat-icon is-warning"><LogOut size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Currently Out</div>
-            <div className="ui-stat-value">{currentlyOut}</div>
-            <div className="ui-stat-sub">Checked out at gate</div>
+        <div className="metric-card metric-card-orange" style={{ cursor: 'pointer' }} onClick={() => navigate('/gate-logs')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Currently Out
+            <LogOut size={18} />
           </div>
+          <div className="value">{currentlyOut}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/late-warnings')}>
-          <div className="ui-stat-icon is-danger"><AlertTriangle size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Late Return Warning</div>
-            <div className="ui-stat-value">{activeLateWarnings}</div>
-            <div className="ui-stat-sub">Late return students</div>
+        <div className="metric-card metric-card-yellow" style={{ cursor: 'pointer' }} onClick={() => navigate('/late-warnings')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Late Return Warning
+            <AlertTriangle size={18} />
           </div>
+          <div className="value">{activeLateWarnings}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/fees')}>
-          <div className="ui-stat-icon is-purple"><CreditCard size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Pending Fees</div>
-            <div className="ui-stat-value">₹{totalPendingFees.toLocaleString('en-IN')}</div>
-            <div className="ui-stat-sub">Unpaid dues</div>
+        <div className="metric-card metric-card-purple" style={{ cursor: 'pointer' }} onClick={() => navigate('/fees')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Pending Fees
+            <CreditCard size={18} />
           </div>
+          <div className="value">₹{totalPendingFees.toLocaleString('en-IN')}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/fees')}>
-          <div className="ui-stat-icon is-success"><ShieldCheck size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Advance Held</div>
-            <div className="ui-stat-value">₹{totalAdvanceHeld.toLocaleString('en-IN')}</div>
-            <div className="ui-stat-sub">Security deposits</div>
+        <div className="metric-card" style={{ background: '#20c997', cursor: 'pointer' }} onClick={() => navigate('/fees')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Advance Held
+            <ShieldCheck size={18} />
           </div>
+          <div className="value">₹{totalAdvanceHeld.toLocaleString('en-IN')}</div>
         </div>
 
-        <div className="ui-stat dash-stat" onClick={() => navigate('/outpass')}>
-          <div className="ui-stat-icon is-info"><FileText size={20} /></div>
-          <div>
-            <div className="ui-stat-label">Active Outpasses</div>
-            <div className="ui-stat-value">{activeOutpassesCount}</div>
-            <div className="ui-stat-sub">Pending, Approved or Active</div>
+        <div className="metric-card" style={{ background: '#0ea5e9', cursor: 'pointer' }} onClick={() => navigate('/outpass')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Active Outpasses
+            <FileText size={18} />
           </div>
+          <div className="value">{activeOutpassesCount}</div>
         </div>
       </div>
 
