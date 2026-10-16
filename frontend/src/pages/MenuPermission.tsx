@@ -57,6 +57,8 @@ const MenuPermission = () => {
       staff_salary: false,
       canteen_master: false,
       mess_attendance_reports: false,
+      kitchen_construction: false,
+      stock_report: false,
       canteen_products: false,
       canteen_categories: false,
       canteen_units: false,
@@ -154,7 +156,7 @@ const MenuPermission = () => {
                             const allKeys = [
                               'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
                               'hostel_blocks', 'rooms_master', 'eb_bills',
-                              'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                              'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                               'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
                             ];
 
@@ -173,6 +175,9 @@ const MenuPermission = () => {
                               { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'] },
                               { name: 'Rooms', keys: ['hostel_blocks', 'rooms_master', 'eb_bills'] },
                               { name: 'College Master', keys: ['colleges'] },
+                              { name: 'Mess Attendance Reports', keys: ['mess_attendance_reports'] },
+                              { name: 'Kitchen Construction', keys: ['kitchen_construction'] },
+                              { name: 'Stock Report', keys: ['stock_report'] },
                               { name: 'Canteen Master', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'] },
                               { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'] }
                             ];
@@ -222,7 +227,7 @@ const MenuPermission = () => {
                     checked={
                       ['dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
                        'hostel_blocks', 'rooms_master', 'eb_bills',
-                       'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                       'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                        'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'].every(id => editData[id])
                     } 
                     onChange={(e) => {
@@ -230,7 +235,7 @@ const MenuPermission = () => {
                       const allKeys = [
                         'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
                         'hostel_blocks', 'rooms_master', 'eb_bills',
-                        'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
+                        'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                         'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
                       ];
                       setEditData((prev: any) => {
@@ -345,6 +350,16 @@ const MenuPermission = () => {
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                       <input type="checkbox" checked={editData['mess_attendance_reports'] || false} onChange={() => togglePermission('mess_attendance_reports')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                       <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Mess Attendance Reports</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['kitchen_construction'] || false} onChange={() => togglePermission('kitchen_construction')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Kitchen Construction</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['stock_report'] || false} onChange={() => togglePermission('stock_report')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Stock Report</span>
                     </label>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

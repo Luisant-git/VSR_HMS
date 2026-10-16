@@ -178,21 +178,21 @@ const Layout = () => {
             </NavLink>
           )}
 
-          {(!permissions || permissions.canteen_master === true || permissions.mess_attendance_reports === true) && (
+          {(!permissions || permissions.mess_attendance_reports === true) && (
             <NavLink to="/mess-attendance-reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><FileText size={18} /></div>
               Mess Attendance Reports
             </NavLink>
           )}
 
-          {(!permissions || permissions.canteen_master === true || permissions.kitchen_construction === true) && (
+          {(!permissions || permissions.kitchen_construction === true) && (
             <NavLink to="/kitchen-construction" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Utensils size={18} /></div>
               Kitchen Construction
             </NavLink>
           )}
 
-          {(!permissions || permissions.canteen_master === true || permissions.kitchen_construction === true) && (
+          {(!permissions || permissions.stock_report === true) && (
             <NavLink to="/kitchen-stock-report" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Package size={18} /></div>
               Stock Report
