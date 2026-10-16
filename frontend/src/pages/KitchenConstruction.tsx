@@ -587,7 +587,7 @@ export default function KitchenConstruction() {
 
       {/* Consumption Entry Form (Expandable) */}
       {showForm && (
-        <div style={{ ...cardStyle, marginBottom: '24px', borderTop: '3px solid #4a72fa' }}>
+        <div style={{ ...cardStyle, marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#1e293b' }}>
               {editingGroupKey ? `Edit ${formHeader.mealType} — ${formatDateDMY(formHeader.dateStr)} (${formRows.length} item(s))` : editingId ? 'Edit Consumption Entry' : 'New Consumption Entry'}
@@ -856,10 +856,10 @@ export default function KitchenConstruction() {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <table className="data-table" style={{ minWidth: '900px' }}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
+              <tr style={{ background: 'white', borderBottom: '1px solid #eaedf1', textAlign: 'left' }}>
                 <th style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
                 <th style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Meal Type</th>
                 <th style={{ padding: '12px 10px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Raw Material</th>
