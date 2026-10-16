@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings, Utensils, Clock, Banknote, Package, ChevronDown } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
-import { formatDateDMY } from '../utils/date';
+import { getSystemSettings } from '../api/settings.api';
 
 const Layout = () => {
 
@@ -12,6 +12,15 @@ const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<{ name?: string, email?: string, role?: string } | null>(null);
   const [permissions, setPermissions] = useState<any>(null);
+  const [hostelName, setHostelName] = useState<string>('Hostel Management System');
+
+  useEffect(() => {
+    getSystemSettings()
+      .then((data) => {
+        if (data?.hostelName) setHostelName(data.hostelName);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -305,17 +314,18 @@ const Layout = () => {
         {/* Top Header */}
         <header className="topbar">
 
-          {/* Mobile Menu Button (Visible only on mobile) */}
-          <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
-            <Menu size={22} />
-          </button>
+          <div className="topbar-left">
+            {/* Mobile Menu Button (Visible only on mobile) */}
+            <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)} aria-label="Open menu">
+              <Menu size={22} />
+            </button>
 
-          <div className="topbar-title">
-            <span className="topbar-title-main">Welcome back</span>
-            <span className="topbar-title-sub">{formatDateDMY(new Date())}</span>
+            <div className="topbar-title">
+              <span className="topbar-title-main">{hostelName}</span>
+            </div>
           </div>
 
-          <div className="topbar-icons">
+          <div className="topbar-right">
 
             {/* Profile Dropdown Container */}
             <div style={{ position: 'relative' }}>
@@ -325,7 +335,7 @@ const Layout = () => {
                   <span className="topbar-user-role">{user?.role || 'ADMIN'}</span>
                 </div>
                 <div className="topbar-avatar">{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</div>
-                <ChevronDown size={15} color="#94a3b8" />
+                <ChevronDown size={15} className="topbar-chevron" />
               </div>
 
               {/* Dropdown Menu (Click to open, click away to close) */}
