@@ -276,7 +276,7 @@ export default function KitchenStockReport() {
                 <th style={thStyle}>Category</th>
                 <th style={thStyle}>Unit</th>
                 <th style={thStyle}>Current Stock</th>
-                <th style={thStyle}>Stock as on</th>
+                <th style={thStyle}>Stock as on ({formatDateDMY(asOnDate)})</th>
               </tr>
             </thead>
             <tbody>
