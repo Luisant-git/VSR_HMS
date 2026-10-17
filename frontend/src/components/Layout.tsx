@@ -233,7 +233,7 @@ const Layout = () => {
         <nav className="sidebar-nav" onClick={() => setIsSidebarOpen(false)}>
           {/* Standalone item without children */}
           {canSee(DASHBOARD) && (
-            <NavLink to={DASHBOARD.to} end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink to={DASHBOARD.to} end className={({ isActive }) => `nav-item nav-item-standalone ${isActive ? 'active' : ''}`}>
               <div className="nav-icon">{DASHBOARD.icon}</div>
               {DASHBOARD.label}
             </NavLink>

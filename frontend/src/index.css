@@ -174,7 +174,7 @@ input, select, textarea { font-family: inherit; }
   padding: 0 12px;
   border-radius: 10px;
   color: #ffffff;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -294,6 +294,14 @@ input, select, textarea { font-family: inherit; }
 .nav-item.active:hover {
   background: linear-gradient(90deg, #4a72fa 0%, #3f63e0 100%);
   color: #ffffff;
+}
+
+/* Top-level standalone item (Dashboard): reads like a parent row */
+.nav-item-standalone {
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .nav-icon {
