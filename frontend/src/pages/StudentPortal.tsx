@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
 import { getSystemSettings } from '../api/settings.api';
+import { setDocumentTitle } from '../utils/documentTitle';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
 
@@ -17,6 +18,7 @@ export default function StudentPortal() {
   useEffect(() => {
     getSystemSettings().then(data => {
       if (data && data.hostelName) setHostelName(data.hostelName);
+      setDocumentTitle(data?.hostelName);
     }).catch(() => {});
   }, []);
 

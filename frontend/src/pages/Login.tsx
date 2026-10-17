@@ -4,6 +4,7 @@ import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
 import { getSystemSettings } from '../api/settings.api';
+import { setDocumentTitle } from '../utils/documentTitle';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Login = () => {
   useEffect(() => {
     getSystemSettings().then(data => {
       if (data && data.hostelName) setHostelName(data.hostelName);
+      setDocumentTitle(data?.hostelName);
     }).catch(() => {});
   }, []);
 

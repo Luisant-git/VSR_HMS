@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { ChartNoAxesCombined, UserStar, LogOut, Menu, X, Settings2, ChevronDown, DoorClosed, UserRoundKey, ConciergeBell, Shapes, Braces, House } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { getSystemSettings } from '../api/settings.api';
+import { setDocumentTitle } from '../utils/documentTitle';
 
 type NavChild = {
   label: string;
@@ -150,6 +151,7 @@ const Layout = () => {
     getSystemSettings()
       .then((data) => {
         if (data?.hostelName) setHostelName(data.hostelName);
+        setDocumentTitle(data?.hostelName);
       })
       .catch(() => {});
   }, []);
@@ -214,8 +216,7 @@ const Layout = () => {
         <div className="sidebar-brand">
           <div className="brand-logo"><House size={22} /></div>
           <div className="brand-text">
-            <span className="brand-title">HMS</span>
-            <span className="brand-sub">Hostel Management</span>
+            <span className="brand-title" title={hostelName}>{hostelName}</span>
           </div>
           <button
             className="mobile-close-btn"

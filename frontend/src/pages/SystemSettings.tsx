@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { getSystemSettings, updateSystemSettings } from '../api/settings.api';
+import { setDocumentTitle } from '../utils/documentTitle';
 import { Save, Settings } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -36,6 +37,7 @@ const SystemSettings = () => {
     setSaving(true);
     try {
       await updateSystemSettings(settings);
+      setDocumentTitle(settings.hostelName);
       toast.success('Settings updated successfully');
     } catch (err) {
       toast.error('Failed to update settings');

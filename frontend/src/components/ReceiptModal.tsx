@@ -192,7 +192,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               <div style={{ textAlign: 'center' }}>
                 <div style={{ width: '180px', borderBottom: '1px solid #94a3b8', marginBottom: '8px', height: '40px' }}></div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Authorized Signatory</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>Hostel Management System</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>{settings.hostelName}</div>
               </div>
             </div>
           </div>
