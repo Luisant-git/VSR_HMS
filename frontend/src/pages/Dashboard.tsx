@@ -87,7 +87,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="ui-page">
+    <div className="ui-page ui-stack">
 
       {/* ---------- Quick overview ---------- */}
       <div className="cards-row">
