@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
 import { getSystemSettings } from '../api/settings.api';
@@ -39,75 +39,147 @@ const Login = () => {
   };
 
   return (
-    <div className="login-page">
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      width: '100%',
+      backgroundColor: 'var(--sidebar-bg)', // Dark navy background
+      margin: 0,
+      padding: 'clamp(12px, 4vw, 20px)',
+      overflowY: 'auto',
+      boxSizing: 'border-box'
+    }}>
 
-      {/* Brand panel — logo + name only */}
-      <aside className="login-brand">
-        <div className="login-brand-inner">
-          <div className="login-logo">
-            <Building2 size={25} strokeWidth={2.2} />
-          </div>
-          <h1 className="login-brand-title">{hostelName}</h1>
+      {/* Centered White Card */}
+      <div style={{
+        backgroundColor: 'var(--content-bg)',
+        width: '100%',
+        maxWidth: '420px',
+        margin: 'auto',
+        padding: 'clamp(26px, 7vw, 50px) clamp(20px, 6vw, 40px)',
+        borderRadius: '12px',
+        boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box'
+      }}>
+
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ fontSize: 'clamp(21px, 6vw, 26px)', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px', overflowWrap: 'anywhere' }}>
+            {hostelName}
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'clamp(13px, 3.6vw, 14px)' }}>
+            Sign in to your admin account
+          </p>
         </div>
-      </aside>
 
-      {/* Form panel */}
-      <main className="login-panel">
-        <form className="login-form" onSubmit={handleLogin}>
-          <header className="login-head">
-            <h2 className="login-title">Welcome back</h2>
-            <p className="login-sub">Sign in to continue to your dashboard</p>
-          </header>
-
-          <div className="login-field">
-            <label className="login-label" htmlFor="login-email">Email Address</label>
-            <div className="login-input-wrap">
-              <Mail size={17} className="login-input-icon" />
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-main)', marginBottom: '8px' }}>
+              Email Address
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                id="login-email"
                 type="email"
-                className="login-input"
                 placeholder="admin@sunrise.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                autoComplete="username"
+                style={{
+                  width: '100%',
+                  padding: '12px 15px 12px 42px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  outline: 'none',
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
                 required
               />
             </div>
           </div>
 
-          <div className="login-field">
-            <label className="login-label" htmlFor="login-password">Password</label>
-            <div className="login-input-wrap">
-              <Lock size={17} className="login-input-icon" />
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-main)' }}>
+                Password
+              </label>
+              {/* <span style={{ fontSize: '12px', color: 'var(--card-blue)', cursor: 'pointer', fontWeight: 500 }}>
+                Forgot Password?
+              </span> */}
+            </div>
+
+            <div style={{ position: 'relative' }}>
+              <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
-                id="login-password"
                 type={showPassword ? 'text' : 'password'}
-                className="login-input"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                style={{
+                  width: '100%',
+                  padding: '12px 42px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  outline: 'none',
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                  transition: 'border-color 0.2s',
+                  boxSizing: 'border-box'
+                }}
                 required
               />
               <button
                 type="button"
-                className="login-eye"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '15px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
               >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                {showPassword ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
               </button>
             </div>
           </div>
 
-          <button type="submit" className="login-submit" disabled={isLoading}>
-            {isLoading ? <span className="login-spinner" /> : <LogIn size={17} />}
-            {isLoading ? 'Signing In...' : 'Sign In'}
+          <button
+            type="submit"
+            style={{
+              marginTop: '10px',
+              backgroundColor: 'var(--card-blue)',
+              color: 'white',
+              border: 'none',
+              padding: '14px',
+              borderRadius: '6px',
+              fontSize: '15px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s',
+              opacity: isLoading ? 0.7 : 1,
+              pointerEvents: isLoading ? 'none' : 'auto'
+            }}
+          >
+            <LogIn size={18} /> {isLoading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
-      </main>
 
+      </div>
     </div>
   );
 };
