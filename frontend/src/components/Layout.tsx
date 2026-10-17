@@ -348,7 +348,7 @@ const Layout = () => {
             </button>
 
             <div className="topbar-title">
-              <span className="topbar-title-main">{hostelName}</span>
+              <span className="topbar-title-main">Hostel Management System</span>
             </div>
           </div>
 
