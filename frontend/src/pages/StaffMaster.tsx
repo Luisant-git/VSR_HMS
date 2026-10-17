@@ -558,7 +558,7 @@ export default function StaffMaster() {
                   <div className="ui-empty">
                     <Users size={36} />
                     <div className="ui-empty-title">No staff members found</div>
-                    <div className="ui-empty-text">Click "+ Register New Staff" to add staff members.</div>
+                   
                   </div>
                 </td>
               </tr>

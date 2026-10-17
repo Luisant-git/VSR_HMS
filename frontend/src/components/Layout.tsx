@@ -12,6 +12,8 @@ type NavChild = {
   icon?: ReactElement;
   /** Shown only for this role (permissions are ignored) */
   role?: string;
+  /** Hidden when the signed-in role is this one (keeps the Developer menus from duplicating Settings) */
+  hideForRole?: string;
   /** Shown when the role has ANY of these permission keys (before permissions load, everything shows) */
   perm?: string[];
   /** Match the route exactly instead of matching its child paths */
@@ -110,8 +112,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'System Settings', to: '/settings/system-settings', perm: ['system_settings'] },
       { label: 'Fine Master', to: '/settings/fine-master', perm: ['fine_master'] },
       { label: 'Mess Deduction Master', to: '/settings/mess-deduction', perm: ['mess_deduction'] },
-      { label: 'User Management', to: '/settings/user-management', perm: ['user_management'] },
-      { label: 'Menu Permission', to: '/settings/menu-permission', perm: ['menu_permission'] },
+      { label: 'User Management', to: '/settings/user-management', perm: ['user_management'], hideForRole: 'DEVELOPER' },
+      { label: 'Menu Permission', to: '/settings/menu-permission', perm: ['menu_permission'], hideForRole: 'DEVELOPER' },
     ],
   },
   {
@@ -180,6 +182,7 @@ const Layout = () => {
   }, []);
 
   const canSee = (item: NavChild) => {
+    if (item.hideForRole && user?.role === item.hideForRole) return false;
     if (item.role) return user?.role === item.role;
     if (!item.perm) return true;
     return !permissions || item.perm.some((key) => permissions[key] === true);
