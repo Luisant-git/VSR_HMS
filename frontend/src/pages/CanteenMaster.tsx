@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
 import { CanteenAPI } from '../api/canteen.api';
+import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Pagination } from '../components/Pagination';
 import { CanteenSupplierPayments } from '../components/CanteenSupplierPayments';
@@ -32,12 +33,10 @@ export default function CanteenMaster() {
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.role) {
-          import('../api/menuPermission.api').then(({ MenuPermissionAPI }) => {
-            MenuPermissionAPI.getByRole(payload.role).then(res => {
-              if (res) {
-                setPermissions(res.permissions || res);
-              }
-            });
+          MenuPermissionAPI.getByRole(payload.role).then(res => {
+            if (res) {
+              setPermissions(res.permissions || res);
+            }
           });
         }
       }
