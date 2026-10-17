@@ -112,6 +112,21 @@ const MenuPermission = () => {
     });
   };
 
+  // User Management / Menu Permission are Developer menus, so they stay out of the Settings
+  // group here for every role and are listed in the Developer group instead.
+  const isDeveloperRole = selectedRole === 'DEVELOPER';
+
+  const settingsModules = [
+    { id: 'fine_master', label: 'Fine Master' },
+    { id: 'mess_deduction', label: 'Mess Deduction Master' },
+    { id: 'system_settings', label: 'System Settings' },
+  ];
+
+  const developerModules = [
+    { id: 'user_management', label: 'User Management' },
+    { id: 'menu_permission', label: 'Menu Permission' },
+  ];
+
   return (
     <div style={{ paddingBottom: '40px' }}>
       <PageHeader 
@@ -168,6 +183,8 @@ const MenuPermission = () => {
                               return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
                             }
 
+                            const isDevRole = role === 'DEVELOPER';
+
                             const parentCats = [
                               { name: 'Dashboard', keys: ['dashboard'] },
                               { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'mess_attendance_reports'] },
@@ -175,7 +192,9 @@ const MenuPermission = () => {
                               { name: 'Staff', keys: ['staff_master', 'staff_attendance', 'staff_salary'] },
                               { name: 'Canteen', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'] },
                               { name: 'College Master', keys: ['colleges'] },
-                              { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'] }
+                              // User Management / Menu Permission belong to the Developer role only
+                              { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'system_settings'] },
+                              ...(isDevRole ? [{ name: 'Developer', keys: ['user_management', 'menu_permission'] }] : [])
                             ];
 
                             const activeParents = parentCats.filter(cat => cat.keys.some(k => perm.permissions[k] === true));
@@ -393,17 +412,11 @@ const MenuPermission = () => {
                 {/* Settings */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'].every(id => editData[id])} onChange={() => toggleGroup(['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <input type="checkbox" checked={settingsModules.every(m => editData[m.id])} onChange={() => toggleGroup(settingsModules.map(m => m.id))} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                     <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Settings</span>
                   </label>
                   <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {[
-                      { id: 'fine_master', label: 'Fine Master' },
-                      { id: 'mess_deduction', label: 'Mess Deduction Master' },
-                      { id: 'user_management', label: 'User Management' },
-                      { id: 'menu_permission', label: 'Menu Permission' },
-                      { id: 'system_settings', label: 'System Settings' }
-                    ].map(module => (
+                    {settingsModules.map(module => (
                       <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                         <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
@@ -411,6 +424,30 @@ const MenuPermission = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Developer (DEVELOPER role only) */}
+                {isDeveloperRole && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={developerModules.every(m => editData[m.id])} onChange={() => toggleGroup(developerModules.map(m => m.id))} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Developer</span>
+                    </label>
+                    <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'not-allowed', opacity: 0.65 }}>
+                        <input type="checkbox" checked disabled style={{ width: '16px', height: '16px', accentColor: '#0066ff', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>
+                          System Truncate <span style={{ color: '#94a3b8', fontSize: '12px' }}>(always available to Developer)</span>
+                        </span>
+                      </label>
+                      {developerModules.map(module => (
+                        <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                          <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>
