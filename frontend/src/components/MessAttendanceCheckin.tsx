@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Coffee, CheckCircle2, UtensilsCrossed, Pizza, Soup, Clock, Check, AlertCircle } from 'lucide-react';
 import { MessAttendanceAPI } from '../api/mess-attendance.api';
+import { LoadingBlock } from './LoadingSpinner';
 
 interface MessAttendanceCheckinProps {
   studentId: string;
@@ -103,11 +104,7 @@ export const MessAttendanceCheckin: React.FC<MessAttendanceCheckinProps> = ({ st
   };
 
   if (loading) {
-    return (
-      <div style={{ padding: '30px 20px', textAlign: 'center', color: '#64748b', fontSize: '14px', fontWeight: 500 }}>
-        Loading meal schedule...
-      </div>
-    );
+    return <LoadingBlock text="Loading meal schedule..." padding="30px 20px" />;
   }
 
   const now = new Date();

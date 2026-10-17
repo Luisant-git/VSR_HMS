@@ -9,6 +9,7 @@ import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
+import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 
 const formatInvoiceNumber = (fee: any) => {
@@ -204,7 +205,7 @@ const StudentProfile = () => {
   }, [id]);
 
   if (!student) {
-    return <div className="sp-loading">Loading Profile...</div>;
+    return <LoadingBlock text="Loading Profile..." />;
   }
 
   const renderDocPreview = (url: string, alt: string) => {

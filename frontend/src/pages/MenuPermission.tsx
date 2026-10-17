@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { toast } from 'react-toastify';
 import { ShieldCheck } from 'lucide-react';
@@ -132,11 +133,7 @@ const MenuPermission = () => {
             </thead>
             <tbody>
               {fetching ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                    Loading...
-                  </td>
-                </tr>
+                <LoadingRow colSpan={6} />
               ) : error ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>

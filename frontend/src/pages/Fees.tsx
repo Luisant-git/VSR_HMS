@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { LoadingRow } from '../components/LoadingSpinner';
 
 const formatInvoiceNumber = (fee: any) => {
   const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
@@ -23,6 +24,7 @@ const Fees = () => {
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<any>({
     value: studentParam || 'ALL',
@@ -46,7 +48,7 @@ const Fees = () => {
     }).catch(err => {
       console.error(err);
       setError('Failed to load fees');
-    });
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -382,6 +384,10 @@ const Fees = () => {
               </tr>
             </thead>
             <tbody>
+              {loading ? (
+                <LoadingRow colSpan={14} />
+              ) : (
+                <>
               {paginatedFees.map((fee: any) => (
                 <tr key={fee.id} className={fee.status === 'PENDING' ? 'ui-row-pending' : ''}>
                   <td className="ui-cell-link">
@@ -460,6 +466,8 @@ const Fees = () => {
                 <tr>
                   <td colSpan={14} className="ui-empty">No fee transactions found.</td>
                 </tr>
+              )}
+                </>
               )}
             </tbody>
           </table>

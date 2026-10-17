@@ -6,6 +6,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { LoadingBlock } from '../components/LoadingSpinner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -17,13 +18,16 @@ const Dashboard = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [missingLogs, setMissingLogs] = useState<any[]>([]);
   const [outpasses, setOutpasses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    RoomAPI.findAll().then(setDbRooms).catch(console.error);
-    FeesAPI.findAll().then(setFees).catch(console.error);
-    StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error);
-    gateLogApi.getMissing().then(res => setMissingLogs(Array.isArray(res) ? res : (res.data || []))).catch(console.error);
-    OutpassAPI.findAll().then(res => setOutpasses(res.data)).catch(console.error);
+    Promise.allSettled([
+      RoomAPI.findAll().then(setDbRooms).catch(console.error),
+      FeesAPI.findAll().then(setFees).catch(console.error),
+      StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error),
+      gateLogApi.getMissing().then(res => setMissingLogs(Array.isArray(res) ? res : (res.data || []))).catch(console.error),
+      OutpassAPI.findAll().then(res => setOutpasses(res.data)).catch(console.error),
+    ]).then(() => setLoading(false));
   }, []);
 
   const roomsData = dbRooms.map(r => ({
@@ -105,6 +109,14 @@ const Dashboard = () => {
       alert(error.message || "Failed to check in");
     }
   };
+
+  if (loading) {
+    return (
+      <div className="ui-page ui-stack">
+        <LoadingBlock text="Loading dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="ui-page ui-stack">

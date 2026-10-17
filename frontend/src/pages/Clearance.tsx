@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { UserMinus, AlertCircle, CheckCircle2, IndianRupee, FileText } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingBlock } from '../components/LoadingSpinner';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { ClearanceAPI } from '../api/clearance.api';
@@ -42,7 +43,7 @@ const Clearance = () => {
   }
 
   if (!student) {
-    return <div className="ui-page"><div className="ui-empty">Loading student data...</div></div>;
+    return <div className="ui-page"><LoadingBlock text="Loading student data..." /></div>;
   }
 
   const advanceHeld = student.advance || 0;

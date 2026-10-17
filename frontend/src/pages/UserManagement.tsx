@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, SquarePen, CheckCircle, XCircle, X, Trash2, Users, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { UserAPI } from '../api/user.api';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
@@ -164,11 +165,7 @@ const UserManagement = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={5} className="ui-table-state">
-                  Loading...
-                </td>
-              </tr>
+              <LoadingRow colSpan={5} />
             ) : error ? (
               <tr>
                 <td colSpan={5}>

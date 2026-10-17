@@ -3,6 +3,7 @@ import { Search, X, FileSpreadsheet, Package, RefreshCw } from 'lucide-react';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { KitchenAPI } from '../api/kitchen.api';
 import { formatDateDMY } from '../utils/date';
 
@@ -282,11 +283,7 @@ export default function KitchenStockReport() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                    <RefreshCw size={20} className="spin" style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Loading...
-                  </td>
-                </tr>
+                <LoadingRow colSpan={6} />
               ) : pagedData.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: '50px', textAlign: 'center', color: '#94a3b8' }}>

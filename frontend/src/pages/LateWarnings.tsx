@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 import { AlertTriangle, CheckCircle2, X, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { gateLogApi } from '../api/gatelog.api';
 import { toast } from 'react-toastify';
 
@@ -150,7 +151,7 @@ const LateWarnings = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="ui-empty">Loading...</td></tr>
+                <LoadingRow colSpan={6} />
               ) : error ? (
                 <tr>
                   <td colSpan={6} className="ui-empty ui-empty--danger">

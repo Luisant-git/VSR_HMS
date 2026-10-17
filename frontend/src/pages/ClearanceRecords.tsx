@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow, LoadingBlock } from '../components/LoadingSpinner';
 import { ClearanceAPI } from '../api/clearance.api';
 import { StudentAPI } from '../api/student.api';
 import { useNavigate } from 'react-router-dom';
@@ -99,9 +100,7 @@ const ClearanceRecords = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="ui-empty">Loading records...</td>
-                </tr>
+                <LoadingRow colSpan={7} text="Loading records..." />
               ) : error ? (
                 <tr>
                   <td colSpan={7} className="ui-empty ui-empty--danger">{error}</td>
@@ -146,7 +145,7 @@ const ClearanceRecords = () => {
             <div className="ui-modal-body">
               <div className="cr-modal-hint">Select a student from the dropdown below to proceed with their clearance process.</div>
               {isSearching ? (
-                <div className="ui-empty">Loading students...</div>
+                <LoadingBlock text="Loading students..." />
               ) : (
                 <Select 
                   options={studentOptions}

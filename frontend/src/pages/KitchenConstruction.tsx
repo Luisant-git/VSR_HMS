@@ -10,6 +10,7 @@ import Swal from 'sweetalert2';
 import { KitchenAPI } from '../api/kitchen.api';
 import { Pagination } from '../components/Pagination';
 import { SearchableSelect, type SelectOption } from '../components/SearchableSelect';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { formatDateDMY } from '../utils/date';
 import * as XLSX from 'xlsx';
 
@@ -862,11 +863,7 @@ export default function KitchenConstruction() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite' }} /> Loading...
-                  </td>
-                </tr>
+                <LoadingRow colSpan={10} />
               ) : paginatedData.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', padding: '50px', color: '#94a3b8' }}>
@@ -1033,11 +1030,6 @@ export default function KitchenConstruction() {
 
       {/* Spin animation */}
       <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;

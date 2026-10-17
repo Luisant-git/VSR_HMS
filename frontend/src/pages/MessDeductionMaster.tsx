@@ -3,6 +3,7 @@ import { Save, FileText } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { MessDeductionAPI } from '../api/mess-deduction.api';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingBlock } from '../components/LoadingSpinner';
 
 const MessDeductionMaster = () => {
   const [threshold, setThreshold] = useState<number>(15);
@@ -32,6 +33,12 @@ const MessDeductionMaster = () => {
       toast.error('Failed to update settings');
     }
   };
+
+  if (loading) return (
+    <div className="ui-page">
+      <LoadingBlock text="Loading settings..." />
+    </div>
+  );
 
   return (
     <div className="ui-page">

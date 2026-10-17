@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Calculator, History, X } from 'lucide-react';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingBlock } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
 import { EbBillsAPI } from '../api/eb-bill.api';
 import { toast } from 'react-toastify';
@@ -245,7 +246,7 @@ const EbBills = () => {
           
           <div className="table-responsive" style={{ flex: 1, overflowX: 'auto' }}>
             {isLoading ? (
-               <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>Loading history...</div>
+               <LoadingBlock text="Loading history..." padding="20px" />
             ) : error ? (
                <div style={{ padding: '20px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
             ) : (

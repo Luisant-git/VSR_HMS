@@ -3,6 +3,7 @@ import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, Layo
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
+import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 
 const RoomsDirectory = () => {
@@ -252,7 +253,7 @@ const RoomsDirectory = () => {
       </div>
 
       {isLoading ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading...</div>
+        <LoadingBlock />
       ) : error ? (
         <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
       ) : (
@@ -261,6 +262,9 @@ const RoomsDirectory = () => {
         <div style={{ marginBottom: '30px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+            {filteredGridData.length === 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No entries found</div>
+            )}
             {filteredGridData.map((r, i) => (
 
               <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -378,6 +382,11 @@ const RoomsDirectory = () => {
                 </tr>
               </thead>
               <tbody>
+                {filteredTableData.length === 0 && (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No entries found</td>
+                  </tr>
+                )}
                 {filteredTableData.map((row, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
@@ -407,7 +416,7 @@ const RoomsDirectory = () => {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>Showing {(page - 1) * limit + 1} to {Math.min(page * limit, filteredTableDataRaw.length)} of {filteredTableDataRaw.length} entries</span>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>{filteredTableDataRaw.length === 0 ? 'Showing 0 of 0 entries' : `Showing ${(page - 1) * limit + 1} to ${Math.min(page * limit, filteredTableDataRaw.length)} of ${filteredTableDataRaw.length} entries`}</span>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f8f9fa' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>Prev</button>
               <button onClick={() => setPage(p => Math.min(totalTablePages, p + 1))} disabled={page === totalTablePages} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === totalTablePages ? '#f8f9fa' : 'white', color: page === totalTablePages ? '#94a3b8' : '#334155', cursor: page === totalTablePages ? 'not-allowed' : 'pointer' }}>Next</button>

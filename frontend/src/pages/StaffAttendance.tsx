@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { StaffAPI, type StaffAttendanceItem, type StaffMember } from '../api/staff.api';
 import { getRoleBadgeStyle } from './StaffMaster';
 import { formatDateDMY } from '../utils/date';
@@ -552,11 +553,7 @@ export default function StaffAttendance() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={7} className="ui-table-state">
-                  Loading Attendance Roster...
-                </td>
-              </tr>
+              <LoadingRow colSpan={7} text="Loading Attendance Roster..." />
             ) : paginatedRoster.length === 0 ? (
               <tr>
                 <td colSpan={7}>
@@ -811,7 +808,7 @@ export default function StaffAttendance() {
               </thead>
               <tbody>
                 {historyLoading ? (
-                  <tr><td colSpan={8} className="ui-table-state">Loading logs...</td></tr>
+                  <LoadingRow colSpan={8} text="Loading logs..." />
                 ) : historyRecords.length === 0 ? (
                   <tr>
                     <td colSpan={8}>

@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { CanteenAPI } from '../api/canteen.api';
 import { SearchableSelect } from './SearchableSelect';
 import { Pagination } from './Pagination';
+import { LoadingRow } from './LoadingSpinner';
 import { formatDateDMY } from '../utils/date';
 
 interface CanteenSupplierPaymentsProps {
@@ -606,7 +607,7 @@ export const CanteenSupplierPayments: React.FC<CanteenSupplierPaymentsProps> = (
               </thead>
               <tbody>
                 {historyLoading ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: '#64748B' }}>Loading history...</td></tr>
+                  <LoadingRow colSpan={6} text="Loading history..." />
                 ) : paginatedHistory.length === 0 ? (
                   <tr><td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: '#64748B' }}>No payment records found.</td></tr>
                 ) : (

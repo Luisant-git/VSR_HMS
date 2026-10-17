@@ -11,6 +11,7 @@ import { CanteenAPI } from '../api/canteen.api';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Pagination } from '../components/Pagination';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { CanteenSupplierPayments } from '../components/CanteenSupplierPayments';
 import * as XLSX from 'xlsx';
 interface PurchaseItemRow {
@@ -30,6 +31,16 @@ const getPaymentModeChipStyle = (name?: string): React.CSSProperties => {
   if (key.includes('cash')) return { background: '#dcfce7', color: '#15803d' };
   if (key.includes('credit')) return { background: '#fee2e2', color: '#b91c1c' };
   return { background: '#e0f2fe', color: '#0369a1' };
+};
+
+// Column count of the masters table for each tab. All five master tabs share one
+// table, so the loading row needs to know how wide the active tab is.
+const MASTER_TABLE_COLUMNS: Record<string, number> = {
+  products: 8,
+  categories: 3,
+  units: 3,
+  suppliers: 4,
+  'payment-modes': 3,
 };
 
 export default function CanteenMaster() {
@@ -945,8 +956,14 @@ export default function CanteenMaster() {
                   </tr>
                 </thead>
                 <tbody>
+                  {loading && <LoadingRow colSpan={MASTER_TABLE_COLUMNS[activeTab] ?? 3} />}
+                  {!loading && getActiveTabData().paginatedList.length === 0 && (
+                    <tr>
+                      <td colSpan={MASTER_TABLE_COLUMNS[activeTab] ?? 3} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No entries found</td>
+                    </tr>
+                  )}
                   {/* Products List */}
-                  {activeTab === 'products' && getActiveTabData().paginatedList.map((p, idx) => (
+                  {!loading && activeTab === 'products' && getActiveTabData().paginatedList.map((p, idx) => (
                     <tr key={p.id} style={{ borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? '#F9F9F9' : '#FFFFFF' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700 }}>{p.code || '-'}</td>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{p.name}</td>
@@ -972,7 +989,7 @@ export default function CanteenMaster() {
                   ))}
 
                   {/* Categories List */}
-                  {activeTab === 'categories' && getActiveTabData().paginatedList.map((c, idx) => (
+                  {!loading && activeTab === 'categories' && getActiveTabData().paginatedList.map((c, idx) => (
                     <tr key={c.id} style={{ borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? '#F9F9F9' : '#FFFFFF' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{c.name}</td>
                       <td style={{ padding: '10px 14px', color: '#64748B' }}>{c.description || '-'}</td>
@@ -985,7 +1002,7 @@ export default function CanteenMaster() {
                   ))}
 
                   {/* Units List */}
-                  {activeTab === 'units' && getActiveTabData().paginatedList.map((u, idx) => (
+                  {!loading && activeTab === 'units' && getActiveTabData().paginatedList.map((u, idx) => (
                     <tr key={u.id} style={{ borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? '#F9F9F9' : '#FFFFFF' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{u.name}</td>
                       <td style={{ padding: '10px 14px', color: '#0369A1', fontWeight: 700 }}>{u.symbol || '-'}</td>
@@ -998,7 +1015,7 @@ export default function CanteenMaster() {
                   ))}
 
                   {/* Suppliers List */}
-                  {activeTab === 'suppliers' && getActiveTabData().paginatedList.map((s, idx) => (
+                  {!loading && activeTab === 'suppliers' && getActiveTabData().paginatedList.map((s, idx) => (
                     <tr key={s.id} style={{ borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? '#F9F9F9' : '#FFFFFF' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{s.name}</td>
                       <td style={{ padding: '10px 14px', color: '#475569' }}>{s.phone || '-'}</td>
@@ -1012,7 +1029,7 @@ export default function CanteenMaster() {
                   ))}
 
                   {/* Payment Modes List */}
-                  {activeTab === 'payment-modes' && getActiveTabData().paginatedList.map((pm, idx) => (
+                  {!loading && activeTab === 'payment-modes' && getActiveTabData().paginatedList.map((pm, idx) => (
                     <tr key={pm.id} style={{ borderBottom: '1px solid #E5E7EB', background: idx % 2 === 0 ? '#F9F9F9' : '#FFFFFF' }}>
                       <td style={{ padding: '10px 14px', fontWeight: 700, color: '#3B82F6' }}>{pm.name}</td>
                       <td style={{ padding: '10px 14px' }}>
@@ -1372,7 +1389,8 @@ export default function CanteenMaster() {
               </tr>
             </thead>
             <tbody>
-              {getPurchaseReportData().paginatedList.map(purc => (
+              {loading && <LoadingRow colSpan={7} />}
+              {!loading && getPurchaseReportData().paginatedList.map(purc => (
                 <tr key={purc.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0f172a' }}>{purc.invoiceNo}</td>
                   <td style={{ padding: '14px 18px', color: '#475569' }}>{new Date(purc.purchaseDate).toLocaleDateString('en-GB')}</td>
@@ -1389,7 +1407,7 @@ export default function CanteenMaster() {
                   </td>
                 </tr>
               ))}
-              {purchases.length === 0 && (
+              {!loading && purchases.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No purchase entries found. Click "Purchase Entry" tab to record a new purchase.</td>
                 </tr>

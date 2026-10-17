@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Plus, SquarePen, Trash2, AlertCircle, X, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { CollegeAPI } from '../api/college.api';
 import { rowBadgeVariant } from '../utils/badge';
 import { toast } from 'react-toastify';
@@ -274,7 +275,7 @@ const CollegeMaster = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="ui-table-state">Loading...</td></tr>
+              <LoadingRow colSpan={6} />
             ) : error ? (
               <tr><td colSpan={6}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
             ) : colleges.length === 0 ? (
@@ -336,7 +337,7 @@ const CollegeMaster = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="ui-table-state">Loading...</td></tr>
+              <LoadingRow colSpan={5} />
             ) : error ? (
               <tr><td colSpan={5}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
             ) : colleges.length === 0 ? (

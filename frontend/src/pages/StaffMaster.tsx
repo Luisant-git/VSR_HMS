@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { StaffAPI, type StaffMember } from '../api/staff.api';
 
 const STANDARD_ROLES = [
@@ -550,11 +551,7 @@ export default function StaffMaster() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={8} className="ui-table-state">
-                  Loading Staff Directory...
-                </td>
-              </tr>
+              <LoadingRow colSpan={8} text="Loading Staff Directory..." />
             ) : paginatedStaff.length === 0 ? (
               <tr>
                 <td colSpan={8}>

@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import StudentImport from './StudentImport';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -29,6 +30,7 @@ const Hostellers = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isUploadingImport, setIsUploadingImport] = useState(false);
 
   const [allRooms, setAllRooms] = useState<string[]>([]);
@@ -89,7 +91,7 @@ const Hostellers = () => {
     }).catch(err => {
       console.error(err);
       setError('Failed to load hostellers');
-    });
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -396,7 +398,9 @@ const Hostellers = () => {
                 </tr>
               </thead>
               <tbody>
-                {error ? (
+                {loading ? (
+                  <LoadingRow colSpan={9} />
+                ) : error ? (
                   <tr>
                     <td colSpan={9} className="ui-empty ui-empty-danger">
                       {error}

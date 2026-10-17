@@ -3,6 +3,7 @@ import { Coffee, Sun, Sunset, Moon, FileText, Search, X, FileSpreadsheet } from 
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingBlock } from '../components/LoadingSpinner';
 import { MessAttendanceAPI, type MessAttendanceReportItem } from '../api/mess-attendance.api';
 import { formatDateDMY } from '../utils/date';
 
@@ -108,7 +109,7 @@ export const MessAttendanceReport: React.FC = () => {
     XLSX.writeFile(workbook, 'Mess_Attendance_Export.xlsx');
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <LoadingBlock />;
 
   return (
     <div>

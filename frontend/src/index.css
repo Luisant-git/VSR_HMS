@@ -1307,6 +1307,19 @@ input:focus, select:focus, textarea:focus {
 
 @keyframes uiSpin { to { transform: rotate(360deg); } }
 
+/* ---------- Shared loading indicator (spinner + label) ---------- */
+.ui-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.ui-loading-icon { animation: uiSpin 0.8s linear infinite; flex-shrink: 0; }
+.ui-loading-block { display: flex; align-items: center; justify-content: center; text-align: center; }
+
 /* ---------- Badges / pills ---------- */
 .ui-badge {
   display: inline-flex;

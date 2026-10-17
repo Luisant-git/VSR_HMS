@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { StudentAPI } from '../api/student.api';
 import { MessAttendanceCheckin } from '../components/MessAttendanceCheckin';
 import { AlertCircle, LogOut, Calendar } from 'lucide-react';
+import { LoadingBlock } from '../components/LoadingSpinner';
 
 export default function PublicStudentId() {
   const { id } = useParams();
@@ -27,7 +28,7 @@ export default function PublicStudentId() {
   }, [id]);
 
   if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc' }}>Loading Digital ID...</div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f8fafc' }}><LoadingBlock text="Loading Digital ID..." padding="0" /></div>;
   }
 
   if (error || !student) {

@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { getSystemSettings, updateSystemSettings } from '../api/settings.api';
 import { Save, Settings } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingBlock } from '../components/LoadingSpinner';
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({
@@ -45,7 +46,7 @@ const SystemSettings = () => {
 
   if (loading) return (
     <div className="ui-page">
-      <div className="ui-empty">Loading settings...</div>
+      <LoadingBlock text="Loading settings..." />
     </div>
   );
 

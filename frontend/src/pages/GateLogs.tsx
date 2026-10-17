@@ -3,6 +3,7 @@ import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X } from 'lu
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { toast } from 'react-toastify';
@@ -25,6 +26,7 @@ const GateLogs = () => {
   const [movementType, setMovementType] = useState('EXIT');
   const [students, setStudents] = useState<any[]>([]);
   const [gateLogs, setGateLogs] = useState<any[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,8 @@ const GateLogs = () => {
     } catch (err) {
       console.error('Failed to fetch data', err);
       setError('Failed to load gate logs');
+    } finally {
+      setLoadingList(false);
     }
   };
 
@@ -519,7 +523,9 @@ const GateLogs = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {error ? (
+                  {loadingList ? (
+                    <LoadingRow colSpan={10} />
+                  ) : error ? (
                     <tr>
                       <td colSpan={10} style={{ textAlign: 'center', padding: '20px', color: '#ef4444' }}>{error}</td>
                     </tr>

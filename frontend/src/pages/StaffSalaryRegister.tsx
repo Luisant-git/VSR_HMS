@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
+import { LoadingRow } from '../components/LoadingSpinner';
 import {
   StaffSalaryAPI,
   type StaffSalaryItem,
@@ -513,11 +514,7 @@ export default function StaffSalaryRegister() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={12} className="ui-table-state">
-                  Loading Salary Disbursements...
-                </td>
-              </tr>
+              <LoadingRow colSpan={12} text="Loading Salary Disbursements..." />
             ) : salaries.length === 0 ? (
               <tr>
                 <td colSpan={12}>

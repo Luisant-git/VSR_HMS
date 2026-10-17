@@ -6,6 +6,7 @@ import { OutpassAPI } from '../api/outpass.api';
 import { MessDeductionAPI } from '../api/mess-deduction.api';
 import { PageHeader } from '../components/PageHeader';
 import Select from 'react-select';
+import { LoadingRow } from '../components/LoadingSpinner';
 
 const Outpass = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,6 +14,7 @@ const Outpass = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [outpasses, setOutpasses] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // Form State
   const [formData, setFormData] = useState({
@@ -41,7 +43,7 @@ const Outpass = () => {
     }).catch(err => {
       console.error(err);
       setError('Failed to load outpasses');
-    });
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -205,7 +207,9 @@ const Outpass = () => {
               </tr>
             </thead>
             <tbody>
-              {error ? (
+              {loading ? (
+                <LoadingRow colSpan={8} />
+              ) : error ? (
                 <tr>
                   <td colSpan={8} className="ui-empty ui-empty--danger">
                     {error}
