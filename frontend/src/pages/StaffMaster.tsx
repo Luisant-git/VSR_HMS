@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import {
-  Users, UserPlus, Search, Edit2, Trash2,
+  Users, UserPlus, Search, SquarePen, Trash2,
   X, Phone, DollarSign,
   ShieldCheck, RefreshCw, Check, Eye, Clock
 } from 'lucide-react';
@@ -630,9 +630,9 @@ export default function StaffMaster() {
                         <button
                           onClick={() => openEditModal(staff)}
                           title="Edit Staff Member"
-                          className="ui-btn ui-btn-icon"
+                          className="ui-btn ui-btn-icon is-primary"
                         >
-                          <Edit2 size={15} />
+                          <SquarePen size={15} />
                         </button>
                         <button
                           onClick={() => handleDelete(staff)}
@@ -836,9 +836,9 @@ export default function StaffMaster() {
       {viewingStaff && (
         <div className="ui-modal-overlay" onClick={() => setViewingStaff(null)}>
           <div className="ui-modal is-md" onClick={(e) => e.stopPropagation()}>
-            <div className="ui-modal-header">
+            <div className="ui-modal-header is-accent">
               <div className="sm-view-head">
-                <Users size={18} color="#38bdf8" />
+                <Users size={18} />
                 <span className="ui-modal-title">Staff Member Details</span>
               </div>
               <button
@@ -851,9 +851,6 @@ export default function StaffMaster() {
 
             <div className="ui-modal-body">
               <div className="ui-profile">
-                <div className="ui-avatar">
-                  {viewingStaff.name.charAt(0).toUpperCase()}
-                </div>
                 <div className="sm-profile-info">
                   <div className="sm-profile-name-row">
                     <h3 className="sm-profile-name">{viewingStaff.name}</h3>
@@ -872,9 +869,6 @@ export default function StaffMaster() {
                       }}
                     >
                       {viewingStaff.role}
-                    </span>
-                    <span className="sm-accent-code">
-                      {viewingStaff.staffCode}
                     </span>
                   </div>
                 </div>
@@ -937,18 +931,6 @@ export default function StaffMaster() {
                 className="ui-btn ui-btn-secondary"
               >
                 Close
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const s = viewingStaff;
-                  setViewingStaff(null);
-                  openEditModal(s);
-                }}
-                className="ui-btn ui-btn-primary"
-              >
-                <Edit2 size={14} />
-                <span>Edit Staff</span>
               </button>
             </div>
           </div>

@@ -586,11 +586,10 @@ export default function StaffSalaryRegister() {
                       <div className="sal-actions">
                         <button
                           onClick={() => openViewModal(item)}
-                          className="ui-btn ui-btn-secondary"
+                          className="ui-btn ui-btn-icon is-info"
                           title="View Details"
                         >
                           <Eye size={14} />
-                          <span>View</span>
                         </button>
                         <button
                           onClick={() => handleDeleteRecord(item)}
@@ -849,7 +848,7 @@ export default function StaffSalaryRegister() {
         <div className="ui-modal-overlay" onClick={() => setViewModalOpen(false)}>
           <div className="ui-modal is-md" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="ui-modal-header">
+            <div className="ui-modal-header is-accent">
               <div>
                 <span className="ui-modal-title">Salary Disbursement Details</span>
                 <div className="ui-modal-subtitle">
