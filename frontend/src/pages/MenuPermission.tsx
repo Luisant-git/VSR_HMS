@@ -170,13 +170,11 @@ const MenuPermission = () => {
 
                             const parentCats = [
                               { name: 'Dashboard', keys: ['dashboard'] },
-                              { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'] },
+                              { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'mess_attendance_reports'] },
                               { name: 'Rooms', keys: ['hostel_blocks', 'rooms_master', 'eb_bills'] },
+                              { name: 'Staff', keys: ['staff_master', 'staff_attendance', 'staff_salary'] },
+                              { name: 'Canteen', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'] },
                               { name: 'College Master', keys: ['colleges'] },
-                              { name: 'Mess Attendance Reports', keys: ['mess_attendance_reports'] },
-                              { name: 'Kitchen Construction', keys: ['kitchen_construction'] },
-                              { name: 'Stock Report', keys: ['stock_report'] },
-                              { name: 'Canteen Master', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'] },
                               { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'] }
                             ];
 
@@ -273,7 +271,7 @@ const MenuPermission = () => {
                 {/* Hostellers */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'].every(id => editData[id])} onChange={() => toggleGroup(['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <input type="checkbox" checked={['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'mess_attendance_reports'].every(id => editData[id])} onChange={() => toggleGroup(['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'mess_attendance_reports'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                     <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Hostellers</span>
                   </label>
                   <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -285,6 +283,7 @@ const MenuPermission = () => {
                       { id: 'late_warnings', label: 'Late Warnings' },
                       { id: 'clearance', label: 'Clearance' },
                       { id: 'fees', label: 'Fees & Payments' },
+                      { id: 'mess_attendance_reports', label: 'Mess Attendance Reports' },
                     ].map(module => (
                       <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
@@ -314,52 +313,33 @@ const MenuPermission = () => {
                   </div>
                 </div>
 
-                {/* Master */}
+                {/* Staff */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'].every(id => editData[id])} onChange={() => toggleGroup(['colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Master</span>
+                    <input type="checkbox" checked={['staff_master', 'staff_attendance', 'staff_salary'].every(id => editData[id])} onChange={() => toggleGroup(['staff_master', 'staff_attendance', 'staff_salary'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Staff</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'staff_master', label: 'Staff Master' },
+                      { id: 'staff_attendance', label: 'Staff Gate In / Out' },
+                      { id: 'staff_salary', label: 'Staff Salary Register' },
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Canteen */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'].every(id => editData[id])} onChange={() => toggleGroup(['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Canteen</span>
                   </label>
                   <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editData['colleges'] || false} onChange={() => togglePermission('colleges')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>College Master</span>
-                    </label>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                        <input type="checkbox" checked={['staff_master', 'staff_attendance', 'staff_salary'].every(id => editData[id])} onChange={() => toggleGroup(['staff_master', 'staff_attendance', 'staff_salary'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                        <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Staff</span>
-                      </label>
-                      <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {[
-                          { id: 'staff_master', label: 'Staff Master' },
-                          { id: 'staff_attendance', label: 'Staff Gate In / Out' },
-                          { id: 'staff_salary', label: 'Staff Salary Register' },
-                        ].map(module => (
-                          <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                            <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                            <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editData['mess_attendance_reports'] || false} onChange={() => togglePermission('mess_attendance_reports')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Mess Attendance Reports</span>
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editData['kitchen_construction'] || false} onChange={() => togglePermission('kitchen_construction')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Kitchen Construction</span>
-                    </label>
-
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={editData['stock_report'] || false} onChange={() => togglePermission('stock_report')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
-                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Stock Report</span>
-                    </label>
-
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                         <input type="checkbox" checked={['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'].every(id => editData[id])} onChange={() => toggleGroup(['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
@@ -383,6 +363,30 @@ const MenuPermission = () => {
                         ))}
                       </div>
                     </div>
+
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['kitchen_construction'] || false} onChange={() => togglePermission('kitchen_construction')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Kitchen Construction</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['stock_report'] || false} onChange={() => togglePermission('stock_report')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Stock Report</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Master */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['colleges'].every(id => editData[id])} onChange={() => toggleGroup(['colleges'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Master</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['colleges'] || false} onChange={() => togglePermission('colleges')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>College Master</span>
+                    </label>
                   </div>
                 </div>
 

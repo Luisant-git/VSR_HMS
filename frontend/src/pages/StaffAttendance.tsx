@@ -369,7 +369,7 @@ export default function StaffAttendance() {
     <div className="ui-page">
       {/* PageHeader matching Hostellers.tsx */}
       <PageHeader
-        title="Staff Gate In / Out Daily Attendance"
+        title="Staff Gate In / Out"
         subtitle={`Record duty check-in/out timestamps and monitor staff presence for ${formatDisplayDate(selectedDate)}`}
         showBack={true}
         icon={<Clock size={24} color="#fff" />} iconBg="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"

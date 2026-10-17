@@ -360,7 +360,7 @@ export default function StaffSalaryRegister() {
     <div className="ui-page">
       {/* Page Header */}
       <PageHeader
-        title="Salary Management"
+        title="Staff Salary Register"
         subtitle="Manage staff salaries, wages, overtime bonus, and track monthly disbursements."
         showBack={true}
         icon={<Banknote size={24} color="#fff" />} iconBg="linear-gradient(135deg, #10b981 0%, #059669 100%)"

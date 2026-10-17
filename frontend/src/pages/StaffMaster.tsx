@@ -375,7 +375,7 @@ export default function StaffMaster() {
     <div className="ui-page">
       {/* PageHeader matching Hostellers.tsx */}
       <PageHeader
-        title="Hostel Staff Master"
+        title="Staff Master"
         subtitle="Manage wardens, security guards, canteen staff, housekeeping & payroll details"
         showBack={true}
         icon={<Users size={24} color="#fff" />} iconBg="linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)"

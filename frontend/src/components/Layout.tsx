@@ -80,7 +80,7 @@ const Layout = () => {
             </NavLink>
           )}
 
-          {(!permissions || permissions.hostellers === true || permissions.student_register === true) && (
+          {(!permissions || permissions.hostellers === true || permissions.student_register === true || permissions.gate_logs === true || permissions.outpass === true || permissions.late_warnings === true || permissions.clearance === true || permissions.fees === true || permissions.mess_attendance_reports === true) && (
             <div className="nav-section">HOSTELLERS</div>
           )}
 
@@ -133,6 +133,13 @@ const Layout = () => {
             </NavLink>
           )}
 
+          {(!permissions || permissions.mess_attendance_reports === true) && (
+            <NavLink to="/mess-attendance-reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><FileText size={18} /></div>
+              Mess Attendance Reports
+            </NavLink>
+          )}
+
           {(!permissions || permissions.hostel_blocks === true || permissions.rooms_master === true || permissions.eb_bills === true) && (
             <div className="nav-section">ROOMS</div>
           )}
@@ -158,14 +165,8 @@ const Layout = () => {
             </NavLink>
           )}
 
-          {(!permissions || permissions.colleges === true || permissions.staff_master === true || permissions.staff_attendance === true || permissions.staff_salary === true || permissions.canteen_master === true || permissions.mess_attendance_reports === true) && (
-            <div className="nav-section">MASTER</div>
-          )}
-          {(!permissions || permissions.colleges === true) && (
-            <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Building2 size={18} /></div>
-              College Master
-            </NavLink>
+          {(!permissions || permissions.staff_master === true || permissions.staff_attendance === true || permissions.staff_salary === true) && (
+            <div className="nav-section">STAFF</div>
           )}
           {(!permissions || permissions.staff_master === true) && (
             <NavLink to="/staff" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -185,31 +186,36 @@ const Layout = () => {
               Staff Salary Register
             </NavLink>
           )}
+
+          {(!permissions || permissions.canteen_master === true || permissions.canteen_products === true || permissions.canteen_categories === true || permissions.canteen_units === true || permissions.canteen_suppliers === true || permissions.canteen_payment_modes === true || permissions.canteen_purchase_entry === true || permissions.canteen_purchase_reports === true || permissions.canteen_supplier_payments === true || permissions.kitchen_construction === true || permissions.stock_report === true) && (
+            <div className="nav-section">CANTEEN</div>
+          )}
           {(!permissions || permissions.canteen_master === true || permissions.canteen_products === true || permissions.canteen_categories === true || permissions.canteen_units === true || permissions.canteen_suppliers === true || permissions.canteen_payment_modes === true || permissions.canteen_purchase_entry === true || permissions.canteen_purchase_reports === true || permissions.canteen_supplier_payments === true) && (
             <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Utensils size={18} /></div>
               Canteen Master
             </NavLink>
           )}
-
-          {(!permissions || permissions.mess_attendance_reports === true) && (
-            <NavLink to="/mess-attendance-reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Mess Attendance Reports
-            </NavLink>
-          )}
-
           {(!permissions || permissions.kitchen_construction === true) && (
             <NavLink to="/kitchen-construction" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Utensils size={18} /></div>
               Kitchen Construction
             </NavLink>
           )}
-
           {(!permissions || permissions.stock_report === true) && (
             <NavLink to="/kitchen-stock-report" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <div className="nav-icon"><Package size={18} /></div>
               Stock Report
+            </NavLink>
+          )}
+
+          {(!permissions || permissions.colleges === true) && (
+            <div className="nav-section">MASTER</div>
+          )}
+          {(!permissions || permissions.colleges === true) && (
+            <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon"><Building2 size={18} /></div>
+              College Master
             </NavLink>
           )}
 
