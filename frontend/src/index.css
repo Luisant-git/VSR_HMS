@@ -72,6 +72,8 @@ input, select, textarea { font-family: inherit; }
 .app-layout {
   display: flex;
   height: 100vh;
+  /* Use the real visible viewport on mobile so the bottom of the page is reachable */
+  height: 100dvh;
 }
 
 /* Sidebar */
@@ -222,6 +224,10 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   padding: 20px 28px 32px 28px;
 }
 
@@ -799,6 +805,7 @@ input:focus, select:focus, textarea:focus {
     top: 0;
     left: -270px; /* Hidden by default */
     height: 100vh;
+    height: 100dvh;
     z-index: 1000;
     transition: left 0.3s ease;
     box-shadow: 2px 0 10px rgba(0,0,0,0.2);
@@ -1179,6 +1186,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .ui-select { cursor: pointer; }
+
+/* Selects sitting inline in a toolbar/filter bar must size to their content.
+   The base `.ui-select { width: 100% }` made each dropdown claim a full line
+   inside `.ui-toolbar`, which pushed the filter bar onto several rows. */
+.ui-toolbar .ui-select { width: auto; max-width: 100%; }
 .ui-textarea { resize: vertical; min-height: 88px; }
 .ui-input-sm, .ui-select-sm { padding: 6px 8px; font-size: 13px; border-radius: var(--radius-sm); }
 .ui-input--inline { width: auto; padding: 8px 12px; font-size: 13px; }
@@ -2528,4 +2540,49 @@ textarea.ui-form-control { resize: vertical; }
 }
 @media (max-width: 480px) {
   .cards-row { grid-template-columns: 1fr; }
+}
+
+/* ---------- Shared page header (icon badge + title) ----------
+   The badge must sit BEFORE the heading, on the same row and level with the
+   first line of the title. Using `center` made the badge drift down next to
+   the middle of a multi-line title, so on phones the heading looked like it
+   came first and the icon after it. `flex-start` keeps the icon on top-left,
+   immediately before the heading. */
+.page-header-id {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.page-header-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  /* keep the icon level with the first line of the heading */
+  margin-top: 1px;
+  box-shadow: 0 4px 12px rgba(74, 114, 250, 0.25);
+}
+
+.page-header-text { min-width: 0; }
+
+.page-header-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .page-header-main { width: 100%; }
+  .page-header-id { flex: 1 1 auto; }
+  /* Phones: hide the header icon badge entirely so the heading gets the
+     full width (declared after the base rule so it wins over display:flex !important) */
+  .page-header-badge { display: none !important; }
+  /* Keep the header compact on phones so more page content is visible */
+  .page-header-sub {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

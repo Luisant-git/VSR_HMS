@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import {
   ChefHat, Plus, Trash2, Search, Edit, X, Download,
-  Package, AlertTriangle, RefreshCw, Eye
+  Package, AlertTriangle, RefreshCw, Eye, ArrowLeft
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { KitchenAPI } from '../api/kitchen.api';
@@ -64,6 +65,8 @@ interface Consumption {
 // ---------- View-modal building blocks (module scope so they don't remount) ----------
 
 export default function KitchenConstruction() {
+  const navigate = useNavigate();
+
   // Data
   const [products, setProducts] = useState<Product[]>([]);
   const [consumptions, setConsumptions] = useState<Consumption[]>([]);
@@ -506,8 +509,19 @@ export default function KitchenConstruction() {
       {/* Page Header */}
       <div style={{ ...cardStyle, marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              padding: '8px 12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
+              background: 'white', border: '1px solid #cbd5e1', color: '#475569',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.02)', whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+          >
+            <ArrowLeft size={18} /> Back
+          </button>
           <div style={{
-            width: '48px', height: '48px', borderRadius: '12px',
+            width: '48px', height: '48px', borderRadius: '12px', flexShrink: 0,
             background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',

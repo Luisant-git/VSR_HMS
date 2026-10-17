@@ -361,7 +361,7 @@ export default function StaffSalaryRegister() {
       <PageHeader
         title="Salary Management"
         subtitle="Manage staff salaries, wages, overtime bonus, and track monthly disbursements."
-        showBack={false}
+        showBack={true}
         icon={<Banknote size={24} color="#fff" />} iconBg="linear-gradient(135deg, #10b981 0%, #059669 100%)"
         rightContent={
           <button

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X, ArrowLeft } from 'lucide-react';
+import { Clock, LogIn, LogOut, CheckCircle2, Search, AlertTriangle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
@@ -199,13 +199,10 @@ const GateLogs = () => {
       <PageHeader
         title="Gate In / Out Movement Tracking"
         subtitle="Record real-time gate exits and entries for hostel students"
-        showBack={false}
+        showBack={true}
         icon={<LogIn size={24} color="#fff" />} iconBg="linear-gradient(135deg, #334155 0%, #0f172a 100%)"
         rightContent={
           <>
-            <button onClick={() => navigate(-1)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }} onMouseOver={(e) => e.currentTarget.style.background = '#f8f9fa'} onMouseOut={(e) => e.currentTarget.style.background = 'white'}>
-               <ArrowLeft size={16} /> Back
-            </button>
             <button onClick={() => navigate('/late-warnings')} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: '#e11d48', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(225, 29, 72, 0.3)' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 15px rgba(225, 29, 72, 0.4)'; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(225, 29, 72, 0.3)'; }}>
               <AlertTriangle size={16} /> Check Missing Alerts
             </button>

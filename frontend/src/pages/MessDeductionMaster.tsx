@@ -38,7 +38,7 @@ const MessDeductionMaster = () => {
       <PageHeader
         title="Mess Deduction Master"
         subtitle="Configure the outpass duration rules for mess fee deductions"
-        showBack={false}
+        showBack={true}
         icon={<FileText size={24} color="#fff" />} iconBg="linear-gradient(135deg, #78716c 0%, #57534e 100%)"
       />
 

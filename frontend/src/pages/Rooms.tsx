@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { RoomAPI } from '../api/room.api';
 import { Bed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PageHeader } from '../components/PageHeader';
 
 const Rooms = () => {
   const navigate = useNavigate();
@@ -27,10 +28,14 @@ const Rooms = () => {
 
 
   return (
-    <div>
-      <div className="card-header" style={{ marginBottom: '20px' }}>
-        <div className="card-title">Hostel Blocks</div>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Hostel Blocks"
+        subtitle="All hostel blocks and their room counts"
+        showBack={true}
+        icon={<Bed size={24} color="#fff" />}
+        iconBg="linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)"
+      />
       <div className="cards-row">
         {roomBlocks.map((block, i) => (
           <div key={i} className={`metric-card ${block.style}`} style={{ cursor: 'pointer' }} onClick={() => navigate(`/rooms/${block.name.replace(' ', '-')}`)}>

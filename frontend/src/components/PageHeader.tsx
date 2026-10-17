@@ -24,7 +24,7 @@ export const PageHeader = ({
 
   return (
     <div className="card-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flexWrap: 'wrap', rowGap: '10px' }}>
+      <div className="page-header-main" style={{ display: 'flex', alignItems: 'center', minWidth: 0, flexWrap: 'wrap', rowGap: '10px' }}>
         {showBack && (
           <button
             onClick={() => navigate(-1)}
@@ -33,29 +33,20 @@ export const PageHeader = ({
             <ArrowLeft size={18} /> Back
           </button>
         )}
-        {icon && (
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: iconBg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(74, 114, 250, 0.25)',
-            marginRight: '14px',
-            flexShrink: 0,
-          }}>
-            {icon}
-          </div>
-        )}
-        <div>
-          <h2 className="card-title" style={{ margin: 0 }}>{title}</h2>
-          {subtitle && (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              {subtitle}
+        <div className="page-header-id">
+          {icon && (
+            <div className="page-header-badge" style={{ background: iconBg }}>
+              {icon}
             </div>
           )}
+          <div className="page-header-text">
+            <h2 className="card-title page-header-title" style={{ margin: 0 }}>{title}</h2>
+            {subtitle && (
+              <div className="page-header-sub">
+                {subtitle}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {rightContent && (
