@@ -2386,6 +2386,8 @@ textarea.ui-form-control { resize: vertical; }
    the "Live Room Occupancy" / "Active Outpasses" row keeps the same even gap
    from the "Late Return Warnings" card above it instead of colliding with it. */
 .ui-page.ui-stack > .cards-row { margin-bottom: 0; }
+.dash-occ-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.dash-occ-more { font-size: 13px; font-weight: 500; color: var(--text-muted); }
 .dash-card-heading { min-width: 0; }
 .dash-seg { display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--surface-sunken); border-radius: var(--radius-pill); flex-shrink: 0; }
 .dash-seg-btn { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-muted); background: transparent; border: none; border-radius: var(--radius-pill); cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease; }

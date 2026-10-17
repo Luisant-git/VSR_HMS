@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [roomFilter, setRoomFilter] = useState('All');
+  const [roomFilter, setRoomFilter] = useState('All'); // 'All' | 'FullyVacant'
   const [roomSearch, setRoomSearch] = useState('');
   const [blockFilter, setBlockFilter] = useState('All');
   const [dbRooms, setDbRooms] = useState<any[]>([]);
@@ -44,7 +44,10 @@ const Dashboard = () => {
 
 
   const allBlocks = ['All', ...Array.from(new Set(dbRooms.map(r => r.block).filter(Boolean))).sort()];
-  let filteredRooms = roomFilter === 'Vacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
+  // "FullyVacant" = rooms with zero occupants (all beds empty), matching the
+  // Rooms Directory vocabulary. It is NOT the same as the "Vacant Beds" metric,
+  // which counts free beds (capacity - occupied).
+  let filteredRooms = roomFilter === 'FullyVacant' ? roomsData.filter(r => r.occ === 0) : roomsData;
   if (roomSearch) {
     const q = roomSearch.toLowerCase();
     const exactMatches = filteredRooms.filter(r => r.id.toLowerCase() === q);
@@ -57,6 +60,14 @@ const Dashboard = () => {
   if (blockFilter !== 'All') {
     filteredRooms = filteredRooms.filter(r => r.block === blockFilter);
   }
+
+  // The API returns rooms in arbitrary order. Sort by block, then naturally by
+  // room number so "A2" comes before "A10" instead of a jumbled list.
+  filteredRooms = [...filteredRooms].sort((a, b) => {
+    const byBlock = String(a.block || '').localeCompare(String(b.block || ''), undefined, { numeric: true, sensitivity: 'base' });
+    if (byBlock !== 0) return byBlock;
+    return String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   const safeFees = Array.isArray(fees) ? fees : ((fees as any).data || []);
   const totalPendingFees = safeFees.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0);
@@ -71,6 +82,15 @@ const Dashboard = () => {
 
   const safeOutpasses = Array.isArray(outpasses) ? outpasses : ((outpasses as any).data || []);
   const activeOutpassesCount = safeOutpasses.filter((op: any) => op.status === 'Approved' || op.status === 'Pending' || op.status === 'Active Out').length;
+
+  // Keep the occupancy widget compact — the full list lives in Rooms Directory.
+  // Once the user filters (search / block / fully-vacant), show every matching
+  // room so nothing that matched their filter stays hidden.
+  const OCCUPANCY_PREVIEW_ROWS = 6;
+  const isOccupancyFiltered = roomSearch.trim() !== '' || blockFilter !== 'All' || roomFilter !== 'All';
+  const visibleRooms = isOccupancyFiltered ? filteredRooms : filteredRooms.slice(0, OCCUPANCY_PREVIEW_ROWS);
+  const hiddenRoomsCount = filteredRooms.length - visibleRooms.length;
+
   const handleCheckIn = async (studentId: string) => {
     try {
       await gateLogApi.create({
@@ -200,8 +220,12 @@ const Dashboard = () => {
               <button className={`dash-seg-btn ${roomFilter === 'All' ? 'is-active' : ''}`} onClick={() => setRoomFilter('All')}>
                 All Rooms
               </button>
-              <button className={`dash-seg-btn ${roomFilter === 'Vacant' ? 'is-active' : ''}`} onClick={() => setRoomFilter('Vacant')}>
-                Vacant Only
+              <button
+                className={`dash-seg-btn ${roomFilter === 'FullyVacant' ? 'is-active' : ''}`}
+                onClick={() => setRoomFilter('FullyVacant')}
+                title="Rooms with no occupants at all"
+              >
+                Fully Vacant
               </button>
               <span className="dash-seg-divider"></span>
               <button
@@ -257,10 +281,13 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRooms.map((room, idx) => {
+                  {visibleRooms.map((room, idx) => {
                     const percent = Math.round((room.occ / room.cap) * 100);
-                    const isFull = room.occ === room.cap;
-                    const color = isFull ? '#dc3545' : (room.occ === 0 ? '#198754' : 'var(--accent)');
+                    const isEmpty = room.occ === 0;
+                    const isFull = room.occ >= room.cap;
+                    const status = isFull ? 'Full' : (isEmpty ? 'Fully Vacant' : 'Partially Filled');
+                    const statusClass = isFull ? 'ui-badge-danger' : (isEmpty ? 'ui-badge-success' : 'ui-badge-warning');
+                    const color = isFull ? '#dc3545' : (isEmpty ? '#198754' : 'var(--accent)');
 
                     return (
                       <tr key={idx}>
@@ -276,20 +303,42 @@ const Dashboard = () => {
                             <span className="dash-occ-pct" style={{ color: color }}>{percent}%</span>
                           </div>
                           <div className="dash-progress">
-                            <div className="dash-progress-bar" style={{ width: `${percent}%`, background: color }}></div>
+                            <div className="dash-progress-bar" style={{ width: `${Math.min(percent, 100)}%`, background: color }}></div>
                           </div>
                         </td>
                         <td>
-                          <span className={`ui-badge ${isFull ? 'ui-badge-danger' : 'ui-badge-success'}`}>
-                            {isFull ? 'Full' : 'Fully Vacant'}
+                          <span className={`ui-badge ${statusClass}`}>
+                            {status}
                           </span>
                         </td>
                       </tr>
                     );
                   })}
+                  {visibleRooms.length === 0 && (
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="ui-empty">No rooms match the current filters</div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {hiddenRoomsCount > 0 && (
+              <div className="dash-occ-foot">
+                <span className="dash-occ-more">
+                  Showing {visibleRooms.length} of {filteredRooms.length} rooms
+                </span>
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-soft ui-btn-sm"
+                  onClick={() => navigate('/rooms/directory')}
+                >
+                  View all rooms
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
