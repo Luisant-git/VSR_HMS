@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, SquarePen, Trash2, Calendar, AlertCircle, X, Search } from 'lucide-react';
+import { Building2, SquarePen, Trash2, AlertCircle, X, Search } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { CollegeAPI } from '../api/college.api';
+import { rowBadgeVariant } from '../utils/badge';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
@@ -37,6 +38,7 @@ const FineMaster = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [ruleFilter, setRuleFilter] = useState<'All' | 'set' | 'not-set'>('All');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -73,7 +75,8 @@ const FineMaster = () => {
         limit,
         search: searchQuery,
         fromDate,
-        toDate
+        toDate,
+        ruleStatus: ruleFilter === 'All' ? undefined : ruleFilter
       });
       const data = Array.isArray(response) ? response : (response.data || []);
       setColleges(data);
@@ -88,7 +91,7 @@ const FineMaster = () => {
 
   useEffect(() => {
     fetchColleges();
-  }, [page, searchQuery, fromDate, toDate]);
+  }, [page, searchQuery, fromDate, toDate, ruleFilter]);
 
   const handleCollegeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,9 +246,22 @@ const FineMaster = () => {
             className="ui-input fm-date"
           />
         </div>
-        {(searchQuery || fromDate || toDate) && (
+        <div className="ui-toolbar-group">
+          <span className="ui-toolbar-label">Rule:</span>
+          <select
+            value={ruleFilter}
+            onChange={(e) => { setRuleFilter(e.target.value as typeof ruleFilter); setPage(1); }}
+            className="ui-select fm-rule-filter"
+            title="Filter colleges by whether a fine rule is configured"
+          >
+            <option value="All">All Rules</option>
+            <option value="set">Rule Configured</option>
+            <option value="not-set">Rule Not Configured</option>
+          </select>
+        </div>
+        {(searchQuery || fromDate || toDate || ruleFilter !== 'All') && (
           <button 
-            onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); setPage(1); }}
+            onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); setRuleFilter('All'); setPage(1); }}
             className="ui-btn ui-btn-soft ui-btn-sm">
             Clear Filters
           </button>
@@ -257,6 +273,7 @@ const FineMaster = () => {
           <table className="ui-table">
             <thead>
             <tr>
+              <th className="fm-sno">S.No</th>
               <th>College Name</th>
               <th>Short Name</th>
               <th>Due Date</th>
@@ -266,11 +283,11 @@ const FineMaster = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="ui-table-state">Loading...</td></tr>
+              <tr><td colSpan={6} className="ui-table-state">Loading...</td></tr>
             ) : error ? (
-              <tr><td colSpan={5}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
+              <tr><td colSpan={6}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
             ) : colleges.length === 0 ? (
-              <tr><td colSpan={5}>
+              <tr><td colSpan={6}>
                 <div className="ui-empty">
                   <Building2 size={36} />
                   <div className="ui-empty-title">No colleges found</div>
@@ -278,29 +295,23 @@ const FineMaster = () => {
                 </div>
               </td></tr>
             ) : (
-              colleges.map((c) => (
+              colleges.map((c, idx) => (
                 <tr key={c.id}>
+                  <td className="fm-sno">{(page - 1) * limit + idx + 1}</td>
                   <td>
-                    <div className="fm-college">
-                      <div className="fm-college-icon">
-                        <Building2 size={22} />
-                      </div>
-                      <div>
-                        <div className="ui-cell-title">{c.name}</div>
-                        <div className="ui-cell-sub">{c.address || 'No address provided'}</div>
-                      </div>
-                    </div>
+                    <div className="ui-cell-title">{c.name}</div>
+                    <div className="ui-cell-sub">{c.address || 'No address provided'}</div>
                   </td>
                   <td>
                     {c.shortName ? (
-                      <span className="ui-badge ui-badge-neutral">{c.shortName}</span>
+                      <span className={`ui-badge ${rowBadgeVariant((page - 1) * limit + idx)}`}>{c.shortName}</span>
                     ) : (
                       <span className="ui-cell-muted">-</span>
                     )}
                   </td>
                   <td>
-                    <span className="ui-badge ui-badge-info">
-                      <Calendar size={13} /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                    <span className="fm-date-text">
+                      {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </span>
                   </td>
                   <td>
@@ -312,7 +323,7 @@ const FineMaster = () => {
                   </td>
                   <td className="is-right">
                     <div className="fm-actions">
-                      <button onClick={() => handleCollegeEdit(c)} title="Edit College" className="ui-btn ui-btn-icon"><SquarePen size={15} /></button>
+                      <button onClick={() => handleCollegeEdit(c)} title="Edit College" className="ui-btn ui-btn-icon is-primary"><SquarePen size={15} /></button>
                       <button onClick={() => handleDelete(c.id, c.name)} title="Delete College" className="ui-btn ui-btn-icon ui-btn-danger"><Trash2 size={15} /></button>
                     </div>
                   </td>
@@ -325,7 +336,9 @@ const FineMaster = () => {
         <table className="ui-table">
           <thead>
             <tr>
+              <th className="fm-sno">S.No</th>
               <th>College Name</th>
+              <th>Short Name</th>
               <th>Due Date</th>
               <th>Configured Rule</th>
               <th>Fine (Rent/Mess/EB)</th>
@@ -334,11 +347,11 @@ const FineMaster = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="ui-table-state">Loading...</td></tr>
+              <tr><td colSpan={7} className="ui-table-state">Loading...</td></tr>
             ) : error ? (
-              <tr><td colSpan={5}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
+              <tr><td colSpan={7}><div className="ui-empty ui-empty-danger">{error}</div></td></tr>
             ) : colleges.length === 0 ? (
-              <tr><td colSpan={5}>
+              <tr><td colSpan={7}>
                 <div className="ui-empty">
                   <Building2 size={36} />
                   <div className="ui-empty-title">No colleges found</div>
@@ -346,15 +359,22 @@ const FineMaster = () => {
                 </div>
               </td></tr>
             ) : (
-              colleges.map((c) => (
+              colleges.map((c, idx) => (
                 <tr key={c.id}>
+                  <td className="fm-sno">{(page - 1) * limit + idx + 1}</td>
                   <td>
                     <div className="ui-cell-title">{c.name}</div>
-                    <div className="ui-cell-sub">{c.shortName || 'No Code'}</div>
                   </td>
                   <td>
-                    <span className="ui-badge ui-badge-info">
-                      <Calendar size={13} /> {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                    {c.shortName ? (
+                      <span className={`ui-badge ${rowBadgeVariant((page - 1) * limit + idx)}`}>{c.shortName}</span>
+                    ) : (
+                      <span className="ui-cell-muted">-</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="fm-date-text">
+                      {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
                     </span>
                   </td>
                   <td>
@@ -372,7 +392,7 @@ const FineMaster = () => {
                     </div>
                   </td>
                   <td className="is-right">
-                    <button onClick={() => openFineModal(c)} className="ui-btn ui-btn-secondary ui-btn-sm">
+                    <button onClick={() => openFineModal(c)} className="ui-btn ui-btn-outline-primary ui-btn-sm">
                       <SquarePen size={14} /> Configure
                     </button>
                   </td>

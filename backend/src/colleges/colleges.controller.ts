@@ -24,13 +24,15 @@ export class CollegesController {
     @Query('search') search?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('ruleStatus') ruleStatus?: string,
   ) {
     return this.collegesService.findAll(
       page ? parseInt(page) : 1, 
       limit ? parseInt(limit) : 10, 
       search, 
       fromDate,
-      toDate
+      toDate,
+      ruleStatus
     );
   }
 

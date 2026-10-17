@@ -22,13 +22,14 @@ export const CollegeAPI = {
     return res.json();
   },
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; fromDate?: string; toDate?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; fromDate?: string; toDate?: string; ruleStatus?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
     if (params?.search) query.append('search', params.search);
     if (params?.fromDate) query.append('fromDate', params.fromDate);
     if (params?.toDate) query.append('toDate', params.toDate);
+    if (params?.ruleStatus) query.append('ruleStatus', params.ruleStatus);
     
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetch(`${API_URL}/colleges${queryString}`);

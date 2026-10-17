@@ -7,9 +7,36 @@ import { UpdateCollegeDto } from './dto/update-college.dto';
 export class CollegesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Reject a college name that already exists ignoring case/whitespace, so
+   * "srisanmuga" and "SRISANMUGA" can't both be created. The DB's `@unique`
+   * index on `name` is case-sensitive, so it does not catch this on its own.
+   */
+  private async resolveUniqueName(name: string, excludeId?: string): Promise<string> {
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      throw new BadRequestException('College name is required.');
+    }
+
+    const existing = await this.prisma.college.findFirst({
+      where: {
+        name: { equals: trimmed, mode: 'insensitive' },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { name: true },
+    });
+
+    if (existing) {
+      throw new BadRequestException(`A college named "${existing.name}" already exists.`);
+    }
+
+    return trimmed;
+  }
+
   async create(createCollegeDto: CreateCollegeDto) {
     const { rentFine, messFine, ebFine, dueDate, ...collegeData } = createCollegeDto as any;
-    
+    collegeData.name = await this.resolveUniqueName(collegeData.name);
+
     // Convert YYYY-MM-DD string to ISO DateTime if present
     const formattedDueDate = dueDate ? new Date(dueDate).toISOString() : null;
 
@@ -30,13 +57,13 @@ export class CollegesService {
       });
     } catch (error: any) {
       if (error.code === 'P2002') {
-        throw new BadRequestException(`A college with this name or short name already exists.`);
+        throw new BadRequestException(`A college named "${collegeData.name}" already exists.`);
       }
       throw error;
     }
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string) {
+  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string, ruleStatus?: string) {
     const where: any = {};
     
     if (search) {
@@ -54,6 +81,13 @@ export class CollegesService {
       if (toDate) {
         where.dueDate.lte = new Date(toDate + 'T23:59:59.999');
       }
+    }
+
+    // A fine rule is "configured" when the college has a FineMaster record.
+    if (ruleStatus === 'set') {
+      where.fineMaster = { isNot: null };
+    } else if (ruleStatus === 'not-set') {
+      where.fineMaster = { is: null };
     }
 
     const skip = (page - 1) * limit;
@@ -87,6 +121,10 @@ export class CollegesService {
 
   async update(id: string, updateCollegeDto: UpdateCollegeDto) {
     const { rentFine, messFine, ebFine, dueDate, ...collegeData } = updateCollegeDto as any;
+
+    if (collegeData.name !== undefined) {
+      collegeData.name = await this.resolveUniqueName(collegeData.name, id);
+    }
     
     // If dueDate is explicitly null, we clear it. If undefined, we leave it.
     let formattedDueDate: any = undefined;
