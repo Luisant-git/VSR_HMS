@@ -1,18 +1,150 @@
-import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Home, Users, FileText, Grid, LogOut, UserPlus, AlertTriangle, CreditCard, Zap, List, Building2, ShieldAlert, Shield, Menu, X, AlertCircle, Settings, Utensils, Clock, Banknote, Package, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useMemo, type ReactElement } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { ChartNoAxesCombined, UserStar, LogOut, Menu, X, Settings2, ChevronDown, DoorClosed, UserRoundKey, ConciergeBell, Shapes, Braces, House } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { getSystemSettings } from '../api/settings.api';
+
+type NavChild = {
+  label: string;
+  to: string;
+  /** Only standalone items (Dashboard) render an icon; children of a parent are text only */
+  icon?: ReactElement;
+  /** Shown only for this role (permissions are ignored) */
+  role?: string;
+  /** Shown when the role has ANY of these permission keys (before permissions load, everything shows) */
+  perm?: string[];
+  /** Match the route exactly instead of matching its child paths */
+  end?: boolean;
+};
+
+type NavSection = {
+  id: string;
+  label: string;
+  icon: ReactElement;
+  children: NavChild[];
+};
+
+/** Canteen Master is the tab host, so any canteen permission opens it */
+const CANTEEN_PERMISSIONS = [
+  'canteen_master',
+  'canteen_products',
+  'canteen_categories',
+  'canteen_units',
+  'canteen_suppliers',
+  'canteen_payment_modes',
+  'canteen_purchase_entry',
+  'canteen_purchase_reports',
+  'canteen_supplier_payments',
+];
+
+/** Standalone item: no children, so no dropdown arrow */
+const DASHBOARD: NavChild = {
+  label: 'Dashboard',
+  to: '/',
+  icon: <ChartNoAxesCombined size={18} />,
+  end: true,
+  perm: ['dashboard'],
+};
+
+/** Parent menus and their child routes (mirrors the Menu Permission page) */
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'hostellers',
+    label: 'Hostellers',
+    icon: <UserStar size={18} />,
+    children: [
+      { label: 'Hostellers', to: '/hostellers', perm: ['hostellers'], end: true },
+      { label: 'Student Register', to: '/register', perm: ['student_register'] },
+      { label: 'Gate Logs', to: '/gate-logs', perm: ['gate_logs'] },
+      { label: 'Outpasses', to: '/outpass', perm: ['outpass'] },
+      { label: 'Late Warnings', to: '/late-warnings', perm: ['late_warnings'] },
+      { label: 'Clearance', to: '/clearance', perm: ['clearance'] },
+      { label: 'Fees', to: '/fees', perm: ['fees'] },
+      { label: 'Mess Attendance Reports', to: '/mess-attendance-reports', perm: ['mess_attendance_reports'] },
+    ],
+  },
+  {
+    id: 'rooms',
+    label: 'Rooms',
+    icon: <DoorClosed size={18} />,
+    children: [
+      { label: 'Hostel Blocks', to: '/rooms', perm: ['hostel_blocks'], end: true },
+      { label: 'Rooms Master Directory', to: '/rooms/directory', perm: ['rooms_master'] },
+      { label: 'Room EB Bill Sharing', to: '/rooms/eb-bills', perm: ['eb_bills'] },
+    ],
+  },
+  {
+    id: 'staff',
+    label: 'Staff',
+    icon: <UserRoundKey size={18} />,
+    children: [
+      { label: 'Staff Master', to: '/staff', perm: ['staff_master'], end: true },
+      { label: 'Staff Gate In / Out', to: '/staff/attendance', perm: ['staff_attendance'] },
+      { label: 'Staff Salary Register', to: '/staff/salary', perm: ['staff_salary'] },
+    ],
+  },
+  {
+    id: 'canteen',
+    label: 'Canteen',
+    icon: <ConciergeBell size={18} />,
+    children: [
+      { label: 'Canteen Master', to: '/canteen', perm: CANTEEN_PERMISSIONS },
+      { label: 'Kitchen Construction', to: '/kitchen-construction', perm: ['kitchen_construction'] },
+      { label: 'Stock Report', to: '/kitchen-stock-report', perm: ['stock_report'] },
+    ],
+  },
+  {
+    id: 'master',
+    label: 'Master',
+    icon: <Shapes size={18} />,
+    children: [
+      { label: 'College Master', to: '/colleges', perm: ['colleges'] },
+    ],
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: <Settings2 size={18} />,
+    children: [
+      { label: 'System Settings', to: '/settings/system-settings', perm: ['system_settings'] },
+      { label: 'Fine Master', to: '/settings/fine-master', perm: ['fine_master'] },
+      { label: 'Mess Deduction Master', to: '/settings/mess-deduction', perm: ['mess_deduction'] },
+      { label: 'User Management', to: '/settings/user-management', perm: ['user_management'] },
+      { label: 'Menu Permission', to: '/settings/menu-permission', perm: ['menu_permission'] },
+    ],
+  },
+  {
+    id: 'developer',
+    label: 'Developer',
+    icon: <Braces size={18} />,
+    children: [
+      { label: 'System Truncate', to: '/developer/settings', role: 'DEVELOPER' },
+      { label: 'User Management', to: '/settings/user-management', role: 'DEVELOPER' },
+      { label: 'Menu Permission', to: '/settings/menu-permission', role: 'DEVELOPER' },
+    ],
+  },
+];
+
+/** A child "owns" its route, and any deeper path under it */
+const ownsRoute = (child: NavChild, path: string) =>
+  path === child.to || (child.to !== '/' && path.startsWith(`${child.to}/`));
+
+/** Which parent section a route belongs to (used to restore the open menu) */
+const sectionForPath = (path: string) =>
+  NAV_SECTIONS.find((section) => section.children.some((child) => ownsRoute(child, path)))?.id ?? null;
 
 const Layout = () => {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<{ name?: string, email?: string, role?: string } | null>(null);
   const [permissions, setPermissions] = useState<any>(null);
   const [hostelName, setHostelName] = useState<string>('Hostel Management System');
+  // Accordion: only one parent section can be expanded at a time
+  const [openMenu, setOpenMenu] = useState<string | null>(() => sectionForPath(location.pathname));
 
   useEffect(() => {
     getSystemSettings()
@@ -45,6 +177,28 @@ const Layout = () => {
     }
   }, []);
 
+  const canSee = (item: NavChild) => {
+    if (item.role) return user?.role === item.role;
+    if (!item.perm) return true;
+    return !permissions || item.perm.some((key) => permissions[key] === true);
+  };
+
+  // Sections that still have at least one visible child
+  const sections = useMemo(
+    () => NAV_SECTIONS
+      .map((section) => ({ ...section, children: section.children.filter(canSee) }))
+      .filter((section) => section.children.length > 0),
+    [permissions, user?.role],
+  );
+
+  // Navigate to a child page (or refresh on one) => expand its parent
+  useEffect(() => {
+    const owner = sections.find((section) => section.children.some((child) => ownsRoute(child, location.pathname)));
+    setOpenMenu(owner ? owner.id : null);
+  }, [location.pathname, sections]);
+
+  const toggleMenu = (id: string) => setOpenMenu((prev) => (prev === id ? null : id));
+
   return (
     <div className="app-layout">
       {/* Mobile Sidebar Overlay */}
@@ -58,7 +212,7 @@ const Layout = () => {
       {/* Sidebar */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="brand-logo"><Building2 size={18} /></div>
+          <div className="brand-logo"><House size={22} /></div>
           <div className="brand-text">
             <span className="brand-title">HMS</span>
             <span className="brand-sub">Hostel Management</span>
@@ -73,208 +227,52 @@ const Layout = () => {
         </div>
 
         <nav className="sidebar-nav" onClick={() => setIsSidebarOpen(false)}>
-          {(!permissions || permissions.dashboard === true) && (
-            <NavLink to="/" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} end>
-              <div className="nav-icon"><Home size={18} /></div>
-              Dashboard
+          {/* Standalone item without children */}
+          {canSee(DASHBOARD) && (
+            <NavLink to={DASHBOARD.to} end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <div className="nav-icon">{DASHBOARD.icon}</div>
+              {DASHBOARD.label}
             </NavLink>
           )}
 
-          {(!permissions || permissions.hostellers === true || permissions.student_register === true || permissions.gate_logs === true || permissions.outpass === true || permissions.late_warnings === true || permissions.clearance === true || permissions.fees === true || permissions.mess_attendance_reports === true) && (
-            <div className="nav-section">HOSTELLERS</div>
-          )}
+          {sections.map((section) => {
+            const isOpen = openMenu === section.id;
 
-          {(!permissions || permissions.hostellers === true) && (
-            <NavLink to="/hostellers" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Users size={18} /></div>
-              Hostellers
-            </NavLink>
-          )}
+            return (
+              <div key={section.id} className={`nav-group ${isOpen ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  className="nav-parent"
+                  aria-expanded={isOpen}
+                  aria-controls={`nav-group-${section.id}`}
+                  onClick={(event) => {
+                    // Keep the mobile drawer open while toggling a group
+                    event.stopPropagation();
+                    toggleMenu(section.id);
+                  }}
+                >
+                  <span className="nav-parent-icon">{section.icon}</span>
+                  <span className="nav-parent-label">{section.label}</span>
+                  <ChevronDown size={16} className="nav-caret" />
+                </button>
 
-          {(!permissions || permissions.student_register === true) && (
-            <NavLink to="/register" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><UserPlus size={18} /></div>
-              Student Register
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.gate_logs === true) && (
-            <NavLink to="/gate-logs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Gate Logs
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.outpass === true) && (
-            <NavLink to="/outpass" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Outpasses
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.late_warnings === true) && (
-            <NavLink to="/late-warnings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><AlertTriangle size={18} /></div>
-              Late Warnings
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.clearance === true) && (
-            <NavLink to="/clearance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Clearance
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.fees === true) && (
-            <NavLink to="/fees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><CreditCard size={18} /></div>
-              Fees
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.mess_attendance_reports === true) && (
-            <NavLink to="/mess-attendance-reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Mess Attendance Reports
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.hostel_blocks === true || permissions.rooms_master === true || permissions.eb_bills === true) && (
-            <div className="nav-section">ROOMS</div>
-          )}
-          
-          {(!permissions || permissions.hostel_blocks === true) && (
-            <NavLink to="/rooms" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Grid size={18} /></div>
-              Hostel Blocks
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.rooms_master === true) && (
-            <NavLink to="/rooms/directory" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><List size={18} /></div>
-              Rooms Master Directory
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.eb_bills === true) && (
-            <NavLink to="/rooms/eb-bills" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Zap size={18} /></div>
-              Room EB Bill Sharing
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.staff_master === true || permissions.staff_attendance === true || permissions.staff_salary === true) && (
-            <div className="nav-section">STAFF</div>
-          )}
-          {(!permissions || permissions.staff_master === true) && (
-            <NavLink to="/staff" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Users size={18} /></div>
-              Staff Master
-            </NavLink>
-          )}
-          {(!permissions || permissions.staff_attendance === true) && (
-            <NavLink to="/staff/attendance" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Clock size={18} /></div>
-              Staff Gate In / Out
-            </NavLink>
-          )}
-          {(!permissions || permissions.staff_salary === true) && (
-            <NavLink to="/staff/salary" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Banknote size={18} /></div>
-              Staff Salary Register
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.canteen_master === true || permissions.canteen_products === true || permissions.canteen_categories === true || permissions.canteen_units === true || permissions.canteen_suppliers === true || permissions.canteen_payment_modes === true || permissions.canteen_purchase_entry === true || permissions.canteen_purchase_reports === true || permissions.canteen_supplier_payments === true || permissions.kitchen_construction === true || permissions.stock_report === true) && (
-            <div className="nav-section">CANTEEN</div>
-          )}
-          {(!permissions || permissions.canteen_master === true || permissions.canteen_products === true || permissions.canteen_categories === true || permissions.canteen_units === true || permissions.canteen_suppliers === true || permissions.canteen_payment_modes === true || permissions.canteen_purchase_entry === true || permissions.canteen_purchase_reports === true || permissions.canteen_supplier_payments === true) && (
-            <NavLink to="/canteen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Utensils size={18} /></div>
-              Canteen Master
-            </NavLink>
-          )}
-          {(!permissions || permissions.kitchen_construction === true) && (
-            <NavLink to="/kitchen-construction" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Utensils size={18} /></div>
-              Kitchen Construction
-            </NavLink>
-          )}
-          {(!permissions || permissions.stock_report === true) && (
-            <NavLink to="/kitchen-stock-report" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Package size={18} /></div>
-              Stock Report
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.colleges === true) && (
-            <div className="nav-section">MASTER</div>
-          )}
-          {(!permissions || permissions.colleges === true) && (
-            <NavLink to="/colleges" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Building2 size={18} /></div>
-              College Master
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.fine_master === true || permissions.mess_deduction === true || permissions.user_management === true || permissions.menu_permission === true || permissions.system_settings === true) && (
-            <div className="nav-section">SETTINGS</div>
-          )}
-          
-          {(!permissions || permissions.system_settings === true) && (
-            <NavLink to="/settings/system-settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Settings size={18} /></div>
-              System Settings
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.fine_master === true) && (
-            <NavLink to="/settings/fine-master" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><AlertCircle size={18} /></div>
-              Fine Master
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.mess_deduction === true) && (
-            <NavLink to="/settings/mess-deduction" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><FileText size={18} /></div>
-              Mess Deduction Master
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.user_management === true) && (
-            <NavLink to="/settings/user-management" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><Shield size={18} /></div>
-              User Management
-            </NavLink>
-          )}
-
-          {(!permissions || permissions.menu_permission === true) && (
-            <NavLink to="/settings/menu-permission" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <div className="nav-icon"><ShieldAlert size={18} /></div>
-              Menu Permission
-            </NavLink>
-          )}
-
-          {user?.role === 'DEVELOPER' && (
-            <>
-              <div className="nav-section">DEVELOPER</div>
-              <NavLink to="/developer/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <div className="nav-icon"><Zap size={18} /></div>
-                System Truncate
-              </NavLink>
-              <NavLink to="/settings/user-management" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <div className="nav-icon"><Shield size={18} /></div>
-                User Management
-              </NavLink>
-              <NavLink to="/settings/menu-permission" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                <div className="nav-icon"><ShieldAlert size={18} /></div>
-                Menu Permission
-              </NavLink>
-            </>
-          )}
+                <div id={`nav-group-${section.id}`} className={`nav-children ${isOpen ? 'open' : ''}`}>
+                  <div className="nav-children-inner">
+                    {section.children.map((child) => (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        end={child.end}
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                      >
+                        {child.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
 
           {/* BIOMETRICS
           <div className="nav-section">BIOMETRICS</div>
@@ -312,6 +310,28 @@ const Layout = () => {
           </NavLink>
           */}
         </nav>
+
+        {/* Logged-in user */}
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-avatar">{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{user?.name || 'Admin User'}</span>
+              <span className="sidebar-user-role">{user?.role || 'ADMIN'}</span>
+            </div>
+          </div>
+          <button
+            className="sidebar-logout"
+            onClick={() => {
+              localStorage.removeItem('access_token');
+              navigate('/login');
+            }}
+            aria-label="Logout"
+            title="Logout"
+          >
+            <LogOut size={17} />
+          </button>
+        </div>
       </aside>
 
       {/* Right Side (Header + Content Wrapper) */}
