@@ -22,6 +22,16 @@ interface PurchaseItemRow {
   totalAmount: number;
 }
 
+// Payment-mode chip colours — Cash (settled now) and Credit (outstanding) get
+// their own tones so they read apart at a glance in the purchase ledger.
+// Anything else (UPI, card, cheque...) keeps the neutral info blue.
+const getPaymentModeChipStyle = (name?: string): React.CSSProperties => {
+  const key = (name || '').trim().toLowerCase();
+  if (key.includes('cash')) return { background: '#dcfce7', color: '#15803d' };
+  if (key.includes('credit')) return { background: '#fee2e2', color: '#b91c1c' };
+  return { background: '#e0f2fe', color: '#0369a1' };
+};
+
 export default function CanteenMaster() {
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'units' | 'suppliers' | 'payment-modes' | 'purchase-entry' | 'purchase-reports' | 'supplier-payments'>('products');
 
@@ -1367,12 +1377,12 @@ export default function CanteenMaster() {
                   <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0f172a' }}>{purc.invoiceNo}</td>
                   <td style={{ padding: '14px 18px', color: '#475569' }}>{new Date(purc.purchaseDate).toLocaleDateString('en-GB')}</td>
                   <td style={{ padding: '14px 18px', color: '#334155' }}>{purc.supplier?.name || '-'}</td>
-                  <td style={{ padding: '14px 18px' }}><span style={{ background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '12px' }}>{purc.paymentMode?.name || '-'}</span></td>
+                  <td style={{ padding: '14px 18px' }}><span style={{ ...getPaymentModeChipStyle(purc.paymentMode?.name), padding: '4px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '12px' }}>{purc.paymentMode?.name || '-'}</span></td>
                   <td style={{ padding: '14px 18px', fontWeight: 600 }}>{purc.items?.length || 0} Item(s)</td>
                   <td style={{ padding: '14px 18px', fontWeight: 800, color: '#16a34a' }}>₹{purc.totalAmount.toFixed(2)}</td>
                   <td style={{ padding: '14px 18px', textAlign: 'right' }}>
-                    <button onClick={() => setViewPurchase(purc)} style={{ padding: '6px 12px', borderRadius: '6px', background: '#f1f5f9', border: 'none', color: '#0284c7', marginRight: '6px', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <Eye size={16} /> View Details
+                    <button onClick={() => setViewPurchase(purc)} title="View purchase details" style={{ padding: '6px 10px', borderRadius: '6px', background: '#f1f5f9', border: 'none', color: '#0284c7', marginRight: '6px', cursor: 'pointer' }}>
+                      <Eye size={16} />
                     </button>
                     <button onClick={() => handleEditPurchase(purc.id)} title="Edit purchase" style={{ padding: '6px 10px', borderRadius: '6px', background: '#eff6ff', border: 'none', color: '#2563eb', marginRight: '6px', cursor: 'pointer' }}><Edit size={16} /></button>
                     <button onClick={() => handleDeleteItem('purchase', purc.id, purc.invoiceNo)} style={{ padding: '6px 10px', borderRadius: '6px', background: '#fff1f2', border: 'none', color: '#e11d48', cursor: 'pointer' }}><Trash2 size={16} /></button>
