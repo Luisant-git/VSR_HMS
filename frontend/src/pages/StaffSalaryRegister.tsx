@@ -524,7 +524,7 @@ export default function StaffSalaryRegister() {
                   <div className="ui-empty">
                     <Banknote size={36} />
                     <div className="ui-empty-title">No salary disbursements found</div>
-                    <div className="ui-empty-text">Click "+ Disburse Staff Salary" above to record a new payment.</div>
+                   
                   </div>
                 </td>
               </tr>

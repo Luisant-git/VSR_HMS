@@ -24,7 +24,7 @@ const SystemSettings = () => {
       const data = await getSystemSettings();
       setSettings(data);
     } catch (err) {
-      toast.error('Failed to fetch system settings');
+      console.error('Failed to load system settings', err);
     } finally {
       setLoading(false);
     }

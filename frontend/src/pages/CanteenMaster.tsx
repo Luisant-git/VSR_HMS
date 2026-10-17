@@ -406,7 +406,7 @@ export default function CanteenMaster() {
       setActiveTab('purchase-entry');
       toast.info(`Editing ${p.invoiceNo} — submit to save changes.`);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to load purchase for editing.');
+      console.error('Failed to load purchase for editing', err);
     } finally {
       setLoading(false);
     }
