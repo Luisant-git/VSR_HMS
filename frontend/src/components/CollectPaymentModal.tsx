@@ -320,12 +320,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                   <span>Room: {primaryStudent?.roomNo || 'N/A'}</span>
                   <span style={{ color: '#cbd5e1' }}>•</span>
                   <span>Current: {currentMonthStr}</span>
-                  {primaryStudent?.advance !== undefined && (
-                    <>
-                      <span style={{ color: '#cbd5e1' }}>•</span>
-                      <span style={{ color: '#059669', fontWeight: 600 }}>Advance: ₹{primaryStudent.advance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </>
-                  )}
                 </div>
               </div>
               <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
@@ -392,15 +386,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                                 <span style={{ fontWeight: 600, color: state.selected ? '#0f172a' : '#64748b', fontSize: '14px' }}>
                                   {f.transactionType} {state.selected ? '' : <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Unchecked)</span>}
                                 </span>
-                                <span style={{ fontWeight: 700, color: state.selected ? '#0f172a' : '#94a3b8', fontSize: '14px' }}>
-                                  ₹{state.selected ? calculatedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0.00'}
+                                <span style={{ fontWeight: 700, color: state.selected ? '#0f172a' : '#94a3b8', fontSize: '14px', textDecoration: state.selected ? 'none' : 'line-through' }}>
+                                  ₹{calculatedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </span>
                               </div>
-                              <div style={{ color: '#64748b', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>
-                                  {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
-                                </span>
-                                {!state.selected && <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>₹{calculatedAmount.toLocaleString('en-IN')}</span>}
+                              <div style={{ color: '#64748b', fontSize: '13px' }}>
+                                {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
                               </div>
                             </div>
                           </div>

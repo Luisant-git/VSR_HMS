@@ -38,6 +38,7 @@ const Fees = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [feesToCollect, setFeesToCollect] = useState<any[]>([]);
+  const [activeFeeId, setActiveFeeId] = useState<string | null>(null);
 
 
 
@@ -95,6 +96,7 @@ const Fees = () => {
       const fee = fees.find(f => f.id === feeIdParam);
       if (fee && fee.status === 'PENDING') {
         setFeeToCollect(fee);
+        setActiveFeeId(`pending-${fee.student?.regNo || 'unknown'}`);
       }
     }
   }, [feeIdParam, fees, feeToCollect]);
@@ -231,6 +233,7 @@ const Fees = () => {
   const closePaymentModal = () => {
     setFeeToCollect(null);
     setFeesToCollect([]);
+    setActiveFeeId(null);
     if (feeIdParam) {
       searchParams.delete('feeId');
       navigate(`?${searchParams.toString()}`, { replace: true });
@@ -322,14 +325,14 @@ const Fees = () => {
         </div>
       </div>
 
-      <div className="ui-card ui-card--flush">
+      <div className="ui-card ui-card--flush fees-card">
         <div className="fees-toolbar">
           <h3 className="ui-card-title">Hostel Fee Invoices</h3>
 
           <div className="ui-filters">
-            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
-            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '180px' }) }} />
-            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '150px' }) }} />
+            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '160px' }) }} />
+            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '160px' }) }} />
+            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '140px' }) }} />
 
             <div className="ui-field-inline">
               <span className="ui-field-label">From:</span>
@@ -364,7 +367,23 @@ const Fees = () => {
         </div>
 
         <div className="table-responsive">
-          <table className="ui-table">
+          <table className="ui-table fees-table">
+            <colgroup>
+              <col className="fees-col-invoice" />
+              <col className="fees-col-reg" />
+              <col className="fees-col-name" />
+              <col className="fees-col-room" />
+              <col className="fees-col-date" />
+              <col className="fees-col-advance" />
+              <col className="fees-col-rent" />
+              <col className="fees-col-eb" />
+              <col className="fees-col-mess" />
+              <col className="fees-col-fine" />
+              <col className="fees-col-total" />
+              <col className="fees-col-method" />
+              <col className="fees-col-status" />
+              <col className="fees-col-action" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Invoice No</th>
@@ -389,13 +408,21 @@ const Fees = () => {
               ) : (
                 <>
               {paginatedFees.map((fee: any) => (
-                <tr key={fee.id} className={fee.status === 'PENDING' ? 'ui-row-pending' : ''}>
-                  <td className="ui-cell-link">
+                <tr
+                  key={fee.id}
+                  className={`${fee.status === 'PENDING' ? 'ui-row-pending' : ''}${activeFeeId === fee.id ? ' fees-row-active' : ''}`.trim()}
+                >
+                  <td
+                    className="ui-cell-link"
+                    title={fee.status === 'COMPLETED' && fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : undefined}
+                  >
                     {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—'}
                   </td>
-                  <td className="fees-reg">{fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}</td>
-                  <td className="ui-cell-name">{fee.student?.name || 'Unknown'}</td>
-                  <td>Room {fee.student?.roomNo || 'N/A'}</td>
+                  <td className="fees-reg" title={fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}>
+                    {fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}
+                  </td>
+                  <td className="ui-cell-name" title={fee.student?.name || 'Unknown'}>{fee.student?.name || 'Unknown'}</td>
+                  <td title={`Room ${fee.student?.roomNo || 'N/A'}`}>Room {fee.student?.roomNo || 'N/A'}</td>
                   <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
 
                   <td className="num fees-credit">₹{fee.advance.toLocaleString('en-IN')}</td>
@@ -439,7 +466,7 @@ const Fees = () => {
                     ₹{fee.totalAmount.toLocaleString('en-IN')}
                   </td>
 
-                  <td>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
+                  <td title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
                   <td>
                     <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-success' : 'ui-badge-danger'}`}>
                       {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
@@ -447,11 +474,17 @@ const Fees = () => {
                   </td>
                   <td className="num">
                     {fee.status === 'PENDING' ? (
-                      <button onClick={() => setFeesToCollect(fee.feesList)} className="ui-btn ui-btn-primary ui-btn-sm">
+                      <button
+                        onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
+                        className="ui-btn ui-btn-primary ui-btn-sm"
+                      >
                         <Wallet size={14} /> Pay Now
                       </button>
                     ) : (
-                      <button onClick={() => setSelectedReceipt(fee)} className="ui-btn ui-btn-secondary ui-btn-sm">
+                      <button
+                        onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
+                        className="ui-btn ui-btn-secondary ui-btn-sm"
+                      >
                         <FileText size={14} /> View Receipt
                       </button>
                     )}
@@ -503,7 +536,7 @@ const Fees = () => {
 
       {/* Receipt Modal */}
       {selectedReceipt && (
-        <ReceiptModal fee={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
+        <ReceiptModal fee={selectedReceipt} onClose={() => { setSelectedReceipt(null); setActiveFeeId(null); }} />
       )}
 
       {/* Collect Payment Modal */}
