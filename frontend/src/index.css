@@ -2032,60 +2032,91 @@ textarea.ui-form-control { resize: vertical; }
 
 /* Fees --------------------------------------------------------------------- */
 .fees-stats { margin-bottom: 16px; }
-.fees-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-.fees-toolbar .ui-filters { gap: 10px; }
-.fees-toolbar .ui-search input { width: 220px; }
-.fees-card .ui-pagination { padding: 12px 16px; }
-.fees-reg { color: var(--text-muted); font-weight: 600; }
+.fees-search { width: 280px; }
+.ui-select.fees-limit { width: auto; }
 .fees-credit { color: var(--success); font-weight: 600; }
 .fees-note { font-size: 10.5px; margin-top: 2px; white-space: nowrap; color: var(--success); }
 .fees-note--danger { color: var(--danger); font-weight: 600; }
-.fees-total { font-size: 13px; font-weight: 800; color: var(--text-heading); }
+.fees-total { font-weight: 800; color: var(--text-heading); }
 .fees-total--pending { color: var(--danger); }
 
-/* Compact fixed layout: 14 columns were previously 1600px wide with 20px cell
-   padding, causing tall rows and pushing the Action column off-screen. */
+/* The fees master table intentionally mirrors the Hostellers master table:
+   standalone filter toolbar, fixed column widths, a two-line person cell and
+   badge-styled room / status values. */
 .fees-table {
   table-layout: fixed;
   width: 100%;
-  min-width: 1240px;
+  min-width: 1180px;
 }
-.fees-table .fees-col-invoice { width: 12%; }
-.fees-table .fees-col-reg { width: 8.25%; }
-.fees-table .fees-col-name { width: 10.5%; }
-.fees-table .fees-col-room { width: 5%; }
-.fees-table .fees-col-date { width: 7.25%; }
-.fees-table .fees-col-advance { width: 5.25%; }
-.fees-table .fees-col-rent { width: 5.25%; }
+.fees-table .fees-col-invoice { width: 10%; }
+.fees-table .fees-col-person { width: 15%; }
+.fees-table .fees-col-room { width: 8%; }
+.fees-table .fees-col-date { width: 8%; }
+.fees-table .fees-col-advance { width: 6%; }
+.fees-table .fees-col-rent { width: 6%; }
 .fees-table .fees-col-eb { width: 5%; }
-.fees-table .fees-col-mess { width: 5.25%; }
+.fees-table .fees-col-mess { width: 7%; }
 .fees-table .fees-col-fine { width: 5%; }
-.fees-table .fees-col-total { width: 5.75%; }
-.fees-table .fees-col-method { width: 6.75%; }
-.fees-table .fees-col-status { width: 5.75%; }
-.fees-table .fees-col-action { width: 13%; }
+.fees-table .fees-col-total { width: 7%; }
+.fees-table .fees-col-method { width: 6%; }
+.fees-table .fees-col-status { width: 7%; }
+.fees-table .fees-col-action { width: 10%; }
 
 .fees-table th,
-.fees-table td { padding: 8px 8px; }
+.fees-table td { padding: 9px 10px; }
+
 .fees-table th {
-  font-size: 10.5px;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-  vertical-align: bottom;
   white-space: normal;
+  line-height: 1.25;
+  vertical-align: bottom;
 }
+
 .fees-table td {
-  font-size: 11.5px;
   vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.fees-table .fees-note { font-size: 10px; white-space: nowrap; }
-.fees-table .ui-badge { font-size: 10px; padding: 3px 7px; }
+
+/* Compact two-line person cell, long values clamp instead of widening the table */
+.fees-person { min-width: 0; }
+.fees-person-info { min-width: 0; flex: 1 1 auto; }
+.fees-person-name {
+  font-weight: 700;
+  color: var(--text-heading);
+  font-size: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+.fees-person-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fees-table .fees-note { font-size: 10.5px; white-space: nowrap; }
+
+/* Invoice numbers are long, so let them wrap and show in full instead of
+   being clipped to an ellipsis. */
+.fees-table .fees-invoice {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
 .fees-table td:last-child { overflow: visible; text-align: right; }
 .fees-table th:last-child { text-align: right; }
-.fees-table td:last-child .ui-btn-sm { padding: 6px 9px; font-size: 12px; }
+.fees-table td:last-child .ui-btn { white-space: nowrap; }
+
 .fees-table tbody tr.fees-row-active > td,
 .fees-table tbody tr.fees-row-active:hover > td {
   background: var(--accent-soft);

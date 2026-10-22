@@ -12,11 +12,45 @@ import { StudentAcknowledgementCard } from '../components/StudentAcknowledgement
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 
-const formatInvoiceNumber = (fee: any) => {
-  const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
-  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
-  const studentStr = fee.student?.manualRegsiName || fee.student?.regNo || fee.student?.id || 'UNKN';
-  return `INV-${purpose}-${ymStr}-${studentStr}`;
+const createInvoiceNumber = (dateValue: string | Date, serial: number | string) => {
+  const date = new Date(dateValue || Date.now());
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `INV-${year}-${month}-${String(serial).padStart(3, '0')}`;
+};
+
+const formatInvoiceNumber = (fee: any, feeGroups: any[] = []) => {
+  const dateSource = fee?.paidDate || fee?.updatedAt || fee?.createdAt || fee?.feesList?.[0]?.paidDate || fee?.feesList?.[0]?.updatedAt || fee?.feesList?.[0]?.createdAt || new Date();
+  const date = new Date(dateSource);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  if (feeGroups.length) {
+    const monthGroups = feeGroups
+      .filter((group: any) => {
+        const groupDate = new Date(group?.paidDate || group?.updatedAt || group?.createdAt || group?.feesList?.[0]?.paidDate || group?.feesList?.[0]?.updatedAt || group?.feesList?.[0]?.createdAt || new Date());
+        return groupDate.getFullYear() === year && groupDate.getMonth() === month;
+      })
+      .sort((a: any, b: any) => {
+        const aDate = new Date(a?.paidDate || a?.updatedAt || a?.createdAt || a?.feesList?.[0]?.paidDate || a?.feesList?.[0]?.updatedAt || a?.feesList?.[0]?.createdAt || 0).getTime();
+        const bDate = new Date(b?.paidDate || b?.updatedAt || b?.createdAt || b?.feesList?.[0]?.paidDate || b?.feesList?.[0]?.updatedAt || b?.feesList?.[0]?.createdAt || 0).getTime();
+        return aDate - bDate;
+      });
+
+    const serialIndex = monthGroups.findIndex((group: any) => {
+      const groupId = group?.id || group?.feesList?.[0]?.id;
+      const targetId = fee?.id || fee?.feesList?.[0]?.id;
+      return groupId && targetId && groupId === targetId;
+    });
+
+    if (serialIndex >= 0) {
+      return createInvoiceNumber(dateSource, serialIndex + 1);
+    }
+  }
+
+  const idSource = (fee?.id || fee?.feesList?.[0]?.id || String(Date.now())).replace(/\D/g, '');
+  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
+  return createInvoiceNumber(dateSource, serial);
 };
 
 
@@ -1088,13 +1122,7 @@ const StudentProfile = () => {
                         {displayFees.map(fee => (
                           <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
                             <td className="sp-invoice">
-                              {fee.status === 'COMPLETED' ? (fee.feesList[0] ? (() => {
-                                const f = fee.feesList[0];
-                                const ymStr = new Date(f.createdAt).toISOString().slice(0, 7).replace('-', '');
-                                const purpose = fee.feesList.length > 1 ? 'MUL' : (f.transactionType || '').replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'FEE';
-                                const studentStr = student?.id || 'UNKN';
-                                return `INV-${purpose}-${ymStr}-${studentStr}`;
-                              })() : '—') : '—'}
+                              {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—'}
                             </td>
                             <td>
                               {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
@@ -1267,7 +1295,7 @@ const StudentProfile = () => {
                                   <span className="ui-cell-sub">{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </td>
                                 <td>
-                                  {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }) : '—'}
+                                  {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }, fees) : '—'}
                                 </td>
                                 <td>
                                   <span className="ui-badge ui-badge-neutral">

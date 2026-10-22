@@ -33,10 +33,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const paymentMode = isGrouped ? fee.paymentMode : firstFee?.paymentMode;
   // unused description
 
-  const ymStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,7).replace('-', '');
-  const purpose = isGrouped && feesList.length > 1 ? 'MUL' : (firstFee?.transactionType || 'FEE').replace(/[^a-zA-Z]/g, '').substring(0,3).toUpperCase();
-  const studentStr = primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'UNKN';
-  const invoiceNo = `INV-${purpose}-${ymStr}-${studentStr}`;
+  const invoiceSource = firstFee || fee;
+  const idSource = (invoiceSource?.id || firstFee?.id || fee?.id || `${Date.now()}`).replace(/\D/g, '');
+  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
+  const invoiceNo = `INV-${new Date(invoiceSource?.paidDate || invoiceSource?.updatedAt || invoiceSource?.createdAt || Date.now()).getFullYear()}-${String(new Date(invoiceSource?.paidDate || invoiceSource?.updatedAt || invoiceSource?.createdAt || Date.now()).getMonth() + 1).padStart(2, '0')}-${String(serial).padStart(3, '0')}`;
   
   const dateStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
   const count = parseInt((firstFee?.id || '0').substring(0, 8), 16) % 10000 || Math.floor(Math.random() * 9999);

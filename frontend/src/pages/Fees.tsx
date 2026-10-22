@@ -9,12 +9,50 @@ import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { LoadingRow } from '../components/LoadingSpinner';
 
-const formatInvoiceNumber = (fee: any) => {
-  const ymStr = new Date(fee.createdAt).toISOString().slice(0, 7).replace('-', '');
-  const purpose = fee.transactionType.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
-  const studentStr = fee.student?.manualRegsiName || fee.student?.regNo || 'UNKN';
-  return `INV-${purpose}-${ymStr}-${studentStr}`;
+const createInvoiceNumber = (dateValue: string | Date, serial: number | string) => {
+  const date = new Date(dateValue || Date.now());
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `INV-${year}-${month}-${String(serial).padStart(3, '0')}`;
 };
+
+const formatInvoiceNumber = (fee: any, feeGroups: any[] = []) => {
+  const dateSource = fee?.paidDate || fee?.updatedAt || fee?.createdAt || fee?.feesList?.[0]?.paidDate || fee?.feesList?.[0]?.updatedAt || fee?.feesList?.[0]?.createdAt || new Date();
+  const date = new Date(dateSource);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  if (feeGroups.length) {
+    const monthGroups = feeGroups
+      .filter((group: any) => {
+        const groupDate = new Date(group?.paidDate || group?.updatedAt || group?.createdAt || group?.feesList?.[0]?.paidDate || group?.feesList?.[0]?.updatedAt || group?.feesList?.[0]?.createdAt || new Date());
+        return groupDate.getFullYear() === year && groupDate.getMonth() === month;
+      })
+      .sort((a: any, b: any) => {
+        const aDate = new Date(a?.paidDate || a?.updatedAt || a?.createdAt || a?.feesList?.[0]?.paidDate || a?.feesList?.[0]?.updatedAt || a?.feesList?.[0]?.createdAt || 0).getTime();
+        const bDate = new Date(b?.paidDate || b?.updatedAt || b?.createdAt || b?.feesList?.[0]?.paidDate || b?.feesList?.[0]?.updatedAt || b?.feesList?.[0]?.createdAt || 0).getTime();
+        return aDate - bDate;
+      });
+
+    const serialIndex = monthGroups.findIndex((group: any) => {
+      const groupId = group?.id || group?.feesList?.[0]?.id;
+      const targetId = fee?.id || fee?.feesList?.[0]?.id;
+      return groupId && targetId && groupId === targetId;
+    });
+
+    if (serialIndex >= 0) {
+      return createInvoiceNumber(dateSource, serialIndex + 1);
+    }
+  }
+
+  const idSource = (fee?.id || fee?.feesList?.[0]?.id || String(Date.now())).replace(/\D/g, '');
+  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
+  return createInvoiceNumber(dateSource, serial);
+};
+
+// Keep the compact table readable: show "UPI / QR" and put the full
+// provider list in the cell's tooltip.
+const formatPaymentMode = (mode?: string) => (mode || '').split('(')[0].trim();
 
 const Fees = () => {
   const navigate = useNavigate();
@@ -34,6 +72,7 @@ const Fees = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
@@ -103,14 +142,25 @@ const Fees = () => {
 
   const selectStyles = {
     control: (base: any, state: any) => ({
-      ...base, padding: '2px', borderRadius: '8px', borderColor: state.isFocused ? 'var(--accent)' : 'var(--border)', boxShadow: 'none', '&:hover': { borderColor: 'var(--accent)' }, fontSize: '13px', cursor: 'pointer', minWidth: '220px'
+      ...base,
+      padding: '2px',
+      borderRadius: '8px',
+      borderColor: state.isFocused ? 'var(--sidebar-active)' : 'var(--border-color)',
+      boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+      '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1' },
+      fontSize: '13px',
+      cursor: 'pointer',
+      width: '200px',
+      background: 'white'
     }),
     option: (base: any, state: any) => ({
-      ...base, fontSize: '13px', backgroundColor: state.isSelected ? 'var(--accent)' : state.isFocused ? '#f8f9fa' : 'white', color: state.isSelected ? 'white' : 'var(--text-main)', cursor: 'pointer', padding: '10px 14px'
+      ...base,
+      fontSize: '13px',
+      backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+      color: state.isSelected ? 'white' : '#334155',
+      cursor: 'pointer'
     })
   };
-
-
 
   const statusOptions = [
     { value: 'ALL', label: '-- All Status --' },
@@ -143,7 +193,7 @@ const Fees = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = match && (
-        formatInvoiceNumber(fee).toLowerCase().includes(q) ||
+        formatInvoiceNumber(fee, fees).toLowerCase().includes(q) ||
         fee.transactionType.toLowerCase().includes(q) ||
         (fee.student?.name || '').toLowerCase().includes(q) ||
         (fee.student?.manualRegsiName || fee.student?.regNo || '').toLowerCase().includes(q) ||
@@ -225,10 +275,28 @@ const Fees = () => {
   }, [filteredFees]);
 
   const paginatedFees = useMemo(() => {
-    return displayFees.slice((page - 1) * 10, page * 10);
-  }, [displayFees, page]);
+    return displayFees.slice((page - 1) * limit, page * limit);
+  }, [displayFees, page, limit]);
 
-  const totalPages = Math.ceil(displayFees.length / 10);
+  const totalPages = Math.ceil(displayFees.length / limit);
+
+  const hasFilters =
+    selectedStudent.value !== 'ALL' ||
+    collegeFilter.value !== 'ALL' ||
+    filter !== 'ALL' ||
+    fromDate !== '' ||
+    toDate !== '' ||
+    searchQuery !== '';
+
+  const clearFilters = () => {
+    setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
+    setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
+    setFilter('ALL');
+    setFromDate('');
+    setToDate('');
+    setSearchQuery('');
+    setPage(1);
+  };
 
   const closePaymentModal = () => {
     setFeeToCollect(null);
@@ -242,7 +310,7 @@ const Fees = () => {
 
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
-      'Receipt No': fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—',
+      'Receipt No': fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—',
       'Student ID': fee.student?.manualRegsiName || fee.student?.regNo || 'N/A',
       'Student Name': fee.student?.name || 'Unknown',
       'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
@@ -325,53 +393,92 @@ const Fees = () => {
         </div>
       </div>
 
-      <div className="ui-card ui-card--flush fees-card">
-        <div className="fees-toolbar">
-          <h3 className="ui-card-title">Hostel Fee Invoices</h3>
+      <div className="ui-toolbar">
+        <div className="ui-toolbar-group">
+          <span className="ui-toolbar-label">Show</span>
+          <select
+            className="ui-select fees-limit"
+            value={limit}
+            onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={250}>250</option>
+            <option value={500}>500</option>
+            <option value={1000}>1000</option>
+            <option value={99999}>All</option>
+          </select>
+          <span className="ui-toolbar-label">entries</span>
+        </div>
+        <div className="ui-toolbar-divider"></div>
 
-          <div className="ui-filters">
-            <Select options={collegeOptions} value={collegeFilter} onChange={(val) => { setCollegeFilter(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '160px' }) }} />
-            <Select options={studentOptions} value={selectedStudent} onChange={(val) => { setSelectedStudent(val); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '160px' }) }} />
-            <Select options={statusOptions} value={statusOptions.find(o => o.value === filter)} onChange={(val: any) => { setFilter(val.value); setPage(1); }} styles={{ ...selectStyles, control: (b: any, s: any) => ({ ...selectStyles.control(b, s), minWidth: '140px' }) }} />
-
-            <div className="ui-field-inline">
-              <span className="ui-field-label">From:</span>
-              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
-            </div>
-
-            <div className="ui-field-inline">
-              <span className="ui-field-label">To:</span>
-              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
-            </div>
-
-            <button
-              className="ui-btn ui-btn-secondary ui-btn-sm"
-              onClick={() => {
-                setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
-                setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
-                setFilter('ALL');
-                setFromDate('');
-                setToDate('');
-                setSearchQuery('');
-                setPage(1);
-              }}
-            >
-              <X size={14} /> Clear All
-            </button>
-
-            <div className="ui-search ui-spacer">
-              <Search size={14} />
-              <input type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} placeholder="Search Invoice..." />
-            </div>
-          </div>
+        <div className="ui-input-icon fees-search">
+          <Search size={16} />
+          <input
+            type="text"
+            className="ui-input"
+            placeholder="Search by invoice, student, reg no..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+          />
         </div>
 
-        <div className="table-responsive">
+        <Select
+          options={collegeOptions}
+          value={collegeFilter}
+          onChange={(val) => { setCollegeFilter(val); setPage(1); }}
+          styles={selectStyles}
+          placeholder="Search college..."
+          isSearchable={true}
+        />
+
+        <Select
+          options={studentOptions}
+          value={selectedStudent}
+          onChange={(val) => { setSelectedStudent(val); setPage(1); }}
+          styles={selectStyles}
+          placeholder="Search student..."
+          isSearchable={true}
+        />
+
+        <Select
+          options={statusOptions}
+          value={statusOptions.find(o => o.value === filter)}
+          onChange={(val: any) => { setFilter(val.value); setPage(1); }}
+          styles={selectStyles}
+          isSearchable={false}
+        />
+
+        <div className="ui-field-inline">
+          <span className="ui-field-label">From</span>
+          <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
+        </div>
+
+        <div className="ui-field-inline">
+          <span className="ui-field-label">To</span>
+          <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} className="ui-input ui-input--inline" />
+        </div>
+
+        {hasFilters && (
+          <button
+            className="ui-btn ui-btn-soft ui-btn-sm"
+            onClick={clearFilters}
+            title="Clear all filters"
+          >
+            <X size={14} strokeWidth={3} /> Clear All
+          </button>
+        )}
+        <div className="ui-spacer"></div>
+      </div>
+
+      <div className="ui-table-wrap">
+        <div className="ui-table-scroll">
           <table className="ui-table fees-table">
             <colgroup>
               <col className="fees-col-invoice" />
-              <col className="fees-col-reg" />
-              <col className="fees-col-name" />
+              <col className="fees-col-person" />
               <col className="fees-col-room" />
               <col className="fees-col-date" />
               <col className="fees-col-advance" />
@@ -387,8 +494,7 @@ const Fees = () => {
             <thead>
               <tr>
                 <th>Invoice No</th>
-                <th>Reg. No</th>
-                <th>Student Name</th>
+                <th>Student Name &amp; Reg. No</th>
                 <th>Room</th>
                 <th>Payment Date</th>
                 <th className="num">Advance</th>
@@ -399,108 +505,119 @@ const Fees = () => {
                 <th className="num">Total Paid</th>
                 <th>Payment Method</th>
                 <th>Status</th>
-                <th className="num">Action</th>
+                <th className="num">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <LoadingRow colSpan={14} />
+                <LoadingRow colSpan={13} />
+              ) : error ? (
+                <tr>
+                  <td colSpan={13} className="ui-empty ui-empty-danger">{error}</td>
+                </tr>
+              ) : paginatedFees.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="ui-empty">No fee transactions found.</td>
+                </tr>
               ) : (
-                <>
-              {paginatedFees.map((fee: any) => (
-                <tr
-                  key={fee.id}
-                  className={`${fee.status === 'PENDING' ? 'ui-row-pending' : ''}${activeFeeId === fee.id ? ' fees-row-active' : ''}`.trim()}
-                >
-                  <td
-                    className="ui-cell-link"
-                    title={fee.status === 'COMPLETED' && fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : undefined}
-                  >
-                    {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0]) : '—') : '—'}
-                  </td>
-                  <td className="fees-reg" title={fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}>
-                    {fee.student?.manualRegsiName || fee.student?.regNo || 'N/A'}
-                  </td>
-                  <td className="ui-cell-name" title={fee.student?.name || 'Unknown'}>{fee.student?.name || 'Unknown'}</td>
-                  <td title={`Room ${fee.student?.roomNo || 'N/A'}`}>Room {fee.student?.roomNo || 'N/A'}</td>
-                  <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
-
-                  <td className="num fees-credit">₹{fee.advance.toLocaleString('en-IN')}</td>
-                  <td className="num">
-                    <div>₹{fee.rent.toLocaleString('en-IN')}</div>
-                    {fee.status === 'COMPLETED' && (() => {
-                      const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
-                      const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
-                      if (match) {
-                        const parts = match[1].split('-');
-                        return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
-                      }
-                      return null;
-                    })()}
-                  </td>
-                  <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
-                  <td className="num">
-                    <div>₹{fee.mess.toLocaleString('en-IN')}</div>
-                    {fee.feesList?.filter((x: any) => x.transactionType === 'MESS DEDUCTION').map((d: any, idx: number) => {
-                      const match = d.description?.match(/\((\d+\s*days)\)/i);
-                      const daysText = match ? match[1] : '';
-                      return (
-                        <div key={idx} className="fees-note fees-note--danger">
-                          Inc. -₹{Math.abs(d.amount).toLocaleString('en-IN')} {daysText ? `(${daysText})` : ''}
+                paginatedFees.map((fee: any) => {
+                  const regNo = fee.student?.manualRegsiName || fee.student?.regNo || 'N/A';
+                  const studentName = fee.student?.name || 'Unknown';
+                  return (
+                    <tr
+                      key={fee.id}
+                      className={activeFeeId === fee.id ? 'fees-row-active' : undefined}
+                    >
+                      <td
+                        className="ui-cell-link fees-invoice"
+                        title={fee.status === 'COMPLETED' && fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : undefined}
+                      >
+                        {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—'}
+                      </td>
+                      <td>
+                        <div className="fees-person">
+                          <div className="fees-person-info">
+                            <div className="fees-person-name" title={studentName}>{studentName}</div>
+                            <div className="fees-person-meta" title={regNo}>{regNo}</div>
+                          </div>
                         </div>
-                      );
-                    })}
-                    {fee.status === 'COMPLETED' && (() => {
-                      const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS') && x.transactionType !== 'MESS DEDUCTION');
-                      const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
-                      if (match) {
-                        const parts = match[1].split('-');
-                        return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
-                      }
-                      return null;
-                    })()}
-                  </td>
-                  <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
+                      </td>
+                      <td>
+                        <span className="ui-badge ui-badge-blue" title={`Room ${fee.student?.roomNo || 'N/A'}`}>
+                          Room {fee.student?.roomNo || 'N/A'}
+                        </span>
+                      </td>
+                      <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
 
-                  <td className={`num fees-total${fee.status === 'PENDING' ? ' fees-total--pending' : ''}`}>
-                    ₹{fee.totalAmount.toLocaleString('en-IN')}
-                  </td>
+                      <td className="num fees-credit">₹{fee.advance.toLocaleString('en-IN')}</td>
+                      <td className="num">
+                        <div>₹{fee.rent.toLocaleString('en-IN')}</div>
+                        {fee.status === 'COMPLETED' && (() => {
+                          const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
+                          const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                          if (match) {
+                            const parts = match[1].split('-');
+                            return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
+                          }
+                          return null;
+                        })()}
+                      </td>
+                      <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                      <td className="num">
+                        <div>₹{fee.mess.toLocaleString('en-IN')}</div>
+                        {fee.feesList?.filter((x: any) => x.transactionType === 'MESS DEDUCTION').map((d: any, idx: number) => {
+                          const match = d.description?.match(/\((\d+\s*days)\)/i);
+                          const daysText = match ? match[1] : '';
+                          return (
+                            <div key={idx} className="fees-note fees-note--danger">
+                              Inc. -₹{Math.abs(d.amount).toLocaleString('en-IN')} {daysText ? `(${daysText})` : ''}
+                            </div>
+                          );
+                        })}
+                        {fee.status === 'COMPLETED' && (() => {
+                          const messFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('MESS') && x.transactionType !== 'MESS DEDUCTION');
+                          const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
+                          if (match) {
+                            const parts = match[1].split('-');
+                            return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
+                          }
+                          return null;
+                        })()}
+                      </td>
+                      <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
-                  <td title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>{fee.status === 'COMPLETED' ? fee.paymentMode : '—'}</td>
-                  <td>
-                    <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-success' : 'ui-badge-danger'}`}>
-                      {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
-                    </span>
-                  </td>
-                  <td className="num">
-                    {fee.status === 'PENDING' ? (
-                      <button
-                        onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
-                        className="ui-btn ui-btn-primary ui-btn-sm"
-                      >
-                        <Wallet size={14} /> Pay Now
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
-                        className="ui-btn ui-btn-secondary ui-btn-sm"
-                      >
-                        <FileText size={14} /> View Receipt
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {error ? (
-                <tr>
-                  <td colSpan={14} className="ui-empty ui-empty--danger">{error}</td>
-                </tr>
-              ) : paginatedFees.length === 0 && (
-                <tr>
-                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
-                </tr>
-              )}
-                </>
+                      <td className={`num fees-total${fee.status === 'PENDING' ? ' fees-total--pending' : ''}`}>
+                        ₹{fee.totalAmount.toLocaleString('en-IN')}
+                      </td>
+
+                      <td title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>
+                        {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
+                      </td>
+                      <td>
+                        <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-green' : 'ui-badge-red'}`}>
+                          {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                        </span>
+                      </td>
+                      <td className="fees-actions">
+                        {fee.status === 'PENDING' ? (
+                          <button
+                            onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
+                            className="ui-btn ui-btn-primary ui-btn-sm"
+                          >
+                            <Wallet size={14} /> Pay Now
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
+                            className="ui-btn ui-btn-secondary ui-btn-sm"
+                          >
+                            <FileText size={14} /> View Receipt
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -509,17 +626,17 @@ const Fees = () => {
         {/* Pagination */}
         {totalPages > 0 && (
           <div className="ui-pagination">
-            <div>
-              Showing {(page - 1) * 10 + 1} to {Math.min(page * 10, displayFees.length)} of {displayFees.length} entries
+            <div className="ui-pagination-info">
+              Showing {(page - 1) * limit + 1} to {Math.min(page * limit, displayFees.length)} of {displayFees.length} entries
             </div>
-            <div className="ui-pager">
+            <div className="ui-pagination-pages">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="ui-page-btn">
                 Previous
               </button>
-              <button className="ui-page-btn ui-page-btn--active">
+              <button className="ui-page-btn active">
                 {page}
               </button>
               <button
