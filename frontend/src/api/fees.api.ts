@@ -37,5 +37,25 @@ export const FeesAPI = {
       throw new Error(error.message || 'Failed to update fee transaction');
     }
     return res.json();
+  },
+
+  async payOutstanding(data: {
+    studentId: string;
+    amount: number;
+    paymentMode: string;
+    referenceNumber?: string;
+    notes?: string;
+    requestId?: string;
+  }) {
+    const res = await fetch(`${API_URL}/fees/pay-outstanding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to process outstanding payment');
+    }
+    return res.json();
   }
 };

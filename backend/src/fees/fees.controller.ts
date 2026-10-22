@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { FeesService } from './fees.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
+import { PayOutstandingDto } from './dto/pay-outstanding.dto';
 
 @Controller('fees')
 export class FeesController {
@@ -10,6 +11,11 @@ export class FeesController {
   @Post()
   create(@Body() createFeeDto: CreateFeeDto) {
     return this.feesService.create(createFeeDto);
+  }
+
+  @Post('pay-outstanding')
+  payOutstanding(@Body() payOutstandingDto: PayOutstandingDto) {
+    return this.feesService.payOutstanding(payOutstandingDto);
   }
 
   @Get()
