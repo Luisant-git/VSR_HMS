@@ -7,6 +7,16 @@ import { PayOutstandingDto } from './dto/pay-outstanding.dto';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
+/**
+ * Every payment made against a student's historical outstanding balance is
+ * stored as its own completed transaction of this type. Outstanding invoices
+ * themselves are never edited, so their original amounts stay intact and a
+ * payment can never be counted twice.
+ */
+const OUTSTANDING_PAYMENT_TYPE = 'OUTSTANDING_PAYMENT';
+const OUTSTANDING_PREFIX = 'Outstanding';
+const MONEY_EPSILON = 0.001;
+
 @Injectable()
 export class FeesService {
   constructor(private prisma: PrismaService) {}
@@ -61,15 +71,21 @@ export class FeesService {
   /**
    * Applies a (possibly partial) payment against a student's outstanding balance.
    *
-   * Outstanding invoices are the pending RENT / EB_BILL rows added through the
-   * Admin "Outstanding Payments" module (their descriptions start with
-   * "Outstanding"). The payment is allocated oldest-first inside a single
-   * serializable database transaction so concurrent requests cannot overpay.
+   * Ledger model (no invoice is ever mutated):
+   * - Outstanding invoices are the original PENDING RENT / EB_BILL rows added
+   *   through the Admin "Outstanding Payments" module. Their descriptions start
+   *   with "Outstanding" and their amounts are the original billed amounts.
+   * - Every confirmed payment is stored as ONE separate COMPLETED
+   *   `OUTSTANDING_PAYMENT` transaction.
+   * - Remaining balance = sum(original outstanding invoices)
+   *                       - sum(confirmed OUTSTANDING_PAYMENT transactions).
    *
-   * - A fully covered invoice is marked COMPLETED.
-   * - A partially covered invoice is split: the original pending row keeps the
-   *   remaining balance and a COMPLETED row is created for the paid portion so
-   *   the payment immediately shows up in the existing payment history.
+   * This guarantees that a partial payment (e.g. ₹2,000 against ₹5,000) only
+   * moves the balance to ₹3,000, leaves every invoice amount untouched, and is
+   * never subtracted from more than one row.
+   *
+   * All reads/writes happen inside a serializable transaction so concurrent
+   * requests cannot overpay.
    */
   async payOutstanding(dto: PayOutstandingDto) {
     const amount = roundMoney(Number(dto.amount));
@@ -112,113 +128,150 @@ export class FeesService {
     if (requestId) {
       const marker = `[REQ:${requestId}]`;
       const existing = await tx.feeTransaction.findMany({
-        where: { studentId, description: { contains: marker } },
+        where: {
+          studentId,
+          status: 'COMPLETED',
+          transactionType: OUTSTANDING_PAYMENT_TYPE,
+          description: { contains: marker },
+        },
         orderBy: { createdAt: 'asc' },
       });
 
       if (existing.length > 0) {
-        const stillOutstanding = await this.getOutstandingTransactions(tx, studentId);
-        const appliedAmount = roundMoney(existing.reduce((sum, fee) => sum + fee.amount, 0));
+        const payment = existing[0];
+        const invoices = await this.getOutstandingInvoices(tx, studentId);
+        const payments = await this.getConfirmedOutstandingPayments(tx, studentId);
+        const originalOutstanding = this.sumAmounts(invoices);
+        const totalPaid = this.sumAmounts(payments);
+        const appliedAmount = roundMoney(Number(payment.amount) || 0);
+
         return {
           duplicate: true,
           studentId,
           amount: appliedAmount,
           appliedAmount,
-          remainingOutstanding: roundMoney(
-            stillOutstanding.reduce((sum, fee) => sum + fee.amount, 0),
-          ),
-          payments: existing,
+          originalOutstanding,
+          previouslyPaid: roundMoney(Math.max(0, totalPaid - appliedAmount)),
+          remainingOutstanding: roundMoney(Math.max(0, originalOutstanding - totalPaid)),
+          payments: [payment],
+          payment,
+          allocations: this.allocatePayments(invoices, totalPaid - appliedAmount, appliedAmount),
         };
       }
     }
 
-    const outstanding = await this.getOutstandingTransactions(tx, studentId);
-    if (outstanding.length === 0) {
+    // Original outstanding invoices. These rows are never modified.
+    const invoices = await this.getOutstandingInvoices(tx, studentId);
+    if (invoices.length === 0) {
       throw new BadRequestException('This student has no outstanding balance to pay.');
     }
 
-    const totalOutstanding = roundMoney(outstanding.reduce((sum, fee) => sum + fee.amount, 0));
-    if (amount > totalOutstanding + 0.001) {
+    const originalOutstanding = this.sumAmounts(invoices);
+    const payments = await this.getConfirmedOutstandingPayments(tx, studentId);
+    const previouslyPaid = this.sumAmounts(payments);
+    const remainingBefore = roundMoney(Math.max(0, originalOutstanding - previouslyPaid));
+
+    if (remainingBefore <= MONEY_EPSILON) {
       throw new BadRequestException(
-        `Payment amount ₹${amount.toFixed(2)} exceeds the remaining outstanding balance of ₹${totalOutstanding.toFixed(2)}.`,
+        "This student's outstanding balance has already been settled.",
       );
     }
 
-    const suffix = this.buildDescriptionSuffix(dto, requestId);
-    const payments: any[] = [];
-    let leftToApply = amount;
-
-    for (const fee of outstanding) {
-      if (leftToApply <= 0.001) break;
-      const feeAmount = roundMoney(fee.amount);
-
-      if (leftToApply + 0.001 >= feeAmount) {
-        // Fully settle this outstanding invoice.
-        const updated = await tx.feeTransaction.update({
-          where: { id: fee.id },
-          data: {
-            status: 'COMPLETED',
-            paymentMode: dto.paymentMode,
-            paidDate: new Date(),
-            description: `${fee.description || 'Outstanding balance'}${suffix}`,
-          },
-        });
-        payments.push(updated);
-        leftToApply = roundMoney(leftToApply - feeAmount);
-      } else {
-        // Partial settlement. Keep the invoice pending with the remaining
-        // balance and record the paid portion as a completed transaction.
-        const paidPortion = leftToApply;
-        await tx.feeTransaction.update({
-          where: { id: fee.id },
-          data: { amount: roundMoney(feeAmount - paidPortion) },
-        });
-
-        const created = await tx.feeTransaction.create({
-          data: {
-            studentId,
-            transactionType: fee.transactionType,
-            amount: paidPortion,
-            status: 'COMPLETED',
-            paymentMode: dto.paymentMode,
-            paidDate: new Date(),
-            description: `${fee.description || 'Outstanding balance'} | Partial payment${suffix}`,
-          },
-        });
-        payments.push(created);
-        leftToApply = 0;
-      }
-    }
-
-    if (leftToApply > 0.001) {
-      // Roll back rather than silently losing money if allocation failed.
+    if (amount > remainingBefore + MONEY_EPSILON) {
       throw new BadRequestException(
-        'Unable to fully apply the payment to the outstanding balance.',
+        `Payment amount ₹${amount.toFixed(2)} exceeds the remaining outstanding balance of ₹${remainingBefore.toFixed(2)}.`,
       );
     }
 
-    const stillOutstanding = await this.getOutstandingTransactions(tx, studentId);
+    // ONE ledger row per payment. No invoice amount or status is touched.
+    const created = await tx.feeTransaction.create({
+      data: {
+        studentId,
+        transactionType: OUTSTANDING_PAYMENT_TYPE,
+        amount,
+        status: 'COMPLETED',
+        paymentMode: dto.paymentMode,
+        paidDate: new Date(),
+        description: `Outstanding payment${this.buildDescriptionSuffix(dto, requestId)}`,
+      },
+    });
 
     return {
       duplicate: false,
       studentId,
       amount,
       appliedAmount: amount,
+      originalOutstanding,
+      previouslyPaid,
       remainingOutstanding: roundMoney(
-        stillOutstanding.reduce((sum, fee) => sum + fee.amount, 0),
+        Math.max(0, originalOutstanding - previouslyPaid - amount),
       ),
-      payments,
+      payments: [created],
+      payment: created,
+      // Read-only breakdown of how this payment maps to the original invoices
+      // (oldest first). It is derived, never persisted, so a payment cannot be
+      // subtracted from more than one invoice row.
+      allocations: this.allocatePayments(invoices, previouslyPaid, amount),
     };
   }
 
-  private getOutstandingTransactions(tx: Prisma.TransactionClient, studentId: string) {
+  private getOutstandingInvoices(tx: Prisma.TransactionClient, studentId: string) {
     return tx.feeTransaction.findMany({
       where: {
         studentId,
         status: 'PENDING',
-        description: { startsWith: 'Outstanding', mode: 'insensitive' },
+        description: { startsWith: OUTSTANDING_PREFIX, mode: 'insensitive' },
       },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private getConfirmedOutstandingPayments(tx: Prisma.TransactionClient, studentId: string) {
+    return tx.feeTransaction.findMany({
+      where: {
+        studentId,
+        status: 'COMPLETED',
+        transactionType: OUTSTANDING_PAYMENT_TYPE,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  private sumAmounts(rows: Array<{ amount: number }>) {
+    return roundMoney(rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0));
+  }
+
+  /**
+   * Distributes already-paid and newly-paid amounts across the original
+   * invoices oldest-first. Used only for the response / payment history.
+   */
+  private allocatePayments(
+    invoices: Array<{ id: string; amount: number; transactionType: string; description: string | null }>,
+    alreadyPaid: number,
+    paymentAmount: number,
+  ) {
+    let covered = roundMoney(Math.max(0, alreadyPaid));
+    let leftToApply = roundMoney(Math.max(0, paymentAmount));
+
+    return invoices.map(invoice => {
+      const originalAmount = roundMoney(Number(invoice.amount) || 0);
+      const coveredBefore = roundMoney(Math.min(covered, originalAmount));
+      covered = roundMoney(covered - coveredBefore);
+
+      const available = roundMoney(originalAmount - coveredBefore);
+      const appliedAmount = roundMoney(Math.min(leftToApply, available));
+      leftToApply = roundMoney(leftToApply - appliedAmount);
+
+      const paidAmount = roundMoney(coveredBefore + appliedAmount);
+      return {
+        invoiceId: invoice.id,
+        transactionType: invoice.transactionType,
+        description: invoice.description,
+        originalAmount,
+        paidAmount,
+        appliedAmount,
+        remainingAmount: roundMoney(originalAmount - paidAmount),
+      };
     });
   }
 

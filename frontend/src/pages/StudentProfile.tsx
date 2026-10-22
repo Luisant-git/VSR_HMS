@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, Plus, Trash2, Save, Loader2, DollarSign, Calendar, Home, Zap, ChevronDown } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, Plus, Trash2, Save, Loader2, DollarSign, Calendar, Home, Zap } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -8,6 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { buildOutstandingSummary, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -80,15 +81,23 @@ const StudentProfile = () => {
     eb: number | string;
   }>>([]);
   const [isSavingOutstanding, setIsSavingOutstanding] = useState(false);
-  const [outstandingPayments, setOutstandingPayments] = useState<any[]>([]);
+
+  // Outstanding ledger: original invoices stay untouched; confirmed
+  // OUTSTANDING_PAYMENT rows reduce the remaining balance.
+  const outstandingSummary = useMemo(() => buildOutstandingSummary(fees), [fees]);
+  const outstandingAllocations = outstandingSummary.allocations;
 
   const displayFees = useMemo(() => {
-    const pendingGroup = {
+    const pendingGroup: any = {
       isGrouped: true,
       id: 'pending-group',
       status: 'PENDING',
       createdAt: new Date().toISOString(),
       totalAmount: 0,
+      displayPaid: 0,
+      displayBalance: 0,
+      displayStatus: 'Unpaid',
+      invoiceFee: null,
       rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
       feesList: [] as any[]
     };
@@ -96,23 +105,31 @@ const StudentProfile = () => {
 
     fees.forEach(f => {
       const type = (f.transactionType || '').toUpperCase();
+      // Outstanding amounts stay in the Outstanding Balance column only; they
+      // must not be counted as Rent / EB / Mess / Fine / Advance.
       let category = 'other';
-      if (type.includes('RENT')) category = 'rent';
+      if (isOutstandingDescription(f) || isOutstandingPayment(f)) category = 'other';
+      else if (type.includes('RENT')) category = 'rent';
       else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
       else if (type.includes('MESS')) category = 'mess';
       else if (type.includes('FINE')) category = 'fine';
       else if (type.includes('ADVANCE')) category = 'advance';
 
       if (f.status === 'PENDING') {
-        pendingGroup.totalAmount += f.amount;
-        (pendingGroup as any)[category] += f.amount;
+        pendingGroup.totalAmount += Number(f.amount) || 0;
+        pendingGroup[category] += Number(f.amount) || 0;
         pendingGroup.feesList.push(f);
         if (!pendingGroup.createdAt || new Date(f.createdAt) < new Date(pendingGroup.createdAt)) {
           pendingGroup.createdAt = f.createdAt;
         }
       } else {
         const paidTime = f.updatedAt || f.createdAt;
-        const batchKey = new Date(paidTime).toISOString().slice(0, 16);
+        const isOutstandingPay = isOutstandingPayment(f);
+        // All confirmed outstanding payments are summarised in one row so the
+        // original invoice is shown once with cumulative paid.
+        const batchKey = isOutstandingPay
+          ? 'outstanding-payments'
+          : new Date(paidTime).toISOString().slice(0, 16);
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
             isGrouped: true,
@@ -122,23 +139,56 @@ const StudentProfile = () => {
             paidDate: paidTime,
             paymentMode: f.paymentMode || 'N/A',
             totalAmount: 0,
+            displayPaid: 0,
+            displayBalance: 0,
+            displayStatus: 'Paid',
+            invoiceFee: null,
             rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
             feesList: []
           });
         }
         const group = paidByBatch.get(batchKey);
-        group.totalAmount += f.amount;
-        group[category] += f.amount;
+        group.totalAmount += Number(f.amount) || 0;
+        group[category] += Number(f.amount) || 0;
         group.feesList.push(f);
+        if (isOutstandingPay && new Date(paidTime) > new Date(group.paidDate)) {
+          group.paidDate = paidTime;
+        }
       }
     });
 
-    const result = [];
-    if (pendingGroup.feesList.length > 0) result.push(pendingGroup);
-    result.push(...Array.from(paidByBatch.values()));
+    // Pending row = remaining dues only. Nothing has been paid against this
+    // row, so Total Paid stays ₹0 and its Outstanding Balance is the remainder.
+    const pendingDue = roundMoney(
+      Math.max(0, pendingGroup.totalAmount - outstandingSummary.paid),
+    );
+    pendingGroup.displayPaid = 0;
+    pendingGroup.displayBalance = pendingDue;
+    pendingGroup.displayStatus = 'Unpaid';
+    pendingGroup.invoiceFee = null;
+
+    const result: any[] = [];
+    if (pendingDue > 0.005) result.push(pendingGroup);
+    paidByBatch.forEach((group: any) => {
+      const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
+      if (hasOutstandingPayment) {
+        group.displayPaid = outstandingSummary.paid;
+        // The original invoice row keeps its original amount. The pending row
+        // above shows the remaining balance.
+        group.displayBalance = outstandingSummary.original;
+        group.displayStatus = outstandingSummary.remaining > 0.005 ? 'Partial' : 'Paid';
+        group.invoiceFee = outstandingSummary.invoices[0] || group.feesList[0];
+      } else {
+        group.displayPaid = group.totalAmount;
+        group.displayBalance = 0;
+        group.displayStatus = 'Paid';
+        group.invoiceFee = group.feesList[0];
+      }
+      result.push(group);
+    });
     result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return result;
-  }, [fees]);
+  }, [fees, outstandingSummary]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -231,13 +281,6 @@ const StudentProfile = () => {
           FeesAPI.findByStudent(data.id).then(res => {
             const feesData = Array.isArray(res) ? res : (res.data || []);
             setFees(feesData);
-            // Filter outstanding payments (PENDING outstanding RENT / EB_BILL rows)
-            const outstanding = feesData.filter((f: any) => 
-              f.status === 'PENDING' && 
-              (f.transactionType === 'RENT' || f.transactionType === 'EB_BILL') &&
-              /^\s*outstanding\b/i.test(f.description || '')
-            );
-            setOutstandingPayments(outstanding);
           }).catch(console.error);
         }
         if (data.regNo) {
@@ -685,18 +728,17 @@ const StudentProfile = () => {
                     <div>
                       <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Outstanding Balance</div>
                       <div style={{ fontSize: '28px', fontWeight: 800, color: '#713f12', lineHeight: 1 }}>
-                        ₹{outstandingPayments.reduce((sum: number, p: any) => {
-                          const paid = p.paidAmount || 0;
-                          const total = p.amount || 0;
-                          return sum + Math.max(0, total - paid);
-                        }, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, marginTop: '6px' }}>
+                        Original: ₹{outstandingSummary.original.toLocaleString('en-IN')} &middot; Paid: ₹{outstandingSummary.paid.toLocaleString('en-IN')}
                       </div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '12px', color: '#854d0e', marginBottom: '2px' }}>{outstandingPayments.filter((p: any) => (p.amount || 0) > (p.paidAmount || 0)).length} Pending Invoice(s)</div>
+                    <div style={{ fontSize: '12px', color: '#854d0e', marginBottom: '2px' }}>{outstandingAllocations.filter((a: any) => a.remainingAmount > 0).length} Pending Invoice(s)</div>
                     <div style={{ fontSize: '13px', color: '#a16207', fontWeight: 600 }}>
-                      {outstandingPayments.filter((p: any) => (p.amount || 0) > (p.paidAmount || 0)).reduce((sum: number, p: any) => sum + Math.max(0, (p.amount || 0) - (p.paidAmount || 0)), 0).toLocaleString('en-IN')} Balance
+                      {outstandingSummary.remaining.toLocaleString('en-IN')} Balance
                     </div>
                   </div>
                 </div>
@@ -855,133 +897,6 @@ const StudentProfile = () => {
                 </div>
               </div>
 
-              {/* Existing Outstanding Payments List */}
-              <div className="ui-card ui-card--flush">
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
-                  <h4 className="sp-section-title" style={{ fontSize: '16px', marginBottom: 0, color: '#10b981' }}>
-                    <Clock size={18} /> Outstanding Balance Summary
-                  </h4>
-                </div>
-                
-                {outstandingPayments.length === 0 ? (
-                  <div className="sp-empty">
-                    No outstanding payments found for this student.
-                  </div>
-                ) : (
-                  <div style={{ padding: '20px' }}>
-                    {/* Consolidated Outstanding Row */}
-                    <div style={{ 
-                      background: '#fefce8', 
-                      border: '1px solid #fde047', 
-                      borderRadius: '12px', 
-                      padding: '24px',
-                      marginBottom: '20px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                        <div>
-                          <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                            Total Outstanding Balance
-                          </div>
-                          <div style={{ fontSize: '32px', fontWeight: 800, color: '#713f12', lineHeight: 1 }}>
-                            ₹{outstandingPayments.reduce((sum: number, p: any) => {
-                              const paid = p.paidAmount || 0;
-                              const total = p.amount || 0;
-                              return sum + Math.max(0, total - paid);
-                            }, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '12px', color: '#854d0e', marginBottom: '2px' }}>
-                              {outstandingPayments.filter((p: any) => (p.amount || 0) > (p.paidAmount || 0)).length} Pending Invoice(s)
-                            </div>
-                            <div style={{ fontSize: '14px', color: '#a16207', fontWeight: 600 }}>
-                              Total Balance Due
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              const pendingFees = outstandingPayments.filter((p: any) => (p.amount || 0) > (p.paidAmount || 0));
-                              if (pendingFees.length > 0) {
-                                setFeeToCollect(pendingFees.map(p => ({ ...p, student: { name: student.name, regNo: student.id, roomNo: student.room } })));
-                              }
-                            }} 
-                            className="ui-btn ui-btn-primary"
-                            style={{ padding: '12px 24px', fontSize: '15px', fontWeight: 600 }}
-                          >
-                            <Wallet size={18} /> Pay Outstanding Balance
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Detailed Breakdown (Collapsible) */}
-                    <details style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                      <summary style={{ 
-                        padding: '16px 20px', 
-                        background: '#f8fafc', 
-                        cursor: 'pointer', 
-                        fontWeight: 600, 
-                        color: '#334155',
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center'
-                      }}>
-                        <span>View Detailed Breakdown ({outstandingPayments.length} invoices)</span>
-                        <ChevronDown size={18} color="#64748b" />
-                      </summary>
-                      <div style={{ padding: '0' }}>
-                        <div className="ui-table-wrap">
-                          <table className="ui-table">
-                            <thead>
-                              <tr>
-                                <th>Type</th>
-                                <th>Description</th>
-                                <th className="num">Total (₹)</th>
-                                <th className="num">Paid (₹)</th>
-                                <th className="num">Balance (₹)</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {outstandingPayments.map((payment: any) => {
-                                const paidAmount = payment.paidAmount || 0;
-                                const totalAmount = payment.amount || 0;
-                                const balance = Math.max(0, totalAmount - paidAmount);
-                                const isPartial = payment.status === 'PARTIAL' || (paidAmount > 0 && paidAmount < totalAmount);
-                                const isCompleted = payment.status === 'COMPLETED' || paidAmount >= totalAmount;
-                                
-                                return (
-                                  <tr key={payment.id} className={isCompleted ? '' : 'sp-row-pending'}>
-                                    <td>
-                                      <span className={`ui-badge ${payment.transactionType === 'RENT' ? 'ui-badge-primary' : 'ui-badge-warning'}`}>
-                                        {payment.transactionType}
-                                      </span>
-                                    </td>
-                                    <td>{payment.description || '—'}</td>
-                                    <td className="num">₹{totalAmount.toLocaleString('en-IN')}</td>
-                                    <td className="num" style={{ color: '#059669' }}>₹{paidAmount.toLocaleString('en-IN')}</td>
-                                    <td className="num sp-total is-pending" style={{ fontWeight: 700 }}>₹{balance.toLocaleString('en-IN')}</td>
-                                    <td>
-                                      {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
-                                    </td>
-                                    <td>
-                                      <span className={`ui-badge ${isCompleted ? 'ui-badge-success' : isPartial ? 'ui-badge-info' : 'ui-badge-warning'}`}>
-                                        {isCompleted ? 'Paid' : isPartial ? 'Partial' : 'Pending'}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -1092,7 +1007,10 @@ const StudentProfile = () => {
                 </div>
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Pending Dues</div>
-                  <div className="sp-stat-value">₹{fees.filter(f => f.status === 'PENDING').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-value">₹{roundMoney(
+                    fees.filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f)).reduce((sum, f) => sum + Number(f.amount || 0), 0)
+                    + outstandingSummary.remaining
+                  ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
@@ -1113,6 +1031,7 @@ const StudentProfile = () => {
                           <th className="num">EB</th>
                           <th className="num">Mess</th>
                           <th className="num">Fine</th>
+                          <th className="num">Outstanding Balance</th>
                           <th className="num">Total Paid</th>
                           <th>Status</th>
                           <th className="num">Action</th>
@@ -1122,7 +1041,7 @@ const StudentProfile = () => {
                         {displayFees.map(fee => (
                           <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
                             <td className="sp-invoice">
-                              {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—'}
+                              {fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'}
                             </td>
                             <td>
                               {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
@@ -1155,17 +1074,21 @@ const StudentProfile = () => {
                             </td>
                             <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
-                            <td className={`num sp-total${fee.status === 'PENDING' ? ' is-pending' : ''}`}>
-                              ₹{fee.totalAmount.toLocaleString('en-IN')}
+                            <td className={`num sp-outstanding${(fee.displayBalance || 0) > 0 ? ' is-due' : ' is-clear'}`}>
+                              ₹{Number(fee.displayBalance || 0).toLocaleString('en-IN')}
+                            </td>
+
+                            <td className={`num sp-total${fee.displayStatus === 'Unpaid' ? ' is-pending' : ''}`}>
+                              ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                             </td>
 
                             <td>
-                              <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-success' : fee.status === 'PENDING' ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
-                                {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                              <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-success' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                                {fee.displayStatus}
                               </span>
                             </td>
                             <td className="num">
-                              {fee.status === 'PENDING' ? (
+                              {fee.displayStatus === 'Unpaid' ? (
                                 <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} className="ui-btn ui-btn-primary ui-btn-sm">
                                   <Wallet size={14} /> Pay Now
                                 </button>
@@ -1422,6 +1345,7 @@ const StudentProfile = () => {
         <CollectPaymentModal
           fee={Array.isArray(feeToCollect) ? undefined : { ...feeToCollect, student }}
           fees={Array.isArray(feeToCollect) ? feeToCollect : undefined}
+          outstandingPaid={outstandingSummary.paid}
           onClose={() => setFeeToCollect(null)}
           onSuccess={() => {
             setFeeToCollect(null);

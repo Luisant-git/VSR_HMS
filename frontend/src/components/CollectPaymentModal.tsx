@@ -7,6 +7,12 @@ import { toast } from 'react-toastify';
 interface CollectPaymentModalProps {
   fee?: any;
   fees?: any[];
+  /**
+   * Confirmed payments already made against the outstanding invoices passed in
+   * `fee` / `fees`. The modal shows only the remaining balance, and the backend
+   * re-validates it again before confirming a new payment.
+   */
+  outstandingPaid?: number;
   onClose: () => void;
   onSuccess: (paidItems?: any[], paymentMode?: string) => void;
   isStudentMode?: boolean;
@@ -17,7 +23,7 @@ const isOutstandingFee = (fee: any) =>
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
-export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, fees, onClose, onSuccess, isStudentMode }) => {
+export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, fees, outstandingPaid = 0, onClose, onSuccess, isStudentMode }) => {
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
@@ -32,22 +38,35 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const outstandingItems = itemsToPay.filter(isOutstandingFee);
   const currentItems = itemsToPay.filter((f: any) => !isOutstandingFee(f));
 
+  // Original outstanding invoice amounts minus payments already confirmed by
+  // the backend. Invoices are never mutated, so this is the only safe way to
+  // show the true remaining balance.
   const outstandingBalance = roundMoney(
-    outstandingItems.reduce(
-      (sum: number, f: any) => sum + Math.max(0, (f.amount || 0) - (f.paidAmount || 0)),
+    Math.max(
       0,
+      outstandingItems.reduce(
+        (sum: number, f: any) => sum + (Number(f.amount) || 0),
+        0,
+      ) - (Number(outstandingPaid) || 0),
     ),
   );
 
-  const [months, setMonths] = useState(1);
-  const [outstandingSelected, setOutstandingSelected] = useState<boolean>(
-    outstandingItems.length > 0 && currentItems.length === 0,
+  // A stable id makes retries / double-submits idempotent on the backend.
+  const [requestId] = useState(
+    () => `OP-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
   );
+
+  const [months, setMonths] = useState(1);
+  // When previous outstanding dues exist, start on the OUTSTANDING item and
+  // leave current-month rent / mess / EB unchecked. Paying an outstanding
+  // amount must not mark current invoices as paid.
+  const hasOutstandingItems = outstandingItems.length > 0 && outstandingBalance > 0;
+  const [outstandingSelected, setOutstandingSelected] = useState<boolean>(hasOutstandingItems);
   const [outstandingAmountInput, setOutstandingAmountInput] = useState('');
   const [feeStates, setFeeStates] = useState<Record<string, { selected: boolean }>>(() => {
     const initialState: Record<string, { selected: boolean }> = {};
     currentItems.forEach((f: any) => {
-      initialState[f.id] = { selected: true };
+      initialState[f.id] = { selected: !hasOutstandingItems };
     });
     return initialState;
   });
@@ -209,7 +228,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
           paymentMode,
           referenceNumber: effectiveRef || undefined,
           notes: notes || undefined,
-          requestId: `OP-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          requestId,
         });
 
         const studentForReceipt = primaryStudent || itemsToPay[0]?.student;
@@ -456,6 +475,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                           <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                               Enter any amount up to ₹{outstandingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </span>
+                            <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 600 }}>
+                              This reduces only previous outstanding dues. Current Rent / Mess / EB stay unpaid unless ticked above.
                             </span>
                           </div>
 

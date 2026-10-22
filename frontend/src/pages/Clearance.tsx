@@ -6,6 +6,7 @@ import { LoadingBlock } from '../components/LoadingSpinner';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { ClearanceAPI } from '../api/clearance.api';
+import { calculatePendingDues } from '../utils/outstanding';
 import { toast } from 'react-toastify';
 
 const Clearance = () => {
@@ -29,8 +30,7 @@ const Clearance = () => {
         setStudent(data);
         FeesAPI.findByStudent(data.id).then(fees => {
           const safeFees = Array.isArray(fees) ? fees : (fees as any).data || [];
-          const dues = safeFees.filter((f: any) => f.status === 'PENDING').reduce((acc: number, f: any) => acc + f.amount, 0);
-          setPendingDues(dues);
+          setPendingDues(calculatePendingDues(safeFees));
         });
       }).catch(() => {
         setError('Failed to load student details');

@@ -11,6 +11,11 @@ import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { RoomAPI } from '../api/room.api';
 import { CollegeAPI } from '../api/college.api';
+import {
+  isOutstandingInvoice,
+  isOutstandingPayment,
+  roundMoney,
+} from '../utils/outstanding';
 import { toast } from 'react-toastify';
 const MENU_WIDTH = 232;
 const MENU_GAP = 6;
@@ -112,9 +117,22 @@ const Hostellers = () => {
     }).then(res => {
       const data = res.data || [];
       const mapped = data.map((h: any) => {
-        const pendingFeesAmount = h.transactions?.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0) || 0;
-        const hasPending = h.transactions?.some((f: any) => f.status === 'PENDING');
-        const hasCompleted = h.transactions?.some((f: any) => f.status === 'COMPLETED');
+        const transactions = h.transactions || [];
+        const outstandingOriginal = transactions
+          .filter(isOutstandingInvoice)
+          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        const outstandingPaid = transactions
+          .filter(isOutstandingPayment)
+          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        const outstandingRemaining = roundMoney(Math.max(0, outstandingOriginal - outstandingPaid));
+        const currentPending = transactions
+          .filter((f: any) => f.status === 'PENDING' && !isOutstandingInvoice(f))
+          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        // Original outstanding invoices are netted by confirmed payments; they
+        // are never added again at full value.
+        const pendingFeesAmount = roundMoney(currentPending + outstandingRemaining);
+        const hasPending = pendingFeesAmount > 0.005;
+        const hasCompleted = transactions.some((f: any) => f.status === 'COMPLETED');
 
         let currentFeeStatus = 'No Dues';
         if (hasPending) currentFeeStatus = 'Un-Paid';

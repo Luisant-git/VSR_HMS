@@ -5,6 +5,12 @@ import { getSystemSettings } from '../api/settings.api';
 import { setDocumentTitle } from '../utils/documentTitle';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
+import {
+  buildOutstandingSummary,
+  calculatePendingDues,
+  isOutstandingInvoice,
+  roundMoney,
+} from '../utils/outstanding';
 
 export default function StudentPortal() {
   const [mobileNo, setMobileNo] = useState('');
@@ -36,8 +42,11 @@ export default function StudentPortal() {
         }
         setStudent(data);
         sessionStorage.setItem('student_portal_mobile', searchMobile);
-        const pending = data.transactions?.filter((t: any) => t.status === 'PENDING') || [];
-        if (pending.length > 0) {
+        // Only open the payment modal when there is an actual balance. Fully
+        // settled outstanding invoices remain PENDING on purpose (their
+        // original amounts are preserved), so net them with confirmed payments.
+        if (calculatePendingDues(data.transactions || []) > 0.005) {
+          const pending = data.transactions?.filter((t: any) => t.status === 'PENDING') || [];
           setFeesToPay(pending.map((p: any) => ({ ...p, student: data })));
         }
       }
@@ -70,17 +79,23 @@ export default function StudentPortal() {
 
   const handlePaymentSuccess = (paidItems?: any[], paymentMode?: string) => {
     setFeesToPay([]);
-    // Update local student object to reflect completed fees
+    // Update the local student object to reflect completed fees. Outstanding
+    // payments are new ledger rows (the original invoices stay untouched), so
+    // append them instead of only replacing existing rows.
     if (student && paidItems) {
-      const updatedTransactions = student.transactions.map((t: any) => {
-        const paidItem = paidItems.find(p => p.id === t.id);
-        if (paidItem) return paidItem;
-        return t;
+      const updatedTransactions = [...(student.transactions || [])];
+      paidItems.forEach((paidItem: any) => {
+        const index = updatedTransactions.findIndex((t: any) => t.id === paidItem.id);
+        if (index >= 0) updatedTransactions[index] = paidItem;
+        else updatedTransactions.push(paidItem);
       });
       setStudent({ ...student, transactions: updatedTransactions });
 
       // Generate a grouped fee object to show the receipt immediately
-      const totalAmount = paidItems.reduce((acc, curr) => acc + curr.amount, 0);
+      const totalAmount = paidItems.reduce(
+        (acc, curr) => acc + (Number(curr.amount) || 0),
+        0,
+      );
       const groupedFee = {
         isGrouped: true,
         feesList: paidItems,
@@ -94,7 +109,27 @@ export default function StudentPortal() {
   };
 
 
-  const pendingFees = student?.transactions?.filter((t: any) => t.status === 'PENDING') || [];
+  // Current-month dues and the net historical outstanding (original invoices
+  // minus confirmed OUTSTANDING_PAYMENT rows). Original invoices are never
+  // edited, so they must not be added at full value.
+  const transactions = student?.transactions || [];
+  const outstandingSummary = buildOutstandingSummary(transactions);
+  const currentPendingFees = transactions.filter(
+    (t: any) => t.status === 'PENDING' && !isOutstandingInvoice(t),
+  );
+  const currentPendingAmount = currentPendingFees.reduce(
+    (sum: number, fee: any) => sum + (Number(fee.amount) || 0),
+    0,
+  );
+  const totalPendingAmount = roundMoney(
+    currentPendingAmount + outstandingSummary.remaining,
+  );
+  const pendingInvoiceCount =
+    currentPendingFees.length + (outstandingSummary.remaining > 0.005 ? 1 : 0);
+  const pendingFeesToPay = [
+    ...currentPendingFees,
+    ...(outstandingSummary.remaining > 0.005 ? outstandingSummary.invoices : []),
+  ].map((fee: any) => ({ ...fee, student }));
 
   if (!student) {
     return (
@@ -258,17 +293,17 @@ export default function StudentPortal() {
 
             {/* Pending Fees */}
             <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '16px' }}>Pending Fees</h3>
-            {pendingFees.length > 0 ? (
+            {totalPendingAmount > 0.005 ? (
               <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '40px', padding: '30px' }}>
                 <div className="pending-block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#dc2626', margin: '0 0 8px 0' }}>{pendingFees.length} Pending Invoice(s)</h4>
+                    <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#dc2626', margin: '0 0 8px 0' }}>{pendingInvoiceCount} Pending Invoice(s)</h4>
                     <div style={{ color: '#64748b', fontSize: '14px' }}>
-                      You have outstanding dues totaling <strong style={{ color: '#0f172a' }}>₹{pendingFees.reduce((acc: number, f: any) => acc + f.amount, 0).toLocaleString('en-IN')}</strong>. Please clear them to avoid late fines.
+                      You have outstanding dues totaling <strong style={{ color: '#0f172a' }}>₹{totalPendingAmount.toLocaleString('en-IN')}</strong>. Please clear them to avoid late fines.
                     </div>
                   </div>
                   <button 
-                    onClick={() => setFeesToPay(pendingFees.map((p: any) => ({ ...p, student })))}
+                    onClick={() => setFeesToPay(pendingFeesToPay)}
                     style={{ background: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
                   >
                     <Wallet size={18} /> Pay All Dues Now
@@ -290,6 +325,7 @@ export default function StudentPortal() {
       {feesToPay.length > 0 && (
         <CollectPaymentModal 
           fees={feesToPay} 
+          outstandingPaid={outstandingSummary.paid}
           onClose={() => setFeesToPay([])} 
           onSuccess={handlePaymentSuccess} 
           isStudentMode={true}

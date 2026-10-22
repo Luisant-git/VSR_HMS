@@ -8,6 +8,14 @@ import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { LoadingRow } from '../components/LoadingSpinner';
+import {
+  buildOutstandingTotals,
+  getStudentKey,
+  isOutstandingDescription,
+  isOutstandingInvoice,
+  isOutstandingPayment,
+  roundMoney,
+} from '../utils/outstanding';
 
 const createInvoiceNumber = (dateValue: string | Date, serial: number | string) => {
   const date = new Date(dateValue || Date.now());
@@ -204,20 +212,68 @@ const Fees = () => {
     return match;
   });
 
-  const totalInvoiced = filteredFees.reduce((sum, fee) => sum + fee.amount, 0);
-  const totalCollected = filteredFees.filter(f => f.status === 'COMPLETED').reduce((sum, fee) => sum + fee.amount, 0);
-  const pendingFeesAmt = filteredFees.filter(f => f.status === 'PENDING').reduce((sum, fee) => sum + fee.amount, 0);
+  const totalInvoiced = filteredFees
+    .filter(f => !isOutstandingPayment(f))
+    .reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
+  const totalCollected = filteredFees
+    .filter(f => f.status === 'COMPLETED')
+    .reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
+
+  // Per-student original outstanding, confirmed payments and remaining balance.
+  // Built from the full list so confirmed payments are still netted when a
+  // filter hides the payment rows.
+  const outstandingTotals = useMemo(() => buildOutstandingTotals(fees), [fees]);
+
+  // First original outstanding invoice per student, used for the invoice number
+  // shown on the partial/paid summary row.
+  const outstandingInvoiceByStudent = useMemo(() => {
+    const firstInvoice = new Map<string, any>();
+    fees.forEach(fee => {
+      if (!isOutstandingInvoice(fee)) return;
+      const key = getStudentKey(fee);
+      if (!firstInvoice.has(key)) firstInvoice.set(key, fee);
+    });
+    return firstInvoice;
+  }, [fees]);
+
+  // Pending stat = current-month dues + remaining historical outstanding.
+  // Original outstanding invoice amounts are never added on top of payments.
+  const pendingFeesAmt = useMemo(() => {
+    const pendingStudents = new Set<string>();
+    let pending = 0;
+
+    filteredFees.forEach(fee => {
+      if (fee.status === 'PENDING') {
+        pendingStudents.add(getStudentKey(fee));
+        if (!isOutstandingInvoice(fee)) {
+          pending += Number(fee.amount) || 0;
+        }
+      }
+    });
+
+    pendingStudents.forEach(studentKey => {
+      pending += outstandingTotals.get(studentKey)?.remaining || 0;
+    });
+
+    return roundMoney(pending);
+  }, [filteredFees, outstandingTotals]);
 
   const displayFees = useMemo(() => {
     const pendingByStudent = new Map();
     const paidByBatch = new Map();
 
     filteredFees.forEach(f => {
-      const studentId = f.student?.regNo || 'unknown';
+      const studentId = getStudentKey(f);
 
       const type = (f.transactionType || '').toUpperCase();
+      // Previous outstanding dues are shown in the Total Amount / Balance
+      // columns only. They must never be counted under Rent / Mess / EB /
+      // Fine / Advance, otherwise the same money appears twice in the row.
+      // Confirmed outstanding payments are receipts, not rent / EB / mess
+      // either.
       let category = 'other';
-      if (type.includes('RENT')) category = 'rent';
+      if (isOutstandingDescription(f) || isOutstandingPayment(f)) category = 'other';
+      else if (type.includes('RENT')) category = 'rent';
       else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
       else if (type.includes('MESS')) category = 'mess';
       else if (type.includes('FINE')) category = 'fine';
@@ -233,21 +289,31 @@ const Fees = () => {
             createdAt: f.createdAt,
             paymentMode: '-',
             totalAmount: 0,
+            outstanding: 0,
+            displayPaid: 0,
+            displayBalance: 0,
+            displayStatus: 'Unpaid',
+            invoiceFee: null,
             rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
             feesList: []
           });
         }
         const group = pendingByStudent.get(studentId);
-        group.totalAmount += f.amount;
-        group[category] += f.amount;
+        group.totalAmount += Number(f.amount) || 0;
+        group[category] += Number(f.amount) || 0;
         group.feesList.push(f);
         if (new Date(f.createdAt) < new Date(group.createdAt)) {
           group.createdAt = f.createdAt;
         }
       } else {
         const paidTime = f.updatedAt || f.createdAt;
-        // Group by student + minute of payment so batch payments appear as one receipt
-        const batchKey = `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
+        const isOutstandingPay = isOutstandingPayment(f);
+        // Group by student + minute of payment so batch payments appear as one
+        // receipt. All outstanding payments for a student are summarised into
+        // one row so the original invoice is shown once with cumulative paid.
+        const batchKey = isOutstandingPay
+          ? `${studentId}-outstanding-payments`
+          : `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
             isGrouped: true,
@@ -258,21 +324,74 @@ const Fees = () => {
             paidDate: paidTime,
             paymentMode: f.paymentMode || 'N/A',
             totalAmount: 0,
+            outstanding: 0,
+            displayPaid: 0,
+            displayBalance: 0,
+            displayStatus: 'Paid',
+            invoiceFee: null,
             rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
             feesList: []
           });
         }
         const group = paidByBatch.get(batchKey);
-        group.totalAmount += f.amount;
-        group[category] += f.amount;
+        group.totalAmount += Number(f.amount) || 0;
+        group[category] += Number(f.amount) || 0;
         group.feesList.push(f);
+        if (isOutstandingPay && new Date(paidTime) > new Date(group.paidDate)) {
+          group.paidDate = paidTime;
+        }
       }
     });
 
-    const result = [...Array.from(pendingByStudent.values()), ...Array.from(paidByBatch.values())];
+    // Pending row = remaining dues only. Nothing has been paid against this
+    // row, so its Total Paid is ₹0 and its Total Amount / Balance are the
+    // remaining amount. Confirmed outstanding payments are summarised on their
+    // own partial/paid row below.
+    const result: any[] = [];
+    pendingByStudent.forEach((group, studentKey) => {
+      const totals = outstandingTotals.get(studentKey);
+      const pendingDue = roundMoney(
+        Math.max(0, group.totalAmount - (totals?.paid || 0)),
+      );
+      group.displayPaid = 0;
+      group.displayBalance = pendingDue;
+      group.displayStatus = 'Unpaid';
+      group.invoiceFee = null;
+      group.pendingDue = pendingDue;
+      // Hide a pending row that has been fully settled (no current dues left).
+      if (pendingDue > 0.005) result.push(group);
+    });
+    paidByBatch.forEach((group: any) => {
+      const studentKey = getStudentKey(group.feesList[0]);
+      const totals = outstandingTotals.get(studentKey);
+      const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
+      if (hasOutstandingPayment) {
+        group.displayPaid = totals?.paid || 0;
+        // The original invoice row must never be reduced by payments: keep the
+        // original outstanding amount in its Outstanding Balance cell. The
+        // separate pending row below shows the remaining balance.
+        group.displayBalance = totals?.original || 0;
+        group.displayStatus = (totals?.remaining || 0) > 0.005 ? 'Partial' : 'Paid';
+        group.invoiceFee =
+          outstandingInvoiceByStudent.get(studentKey) || group.feesList[0];
+      } else {
+        group.displayPaid = group.totalAmount;
+        group.displayBalance = 0;
+        group.displayStatus = 'Paid';
+        group.invoiceFee = group.feesList[0];
+      }
+      result.push(group);
+    });
+
     result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return result;
-  }, [filteredFees]);
+  }, [filteredFees, outstandingTotals]);
+
+  const modalOutstandingPaid = useMemo(() => {
+    const first = feesToCollect[0] || feeToCollect;
+    if (!first) return 0;
+    return outstandingTotals.get(getStudentKey(first))?.paid || 0;
+  }, [feesToCollect, feeToCollect, outstandingTotals]);
 
   const paginatedFees = useMemo(() => {
     return displayFees.slice((page - 1) * limit, page * limit);
@@ -310,19 +429,20 @@ const Fees = () => {
 
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
-      'Receipt No': fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—',
+      'Receipt No': fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—',
       'Student ID': fee.student?.manualRegsiName || fee.student?.regNo || 'N/A',
       'Student Name': fee.student?.name || 'Unknown',
       'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
-      'Payment Date': fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—',
+      'Payment Date': fee.displayStatus !== 'Unpaid' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—',
       'Advance': fee.advance || 0,
       'Rent': fee.rent || 0,
       'EB': fee.eb || 0,
       'Mess': fee.mess || 0,
       'Fine': fee.fine || 0,
-      'Total Paid': fee.totalAmount || 0,
-      'Payment Method': fee.status === 'COMPLETED' ? (fee.paymentMode || '-') : '—',
-      'Status': fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'
+      'Outstanding Balance': fee.displayBalance || 0,
+      'Total Paid': fee.displayPaid || 0,
+      'Payment Method': fee.displayStatus !== 'Unpaid' ? (fee.paymentMode || '-') : '—',
+      'Status': fee.displayStatus
     }));
 
     // Calculate totals
@@ -337,7 +457,10 @@ const Fees = () => {
       'EB': displayFees.reduce((sum, f) => sum + f.eb, 0),
       'Mess': displayFees.reduce((sum, f) => sum + f.mess, 0),
       'Fine': displayFees.reduce((sum, f) => sum + f.fine, 0),
-      'Total Paid': displayFees.reduce((sum, f) => sum + f.totalAmount, 0),
+      'Total Paid': displayFees.reduce((sum, f) => sum + (f.displayPaid || 0), 0),
+      'Outstanding Balance': displayFees
+        .filter(f => f.displayStatus === 'Unpaid')
+        .reduce((sum, f) => sum + (f.displayBalance || 0), 0),
       'Payment Method': '',
       'Status': ''
     };
@@ -486,6 +609,7 @@ const Fees = () => {
               <col className="fees-col-eb" />
               <col className="fees-col-mess" />
               <col className="fees-col-fine" />
+              <col className="fees-col-outstanding" />
               <col className="fees-col-total" />
               <col className="fees-col-method" />
               <col className="fees-col-status" />
@@ -502,6 +626,7 @@ const Fees = () => {
                 <th className="num">EB</th>
                 <th className="num">Mess</th>
                 <th className="num">Fine</th>
+                <th className="num">Outstanding Balance</th>
                 <th className="num">Total Paid</th>
                 <th>Payment Method</th>
                 <th>Status</th>
@@ -510,14 +635,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading ? (
-                <LoadingRow colSpan={13} />
+                <LoadingRow colSpan={14} />
               ) : error ? (
                 <tr>
-                  <td colSpan={13} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -530,9 +655,9 @@ const Fees = () => {
                     >
                       <td
                         className="ui-cell-link fees-invoice"
-                        title={fee.status === 'COMPLETED' && fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : undefined}
+                        title={fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : undefined}
                       >
-                        {fee.status === 'COMPLETED' ? (fee.feesList[0] ? formatInvoiceNumber(fee.feesList[0], fees) : '—') : '—'}
+                        {fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'}
                       </td>
                       <td>
                         <div className="fees-person">
@@ -590,20 +715,24 @@ const Fees = () => {
                       </td>
                       <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
-                      <td className={`num fees-total${fee.status === 'PENDING' ? ' fees-total--pending' : ''}`}>
-                        ₹{fee.totalAmount.toLocaleString('en-IN')}
+                      <td className={`num fees-outstanding${(fee.displayBalance || 0) > 0 ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>
+                        ₹{Number(fee.displayBalance || 0).toLocaleString('en-IN')}
+                      </td>
+
+                      <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
+                        ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                       </td>
 
                       <td title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>
                         {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
                       </td>
                       <td>
-                        <span className={`ui-badge ${fee.status === 'COMPLETED' ? 'ui-badge-green' : 'ui-badge-red'}`}>
-                          {fee.status === 'COMPLETED' ? 'Paid' : 'Unpaid'}
+                        <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-green' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-red'}`}>
+                          {fee.displayStatus}
                         </span>
                       </td>
                       <td className="fees-actions">
-                        {fee.status === 'PENDING' ? (
+                        {fee.displayStatus === 'Unpaid' ? (
                           <button
                             onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
                             className="ui-btn ui-btn-primary ui-btn-sm"
@@ -665,6 +794,7 @@ const Fees = () => {
         <CollectPaymentModal
           fee={feeToCollect}
           fees={feesToCollect}
+          outstandingPaid={modalOutstandingPaid}
           onClose={closePaymentModal}
           onSuccess={() => {
             closePaymentModal();

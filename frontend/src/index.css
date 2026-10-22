@@ -2049,6 +2049,9 @@ textarea.ui-form-control { resize: vertical; }
 .fees-note--danger { color: var(--danger); font-weight: 600; }
 .fees-total { font-weight: 800; color: var(--text-heading); }
 .fees-total--pending { color: var(--danger); }
+.fees-outstanding { font-weight: 800; }
+.fees-outstanding--due { color: var(--danger); }
+.fees-outstanding--clear { color: var(--success); }
 
 /* The fees master table intentionally mirrors the Hostellers master table:
    standalone filter toolbar, fixed column widths, a two-line person cell and
@@ -2056,21 +2059,22 @@ textarea.ui-form-control { resize: vertical; }
 .fees-table {
   table-layout: fixed;
   width: 100%;
-  min-width: 1110px;
+  min-width: 1340px;
 }
-.fees-table .fees-col-invoice { width: 11%; }
-.fees-table .fees-col-person { width: 12.6%; }
-.fees-table .fees-col-room { width: 8.5%; }
-.fees-table .fees-col-date { width: 7.9%; }
-.fees-table .fees-col-advance { width: 6.2%; }
-.fees-table .fees-col-rent { width: 5.9%; }
-.fees-table .fees-col-eb { width: 5.7%; }
+.fees-table .fees-col-invoice { width: 10%; }
+.fees-table .fees-col-person { width: 12%; }
+.fees-table .fees-col-room { width: 8%; }
+.fees-table .fees-col-date { width: 7%; }
+.fees-table .fees-col-advance { width: 6%; }
+.fees-table .fees-col-rent { width: 6%; }
+.fees-table .fees-col-eb { width: 5.5%; }
 .fees-table .fees-col-mess { width: 6%; }
 .fees-table .fees-col-fine { width: 5%; }
-.fees-table .fees-col-total { width: 6.1%; }
-.fees-table .fees-col-method { width: 5.4%; }
-.fees-table .fees-col-status { width: 7.3%; }
-.fees-table .fees-col-action { width: 12.4%; }
+.fees-table .fees-col-total { width: 6%; }
+.fees-table .fees-col-outstanding { width: 7%; }
+.fees-table .fees-col-method { width: 5.5%; }
+.fees-table .fees-col-status { width: 7%; }
+.fees-table .fees-col-action { width: 9%; }
 
 .fees-table th,
 .fees-table td { padding: 8px; }
@@ -2259,6 +2263,9 @@ textarea.ui-form-control { resize: vertical; }
 .sp-advance-amount { color: #198754; font-weight: 600; }
 .sp-total { font-weight: 700; color: #0f172a; }
 .sp-total.is-pending { color: #dc3545; }
+.sp-outstanding { font-weight: 800; }
+.sp-outstanding.is-due { color: #dc3545; }
+.sp-outstanding.is-clear { color: #16a34a; }
 .sp-capitalize { text-transform: capitalize; }
 .sp-paid-till { font-size: 11px; color: #16a34a; margin-top: 4px; white-space: nowrap; }
 .sp-row-pending, .sp-row-pending:hover { background: #fff1f2; }

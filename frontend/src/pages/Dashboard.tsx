@@ -7,6 +7,7 @@ import { OutpassAPI } from '../api/outpass.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingBlock } from '../components/LoadingSpinner';
+import { calculatePendingDues } from '../utils/outstanding';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -74,7 +75,8 @@ const Dashboard = () => {
   });
 
   const safeFees = Array.isArray(fees) ? fees : ((fees as any).data || []);
-  const totalPendingFees = safeFees.filter((f: any) => f.status === 'PENDING').reduce((sum: number, f: any) => sum + f.amount, 0);
+  // Net confirmed outstanding payments so historical dues are not counted twice.
+  const totalPendingFees = calculatePendingDues(safeFees);
   const totalAdvanceHeld = safeFees.filter((f: any) => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum: number, f: any) => sum + f.amount, 0);
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
