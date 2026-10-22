@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload, FileSpreadsheet, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,6 +12,57 @@ import { FeesAPI } from '../api/fees.api';
 import { RoomAPI } from '../api/room.api';
 import { CollegeAPI } from '../api/college.api';
 import { toast } from 'react-toastify';
+const MENU_WIDTH = 232;
+const MENU_GAP = 6;
+const MENU_EDGE = 8;
+const MENU_PREFERRED_HEIGHT = 220;
+const MENU_MIN_HEIGHT = 120;
+
+type MenuPosition = {
+  left: number;
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+  width: number;
+};
+
+/**
+ * Position the Manage menu in the viewport.
+ *
+ * The menu is rendered in a portal on <body>, so the coordinates are viewport
+ * coordinates (position: fixed). Prefer opening below the trigger, but flip
+ * above when the space below cannot fit the menu. The chosen side is clamped
+ * to the available space so the menu never renders outside the viewport.
+ */
+const computeMenuPosition = (
+  trigger: HTMLElement,
+  measuredHeight?: number,
+): MenuPosition => {
+  const rect = trigger.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  const spaceBelow = viewportHeight - rect.bottom - MENU_GAP - MENU_EDGE;
+  const spaceAbove = rect.top - MENU_GAP - MENU_EDGE;
+  const preferredHeight = Math.min(
+    Math.max(measuredHeight || MENU_PREFERRED_HEIGHT, MENU_MIN_HEIGHT),
+    MENU_PREFERRED_HEIGHT,
+  );
+  // If neither side fits, open on the side with more room.
+  const openUpward = spaceBelow < preferredHeight && spaceAbove > spaceBelow;
+
+  const width = Math.max(0, Math.min(MENU_WIDTH, viewportWidth - MENU_EDGE * 2));
+  const left = Math.max(
+    MENU_EDGE,
+    Math.min(rect.right - width, viewportWidth - width - MENU_EDGE),
+  );
+  const maxHeight = Math.max(0, openUpward ? spaceAbove : spaceBelow);
+
+  return openUpward
+    ? { left, bottom: viewportHeight - rect.top + MENU_GAP, maxHeight, width }
+    : { left, top: rect.bottom + MENU_GAP, maxHeight, width };
+};
+
 const Hostellers = () => {
   const navigate = useNavigate();
   const [hostellers, setHostellers] = useState<any[]>([]);
@@ -99,7 +151,68 @@ const Hostellers = () => {
   }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter]);
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Keep a reference to the button that opened the menu so the menu can be
+  // repositioned when the page or table scrolls.
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  const closeDropdown = useCallback(() => {
+    setActiveDropdown(null);
+    setMenuPosition(null);
+  }, []);
+
+  const repositionDropdown = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    // Close when the trigger has been scrolled completely out of view.
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      closeDropdown();
+      return;
+    }
+
+    const measuredHeight = dropdownRef.current?.scrollHeight;
+    setMenuPosition(computeMenuPosition(trigger, measuredHeight && measuredHeight > 0 ? measuredHeight : undefined));
+  }, [closeDropdown]);
+
+  const toggleDropdown = useCallback((id: string, button: HTMLElement) => {
+    if (activeDropdown === id) {
+      closeDropdown();
+      return;
+    }
+
+    triggerRef.current = button;
+    // Reuse the current menu height (all Manage menus are identical) so the
+    // first paint already picks the right direction and stays on-screen.
+    const measuredHeight = dropdownRef.current?.scrollHeight;
+    setMenuPosition(computeMenuPosition(button, measuredHeight && measuredHeight > 0 ? measuredHeight : undefined));
+    setActiveDropdown(id);
+  }, [activeDropdown, closeDropdown]);
+
+  // Once the menu is mounted, refine its position using its real height.
+  // This runs before paint, so there is no visible jump.
+  useLayoutEffect(() => {
+    if (!activeDropdown || !triggerRef.current || !dropdownRef.current) return;
+    const measuredHeight = dropdownRef.current.scrollHeight;
+    if (!measuredHeight) return;
+
+    const next = computeMenuPosition(triggerRef.current, measuredHeight);
+    setMenuPosition(prev => {
+      if (!prev) return next;
+      if (
+        prev.top === next.top &&
+        prev.bottom === next.bottom &&
+        prev.left === next.left &&
+        prev.maxHeight === next.maxHeight &&
+        prev.width === next.width
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [activeDropdown]);
 
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [feeStudent] = useState<any>(null);
@@ -124,18 +237,62 @@ const Hostellers = () => {
     setIsSubmittingFee(false);
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (the Manage trigger itself is excluded
+  // so its own onClick can toggle the menu correctly). Clicks inside the
+  // portaled menu are ignored so the menu does not close before its action runs.
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveDropdown(null);
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-manage-btn]')) return;
+      if (dropdownRef.current && !dropdownRef.current.contains(target)) {
+        closeDropdown();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [closeDropdown]);
+
+  // Keep the fixed-position menu anchored to its trigger while the page or
+  // table scrolls or the window is resized. Scrolling the menu itself is
+  // ignored so long menus can scroll without moving.
+  useEffect(() => {
+    if (!activeDropdown) return;
+
+    let frame = 0;
+    const scheduleReposition = (event?: Event) => {
+      if (event?.target instanceof Node && dropdownRef.current?.contains(event.target)) return;
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        repositionDropdown();
+      });
+    };
+
+    const handleScroll = (event: Event) => scheduleReposition(event);
+    const handleResize = () => scheduleReposition();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDropdown();
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeDropdown, closeDropdown, repositionDropdown]);
+
+  // A menu belongs to the currently rendered page/filter set. Close it when
+  // the data or pagination changes so it never points at a stale row.
+  useEffect(() => {
+    closeDropdown();
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, closeDropdown]);
 
   const rooms = useMemo(() => {
     const uniqueRooms = new Set<string>(allRooms);
@@ -383,7 +540,18 @@ const Hostellers = () => {
 
         <div className="ui-table-wrap">
           <div className="ui-table-scroll">
-            <table className="ui-table">
+            <table className="ui-table hostellers-table">
+              <colgroup>
+                <col className="hostellers-col-id" />
+                <col className="hostellers-col-person" />
+                <col className="hostellers-col-room" />
+                <col className="hostellers-col-college" />
+                <col className="hostellers-col-advance" />
+                <col className="hostellers-col-fee" />
+                <col className="hostellers-col-pending" />
+                <col className="hostellers-col-date" />
+                <col className="hostellers-col-actions" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Student ID</th>
@@ -414,9 +582,9 @@ const Hostellers = () => {
                   </tr>
                 ) : (
                   filteredHostellers.map((h, i) => (
-                    <tr key={i}>
+                    <tr key={i} className={activeDropdown === h.id ? 'hostellers-row-menu-open' : undefined}>
                       <td>
-                        <a href="#" className="hostellers-link" onClick={(e) => { e.preventDefault(); setSelectedHosteller(h); }}>{h.id}</a>
+                        <a href="#" className="hostellers-link" title={String(h.id ?? '')} onClick={(e) => { e.preventDefault(); setSelectedHosteller(h); }}>{h.id}</a>
                       </td>
                       <td>
                         <div className="hostellers-person">
@@ -427,13 +595,13 @@ const Hostellers = () => {
                               h.avatar
                             )}
                           </div>
-                          <div>
-                            <div className="hostellers-person-name">{h.name}</div>
-                            <div className="hostellers-person-meta">
-                              <Phone size={12} /> {h.contact}
+                          <div className="hostellers-person-info">
+                            <div className="hostellers-person-name" title={h.name}>{h.name}</div>
+                            <div className="hostellers-person-meta" title={h.contact}>
+                              <Phone size={12} /> <span className="hostellers-person-contact">{h.contact}</span>
                             </div>
                             {h.raw.profileUpdatedAt && (
-                              <span className="ui-badge ui-badge-green hostellers-updated">
+                              <span className="ui-badge ui-badge-green hostellers-updated" title={`Updated: ${new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}>
                                 Updated: {new Date(h.raw.profileUpdatedAt).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
@@ -441,13 +609,13 @@ const Hostellers = () => {
                         </div>
                       </td>
                       <td>
-                        <span className="ui-badge ui-badge-blue">Room {h.room}</span>
+                        <span className="ui-badge ui-badge-blue" title={`Room ${h.room}`}>Room {h.room}</span>
                       </td>
                       <td>
-                        <div className="hostellers-college-name">{h.college?.name || h.college || '-'}</div>
-                        <div className="hostellers-college-dept">{h.dept}</div>
+                        <div className="hostellers-college-name" title={h.college?.name || h.college || '-'}>{h.college?.name || h.college || '-'}</div>
+                        <div className="hostellers-college-dept" title={h.dept}>{h.dept}</div>
                       </td>
-                      <td className="hostellers-advance">
+                      <td className="hostellers-advance" title={h.advance}>
                         {h.advance}
                       </td>
                       <td>
@@ -455,61 +623,90 @@ const Hostellers = () => {
                           h.feeStatus === 'Paid' ? 'ui-badge ui-badge-green'
                             : h.feeStatus === 'Un-Paid' ? 'ui-badge ui-badge-red'
                               : 'ui-badge ui-badge-amber'
-                        }>
+                        } title={h.feeStatus}>
                           {h.feeStatus}
                         </span>
                       </td>
-                      <td>
+                      <td title={String(h.pending)}>
                         <span className="ui-badge ui-badge-red">
                           {h.pending}
                         </span>
                       </td>
-                      <td>{h.date}</td>
+                      <td title={h.date}>{h.date}</td>
                       <td className="hostellers-actions">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveDropdown(activeDropdown === h.id ? null : h.id);
+                            toggleDropdown(h.id, e.currentTarget);
                           }}
+                          data-manage-btn={h.id}
                           className="ui-btn ui-btn-secondary ui-btn-sm"
                         >
                           Manage <span className="hostellers-caret">▼</span>
                         </button>
 
-                        {activeDropdown === h.id && (
+                        {activeDropdown === h.id && menuPosition && createPortal(
                           <div
                             ref={dropdownRef}
-                            className="ui-menu"
+                            className="ui-menu hostellers-menu-portal"
+                            style={{
+                              position: 'fixed',
+                              // Always set both offsets explicitly. Otherwise the
+                              // stylesheet's `top: calc(100% + 6px)` remains active
+                              // when opening upward and collapses the menu.
+                              top: menuPosition.top ?? 'auto',
+                              bottom: menuPosition.bottom ?? 'auto',
+                              left: menuPosition.left,
+                              right: 'auto',
+                              width: menuPosition.width,
+                              maxHeight: menuPosition.maxHeight,
+                              overflowY: 'auto',
+                              zIndex: 2000,
+                            }}
                           >
                             <button
-                              onClick={() => navigate(`/hostellers/profile/${h.id}`)}
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setMenuPosition(null);
+                                navigate(`/hostellers/profile/${h.id}`);
+                              }}
                               className="ui-menu-item"
                             >
                               <Eye size={16} color="#0d6efd" /> View 360 Profile
                             </button>
                             <button
                               onClick={() => {
-                                navigate(`/fees?student=${h.id}`);
                                 setActiveDropdown(null);
+                                setMenuPosition(null);
+                                navigate(`/fees?student=${h.id}`);
                               }}
                               className="ui-menu-item"
                             >
                               <Wallet size={16} color="#198754" /> Collect Fees
                             </button>
                             <button
-                              onClick={() => navigate('/outpass')}
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setMenuPosition(null);
+                                navigate('/outpass');
+                              }}
                               className="ui-menu-item"
                             >
                               <FileText size={16} color="#ffc107" /> Issue Outpass
                             </button>
                             <div className="ui-menu-sep"></div>
                             <button
-                              onClick={() => navigate(`/hostellers/clearance/${h.id}`)}
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setMenuPosition(null);
+                                navigate(`/hostellers/clearance/${h.id}`);
+                              }}
                               className="ui-menu-item danger"
                             >
                               <LogOut size={16} color="#dc3545" /> Checkout / Exit (Free Bed)
                             </button>
-                          </div>
+                          </div>,
+                          document.body,
                         )}
                       </td>
                     </tr>

@@ -672,7 +672,7 @@ const StudentProfile = () => {
               <div className="ui-card ui-card--flush">
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                   <h4 className="sp-section-title" style={{ fontSize: '16px', marginBottom: 0, color: '#3b82f6' }}>
-                    <Plus size={18} /> Add Outstanding Payment Rows
+                     Add Outstanding Payment Rows
                   </h4>
                   {outstandingRows.length > 0 && (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -1340,7 +1340,7 @@ const StudentProfile = () => {
             </div>
           )}
 
-          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && activeTab !== 'Outpasses & Travel' && (
+          {activeTab !== 'Master Profile' && activeTab !== 'KYC Documents' && activeTab !== 'Fees & Receipts' && activeTab !== 'Gate Logs' && activeTab !== 'Outpasses & Travel' && activeTab !== 'Outstanding Payments' && activeTab !== 'Advance Deposit' && (
             <div className="sp-placeholder">
               <Lock size={48} className="sp-placeholder-icon" />
               <div className="sp-placeholder-title">{activeTab} Data</div>
