@@ -52,7 +52,7 @@ const formatInvoiceNumber = (fee: any, feeGroups: any[] = []) => {
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
-const formatPaymentMode = (mode?: string) => (mode || '').split('(')[0].trim();
+const formatPaymentMode = (mode?: string) => (mode || '').split(/[/(]/)[0].trim();
 
 const Fees = () => {
   const navigate = useNavigate();
@@ -351,7 +351,7 @@ const Fees = () => {
   };
 
   return (
-    <div className="ui-page">
+    <div className="ui-page fees-page">
       <PageHeader
         title="Fees Paid / Unpaid"
         subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
@@ -557,7 +557,7 @@ const Fees = () => {
                           const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                           if (match) {
                             const parts = match[1].split('-');
-                            return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
+                            return <div className="fees-note" title={`Paid till ${parts[parts.length - 1].trim()}`}>Paid till {parts[parts.length - 1].trim()}</div>;
                           }
                           return null;
                         })()}
@@ -569,7 +569,11 @@ const Fees = () => {
                           const match = d.description?.match(/\((\d+\s*days)\)/i);
                           const daysText = match ? match[1] : '';
                           return (
-                            <div key={idx} className="fees-note fees-note--danger">
+                            <div
+                              key={idx}
+                              className="fees-note fees-note--danger"
+                              title={`Inc. -₹${Math.abs(d.amount).toLocaleString('en-IN')}${daysText ? ` (${daysText})` : ''}`}
+                            >
                               Inc. -₹{Math.abs(d.amount).toLocaleString('en-IN')} {daysText ? `(${daysText})` : ''}
                             </div>
                           );
@@ -579,7 +583,7 @@ const Fees = () => {
                           const match = messFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                           if (match) {
                             const parts = match[1].split('-');
-                            return <div className="fees-note">Paid till {parts[parts.length - 1].trim()}</div>;
+                            return <div className="fees-note" title={`Paid till ${parts[parts.length - 1].trim()}`}>Paid till {parts[parts.length - 1].trim()}</div>;
                           }
                           return null;
                         })()}

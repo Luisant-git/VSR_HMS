@@ -475,9 +475,9 @@ export default function StaffSalaryRegister() {
               setFilterStaffId('ALL');
               setPage(1);
             }}
-            className="ui-btn ui-btn-secondary"
+            className="ui-btn ui-btn-soft ui-btn-sm"
           >
-            <X size={14} /> Clear
+            <X size={14} strokeWidth={3} /> Clear All
           </button>
         )}
 
@@ -487,7 +487,7 @@ export default function StaffSalaryRegister() {
         <button
           onClick={fetchSalaries}
           title="Refresh"
-          className="ui-btn ui-btn-secondary"
+          className="ui-btn ui-btn-secondary ui-btn-sm"
         >
           <RefreshCw size={14} /> Refresh
         </button>
@@ -495,114 +495,127 @@ export default function StaffSalaryRegister() {
 
       {/* Salary Disbursement History Table */}
       <div className="ui-table-wrap">
-        <table className="ui-table">
-          <thead>
-            <tr>
-              <th>RECORD ID</th>
-              <th>STAFF CODE</th>
-              <th>STAFF MEMBER</th>
-              <th>ROLE</th>
-              <th>SALARY MONTH</th>
-              <th>BASE SALARY</th>
-              <th>BONUS / OT</th>
-              <th>DEDUCTIONS</th>
-              <th>NET AMOUNT DISBURSED</th>
-              <th>PAYMENT DATE</th>
-              <th>PAYMENT MODE</th>
-              <th className="is-right">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <LoadingRow colSpan={12} text="Loading Salary Disbursements..." />
-            ) : salaries.length === 0 ? (
+        <div className="ui-table-scroll">
+          <table className="ui-table salary-table">
+            <colgroup>
+              <col className="sal-col-record" />
+              <col className="sal-col-code" />
+              <col className="sal-col-member" />
+              <col className="sal-col-role" />
+              <col className="sal-col-month" />
+              <col className="sal-col-base" />
+              <col className="sal-col-bonus" />
+              <col className="sal-col-deductions" />
+              <col className="sal-col-net" />
+              <col className="sal-col-date" />
+              <col className="sal-col-mode" />
+              <col className="sal-col-actions" />
+            </colgroup>
+            <thead>
               <tr>
-                <td colSpan={12}>
-                  <div className="ui-empty">
+                <th>Record ID</th>
+                <th>Staff Code</th>
+                <th>Staff Member</th>
+                <th>Role</th>
+                <th>Salary Month</th>
+                <th className="is-right">Base Salary</th>
+                <th className="is-right">Bonus / OT</th>
+                <th className="is-right">Deductions</th>
+                <th className="is-right">Net Amount</th>
+                <th>Payment Date</th>
+                <th>Payment Mode</th>
+                <th className="is-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <LoadingRow colSpan={12} text="Loading Salary Disbursements..." />
+              ) : salaries.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="ui-empty">
                     <Banknote size={36} />
                     <div className="ui-empty-title">No salary disbursements found</div>
-                   
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              salaries.map((item) => {
-                const roleBadge = getRoleBadgeStyle(item.staff?.role || 'Staff');
+                  </td>
+                </tr>
+              ) : (
+                salaries.map((item) => {
+                  const roleBadge = getRoleBadgeStyle(item.staff?.role || 'Staff');
 
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <span className="ui-code-box">{item.salaryCode}</span>
-                    </td>
-                    <td>
-                      <span className="sal-muted is-strong">{item.staff?.staffCode || '--'}</span>
-                    </td>
-                    <td>
-                      <div className="ui-cell-title">{item.staff?.name || 'Staff Member'}</div>
-                    </td>
-                    <td>
-                      <span
-                        className="ui-badge"
-                        style={{
-                          background: roleBadge.bg,
-                          color: roleBadge.color,
-                          borderColor: roleBadge.border
-                        }}
-                      >
-                        {item.staff?.role || 'Staff'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="ui-cell-title">{item.month} {item.year}</div>
-                    </td>
-                    <td>
-                      <div className="sal-muted is-strong">{formatCurrency(item.baseSalary)}</div>
-                    </td>
-                    <td>
-                      <div className={item.bonus > 0 ? 'sal-plus' : 'sal-zero'}>
-                        {formatCurrency(item.bonus)}
-                      </div>
-                    </td>
-                    <td>
-                      <div className={item.deductions > 0 ? 'sal-minus' : 'sal-zero'}>
-                        {formatCurrency(item.deductions)}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="sal-net">
-                        {formatCurrency(item.netAmount)}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="sal-date">{formatDateDisplay(item.paymentDate)}</div>
-                    </td>
-                    <td>
-                      <div className="sal-mode">{item.paymentMode}</div>
-                    </td>
-                    <td className="is-right">
-                      <div className="sal-actions">
-                        <button
-                          onClick={() => openViewModal(item)}
-                          className="ui-btn ui-btn-icon is-info"
-                          title="View Details"
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <span className="ui-code-box" title={item.salaryCode}>{item.salaryCode}</span>
+                      </td>
+                      <td>
+                        <span className="sal-muted is-strong">{item.staff?.staffCode || '--'}</span>
+                      </td>
+                      <td>
+                        <div className="ui-cell-title" title={item.staff?.name || 'Staff Member'}>{item.staff?.name || 'Staff Member'}</div>
+                      </td>
+                      <td>
+                        <span
+                          className="ui-badge"
+                          style={{
+                            background: roleBadge.bg,
+                            color: roleBadge.color,
+                            borderColor: roleBadge.border
+                          }}
                         >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteRecord(item)}
-                          className="ui-btn ui-btn-icon ui-btn-danger"
-                          title="Delete Record"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                          {item.staff?.role || 'Staff'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="ui-cell-title">{item.month} {item.year}</div>
+                      </td>
+                      <td className="is-right">
+                        <div className="sal-muted is-strong">{formatCurrency(item.baseSalary)}</div>
+                      </td>
+                      <td className="is-right">
+                        <div className={item.bonus > 0 ? 'sal-plus' : 'sal-zero'}>
+                          {formatCurrency(item.bonus)}
+                        </div>
+                      </td>
+                      <td className="is-right">
+                        <div className={item.deductions > 0 ? 'sal-minus' : 'sal-zero'}>
+                          {formatCurrency(item.deductions)}
+                        </div>
+                      </td>
+                      <td className="is-right">
+                        <div className="sal-net">
+                          {formatCurrency(item.netAmount)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="sal-date">{formatDateDisplay(item.paymentDate)}</div>
+                      </td>
+                      <td title={item.paymentMode}>
+                        <div className="sal-mode">{item.paymentMode}</div>
+                      </td>
+                      <td className="is-right">
+                        <div className="sal-actions">
+                          <button
+                            onClick={() => openViewModal(item)}
+                            className="ui-btn ui-btn-icon is-info"
+                            title="View Details"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord(item)}
+                            className="ui-btn ui-btn-icon ui-btn-danger"
+                            title="Delete Record"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination */}
         {totalRecords > 0 && (
