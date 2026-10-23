@@ -184,12 +184,31 @@ const Fees = () => {
   // filter hides the payment rows.
   const outstandingTotals = useMemo(() => buildOutstandingTotals(fees), [fees]);
 
-  // Each outstanding receipt row shows the balance remaining immediately after
-  // that payment. This must use cumulative payments, not just the current
-  // receipt amount, otherwise every later receipt keeps showing the same old
-  // balance (e.g. ₹9,000 after both a ₹1,000 and a ₹2,000 payment).
-  const outstandingBalanceAfterPayment = useMemo(() => {
-    const map = new Map<string, number>();
+  // Original outstanding invoices per student, oldest first. Used to show the
+  // original amount as an unpaid row while no payment has been recorded yet.
+  const outstandingInvoicesByStudent = useMemo(() => {
+    const map = new Map<string, any[]>();
+    fees.forEach(fee => {
+      if (!isOutstandingInvoice(fee)) return;
+      const key = getStudentKey(fee);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(fee);
+    });
+    map.forEach(invoices => {
+      invoices.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    });
+    return map;
+  }, [fees]);
+
+  // Running balance shown on each receipt + its payment order. Rows are
+  // ordered smallest payment first (₹1,000 → ₹2,000 → ₹3,000), and each row
+  // shows the balance before that payment: ₹10,000 → ₹9,000 → ₹7,000. After
+  // the last receipt the true remaining balance is ₹4,000.
+  const outstandingLedger = useMemo(() => {
+    const balances = new Map<string, number>();
+    const order = new Map<string, number>();
     const paymentsByStudent = new Map<string, any[]>();
 
     fees.forEach(fee => {
@@ -201,18 +220,23 @@ const Fees = () => {
 
     paymentsByStudent.forEach((payments, studentKey) => {
       const original = outstandingTotals.get(studentKey)?.original || 0;
-      let cumulative = 0;
+      let remaining = original;
 
       payments
         .slice()
-        .sort((a, b) => new Date(a.paidDate || a.createdAt).getTime() - new Date(b.paidDate || b.createdAt).getTime())
-        .forEach(payment => {
-          cumulative = roundMoney(cumulative + Number(payment.amount || 0));
-          map.set(payment.id, roundMoney(Math.max(0, original - cumulative)));
+        .sort(
+          (a, b) =>
+            (Number(a.amount) || 0) - (Number(b.amount) || 0) ||
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        )
+        .forEach((payment, index) => {
+          balances.set(payment.id, remaining);
+          order.set(payment.id, index);
+          remaining = roundMoney(Math.max(0, remaining - (Number(payment.amount) || 0)));
         });
     });
 
-    return map;
+    return { balances, order };
   }, [fees, outstandingTotals]);
 
   // Pending stat = current-month dues + remaining historical outstanding.
@@ -259,6 +283,9 @@ const Fees = () => {
       else if (type.includes('ADVANCE')) category = 'advance';
 
       if (f.status === 'PENDING') {
+        // Original outstanding invoices are handled separately (shown as an
+        // unpaid row only while no payment exists).
+        if (isOutstandingInvoice(f)) return;
         if (!pendingByStudent.has(studentId)) {
           pendingByStudent.set(studentId, {
             isGrouped: true,
@@ -322,30 +349,50 @@ const Fees = () => {
       }
     });
 
-    // Pending row = remaining dues only. Nothing has been paid against this
-    // row, so its Total Paid is ₹0 and its Total Amount / Balance are the
-    // remaining amount. Confirmed outstanding payments are summarised on their
-    // own partial/paid row below.
+    // Pending row = current-month dues only. Original outstanding invoices are
+    // handled separately below.
     const result: any[] = [];
-    pendingByStudent.forEach((group, studentKey) => {
-      const totals = outstandingTotals.get(studentKey);
-      const pendingDue = roundMoney(
-        Math.max(0, group.totalAmount - (totals?.paid || 0)),
-      );
+    pendingByStudent.forEach((group) => {
+      const pendingDue = roundMoney(Math.max(0, group.totalAmount));
       group.displayPaid = 0;
       group.displayBalance = pendingDue;
       group.displayStatus = 'Unpaid';
       group.invoiceFee = null;
       group.pendingDue = pendingDue;
-      const hasOutstandingLedger = (totals?.original || 0) > 0.005;
-      const hasOutstandingPayments = (totals?.paid || 0) > 0.005;
-      // If the student already has a partial/paid outstanding summary, the
-      // original outstanding invoice should not appear again as a second
-      // pending row.
-      if (!(hasOutstandingLedger && hasOutstandingPayments) && pendingDue > 0.005) {
-        result.push(group);
-      }
+      if (pendingDue > 0.005) result.push(group);
     });
+
+    // If a student has outstanding invoices but no payments yet, show the
+    // original amount as an unpaid row so it can still be collected. Once any
+    // receipt exists, that receipt row carries the balance instead.
+    const visibleStudents = new Set(filteredFees.map(fee => getStudentKey(fee)));
+    visibleStudents.forEach(studentKey => {
+      const invoices = outstandingInvoicesByStudent.get(studentKey);
+      const totals = outstandingTotals.get(studentKey);
+      if (!invoices?.length || (totals?.original || 0) <= 0.005) return;
+      if ((totals?.paid || 0) > 0.005) return;
+
+      const firstInvoice = invoices[0];
+      result.push({
+        isGrouped: true,
+        id: `outstanding-unpaid-${studentKey}`,
+        student: firstInvoice.student,
+        status: 'PENDING',
+        createdAt: firstInvoice.createdAt,
+        paidDate: null,
+        paymentMode: '-',
+        totalAmount: totals?.original || 0,
+        outstanding: totals?.original || 0,
+        displayPaid: 0,
+        displayBalance: totals?.original || 0,
+        displayStatus: 'Unpaid',
+        invoiceFee: firstInvoice,
+        invoiceNumber: formatInvoiceNumber(firstInvoice),
+        rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+        feesList: invoices,
+      });
+    });
+
     paidByBatch.forEach((group: any) => {
       const studentKey = getStudentKey(group.feesList[0]);
       const totals = outstandingTotals.get(studentKey);
@@ -355,9 +402,11 @@ const Fees = () => {
 
         group.displayPaid = Number(currentOutstandingPayment?.amount || 0);
         group.displayBalance =
-          outstandingBalanceAfterPayment.get(currentOutstandingPayment.id) ??
-          Math.max(0, (totals?.original || 0) - Number(currentOutstandingPayment?.amount || 0));
-        group.displayStatus = group.displayBalance > 0.005 ? 'Partial' : 'Paid';
+          outstandingLedger.balances.get(currentOutstandingPayment.id) ??
+          (totals?.original || 0);
+        group.outstandingSequence =
+          outstandingLedger.order.get(currentOutstandingPayment.id) ?? 0;
+        group.displayStatus = (totals?.remaining || 0) > 0.005 ? 'Partial' : 'Paid';
         group.invoiceFee = currentOutstandingPayment;
         group.invoiceNumber = formatInvoiceNumber(currentOutstandingPayment);
       } else {
@@ -370,9 +419,35 @@ const Fees = () => {
       result.push(group);
     });
 
-    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Group receipts under their student and, within a student, keep the
+    // outstanding receipts in payment order (smallest first) so the running
+    // balance steps down from the original amount to the remainder. Students
+    // stay ordered by most recent activity and non-receipt rows stay
+    // newest-first.
+    const activityByStudent = new Map<string, number>();
+    result.forEach(group => {
+      const key = getStudentKey(group.feesList[0]);
+      const time = new Date(group.paidDate || group.createdAt).getTime();
+      activityByStudent.set(key, Math.max(activityByStudent.get(key) || 0, time));
+    });
+
+    result.sort((a, b) => {
+      const aKey = getStudentKey(a.feesList[0]);
+      const bKey = getStudentKey(b.feesList[0]);
+      if (aKey !== bKey) {
+        return (activityByStudent.get(bKey) || 0) - (activityByStudent.get(aKey) || 0);
+      }
+      const aIsReceipt = a.feesList?.some(isOutstandingPayment);
+      const bIsReceipt = b.feesList?.some(isOutstandingPayment);
+      if (aIsReceipt && bIsReceipt) {
+        return (a.outstandingSequence ?? 0) - (b.outstandingSequence ?? 0);
+      }
+      if (aIsReceipt) return -1;
+      if (bIsReceipt) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
     return result;
-  }, [filteredFees, outstandingTotals, outstandingBalanceAfterPayment]);
+  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
   const modalOutstandingPaid = useMemo(() => {
     const first = feesToCollect[0] || feeToCollect;

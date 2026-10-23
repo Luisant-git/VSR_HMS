@@ -60,12 +60,27 @@ const StudentProfile = () => {
       feesList: [] as any[]
     };
     const paidByBatch = new Map();
-    const outstandingPayments = fees
-      .filter(isOutstandingPayment)
-      .sort((a: any, b: any) => {
-        const aTime = new Date(a.paidDate || a.updatedAt || a.createdAt).getTime();
-        const bTime = new Date(b.paidDate || b.updatedAt || b.createdAt).getTime();
-        return aTime - bTime;
+
+    // Running balance shown on each receipt. Rows are ordered smallest payment
+    // first (₹1,000 → ₹2,000 → ₹3,000), and each row shows the balance before
+    // that payment: ₹10,000 → ₹9,000 → ₹7,000. After the last receipt the true
+    // remaining balance is ₹4,000.
+    const balanceBeforeReceipt = new Map<string, number>();
+    const receiptOrder = new Map<string, number>();
+    let remainingBeforeReceipt = outstandingSummary.original;
+    outstandingSummary.payments
+      .slice()
+      .sort(
+        (a: any, b: any) =>
+          (Number(a.amount) || 0) - (Number(b.amount) || 0) ||
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      )
+      .forEach((payment: any, index: number) => {
+        balanceBeforeReceipt.set(payment.id, remainingBeforeReceipt);
+        receiptOrder.set(payment.id, index);
+        remainingBeforeReceipt = roundMoney(
+          Math.max(0, remainingBeforeReceipt - (Number(payment.amount) || 0)),
+        );
       });
 
     fees.forEach(f => {
@@ -81,6 +96,10 @@ const StudentProfile = () => {
       else if (type.includes('ADVANCE')) category = 'advance';
 
       if (f.status === 'PENDING') {
+        // Original outstanding invoices are handled separately (shown as an
+        // unpaid row only while no payment exists). Do not fold them into the
+        // current-month pending row.
+        if (isOutstandingInvoice(f)) return;
         pendingGroup.totalAmount += Number(f.amount) || 0;
         pendingGroup[category] += Number(f.amount) || 0;
         pendingGroup.feesList.push(f);
@@ -122,37 +141,54 @@ const StudentProfile = () => {
       }
     });
 
-    // Pending row = remaining dues only. Nothing has been paid against this
-    // row, so Total Paid stays ₹0 and its Outstanding Balance is the remainder.
-    const pendingDue = roundMoney(
-      Math.max(0, pendingGroup.totalAmount - outstandingSummary.paid),
-    );
+    // Current-month pending dues are shown separately from the historical
+    // outstanding ledger. Outstanding payments only settle outstanding
+    // invoices, so they must not reduce these current dues.
+    const currentPendingDue = roundMoney(Math.max(0, pendingGroup.totalAmount));
     pendingGroup.displayPaid = 0;
-    pendingGroup.displayBalance = pendingDue;
+    pendingGroup.displayBalance = currentPendingDue;
     pendingGroup.displayStatus = 'Unpaid';
     pendingGroup.invoiceFee = null;
 
     const result: any[] = [];
-    const hasOutstandingLedger = outstandingSummary.original > 0.005;
     const hasOutstandingPayments = outstandingSummary.paid > 0.005;
-    // Once the student already has a payment summary for the historical
-    // outstanding ledger, do not show the original invoice as a second unpaid
-    // row. The partial/paid summary row is the authoritative record.
-    if (!(hasOutstandingLedger && hasOutstandingPayments) && pendingDue > 0.005) {
-      result.push(pendingGroup);
+
+    // If nothing has been paid yet, show the original outstanding invoice as an
+    // unpaid row so it can still be collected from here. Once receipts exist,
+    // the receipts carry the balance and this unpaid invoice row is hidden.
+    if (!hasOutstandingPayments && outstandingSummary.invoices.length > 0) {
+      const firstInvoice = outstandingSummary.invoices[0];
+      result.push({
+        isGrouped: true,
+        id: `outstanding-unpaid-${firstInvoice.id}`,
+        status: 'PENDING',
+        createdAt: firstInvoice.createdAt,
+        paidDate: null,
+        paymentMode: '-',
+        totalAmount: outstandingSummary.original,
+        displayPaid: 0,
+        displayBalance: outstandingSummary.original,
+        displayStatus: 'Unpaid',
+        invoiceFee: firstInvoice,
+        invoiceNumber: formatInvoiceNumber(firstInvoice),
+        rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+        feesList: outstandingSummary.invoices,
+      });
     }
+
     paidByBatch.forEach((group: any) => {
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
       if (hasOutstandingPayment) {
         const currentOutstandingPayment = group.feesList.find((item: any) => isOutstandingPayment(item)) || group.feesList[0];
-        const paymentIndex = outstandingPayments.findIndex((item: any) => item.id === currentOutstandingPayment.id);
-        const cumulativePaid = outstandingPayments
-          .slice(0, paymentIndex >= 0 ? paymentIndex + 1 : outstandingPayments.length)
-          .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
 
         group.displayPaid = Number(currentOutstandingPayment?.amount || 0);
-        group.displayBalance = Math.max(0, outstandingSummary.original - cumulativePaid);
-        group.displayStatus = group.displayBalance > 0.005 ? 'Partial' : 'Paid';
+        group.displayBalance =
+          balanceBeforeReceipt.get(currentOutstandingPayment.id) ??
+          outstandingSummary.original;
+        group.outstandingSequence = receiptOrder.get(currentOutstandingPayment.id) ?? 0;
+        // Status reflects the student's overall outstanding ledger, so a
+        // receipt stays "Partial" until the last rupee is settled.
+        group.displayStatus = outstandingSummary.remaining > 0.005 ? 'Partial' : 'Paid';
         group.invoiceFee = currentOutstandingPayment;
         group.invoiceNumber = formatInvoiceNumber(currentOutstandingPayment, fees);
       } else {
@@ -164,7 +200,22 @@ const StudentProfile = () => {
       }
       result.push(group);
     });
-    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (currentPendingDue > 0.005) result.push(pendingGroup);
+
+    // Outstanding receipts read in payment order (smallest first) so the
+    // running balance steps down from the original amount to the remainder.
+    // Everything else stays newest-first.
+    result.sort((a, b) => {
+      const aIsReceipt = a.feesList?.some(isOutstandingPayment);
+      const bIsReceipt = b.feesList?.some(isOutstandingPayment);
+      if (aIsReceipt && bIsReceipt) {
+        return (a.outstandingSequence ?? 0) - (b.outstandingSequence ?? 0);
+      }
+      if (aIsReceipt) return -1;
+      if (bIsReceipt) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
     return result;
   }, [fees, outstandingSummary]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
