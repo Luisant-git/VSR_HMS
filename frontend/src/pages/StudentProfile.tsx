@@ -9,52 +9,10 @@ import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { buildOutstandingSummary, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
+import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
-
-const createInvoiceNumber = (dateValue: string | Date, serial: number | string) => {
-  const date = new Date(dateValue || Date.now());
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `INV-${year}-${month}-${String(serial).padStart(3, '0')}`;
-};
-
-const formatInvoiceNumber = (fee: any, feeGroups: any[] = []) => {
-  const dateSource = fee?.paidDate || fee?.updatedAt || fee?.createdAt || fee?.feesList?.[0]?.paidDate || fee?.feesList?.[0]?.updatedAt || fee?.feesList?.[0]?.createdAt || new Date();
-  const date = new Date(dateSource);
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  if (feeGroups.length) {
-    const monthGroups = feeGroups
-      .filter((group: any) => {
-        const groupDate = new Date(group?.paidDate || group?.updatedAt || group?.createdAt || group?.feesList?.[0]?.paidDate || group?.feesList?.[0]?.updatedAt || group?.feesList?.[0]?.createdAt || new Date());
-        return groupDate.getFullYear() === year && groupDate.getMonth() === month;
-      })
-      .sort((a: any, b: any) => {
-        const aDate = new Date(a?.paidDate || a?.updatedAt || a?.createdAt || a?.feesList?.[0]?.paidDate || a?.feesList?.[0]?.updatedAt || a?.feesList?.[0]?.createdAt || 0).getTime();
-        const bDate = new Date(b?.paidDate || b?.updatedAt || b?.createdAt || b?.feesList?.[0]?.paidDate || b?.feesList?.[0]?.updatedAt || b?.feesList?.[0]?.createdAt || 0).getTime();
-        return aDate - bDate;
-      });
-
-    const serialIndex = monthGroups.findIndex((group: any) => {
-      const groupId = group?.id || group?.feesList?.[0]?.id;
-      const targetId = fee?.id || fee?.feesList?.[0]?.id;
-      return groupId && targetId && groupId === targetId;
-    });
-
-    if (serialIndex >= 0) {
-      return createInvoiceNumber(dateSource, serialIndex + 1);
-    }
-  }
-
-  const idSource = (fee?.id || fee?.feesList?.[0]?.id || String(Date.now())).replace(/\D/g, '');
-  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
-  return createInvoiceNumber(dateSource, serial);
-};
-
-
 
 const StudentProfile = () => {
   const navigate = useNavigate();
@@ -102,6 +60,13 @@ const StudentProfile = () => {
       feesList: [] as any[]
     };
     const paidByBatch = new Map();
+    const outstandingPayments = fees
+      .filter(isOutstandingPayment)
+      .sort((a: any, b: any) => {
+        const aTime = new Date(a.paidDate || a.updatedAt || a.createdAt).getTime();
+        const bTime = new Date(b.paidDate || b.updatedAt || b.createdAt).getTime();
+        return aTime - bTime;
+      });
 
     fees.forEach(f => {
       const type = (f.transactionType || '').toUpperCase();
@@ -125,10 +90,10 @@ const StudentProfile = () => {
       } else {
         const paidTime = f.updatedAt || f.createdAt;
         const isOutstandingPay = isOutstandingPayment(f);
-        // All confirmed outstanding payments are summarised in one row so the
-        // original invoice is shown once with cumulative paid.
+        // Each outstanding payment must keep its own receipt/invoice entry so
+        // a second payment does not reuse the first payment's invoice number.
         const batchKey = isOutstandingPay
-          ? 'outstanding-payments'
+          ? `outstanding-${f.id}`
           : new Date(paidTime).toISOString().slice(0, 16);
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
@@ -168,21 +133,34 @@ const StudentProfile = () => {
     pendingGroup.invoiceFee = null;
 
     const result: any[] = [];
-    if (pendingDue > 0.005) result.push(pendingGroup);
+    const hasOutstandingLedger = outstandingSummary.original > 0.005;
+    const hasOutstandingPayments = outstandingSummary.paid > 0.005;
+    // Once the student already has a payment summary for the historical
+    // outstanding ledger, do not show the original invoice as a second unpaid
+    // row. The partial/paid summary row is the authoritative record.
+    if (!(hasOutstandingLedger && hasOutstandingPayments) && pendingDue > 0.005) {
+      result.push(pendingGroup);
+    }
     paidByBatch.forEach((group: any) => {
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
       if (hasOutstandingPayment) {
-        group.displayPaid = outstandingSummary.paid;
-        // The original invoice row keeps its original amount. The pending row
-        // above shows the remaining balance.
-        group.displayBalance = outstandingSummary.original;
-        group.displayStatus = outstandingSummary.remaining > 0.005 ? 'Partial' : 'Paid';
-        group.invoiceFee = outstandingSummary.invoices[0] || group.feesList[0];
+        const currentOutstandingPayment = group.feesList.find((item: any) => isOutstandingPayment(item)) || group.feesList[0];
+        const paymentIndex = outstandingPayments.findIndex((item: any) => item.id === currentOutstandingPayment.id);
+        const cumulativePaid = outstandingPayments
+          .slice(0, paymentIndex >= 0 ? paymentIndex + 1 : outstandingPayments.length)
+          .reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+
+        group.displayPaid = Number(currentOutstandingPayment?.amount || 0);
+        group.displayBalance = Math.max(0, outstandingSummary.original - cumulativePaid);
+        group.displayStatus = group.displayBalance > 0.005 ? 'Partial' : 'Paid';
+        group.invoiceFee = currentOutstandingPayment;
+        group.invoiceNumber = formatInvoiceNumber(currentOutstandingPayment, fees);
       } else {
         group.displayPaid = group.totalAmount;
         group.displayBalance = 0;
         group.displayStatus = 'Paid';
         group.invoiceFee = group.feesList[0];
+        group.invoiceNumber = formatInvoiceNumber(group.feesList[0]);
       }
       result.push(group);
     });
@@ -1041,7 +1019,7 @@ const StudentProfile = () => {
                         {displayFees.map(fee => (
                           <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
                             <td className="sp-invoice">
-                              {fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'}
+                              {fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—')}
                             </td>
                             <td>
                               {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}

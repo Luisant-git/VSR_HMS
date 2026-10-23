@@ -2047,11 +2047,22 @@ textarea.ui-form-control { resize: vertical; }
 .fees-credit { color: var(--success); font-weight: 600; }
 .fees-note { font-size: 10.5px; margin-top: 2px; white-space: nowrap; color: var(--success); }
 .fees-note--danger { color: var(--danger); font-weight: 600; }
-.fees-total { font-weight: 800; color: var(--text-heading); }
+.fees-total { font-weight: 800; color: var(--text-heading); white-space: nowrap; }
 .fees-total--pending { color: var(--danger); }
-.fees-outstanding { font-weight: 800; }
+.fees-outstanding { font-weight: 800; white-space: nowrap; }
 .fees-outstanding--due { color: var(--danger); }
 .fees-outstanding--clear { color: var(--success); }
+.fees-method { white-space: nowrap; }
+.fees-status { padding-right: 4px; }
+.fees-actions { padding-left: 4px; }
+.fees-table th.fees-method,
+.fees-table td.fees-method { text-align: left; }
+.fees-table th.fees-total,
+.fees-table td.fees-total { padding-right: 18px; }
+.fees-table th.fees-status,
+.fees-table td.fees-status { padding-left: 0; padding-right: 4px; }
+.fees-table th.fees-actions,
+.fees-table td.fees-actions { padding-left: 4px; }
 
 /* The fees master table intentionally mirrors the Hostellers master table:
    standalone filter toolbar, fixed column widths, a two-line person cell and
@@ -2062,19 +2073,19 @@ textarea.ui-form-control { resize: vertical; }
   min-width: 1340px;
 }
 .fees-table .fees-col-invoice { width: 10%; }
-.fees-table .fees-col-person { width: 12%; }
-.fees-table .fees-col-room { width: 8%; }
-.fees-table .fees-col-date { width: 7%; }
-.fees-table .fees-col-advance { width: 6%; }
-.fees-table .fees-col-rent { width: 6%; }
-.fees-table .fees-col-eb { width: 5.5%; }
-.fees-table .fees-col-mess { width: 6%; }
-.fees-table .fees-col-fine { width: 5%; }
-.fees-table .fees-col-total { width: 6%; }
+.fees-table .fees-col-person { width: 11.5%; }
+.fees-table .fees-col-room { width: 7.5%; }
+.fees-table .fees-col-date { width: 6.5%; }
+.fees-table .fees-col-advance { width: 5.5%; }
+.fees-table .fees-col-rent { width: 5.5%; }
+.fees-table .fees-col-eb { width: 5%; }
+.fees-table .fees-col-mess { width: 5.5%; }
+.fees-table .fees-col-fine { width: 4.5%; }
+.fees-table .fees-col-total { width: 8.5%; }
 .fees-table .fees-col-outstanding { width: 7%; }
-.fees-table .fees-col-method { width: 5.5%; }
+.fees-table .fees-col-method { width: 8%; }
 .fees-table .fees-col-status { width: 7%; }
-.fees-table .fees-col-action { width: 9%; }
+.fees-table .fees-col-action { width: 8%; }
 
 .fees-table th,
 .fees-table td { padding: 8px; }

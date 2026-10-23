@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Printer } from 'lucide-react';
 import { getSystemSettings } from '../api/settings.api';
+import { formatInvoiceNumber } from '../utils/invoiceNumber';
 
 interface ReceiptModalProps {
   fee: any;
@@ -34,9 +35,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   // unused description
 
   const invoiceSource = firstFee || fee;
-  const idSource = (invoiceSource?.id || firstFee?.id || fee?.id || `${Date.now()}`).replace(/\D/g, '');
-  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
-  const invoiceNo = `INV-${new Date(invoiceSource?.paidDate || invoiceSource?.updatedAt || invoiceSource?.createdAt || Date.now()).getFullYear()}-${String(new Date(invoiceSource?.paidDate || invoiceSource?.updatedAt || invoiceSource?.createdAt || Date.now()).getMonth() + 1).padStart(2, '0')}-${String(serial).padStart(3, '0')}`;
+  const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
   
   const dateStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
   const count = parseInt((firstFee?.id || '0').substring(0, 8), 16) % 10000 || Math.floor(Math.random() * 9999);

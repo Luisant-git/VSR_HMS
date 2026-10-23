@@ -476,9 +476,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                             <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                               Enter any amount up to ₹{outstandingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
-                            <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 600 }}>
-                              This reduces only previous outstanding dues. Current Rent / Mess / EB stay unpaid unless ticked above.
-                            </span>
+                            
                           </div>
 
                           {outstandingError ? (

@@ -16,47 +16,7 @@ import {
   isOutstandingPayment,
   roundMoney,
 } from '../utils/outstanding';
-
-const createInvoiceNumber = (dateValue: string | Date, serial: number | string) => {
-  const date = new Date(dateValue || Date.now());
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `INV-${year}-${month}-${String(serial).padStart(3, '0')}`;
-};
-
-const formatInvoiceNumber = (fee: any, feeGroups: any[] = []) => {
-  const dateSource = fee?.paidDate || fee?.updatedAt || fee?.createdAt || fee?.feesList?.[0]?.paidDate || fee?.feesList?.[0]?.updatedAt || fee?.feesList?.[0]?.createdAt || new Date();
-  const date = new Date(dateSource);
-  const year = date.getFullYear();
-  const month = date.getMonth();
-
-  if (feeGroups.length) {
-    const monthGroups = feeGroups
-      .filter((group: any) => {
-        const groupDate = new Date(group?.paidDate || group?.updatedAt || group?.createdAt || group?.feesList?.[0]?.paidDate || group?.feesList?.[0]?.updatedAt || group?.feesList?.[0]?.createdAt || new Date());
-        return groupDate.getFullYear() === year && groupDate.getMonth() === month;
-      })
-      .sort((a: any, b: any) => {
-        const aDate = new Date(a?.paidDate || a?.updatedAt || a?.createdAt || a?.feesList?.[0]?.paidDate || a?.feesList?.[0]?.updatedAt || a?.feesList?.[0]?.createdAt || 0).getTime();
-        const bDate = new Date(b?.paidDate || b?.updatedAt || b?.createdAt || b?.feesList?.[0]?.paidDate || b?.feesList?.[0]?.updatedAt || b?.feesList?.[0]?.createdAt || 0).getTime();
-        return aDate - bDate;
-      });
-
-    const serialIndex = monthGroups.findIndex((group: any) => {
-      const groupId = group?.id || group?.feesList?.[0]?.id;
-      const targetId = fee?.id || fee?.feesList?.[0]?.id;
-      return groupId && targetId && groupId === targetId;
-    });
-
-    if (serialIndex >= 0) {
-      return createInvoiceNumber(dateSource, serialIndex + 1);
-    }
-  }
-
-  const idSource = (fee?.id || fee?.feesList?.[0]?.id || String(Date.now())).replace(/\D/g, '');
-  const serial = Number.parseInt(idSource.slice(-3) || '1', 10) || 1;
-  return createInvoiceNumber(dateSource, serial);
-};
+import { formatInvoiceNumber } from '../utils/invoiceNumber';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
@@ -224,17 +184,36 @@ const Fees = () => {
   // filter hides the payment rows.
   const outstandingTotals = useMemo(() => buildOutstandingTotals(fees), [fees]);
 
-  // First original outstanding invoice per student, used for the invoice number
-  // shown on the partial/paid summary row.
-  const outstandingInvoiceByStudent = useMemo(() => {
-    const firstInvoice = new Map<string, any>();
+  // Each outstanding receipt row shows the balance remaining immediately after
+  // that payment. This must use cumulative payments, not just the current
+  // receipt amount, otherwise every later receipt keeps showing the same old
+  // balance (e.g. ₹9,000 after both a ₹1,000 and a ₹2,000 payment).
+  const outstandingBalanceAfterPayment = useMemo(() => {
+    const map = new Map<string, number>();
+    const paymentsByStudent = new Map<string, any[]>();
+
     fees.forEach(fee => {
-      if (!isOutstandingInvoice(fee)) return;
+      if (!isOutstandingPayment(fee)) return;
       const key = getStudentKey(fee);
-      if (!firstInvoice.has(key)) firstInvoice.set(key, fee);
+      if (!paymentsByStudent.has(key)) paymentsByStudent.set(key, []);
+      paymentsByStudent.get(key)!.push(fee);
     });
-    return firstInvoice;
-  }, [fees]);
+
+    paymentsByStudent.forEach((payments, studentKey) => {
+      const original = outstandingTotals.get(studentKey)?.original || 0;
+      let cumulative = 0;
+
+      payments
+        .slice()
+        .sort((a, b) => new Date(a.paidDate || a.createdAt).getTime() - new Date(b.paidDate || b.createdAt).getTime())
+        .forEach(payment => {
+          cumulative = roundMoney(cumulative + Number(payment.amount || 0));
+          map.set(payment.id, roundMoney(Math.max(0, original - cumulative)));
+        });
+    });
+
+    return map;
+  }, [fees, outstandingTotals]);
 
   // Pending stat = current-month dues + remaining historical outstanding.
   // Original outstanding invoice amounts are never added on top of payments.
@@ -308,11 +287,11 @@ const Fees = () => {
       } else {
         const paidTime = f.updatedAt || f.createdAt;
         const isOutstandingPay = isOutstandingPayment(f);
-        // Group by student + minute of payment so batch payments appear as one
-        // receipt. All outstanding payments for a student are summarised into
-        // one row so the original invoice is shown once with cumulative paid.
+        // Each confirmed outstanding payment must remain its own receipt/invoice
+        // entry. Do not merge them into a single student summary row or the app
+        // will keep reusing the first payment's invoice number.
         const batchKey = isOutstandingPay
-          ? `${studentId}-outstanding-payments`
+          ? `${studentId}-outstanding-${f.id}`
           : `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
@@ -358,34 +337,42 @@ const Fees = () => {
       group.displayStatus = 'Unpaid';
       group.invoiceFee = null;
       group.pendingDue = pendingDue;
-      // Hide a pending row that has been fully settled (no current dues left).
-      if (pendingDue > 0.005) result.push(group);
+      const hasOutstandingLedger = (totals?.original || 0) > 0.005;
+      const hasOutstandingPayments = (totals?.paid || 0) > 0.005;
+      // If the student already has a partial/paid outstanding summary, the
+      // original outstanding invoice should not appear again as a second
+      // pending row.
+      if (!(hasOutstandingLedger && hasOutstandingPayments) && pendingDue > 0.005) {
+        result.push(group);
+      }
     });
     paidByBatch.forEach((group: any) => {
       const studentKey = getStudentKey(group.feesList[0]);
       const totals = outstandingTotals.get(studentKey);
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
       if (hasOutstandingPayment) {
-        group.displayPaid = totals?.paid || 0;
-        // The original invoice row must never be reduced by payments: keep the
-        // original outstanding amount in its Outstanding Balance cell. The
-        // separate pending row below shows the remaining balance.
-        group.displayBalance = totals?.original || 0;
-        group.displayStatus = (totals?.remaining || 0) > 0.005 ? 'Partial' : 'Paid';
-        group.invoiceFee =
-          outstandingInvoiceByStudent.get(studentKey) || group.feesList[0];
+        const currentOutstandingPayment = group.feesList.find((item: any) => isOutstandingPayment(item)) || group.feesList[0];
+
+        group.displayPaid = Number(currentOutstandingPayment?.amount || 0);
+        group.displayBalance =
+          outstandingBalanceAfterPayment.get(currentOutstandingPayment.id) ??
+          Math.max(0, (totals?.original || 0) - Number(currentOutstandingPayment?.amount || 0));
+        group.displayStatus = group.displayBalance > 0.005 ? 'Partial' : 'Paid';
+        group.invoiceFee = currentOutstandingPayment;
+        group.invoiceNumber = formatInvoiceNumber(currentOutstandingPayment);
       } else {
         group.displayPaid = group.totalAmount;
         group.displayBalance = 0;
         group.displayStatus = 'Paid';
         group.invoiceFee = group.feesList[0];
+        group.invoiceNumber = formatInvoiceNumber(group.feesList[0]);
       }
       result.push(group);
     });
 
     result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return result;
-  }, [filteredFees, outstandingTotals]);
+  }, [filteredFees, outstandingTotals, outstandingBalanceAfterPayment]);
 
   const modalOutstandingPaid = useMemo(() => {
     const first = feesToCollect[0] || feeToCollect;
@@ -429,7 +416,7 @@ const Fees = () => {
 
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
-      'Receipt No': fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—',
+      'Receipt No': fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—'),
       'Student ID': fee.student?.manualRegsiName || fee.student?.regNo || 'N/A',
       'Student Name': fee.student?.name || 'Unknown',
       'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
@@ -627,9 +614,9 @@ const Fees = () => {
                 <th className="num">Mess</th>
                 <th className="num">Fine</th>
                 <th className="num">Outstanding Balance</th>
-                <th className="num">Total Paid</th>
-                <th>Payment Method</th>
-                <th>Status</th>
+                <th className="num fees-total">Total Paid</th>
+                <th className="fees-method">Payment Method</th>
+                <th className="fees-status">Status</th>
                 <th className="num">Actions</th>
               </tr>
             </thead>
@@ -655,9 +642,9 @@ const Fees = () => {
                     >
                       <td
                         className="ui-cell-link fees-invoice"
-                        title={fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : undefined}
+                        title={fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : undefined)}
                       >
-                        {fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'}
+                        {fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')}
                       </td>
                       <td>
                         <div className="fees-person">
@@ -723,10 +710,10 @@ const Fees = () => {
                         ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                       </td>
 
-                      <td title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>
+                      <td className="fees-method" title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>
                         {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
                       </td>
-                      <td>
+                      <td className="fees-status">
                         <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-green' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-red'}`}>
                           {fee.displayStatus}
                         </span>
