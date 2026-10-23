@@ -16,10 +16,7 @@ import {
   isOutstandingPayment,
   roundMoney,
 } from '../utils/outstanding';
-import {
-  applySequentialInvoiceNumbers,
-  formatInvoiceNumber,
-} from '../utils/invoiceNumber';
+import { formatInvoiceNumber } from '../utils/invoiceNumber';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
@@ -205,10 +202,9 @@ const Fees = () => {
     return map;
   }, [fees]);
 
-  // Running balance shown on each receipt + its payment order. Rows are
-  // ordered smallest payment first (₹1,000 → ₹2,000 → ₹3,000), and each row
-  // shows the balance before that payment: ₹10,000 → ₹9,000 → ₹7,000. After
-  // the last receipt the true remaining balance is ₹4,000.
+  // Running balance shown on each receipt must follow the real payment order.
+  // Sorting by payment amount can scramble the sequence when amounts are mixed,
+  // so use createdAt/paidDate instead of amount to mirror actual ledger flow.
   const outstandingLedger = useMemo(() => {
     const balances = new Map<string, number>();
     const order = new Map<string, number>();
@@ -229,8 +225,9 @@ const Fees = () => {
         .slice()
         .sort(
           (a, b) =>
-            (Number(a.amount) || 0) - (Number(b.amount) || 0) ||
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() ||
+            new Date(a.paidDate || 0).getTime() - new Date(b.paidDate || 0).getTime() ||
+            String(a.id).localeCompare(String(b.id)),
         )
         .forEach((payment, index) => {
           balances.set(payment.id, remaining);
@@ -315,7 +312,7 @@ const Fees = () => {
           group.createdAt = f.createdAt;
         }
       } else {
-        const paidTime = f.updatedAt || f.createdAt;
+        const paidTime = f.paidDate || f.createdAt || f.updatedAt;
         const isOutstandingPay = isOutstandingPayment(f);
         // Each confirmed outstanding payment must remain its own receipt/invoice
         // entry. Do not merge them into a single student summary row or the app
@@ -447,16 +444,23 @@ const Fees = () => {
       const aIsReceipt = a.feesList?.some(isOutstandingPayment);
       const bIsReceipt = b.feesList?.some(isOutstandingPayment);
       if (aIsReceipt && bIsReceipt) {
-        return (a.outstandingSequence ?? 0) - (b.outstandingSequence ?? 0);
+        // Display the latest outstanding payment first for the current view,
+        // while the balance math remains based on the real chronological ledger.
+        return (b.outstandingSequence ?? 0) - (a.outstandingSequence ?? 0);
       }
       if (aIsReceipt) return -1;
       if (bIsReceipt) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      // Latest invoice number first (descending) within the same student.
+      // Compare only the YYYY-MM-### serial suffix so prefix inconsistencies
+      // ("INV-" vs "V-") don't break the ordering.
+      const invSuffix = (inv: string) => {
+        const m = inv.match(/(\d{4}-\d{2}-\d{3})$/);
+        return m ? m[1] : inv;
+      };
+      return invSuffix(b.invoiceNumber || '').localeCompare(invSuffix(a.invoiceNumber || ''));
     });
 
-    // Number the visible rows sequentially per student/month so the Invoice No
-    // column reads 001, 002, 003... instead of random id-derived values.
-    return applySequentialInvoiceNumbers(result);
+    return result;
   }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
   const modalOutstandingPaid = useMemo(() => {

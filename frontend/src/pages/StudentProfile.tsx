@@ -9,10 +9,7 @@ import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { buildOutstandingSummary, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
-import {
-  applySequentialInvoiceNumbers,
-  formatInvoiceNumber,
-} from '../utils/invoiceNumber';
+import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -64,10 +61,10 @@ const StudentProfile = () => {
     };
     const paidByBatch = new Map();
 
-    // Running balance shown on each receipt. Rows are ordered smallest payment
-    // first (₹1,000 → ₹2,000 → ₹3,000), and each row shows the balance before
-    // that payment: ₹10,000 → ₹9,000 → ₹7,000. After the last receipt the true
-    // remaining balance is ₹4,000.
+    // Running balance shown on each receipt. Use the actual payment sequence,
+    // not the payment amount, so the outstanding balance matches the real
+    // receipt history. If payment amounts are mixed (₹500, ₹1,000, ₹2,000),
+    // the running balance must follow createdAt, not sort by amount.
     const balanceBeforeReceipt = new Map<string, number>();
     const receiptOrder = new Map<string, number>();
     let remainingBeforeReceipt = outstandingSummary.original;
@@ -75,8 +72,9 @@ const StudentProfile = () => {
       .slice()
       .sort(
         (a: any, b: any) =>
-          (Number(a.amount) || 0) - (Number(b.amount) || 0) ||
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() ||
+          new Date(a.paidDate || 0).getTime() - new Date(b.paidDate || 0).getTime() ||
+          String(a.id).localeCompare(String(b.id)),
       )
       .forEach((payment: any, index: number) => {
         balanceBeforeReceipt.set(payment.id, remainingBeforeReceipt);
@@ -110,7 +108,7 @@ const StudentProfile = () => {
           pendingGroup.createdAt = f.createdAt;
         }
       } else {
-        const paidTime = f.updatedAt || f.createdAt;
+        const paidTime = f.paidDate || f.createdAt || f.updatedAt;
         const isOutstandingPay = isOutstandingPayment(f);
         // Each outstanding payment must keep its own receipt/invoice entry so
         // a second payment does not reuse the first payment's invoice number.
@@ -216,16 +214,23 @@ const StudentProfile = () => {
       const aIsReceipt = a.feesList?.some(isOutstandingPayment);
       const bIsReceipt = b.feesList?.some(isOutstandingPayment);
       if (aIsReceipt && bIsReceipt) {
-        return (a.outstandingSequence ?? 0) - (b.outstandingSequence ?? 0);
+        // Show the newest outstanding payment first while keeping the running
+        // balance computed from the real chronological ledger order.
+        return (b.outstandingSequence ?? 0) - (a.outstandingSequence ?? 0);
       }
       if (aIsReceipt) return -1;
       if (bIsReceipt) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      // Latest invoice number first (descending).
+      // Compare only the YYYY-MM-### serial suffix so prefix inconsistencies
+      // ("INV-" vs "V-") don't break the ordering.
+      const invSuffix = (inv: string) => {
+        const m = inv.match(/(\d{4}-\d{2}-\d{3})$/);
+        return m ? m[1] : inv;
+      };
+      return invSuffix(b.invoiceNumber || '').localeCompare(invSuffix(a.invoiceNumber || ''));
     });
 
-    // Number the visible rows sequentially per student/month so the Invoice No
-    // column reads 001, 002, 003... instead of random id-derived values.
-    return applySequentialInvoiceNumbers(result);
+    return result;
   }, [fees, outstandingSummary]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
