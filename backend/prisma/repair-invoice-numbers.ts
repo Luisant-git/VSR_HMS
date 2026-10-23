@@ -3,10 +3,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const rows = await prisma.feeTransaction.findMany({
-    where: { invoiceNumber: { not: null } },
+  const allRows = await prisma.feeTransaction.findMany({
     orderBy: [{ paidDate: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
   });
+
+  const rows = allRows.filter(row => row.invoiceNumber !== null);
 
   const counters = new Map<string, number>();
 
