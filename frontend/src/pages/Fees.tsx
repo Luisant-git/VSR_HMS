@@ -16,7 +16,10 @@ import {
   isOutstandingPayment,
   roundMoney,
 } from '../utils/outstanding';
-import { formatInvoiceNumber } from '../utils/invoiceNumber';
+import {
+  applySequentialInvoiceNumbers,
+  formatInvoiceNumber,
+} from '../utils/invoiceNumber';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
@@ -355,7 +358,11 @@ const Fees = () => {
     pendingByStudent.forEach((group) => {
       const pendingDue = roundMoney(Math.max(0, group.totalAmount));
       group.displayPaid = 0;
-      group.displayBalance = pendingDue;
+      // Regular current-month dues (Rent / Mess / EB / Fine) are not an
+      // outstanding-balance ledger. Their amounts already appear in their own
+      // columns, so the Outstanding Balance column must stay zero here. It is
+      // populated only for historical outstanding invoices / receipts below.
+      group.displayBalance = 0;
       group.displayStatus = 'Unpaid';
       group.invoiceFee = null;
       group.pendingDue = pendingDue;
@@ -446,7 +453,10 @@ const Fees = () => {
       if (bIsReceipt) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-    return result;
+
+    // Number the visible rows sequentially per student/month so the Invoice No
+    // column reads 001, 002, 003... instead of random id-derived values.
+    return applySequentialInvoiceNumbers(result);
   }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
   const modalOutstandingPaid = useMemo(() => {

@@ -41,3 +41,35 @@ export const formatInvoiceNumber = (fee: any, _feeGroups?: any[]) => {
 
   return createInvoiceNumber(dateSource, serialFromId(source?.id || fee?.id));
 };
+
+const rowDate = (row: any) => {
+  const source = row?.feesList?.[0] || row;
+  const value =
+    source?.paidDate ||
+    row?.paidDate ||
+    source?.createdAt ||
+    row?.createdAt ||
+    new Date();
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : new Date();
+};
+
+/**
+ * Assigns globally unique sequential invoice numbers in the same order the
+ * rows are displayed, resetting only at the start of each calendar month
+ * (e.g. INV-2026-10-001, INV-2026-10-002, ...). Keeping one counter per month
+ * prevents the same invoice number from being reused for different students.
+ */
+export const applySequentialInvoiceNumbers = <T extends any>(rows: T[]): T[] => {
+  const counters = new Map<string, number>();
+
+  rows.forEach(row => {
+    const date = rowDate(row);
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+    const next = (counters.get(key) || 0) + 1;
+    counters.set(key, next);
+    (row as any).invoiceNumber = createInvoiceNumber(date, next);
+  });
+
+  return rows;
+};

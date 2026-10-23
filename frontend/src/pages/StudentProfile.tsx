@@ -9,7 +9,10 @@ import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { buildOutstandingSummary, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
-import { formatInvoiceNumber } from '../utils/invoiceNumber';
+import {
+  applySequentialInvoiceNumbers,
+  formatInvoiceNumber,
+} from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -146,7 +149,10 @@ const StudentProfile = () => {
     // invoices, so they must not reduce these current dues.
     const currentPendingDue = roundMoney(Math.max(0, pendingGroup.totalAmount));
     pendingGroup.displayPaid = 0;
-    pendingGroup.displayBalance = currentPendingDue;
+    // Current dues are shown in the Rent / Mess / EB / Fine columns. They are
+    // not historical outstanding balance, so that column stays zero. It is
+    // populated only for outstanding invoices / receipts.
+    pendingGroup.displayBalance = 0;
     pendingGroup.displayStatus = 'Unpaid';
     pendingGroup.invoiceFee = null;
 
@@ -216,7 +222,10 @@ const StudentProfile = () => {
       if (bIsReceipt) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-    return result;
+
+    // Number the visible rows sequentially per student/month so the Invoice No
+    // column reads 001, 002, 003... instead of random id-derived values.
+    return applySequentialInvoiceNumbers(result);
   }, [fees, outstandingSummary]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
