@@ -158,11 +158,23 @@ model FeeTransaction {
   status          String // "PENDING", "COMPLETED", "FAILED"
   paymentMode     String? // "CASH", "UPI", "BANK_TRANSFER"
 
+  // Stable, sequential invoice number assigned once (e.g. INV-2026-10-001).
+  // It is never recalculated, so adding a payment cannot renumber older rows.
+  invoiceNumber String?
+
   dueDate  DateTime?
   paidDate DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([invoiceNumber])
+}
+
+// One row per calendar month, used to allocate invoice numbers atomically.
+model InvoiceCounter {
+  period String @id // "2026-10"
+  value  Int    @default(0)
 }
 
 // ---------------------------------------------------------

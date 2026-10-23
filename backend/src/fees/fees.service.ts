@@ -17,18 +17,27 @@ const OUTSTANDING_PAYMENT_TYPE = 'OUTSTANDING_PAYMENT';
 const OUTSTANDING_PREFIX = 'Outstanding';
 const MONEY_EPSILON = 0.001;
 
+const isOutstandingDescription = (fee: any) =>
+  /^\s*outstanding\b/i.test(String(fee?.description || ''));
+
 @Injectable()
 export class FeesService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateFeeDto) {
-    return this.prisma.feeTransaction.create({
-      data,
+    return this.prisma.$transaction(async tx => {
+      const date = (data as any).paidDate
+        ? new Date((data as any).paidDate)
+        : new Date();
+      const invoiceNumber = await this.allocateInvoiceNumber(tx, date);
+      return tx.feeTransaction.create({
+        data: { ...data, invoiceNumber },
+      });
     });
   }
 
   async findAll() {
-    return this.prisma.feeTransaction.findMany({
+    const rows = await this.prisma.feeTransaction.findMany({
       orderBy: { createdAt: 'desc' },
       include: { 
         student: {
@@ -36,10 +45,11 @@ export class FeesService {
         }
       }
     });
+    return this.ensureInvoiceNumbers(rows);
   }
 
   async findByStudent(studentId: string) {
-    return this.prisma.feeTransaction.findMany({
+    const rows = await this.prisma.feeTransaction.findMany({
       where: { studentId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -48,10 +58,11 @@ export class FeesService {
         }
       }
     });
+    return this.ensureInvoiceNumbers(rows);
   }
 
   async findOne(id: string) {
-    return this.prisma.feeTransaction.findUnique({
+    const row = await this.prisma.feeTransaction.findUnique({
       where: { id },
       include: { 
         student: {
@@ -59,6 +70,85 @@ export class FeesService {
         }
       }
     });
+    if (row) await this.ensureInvoiceNumbers([row]);
+    return row;
+  }
+
+  /**
+   * Invoice numbers are permanent. Any row that predates the numbering feature
+   * (or was created by a path that does not allocate one) gets its number here
+   * exactly once. Existing numbers are never recalculated, so adding a new
+   * payment cannot renumber older receipts.
+   */
+  private async ensureInvoiceNumbers<T extends { id: string; invoiceNumber?: string | null }>(
+    rows: T[],
+  ): Promise<T[]> {
+    const missing = rows.filter(row => !row.invoiceNumber);
+    if (missing.length === 0) return rows;
+
+    missing.sort(
+      (a, b) =>
+        new Date((a as any).createdAt).getTime() -
+        new Date((b as any).createdAt).getTime(),
+    );
+
+    // One invoice number per displayed receipt. Outstanding payments are each
+    // their own receipt; unpaid outstanding invoices and current pending dues
+    // are grouped per student; other paid fees are grouped per student/minute.
+    const groups = new Map<string, T[]>();
+    for (const row of missing) {
+      const key = this.invoiceGroupKey(row as any);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(row);
+    }
+
+    for (const group of groups.values()) {
+      const first = group[0] as any;
+      const date = new Date(first.paidDate || first.createdAt || Date.now());
+      const invoiceNumber = await this.allocateInvoiceNumber(this.prisma, date);
+
+      await this.prisma.feeTransaction.updateMany({
+        where: { id: { in: group.map(row => row.id) } },
+        data: { invoiceNumber },
+      });
+      group.forEach(row => {
+        (row as any).invoiceNumber = invoiceNumber;
+      });
+    }
+
+    return rows;
+  }
+
+  private invoiceGroupKey(row: any) {
+    const type = String(row.transactionType || '').toUpperCase();
+    if (type === OUTSTANDING_PAYMENT_TYPE) return `outstanding-payment-${row.id}`;
+    if (row.status === 'PENDING' && isOutstandingDescription(row)) {
+      return `outstanding-invoice-${row.studentId}`;
+    }
+    if (row.status === 'PENDING') return `pending-${row.studentId}`;
+    const time = new Date(row.paidDate || row.createdAt).toISOString().slice(0, 16);
+    return `paid-${row.studentId}-${time}`;
+  }
+
+  private invoicePeriod(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private formatInvoiceNumber(date: Date, serial: number) {
+    return `INV-${this.invoicePeriod(date)}-${String(serial).padStart(3, '0')}`;
+  }
+
+  private async allocateInvoiceNumber(
+    client: Prisma.TransactionClient | PrismaService,
+    date: Date,
+  ): Promise<string> {
+    const period = this.invoicePeriod(date);
+    const counter = await client.invoiceCounter.upsert({
+      where: { period },
+      create: { period, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+    return this.formatInvoiceNumber(date, counter.value);
   }
 
   async update(id: string, data: UpdateFeeDto) {
@@ -139,6 +229,17 @@ export class FeesService {
 
       if (existing.length > 0) {
         const payment = existing[0];
+        if (!payment.invoiceNumber) {
+          const invoiceNumber = await this.allocateInvoiceNumber(
+            tx,
+            payment.paidDate || payment.createdAt,
+          );
+          await tx.feeTransaction.update({
+            where: { id: payment.id },
+            data: { invoiceNumber },
+          });
+          payment.invoiceNumber = invoiceNumber;
+        }
         const invoices = await this.getOutstandingInvoices(tx, studentId);
         const payments = await this.getConfirmedOutstandingPayments(tx, studentId);
         const originalOutstanding = this.sumAmounts(invoices);
@@ -184,6 +285,8 @@ export class FeesService {
     }
 
     // ONE ledger row per payment. No invoice amount or status is touched.
+    const paidDate = new Date();
+    const invoiceNumber = await this.allocateInvoiceNumber(tx, paidDate);
     const created = await tx.feeTransaction.create({
       data: {
         studentId,
@@ -191,7 +294,8 @@ export class FeesService {
         amount,
         status: 'COMPLETED',
         paymentMode: dto.paymentMode,
-        paidDate: new Date(),
+        paidDate,
+        invoiceNumber,
         description: `Outstanding payment${this.buildDescriptionSuffix(dto, requestId)}`,
       },
     });

@@ -38,8 +38,17 @@ const matchesWhere = (row: FakeRow, where: any = {}) => {
 const createFakePrisma = (seed: FakeRow[]) => {
   const store: FakeRow[] = seed.map(row => ({ ...row }));
   let sequence = 0;
+  const invoiceCounterStore = new Map<string, number>();
 
   const tx = {
+    invoiceCounter: {
+      upsert: vi.fn(async ({ where, create, update }: any) => {
+        const current = invoiceCounterStore.get(where.period) ?? 0;
+        const nextValue = current + 1;
+        invoiceCounterStore.set(where.period, nextValue);
+        return { period: where.period, value: nextValue };
+      }),
+    },
     feeTransaction: {
       findMany: vi.fn(async ({ where, orderBy }: any = {}) => {
         let rows = store.filter(row => matchesWhere(row, where));
@@ -75,10 +84,24 @@ const createFakePrisma = (seed: FakeRow[]) => {
         return { ...store[index] };
       }),
     },
+    $queryRaw: vi.fn(async (strings: TemplateStringsArray | string[], ...values: any[]) => {
+      const period = values[0];
+      const current = invoiceCounterStore.get(period) ?? 0;
+      const nextValue = current + 1;
+      invoiceCounterStore.set(period, nextValue);
+      return [{ value: nextValue }];
+    }),
   };
 
   const prisma = {
     $transaction: vi.fn(async (callback: any) => callback(tx)),
+    $queryRaw: vi.fn(async (strings: TemplateStringsArray | string[], ...values: any[]) => {
+      const period = values[0];
+      const current = invoiceCounterStore.get(period) ?? 0;
+      const nextValue = current + 1;
+      invoiceCounterStore.set(period, nextValue);
+      return [{ value: nextValue }];
+    }),
   } as any;
 
   return { prisma, store, tx };
@@ -255,5 +278,37 @@ describe('FeesService - outstanding payment ledger', () => {
         requestId: 'req-c',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('allocates unique invoice numbers for each payment in the same month', async () => {
+    const counterStore = new Map<string, number>();
+    const client = {
+      $queryRaw: vi.fn(async () => {
+        const period = '2026-10';
+        const nextValue = (counterStore.get(period) ?? 0) + 1;
+        counterStore.set(period, nextValue);
+        return [{ value: nextValue }];
+      }),
+      invoiceCounter: {
+        upsert: vi.fn(async ({ where }: any) => {
+          const period = where.period;
+          const nextValue = (counterStore.get(period) ?? 0) + 1;
+          counterStore.set(period, nextValue);
+          return { value: nextValue };
+        }),
+      },
+    };
+
+    const nextNumbers = await Promise.all(
+      [new Date('2026-10-01'), new Date('2026-10-02'), new Date('2026-10-03')].map(
+        date => (service as any).allocateInvoiceNumber(client, date),
+      ),
+    );
+
+    expect(nextNumbers).toEqual([
+      'INV-2026-10-001',
+      'INV-2026-10-002',
+      'INV-2026-10-003',
+    ]);
   });
 });
