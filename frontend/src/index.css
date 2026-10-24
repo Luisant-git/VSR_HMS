@@ -2097,28 +2097,28 @@ textarea.ui-form-control { resize: vertical; }
 .fees-table {
   table-layout: fixed;
   width: 100%;
-  min-width: 1180px;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
 }
-.fees-table .fees-col-invoice { width: 9%; }
+.fees-table .fees-col-invoice { width: 7%; }
 .fees-table .fees-col-person { width: 12%; }
-.fees-table .fees-col-room { width: 7%; }
-.fees-table .fees-col-date { width: 7%; }
-.fees-table .fees-col-advance { width: 5.5%; }
-.fees-table .fees-col-rent { width: 5.5%; }
+.fees-table .fees-col-room { width: 6%; }
+.fees-table .fees-col-date { width: 6%; }
+.fees-table .fees-col-advance { width: 5%; }
+.fees-table .fees-col-rent { width: 5%; }
 .fees-table .fees-col-eb { width: 5%; }
-.fees-table .fees-col-mess { width: 5.5%; }
-.fees-table .fees-col-fine { width: 4.5%; }
-.fees-table .fees-col-total { width: 9%; }
-.fees-table .fees-col-outstanding { width: 8.5%; }
-.fees-table .fees-col-method { width: 9%; }
-.fees-table .fees-col-status { width: 7%; }
+.fees-table .fees-col-mess { width: 5%; }
+.fees-table .fees-col-fine { width: 5%; }
+.fees-table .fees-col-outstanding { width: 8%; }
+.fees-table .fees-col-total { width: 8%; }
+.fees-table .fees-col-method { width: 8%; }
+.fees-table .fees-col-status { width: 6%; }
 .fees-table .fees-col-action { width: 9%; }
 
 .fees-table th,
 .fees-table td {
-  padding: 8px 10px !important;
+  padding: 6px 7px !important;
   box-sizing: border-box;
   vertical-align: middle;
 }
@@ -2128,7 +2128,7 @@ textarea.ui-form-control { resize: vertical; }
   line-height: 1.1;
   vertical-align: bottom;
   font-size: 10px !important;
-  padding: 10px 10px !important;
+  padding: 8px 7px !important;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
