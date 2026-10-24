@@ -544,7 +544,7 @@ export default function StaffSalaryRegister() {
                   return (
                     <tr key={item.id}>
                       <td>
-                        <span className="ui-code-box" title={item.salaryCode}>{item.salaryCode}</span>
+                        <span className="ui-code" title={item.salaryCode}>{item.salaryCode}</span>
                       </td>
                       <td>
                         <span className="sal-muted is-strong">{item.staff?.staffCode || '--'}</span>

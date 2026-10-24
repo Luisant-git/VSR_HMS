@@ -2626,7 +2626,7 @@ textarea.ui-form-control { resize: vertical; }
 }
 
 /* Record IDs show in full by wrapping rather than clipping */
-.salary-table .ui-code-box {
+.salary-table .ui-code {
   display: inline-block;
   max-width: 100%;
   box-sizing: border-box;
