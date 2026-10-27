@@ -55,7 +55,7 @@ export class UploadController {
     await writeFile(filePath, buffer);
 
     const baseUrl = process.env.UPLOAD_URL || 'http://localhost:3000';
-    const uploadsBaseUrl = `${baseUrl.replace(/\/$/, '')}/uploads`;
+    const uploadsBaseUrl = `${(baseUrl || '').replace(/\/$/, '')}/uploads`;
 
     return {
       filename: filename,

@@ -295,7 +295,7 @@ const StudentProfile = () => {
           guardianPhone: data.guardianMobileNo || 'N/A',
           emergencyContact: data.emergencyContact || 'N/A',
           roomType: data.room?.type || 'N/A',
-          blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id?.replace(/^[a-zA-Z\s_-]+/, '') || '-'}`,
+          blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id ? data.room.id.replace(/^[a-zA-Z\s_-]+/, '') : '-'}`,
           monthlyRent: `₹${data.rent || 0}`,
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,

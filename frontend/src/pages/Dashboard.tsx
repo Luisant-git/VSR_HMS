@@ -36,7 +36,7 @@ const Dashboard = () => {
     type: r.type,
     ac: r.amenities ? r.amenities.includes('AC') : false,
     block: r.block,
-    floor: `Room ${r.id.replace(/^[a-zA-Z\s_-]+/, '')}`,
+    floor: `Room ${r.id ? r.id.replace(/^[a-zA-Z\s_-]+/, '') : ''}`,
     rent: Number(r.rent || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
     mess: Number(r.messFee || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
     occ: r.occupiedCount,

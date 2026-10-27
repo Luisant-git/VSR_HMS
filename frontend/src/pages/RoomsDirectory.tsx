@@ -35,7 +35,7 @@ const RoomsDirectory = () => {
 
   const handleEditClick = (room: any) => {
     setNewRoom({
-      id: room.id || room.room?.replace('Room ', ''),
+      id: room.id || (room.room ? room.room.replace('Room ', '') : ''),
       block: room.block?.split(' | ')[0] || room.loc,
       floor: room.floor || 1,
       type: room.type,

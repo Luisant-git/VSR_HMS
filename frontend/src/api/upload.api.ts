@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL.replace(/\/$/, '');
+const API_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
 const UPLOAD_URL = `${API_URL}/upload/image`;
 
 export const UploadAPI = {
