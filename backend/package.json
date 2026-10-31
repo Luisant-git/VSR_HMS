@@ -22,7 +22,8 @@
     "postinstall": "prisma generate",
     "seed": "npx tsx prisma/seed.ts",
     "seed:canteen": "npx tsx prisma/seed-canteen.ts",
-    "sync-rooms": "npx tsx prisma/sync-rooms.ts"
+    "sync-rooms": "npx tsx prisma/sync-rooms.ts",
+    "mark-october-paid": "npx tsx prisma/mark-october-paid.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

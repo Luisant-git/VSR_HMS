@@ -36,9 +36,33 @@ export const isOutstandingInvoice = (fee: any) =>
   String(fee.transactionType || '').toUpperCase() !== OUTSTANDING_PAYMENT_TYPE &&
   isOutstandingDescription(fee);
 
-/** Imported month-1 dues for existing students (already paid up to Oct 31, 2026). */
-export const isImportedInvoice = (fee: any) =>
-  /imported/i.test(String(fee?.description || ''));
+/**
+ * Checks if a pending fee is an initial Month 1 or current October fee that was already
+ * paid up to Oct 31, 2026.
+ * Genuine historical dues (e.g. "Outstanding Rent for Sep 2026") are NEVER matched here.
+ * Tomorrow's November fees ("... for November 2026") are NEVER matched here.
+ */
+export const isImportedInvoice = (fee: any) => {
+  if (!fee || fee.status !== 'PENDING') return false;
+  // Always preserve genuine historical outstanding invoices
+  if (isOutstandingDescription(fee)) return false;
+
+  const desc = String(fee.description || '');
+  if (/imported/i.test(desc)) return true;
+  if (/month\s*1\b/i.test(desc)) return true;
+  if (/october\s*2026\b/i.test(desc)) return true;
+
+  // Any non-outstanding fee created on or before Oct 31, 2026 (excluding November+)
+  const isFutureMonth = /november|december|2027/i.test(desc);
+  if (isFutureMonth) return false;
+
+  const created = new Date(fee.createdAt);
+  if (!isNaN(created.getTime()) && created < new Date('2026-11-01T00:00:00')) {
+    return true;
+  }
+
+  return false;
+};
 
 export const getStudentKey = (fee: any) =>
   fee?.student?.regNo ||

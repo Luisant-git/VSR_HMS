@@ -493,18 +493,26 @@ export class StudentsService {
     }
 
     if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
+      const currentOrImportedDuesCondition = {
+        OR: [
+          { description: { contains: 'Imported', mode: 'insensitive' } },
+          { description: { contains: 'Month 1', mode: 'insensitive' } },
+          { description: { contains: 'October 2026', mode: 'insensitive' } }
+        ]
+      };
+
       if (params.feeFilter === 'Un-Paid') {
         where.transactions = {
           some: {
             status: 'PENDING',
-            NOT: { description: { contains: 'Imported', mode: 'insensitive' } }
+            NOT: currentOrImportedDuesCondition
           }
         };
       } else if (params.feeFilter === 'Paid') {
         where.transactions = {
           none: {
             status: 'PENDING',
-            NOT: { description: { contains: 'Imported', mode: 'insensitive' } }
+            NOT: currentOrImportedDuesCondition
           }
         };
       } else if (params.feeFilter === 'No Dues') {
