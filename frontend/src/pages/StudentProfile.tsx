@@ -8,7 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
-import { buildOutstandingSummary, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
+import { buildOutstandingSummary, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -85,6 +85,9 @@ const StudentProfile = () => {
       });
 
     fees.forEach(f => {
+      // Pre-November fees are settled prior to the fresh billing cycle and should not be displayed in active fee transactions
+      if (isPreviousSettledFee(f)) return;
+
       const type = (f.transactionType || '').toUpperCase();
       // Outstanding amounts stay in the Outstanding Balance column only; they
       // must not be counted as Rent / EB / Mess / Fine / Advance.
@@ -155,12 +158,8 @@ const StudentProfile = () => {
     pendingGroup.invoiceFee = null;
 
     const result: any[] = [];
-    const hasOutstandingPayments = outstandingSummary.paid > 0.005;
-
-    // If nothing has been paid yet, show the original outstanding invoice as an
-    // unpaid row so it can still be collected from here. Once receipts exist,
-    // the receipts carry the balance and this unpaid invoice row is hidden.
-    if (!hasOutstandingPayments && outstandingSummary.invoices.length > 0) {
+    // If student has a remaining outstanding balance, show an unpaid row with Pay Now and no invoice number
+    if (outstandingSummary.remaining > 0.005 && outstandingSummary.invoices.length > 0) {
       const firstInvoice = outstandingSummary.invoices[0];
       result.push({
         isGrouped: true,
@@ -169,18 +168,22 @@ const StudentProfile = () => {
         createdAt: firstInvoice.createdAt,
         paidDate: null,
         paymentMode: '-',
-        totalAmount: outstandingSummary.original,
+        totalAmount: outstandingSummary.remaining,
         displayPaid: 0,
-        displayBalance: outstandingSummary.original,
+        displayBalance: outstandingSummary.remaining,
         displayStatus: 'Unpaid',
-        invoiceFee: firstInvoice,
-        invoiceNumber: formatInvoiceNumber(firstInvoice),
+        invoiceFee: null,
+        invoiceNumber: '—',
         rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
         feesList: outstandingSummary.invoices,
       });
     }
 
     paidByBatch.forEach((group: any) => {
+      // Do not display previous paid receipts prior to November 1, 2026
+      const isPreNov = new Date(group.paidDate || group.createdAt) < new Date('2026-11-01T00:00:00');
+      if (isPreNov) return;
+
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
       if (hasOutstandingPayment) {
         const currentOutstandingPayment = group.feesList.find((item: any) => isOutstandingPayment(item)) || group.feesList[0];
@@ -205,7 +208,11 @@ const StudentProfile = () => {
       result.push(group);
     });
 
-    if (currentPendingDue > 0.005) result.push(pendingGroup);
+    if (currentPendingDue > 0.005) {
+      pendingGroup.invoiceFee = null;
+      pendingGroup.invoiceNumber = '—';
+      result.push(pendingGroup);
+    }
 
     // Outstanding receipts read in payment order (smallest first) so the
     // running balance steps down from the original amount to the remainder.
@@ -1046,18 +1053,23 @@ const StudentProfile = () => {
               <div className="sp-stat-grid">
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Paid (Receipts)</div>
-                  <div className="sp-stat-value">₹{fees.filter(f => f.status === 'COMPLETED' && f.transactionType !== 'ADVANCE').reduce((sum, f) => sum + f.amount, 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-value">₹{roundMoney(
+                    displayFees
+                      .filter(f => f.displayStatus === 'Paid' || f.displayStatus === 'Partial')
+                      .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
+                  ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Pending Dues</div>
                   <div className="sp-stat-value">₹{roundMoney(
-                    fees.filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f) && !isImportedInvoice(f)).reduce((sum, f) => sum + Number(f.amount || 0), 0)
-                    + outstandingSummary.remaining
+                    displayFees
+                      .filter(f => f.displayStatus === 'Unpaid')
+                      .reduce((sum, f) => sum + (Number(f.displayBalance) || Number(f.totalAmount) || 0), 0)
                   ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
-              {fees.length === 0 ? (
+              {displayFees.length === 0 ? (
                 <div className="sp-empty">
                   No fee records found for this student.
                 </div>
@@ -1084,7 +1096,9 @@ const StudentProfile = () => {
                         {displayFees.map(fee => (
                           <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
                             <td className="sp-invoice">
-                              {fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—')}
+                              {fee.displayStatus !== 'Unpaid' && fee.status === 'COMPLETED'
+                                ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'))
+                                : '—'}
                             </td>
                             <td>
                               {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
