@@ -42,13 +42,10 @@ export class MonthlyFeeCronService {
             : (latestRentTx && latestRentTx.amount > 0 ? latestRentTx.amount : 0);
 
         // Priority for Mess Fee:
-        // 1. Room Master's mess fee (if set and > 0)
-        // 2. Latest MESS transaction amount
-        // 3. Default standard mess fee (2000)
+        // 1. Latest MESS transaction amount (if set and > 0)
+        // 2. Default standard mess fee (2000) for all students
         const latestMessTx = student.transactions.find(t => t.transactionType === 'MESS');
-        const messAmount = (student.room?.messFee && student.room.messFee > 0)
-          ? student.room.messFee
-          : (latestMessTx && latestMessTx.amount > 0 ? latestMessTx.amount : 2000);
+        const messAmount = (latestMessTx && latestMessTx.amount > 0) ? latestMessTx.amount : 2000;
 
         const transactionsToCreate = [];
 

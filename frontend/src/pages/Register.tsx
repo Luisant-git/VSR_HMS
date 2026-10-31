@@ -164,9 +164,7 @@ const Register = () => {
         } else if (data.room && data.room.rent != null) {
           setCustomRent(String(data.room.rent));
         }
-        if (data.room && data.room.messFee != null) {
-          setCustomMessFee(String(data.room.messFee));
-        }
+        setCustomMessFee('2000');
       }).catch(console.error);
     } else {
       StudentAPI.getNextRegsiName().then(res => {
@@ -659,11 +657,11 @@ const Register = () => {
                   onChange={(option) => {
                     setSelectedRoom(option);
                     if (option && option.room) {
-                      setCustomRent(option.room.rent != null ? String(option.room.rent) : '0');
-                      setCustomMessFee(option.room.messFee != null ? String(option.room.messFee) : '2000');
+                      setCustomRent(option.room.rent != null && Number(option.room.rent) > 0 ? String(option.room.rent) : '');
+                      setCustomMessFee('2000');
                     } else {
                       setCustomRent('');
-                      setCustomMessFee('');
+                      setCustomMessFee('2000');
                     }
                   }}
                   placeholder="-- Choose Vacant Room --"
@@ -689,13 +687,14 @@ const Register = () => {
                       <span>Monthly Rent (₹):</span>
                       <input
                         type="number"
-                        value={customRent}
+                        value={customRent === '0' ? '' : customRent}
                         onChange={(e) => setCustomRent(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         className="ui-input register-calc-input"
                         placeholder="e.g. 8500"
                       />
                     </div>
-                    {selectedRoom.room.rent != null && Number(customRent) !== Number(selectedRoom.room.rent) ? (
+                    {selectedRoom.room.rent != null && customRent !== '' && Number(customRent) !== Number(selectedRoom.room.rent) ? (
                       <div style={{ fontSize: '12px', color: '#0284c7', marginTop: '-4px', marginBottom: '8px' }}>
                         * Custom rent applied for this student (Room Master default: ₹{Number(selectedRoom.room.rent).toLocaleString('en-IN')})
                       </div>
@@ -710,8 +709,9 @@ const Register = () => {
                         type="number"
                         value={customMessFee}
                         onChange={(e) => setCustomMessFee(e.target.value)}
+                        onFocus={(e) => e.target.select()}
                         className="ui-input register-calc-input"
-                        placeholder="e.g. 2000"
+                        placeholder="2000"
                       />
                     </div>
 

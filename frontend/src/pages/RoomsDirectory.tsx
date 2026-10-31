@@ -14,8 +14,8 @@ const RoomsDirectory = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterType, setFilterType] = useState('All Types');
   const [dbRooms, setDbRooms] = useState<any[]>([]);
-  const [newRoom, setNewRoom] = useState({
-    id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: 0, messFee: 0, amenities: ''
+  const [newRoom, setNewRoom] = useState<any>({
+    id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: '', messFee: '', amenities: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,8 +40,8 @@ const RoomsDirectory = () => {
       floor: room.floor || 1,
       type: room.type,
       capacity: room.total || room.cap ? parseInt(room.total || room.cap) : 1,
-      rent: room.rent || 0,
-      messFee: room.messFee || room.mess || 0,
+      rent: room.rent && Number(room.rent) > 0 ? room.rent : '',
+      messFee: (room.messFee || room.mess) && Number(room.messFee || room.mess) > 0 ? (room.messFee || room.mess) : '',
       amenities: room.amenities ? (Array.isArray(room.amenities) ? room.amenities.join(', ') : room.amenities) : (room.amen === 'None' ? '' : room.amen || '')
     });
     setIsEditing(true);
@@ -70,7 +70,7 @@ const RoomsDirectory = () => {
         toast.success('Room created successfully!');
       }
 
-      setNewRoom({ id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: 0, messFee: 0, amenities: '' });
+      setNewRoom({ id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: '', messFee: '', amenities: '' });
       setIsModalOpen(false);
       setIsEditing(false);
       fetchRooms();
@@ -464,18 +464,39 @@ const RoomsDirectory = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Total Beds</label>
-                  <input type="number" required value={newRoom.capacity} onChange={e => setNewRoom({ ...newRoom, capacity: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input
+                    type="number"
+                    required
+                    value={newRoom.capacity === 0 ? '' : newRoom.capacity}
+                    onChange={e => setNewRoom({ ...newRoom, capacity: e.target.value })}
+                    onFocus={e => e.target.select()}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Monthly Rent (₹)</label>
-                  <input type="number" required value={newRoom.rent} onChange={e => setNewRoom({ ...newRoom, rent: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input
+                    type="number"
+                    value={newRoom.rent === 0 || newRoom.rent === '0' ? '' : newRoom.rent}
+                    onChange={e => setNewRoom({ ...newRoom, rent: e.target.value })}
+                    onFocus={e => e.target.select()}
+                    placeholder="Enter rent (e.g. 8500)"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mess Fee (₹)</label>
-                  <input type="number" required value={newRoom.messFee} onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value === '' ? 0 : parseInt(e.target.value) })} style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input
+                    type="number"
+                    value={newRoom.messFee === 0 || newRoom.messFee === '0' ? '' : newRoom.messFee}
+                    onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value })}
+                    onFocus={e => e.target.select()}
+                    placeholder="Enter mess fee (e.g. 2000)"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  />
                 </div>
               </div>
 
@@ -487,9 +508,9 @@ const RoomsDirectory = () => {
                       type="checkbox"
                       checked={newRoom.amenities.includes('AC')}
                       onChange={(e) => {
-                        let ams = newRoom.amenities ? newRoom.amenities.split(',').map(a => a.trim()).filter(Boolean) : [];
+                        let ams = newRoom.amenities ? newRoom.amenities.split(',').map((a: string) => a.trim()).filter(Boolean) : [];
                         if (e.target.checked && !ams.includes('AC')) ams.push('AC');
-                        else if (!e.target.checked) ams = ams.filter(a => a !== 'AC');
+                        else if (!e.target.checked) ams = ams.filter((a: string) => a !== 'AC');
                         setNewRoom({ ...newRoom, amenities: ams.join(', ') });
                       }}
                     /> AC
@@ -499,9 +520,9 @@ const RoomsDirectory = () => {
                       type="checkbox"
                       checked={newRoom.amenities.includes('Attached Bath')}
                       onChange={(e) => {
-                        let ams = newRoom.amenities ? newRoom.amenities.split(',').map(a => a.trim()).filter(Boolean) : [];
+                        let ams = newRoom.amenities ? newRoom.amenities.split(',').map((a: string) => a.trim()).filter(Boolean) : [];
                         if (e.target.checked && !ams.includes('Attached Bath')) ams.push('Attached Bath');
-                        else if (!e.target.checked) ams = ams.filter(a => a !== 'Attached Bath');
+                        else if (!e.target.checked) ams = ams.filter((a: string) => a !== 'Attached Bath');
                         setNewRoom({ ...newRoom, amenities: ams.join(', ') });
                       }}
                     /> Attached Bath
@@ -510,7 +531,7 @@ const RoomsDirectory = () => {
               </div>
 
               <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button type="button" onClick={() => { setIsModalOpen(false); setIsEditing(false); setNewRoom({ id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: 0, messFee: 0, amenities: '' }); }} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => { setIsModalOpen(false); setIsEditing(false); setNewRoom({ id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: '', messFee: '', amenities: '' }); }} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer' }}>Cancel</button>
                 <button type="submit" disabled={isSubmitting} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.7 : 1, boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
                   {isSubmitting ? 'Saving...' : (isEditing ? 'Update Room' : 'Save Room')}
                 </button>

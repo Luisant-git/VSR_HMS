@@ -304,6 +304,9 @@ const StudentProfile = () => {
           roomType: data.room?.type || 'N/A',
           blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id ? data.room.id.replace(/^[a-zA-Z\s_-]+/, '') : '-'}`,
           monthlyRent: `₹${((data.rent && data.rent > 0) ? data.rent : (data.room?.rent || 0)).toLocaleString('en-IN')}`,
+          assignedRent: Number(data.rent) || 0,
+          originalRoomRent: Number(data.room?.rent) || 0,
+          hasCustomRent: Boolean(data.rent && data.room?.rent && Number(data.rent) > 0 && Number(data.rent) !== Number(data.room.rent)),
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
           doc2Url: data.doc2Url,
@@ -690,7 +693,15 @@ const StudentProfile = () => {
                 </div>
                 <div className="ui-kv">
                   <div className="ui-kv-label">Monthly Rent</div>
-                  <div className="ui-kv-value sp-kv-strong">{student.monthlyRent}</div>
+                  <div className="ui-kv-value sp-kv-strong">
+                    <div>{student.monthlyRent}</div>
+                    {student.hasCustomRent && (
+                      <div style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                        <span className="ui-badge ui-badge-info" style={{ fontSize: '10px', padding: '1px 5px', lineHeight: 1.2 }}>Assigned Rent</span>
+                        <span style={{ color: '#64748b', fontWeight: 500 }}>(Original Room Rent: ₹{student.originalRoomRent.toLocaleString('en-IN')})</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="ui-kv">
                   <div className="ui-kv-label">Monthly Mess Fee</div>
