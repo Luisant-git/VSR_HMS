@@ -15,6 +15,7 @@ import {
   isOutstandingDescription,
   isOutstandingInvoice,
   isOutstandingPayment,
+  isPreviousSettledFee,
   roundMoney,
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
@@ -138,6 +139,10 @@ const Fees = () => {
   ];
 
   const filteredFees = fees.filter(fee => {
+    // Hide all previous paid receipts and invoices prior to November 1, 2026.
+    // Fresh invoicing and fee collection starts from tomorrow (Nov 1, 2026).
+    if (isPreviousSettledFee(fee)) return false;
+
     let match = true;
     if (filter === 'UNPAID') match = fee.status === 'PENDING' && !isImportedInvoice(fee);
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
@@ -173,12 +178,6 @@ const Fees = () => {
     return match;
   });
 
-  const totalInvoiced = filteredFees
-    .filter(f => !isOutstandingPayment(f) && !isImportedInvoice(f))
-    .reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-  const totalCollected = filteredFees
-    .filter(f => f.status === 'COMPLETED')
-    .reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
 
   // Per-student original outstanding, confirmed payments and remaining balance.
   // Built from the full list so confirmed payments are still netted when a
@@ -240,27 +239,6 @@ const Fees = () => {
     return { balances, order };
   }, [fees, outstandingTotals]);
 
-  // Pending stat = current-month dues + remaining historical outstanding.
-  // Original outstanding invoice amounts are never added on top of payments.
-  const pendingFeesAmt = useMemo(() => {
-    const pendingStudents = new Set<string>();
-    let pending = 0;
-
-    filteredFees.forEach(fee => {
-      if (fee.status === 'PENDING') {
-        pendingStudents.add(getStudentKey(fee));
-        if (!isOutstandingInvoice(fee) && !isImportedInvoice(fee)) {
-          pending += Number(fee.amount) || 0;
-        }
-      }
-    });
-
-    pendingStudents.forEach(studentKey => {
-      pending += outstandingTotals.get(studentKey)?.remaining || 0;
-    });
-
-    return roundMoney(pending);
-  }, [filteredFees, outstandingTotals]);
 
   const displayFees = useMemo(() => {
     const pendingByStudent = new Map();
@@ -367,38 +345,57 @@ const Fees = () => {
       if (pendingDue > 0.005) result.push(group);
     });
 
-    // If a student has outstanding invoices but no payments yet, show the
-    // original amount as an unpaid row so it can still be collected. Once any
-    // receipt exists, that receipt row carries the balance instead.
-    const visibleStudents = new Set(filteredFees.map(fee => getStudentKey(fee)));
-    visibleStudents.forEach(studentKey => {
-      const invoices = outstandingInvoicesByStudent.get(studentKey);
-      const totals = outstandingTotals.get(studentKey);
-      if (!invoices?.length || (totals?.original || 0) <= 0.005) return;
-      if ((totals?.paid || 0) > 0.005) return;
+    // If a student has an outstanding balance, show that as an Unpaid row with Pay Now
+    outstandingTotals.forEach((totals, studentKey) => {
+      if ((totals?.remaining || 0) <= 0.005) return;
 
+      const invoices = outstandingInvoicesByStudent.get(studentKey) || [];
       const firstInvoice = invoices[0];
+      const studentObj = firstInvoice?.student || fees.find(f => getStudentKey(f) === studentKey)?.student;
+
+      // Apply active filters
+      if (filter === 'PAID') return;
+      if (selectedStudent.value !== 'ALL' && studentKey !== selectedStudent.value) return;
+      if (collegeFilter.value !== 'ALL') {
+        const c = typeof studentObj?.college === 'string' ? studentObj.college : studentObj?.college?.name;
+        if (c !== collegeFilter.value) return;
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matches = (
+          (firstInvoice ? formatInvoiceNumber(firstInvoice, fees).toLowerCase().includes(q) : false) ||
+          (studentObj?.name || '').toLowerCase().includes(q) ||
+          (studentObj?.manualRegsiName || studentObj?.regNo || '').toLowerCase().includes(q) ||
+          (studentObj?.roomNo || '').toLowerCase().includes(q)
+        );
+        if (!matches) return;
+      }
+
       result.push({
         isGrouped: true,
         id: `outstanding-unpaid-${studentKey}`,
-        student: firstInvoice.student,
+        student: studentObj,
         status: 'PENDING',
-        createdAt: firstInvoice.createdAt,
+        createdAt: firstInvoice?.createdAt || new Date(),
         paidDate: null,
         paymentMode: '-',
-        totalAmount: totals?.original || 0,
-        outstanding: totals?.original || 0,
+        totalAmount: totals.remaining,
+        outstanding: totals.remaining,
         displayPaid: 0,
-        displayBalance: totals?.original || 0,
+        displayBalance: totals.remaining,
         displayStatus: 'Unpaid',
-        invoiceFee: firstInvoice,
-        invoiceNumber: formatInvoiceNumber(firstInvoice),
+        invoiceFee: null,
+        invoiceNumber: '—',
         rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
         feesList: invoices,
       });
     });
 
     paidByBatch.forEach((group: any) => {
+      // Do not display previous paid receipts prior to November 1, 2026
+      const isPreNov = new Date(group.paidDate || group.createdAt) < new Date('2026-11-01T00:00:00');
+      if (isPreNov) return;
+
       const studentKey = getStudentKey(group.feesList[0]);
       const totals = outstandingTotals.get(studentKey);
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
@@ -464,6 +461,34 @@ const Fees = () => {
     return result;
   }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
+  // Fresh billing cycle begins November 1, 2026.
+  // Card 1: Total Invoiced for the fresh cycle (November invoices starting tomorrow)
+  const totalInvoiced = useMemo(() => {
+    return roundMoney(
+      displayFees
+        .filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f) && !isPreviousSettledFee(f))
+        .reduce((sum, f) => sum + Number(f.totalAmount || 0), 0)
+    );
+  }, [displayFees]);
+
+  // Card 2: Total Fees Collected for the fresh cycle (collections starting from tomorrow)
+  const totalCollected = useMemo(() => {
+    return roundMoney(
+      displayFees
+        .filter(f => f.displayStatus === 'Paid')
+        .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
+    );
+  }, [displayFees]);
+
+  // Card 3: Pending Unpaid Fees (unpaid outstanding balance + fresh November dues)
+  const pendingFeesAmt = useMemo(() => {
+    return roundMoney(
+      displayFees
+        .filter(f => f.displayStatus === 'Unpaid')
+        .reduce((sum, f) => sum + (Number(f.displayBalance) || Number(f.totalAmount) || 0), 0)
+    );
+  }, [displayFees]);
+
   const modalOutstandingPaid = useMemo(() => {
     const first = feesToCollect[0] || feeToCollect;
     if (!first) return 0;
@@ -506,7 +531,7 @@ const Fees = () => {
 
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
-      'Receipt No': fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—'),
+      'Receipt No': fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')) : '—',
       'Student ID': fee.student?.manualRegsiName || fee.student?.regNo || 'N/A',
       'Student Name': fee.student?.name || 'Unknown',
       'Room': `Room ${fee.student?.roomNo || 'N/A'}`,
@@ -731,10 +756,10 @@ const Fees = () => {
                       className={activeFeeId === fee.id ? 'fees-row-active' : undefined}
                     >
                       <td
-                        className="ui-cell-link fees-invoice"
-                        title={fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : undefined)}
+                        className={fee.displayStatus !== 'Unpaid' ? "ui-cell-link fees-invoice" : "fees-invoice"}
+                        title={fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : undefined)) : undefined}
                       >
-                        {fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')}
+                        {fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')) : '—'}
                       </td>
                       <td>
                         <div className="fees-person">

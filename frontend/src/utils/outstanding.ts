@@ -37,13 +37,39 @@ export const isOutstandingInvoice = (fee: any) =>
   isOutstandingDescription(fee);
 
 /**
+ * Fresh billing and collection cycle starts from November 1, 2026.
+ * All prior fees (receipts and invoices before Nov 1, 2026) are considered
+ * completely paid / settled outside the fresh cycle.
+ * Any fee created before November 1, 2026 that is NOT for November 2026 or later
+ * is considered a previous settled fee and must not be shown on the fresh Fees page.
+ */
+export const isPreviousSettledFee = (fee: any): boolean => {
+  if (!fee) return false;
+  // Preserve genuine historical outstanding transactions
+  if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) return false;
+
+  const desc = String(fee.description || '');
+  // November 2026 and future months belong to the fresh billing cycle starting Nov 1
+  if (/november|december|2027/i.test(desc)) return false;
+
+  const dateVal = fee.paidDate || fee.createdAt;
+  if (!dateVal) return true;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return true;
+
+  // Cutoff is November 1, 2026 00:00:00 local time
+  const cutoff = new Date('2026-11-01T00:00:00');
+  return d < cutoff;
+};
+
+/**
  * Checks if a pending fee is an initial Month 1 or current October fee that was already
  * paid up to Oct 31, 2026.
  * Genuine historical dues (e.g. "Outstanding Rent for Sep 2026") are NEVER matched here.
  * Tomorrow's November fees ("... for November 2026") are NEVER matched here.
  */
 export const isImportedInvoice = (fee: any) => {
-  if (!fee || fee.status !== 'PENDING') return false;
+  if (!fee) return false;
   // Always preserve genuine historical outstanding invoices
   if (isOutstandingDescription(fee)) return false;
 
