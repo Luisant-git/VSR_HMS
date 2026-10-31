@@ -164,7 +164,12 @@ const Register = () => {
         } else if (data.room && data.room.rent != null) {
           setCustomRent(String(data.room.rent));
         }
-        setCustomMessFee('2000');
+        const latestMess = data.transactions?.find((t: any) => t.transactionType === 'MESS');
+        if (latestMess && Number(latestMess.amount) > 0) {
+          setCustomMessFee(String(latestMess.amount));
+        } else {
+          setCustomMessFee('2000');
+        }
       }).catch(console.error);
     } else {
       StudentAPI.getNextRegsiName().then(res => {
@@ -192,6 +197,7 @@ const Register = () => {
           roomNo: selectedRoom.id || selectedRoom.value,
           bedNo: formData.bedNo || undefined,
           rent: Number(customRent) || 0,
+          messFee: Number(customMessFee) || 2000,
           photoUrl: capturedImage || undefined,
           doc1Url: doc1Url || undefined,
           doc2Url: doc2Url || undefined

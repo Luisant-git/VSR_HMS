@@ -564,12 +564,12 @@ export class StudentsService {
     if (isUuid) {
       return this.prisma.student.findUnique({
         where: { id },
-        include: { room: true, clearance: true, college: true }
+        include: { room: true, clearance: true, college: true, transactions: { orderBy: { createdAt: 'desc' } } }
       });
     } else {
       return this.prisma.student.findFirst({
         where: { OR: [{ regNo: id }, { manualRegsiName: id }] },
-        include: { room: true, clearance: true, college: true }
+        include: { room: true, clearance: true, college: true, transactions: { orderBy: { createdAt: 'desc' } } }
       });
     }
   }
@@ -580,6 +580,9 @@ export class StudentsService {
     console.log('updateData:', updateData);
 
     const cleanData = { ...updateData };
+    const newMessFee = cleanData.messFee !== undefined ? (Number(cleanData.messFee) || 2000) : null;
+    delete cleanData.messFee;
+
     Object.keys(cleanData).forEach(key => {
       if (cleanData[key] === '') {
         cleanData[key] = null;
@@ -616,6 +619,19 @@ export class StudentsService {
       where: { id: existingStudent.id },
       data: cleanData
     });
+
+    if (newMessFee !== null && newMessFee > 0) {
+      const pendingMess = await this.prisma.feeTransaction.findFirst({
+        where: { studentId: existingStudent.id, transactionType: 'MESS', status: 'PENDING' },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (pendingMess) {
+        await this.prisma.feeTransaction.update({
+          where: { id: pendingMess.id },
+          data: { amount: newMessFee }
+        });
+      }
+    }
 
     const oldRoom = existingStudent?.roomNo;
     const newRoom = updatedStudent.roomNo;
