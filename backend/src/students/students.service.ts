@@ -120,7 +120,11 @@ export class StudentsService {
       } else {
         cleanData.roomNo = cleanRoom;
         const roomExists = await this.prisma.room.findUnique({ where: { id: cleanData.roomNo } });
-        if (!roomExists) {
+        if (roomExists) {
+          if ((cleanData.rent === undefined || cleanData.rent === null || Number(cleanData.rent) === 0) && roomExists.rent > 0) {
+            cleanData.rent = roomExists.rent;
+          }
+        } else {
           try {
             const blockChar = cleanData.roomNo.charAt(0).toUpperCase();
             await this.prisma.room.create({
@@ -590,6 +594,13 @@ export class StudentsService {
     
     if (cleanData.dateOfJoining) {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
+    }
+
+    if (cleanData.rent !== undefined && cleanData.rent !== null) {
+      cleanData.rent = Number(cleanData.rent) || 0;
+    }
+    if (cleanData.advance !== undefined && cleanData.advance !== null) {
+      cleanData.advance = Number(cleanData.advance) || 0;
     }
 
     const existingStudent = await this.prisma.student.findFirst({

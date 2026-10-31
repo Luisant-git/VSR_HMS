@@ -155,8 +155,17 @@ const Register = () => {
         if (data.room) {
           setSelectedRoom({
             value: data.room.id,
-            label: `Room ${data.room.id} (${data.room.type || ''})`
+            label: `Room ${data.room.id} (${data.room.type || ''} • Rent: ₹${(data.room.rent || 0).toLocaleString('en-IN')})`,
+            room: data.room
           });
+        }
+        if (data.rent != null && Number(data.rent) > 0) {
+          setCustomRent(String(data.rent));
+        } else if (data.room && data.room.rent != null) {
+          setCustomRent(String(data.room.rent));
+        }
+        if (data.room && data.room.messFee != null) {
+          setCustomMessFee(String(data.room.messFee));
         }
       }).catch(console.error);
     } else {
@@ -184,6 +193,7 @@ const Register = () => {
           ...formData,
           roomNo: selectedRoom.id || selectedRoom.value,
           bedNo: formData.bedNo || undefined,
+          rent: Number(customRent) || 0,
           photoUrl: capturedImage || undefined,
           doc1Url: doc1Url || undefined,
           doc2Url: doc2Url || undefined
@@ -227,7 +237,7 @@ const Register = () => {
 
           return {
             value: room.id,
-            label: `Room ${room.id} (${room.type} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free)`,
+            label: `Room ${room.id} (${room.type} • Rent: ₹${(room.rent || 0).toLocaleString('en-IN')} • ${occupied} occupied / ${room.capacity} total • ${freeBeds} free)`,
             room,
           };
         });
@@ -649,8 +659,8 @@ const Register = () => {
                   onChange={(option) => {
                     setSelectedRoom(option);
                     if (option && option.room) {
-                      setCustomRent('0');
-                      setCustomMessFee('2000');
+                      setCustomRent(option.room.rent != null ? String(option.room.rent) : '0');
+                      setCustomMessFee(option.room.messFee != null ? String(option.room.messFee) : '2000');
                     } else {
                       setCustomRent('');
                       setCustomMessFee('');
@@ -676,12 +686,33 @@ const Register = () => {
                       <Calculator size={16} color="#3b82f6" /> Monthly Room & Mess Charges:
                     </div>
                     <div className="register-calc-row">
-                      <span>Base Room Rent:</span>
-                      <input type="number" value={customRent} onChange={(e) => setCustomRent(e.target.value)} className="ui-input register-calc-input" />
+                      <span>Monthly Rent (₹):</span>
+                      <input
+                        type="number"
+                        value={customRent}
+                        onChange={(e) => setCustomRent(e.target.value)}
+                        className="ui-input register-calc-input"
+                        placeholder="e.g. 8500"
+                      />
                     </div>
+                    {selectedRoom.room.rent != null && Number(customRent) !== Number(selectedRoom.room.rent) ? (
+                      <div style={{ fontSize: '12px', color: '#0284c7', marginTop: '-4px', marginBottom: '8px' }}>
+                        * Custom rent applied for this student (Room Master default: ₹{Number(selectedRoom.room.rent).toLocaleString('en-IN')})
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '-4px', marginBottom: '8px' }}>
+                        Loaded from Room Master (₹{Number(selectedRoom.room.rent || 0).toLocaleString('en-IN')}). You can edit this rent for this student.
+                      </div>
+                    )}
                     <div className="register-calc-row">
-                      <span>Standard Mess Fee:</span>
-                      <input type="number" value={customMessFee} onChange={(e) => setCustomMessFee(e.target.value)} className="ui-input register-calc-input" />
+                      <span>Standard Mess Fee (₹):</span>
+                      <input
+                        type="number"
+                        value={customMessFee}
+                        onChange={(e) => setCustomMessFee(e.target.value)}
+                        className="ui-input register-calc-input"
+                        placeholder="e.g. 2000"
+                      />
                     </div>
 
                     <div className="register-calc-total">

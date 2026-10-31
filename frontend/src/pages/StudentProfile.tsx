@@ -303,7 +303,7 @@ const StudentProfile = () => {
           emergencyContact: data.emergencyContact || 'N/A',
           roomType: data.room?.type || 'N/A',
           blockRoom: `Block ${data.room?.block || '-'} - Room ${data.room?.id ? data.room.id.replace(/^[a-zA-Z\s_-]+/, '') : '-'}`,
-          monthlyRent: `₹${data.rent || 0}`,
+          monthlyRent: `₹${((data.rent && data.rent > 0) ? data.rent : (data.room?.rent || 0)).toLocaleString('en-IN')}`,
           photoUrl: data.photoUrl,
           doc1Url: data.doc1Url,
           doc2Url: data.doc2Url,
