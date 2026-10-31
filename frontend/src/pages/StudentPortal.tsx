@@ -8,7 +8,9 @@ import { ReceiptModal } from '../components/ReceiptModal';
 import {
   buildOutstandingSummary,
   calculatePendingDues,
+  isImportedInvoice,
   isOutstandingInvoice,
+  isPreviousSettledFee,
   roundMoney,
 } from '../utils/outstanding';
 
@@ -45,9 +47,14 @@ export default function StudentPortal() {
         // Only open the payment modal when there is an actual balance. Fully
         // settled outstanding invoices remain PENDING on purpose (their
         // original amounts are preserved), so net them with confirmed payments.
-        if (calculatePendingDues(data.transactions || []) > 0.005) {
-          const pending = data.transactions?.filter((t: any) => t.status === 'PENDING') || [];
+        const pendingDues = calculatePendingDues(data.transactions || []);
+        if (pendingDues > 0.005) {
+          const pending = (data.transactions || []).filter(
+            (t: any) => t.status === 'PENDING' && !isOutstandingInvoice(t) && !isImportedInvoice(t) && !isPreviousSettledFee(t)
+          );
           setFeesToPay(pending.map((p: any) => ({ ...p, student: data })));
+        } else {
+          setFeesToPay([]);
         }
       }
     } catch (err: any) {
@@ -115,7 +122,7 @@ export default function StudentPortal() {
   const transactions = student?.transactions || [];
   const outstandingSummary = buildOutstandingSummary(transactions);
   const currentPendingFees = transactions.filter(
-    (t: any) => t.status === 'PENDING' && !isOutstandingInvoice(t),
+    (t: any) => t.status === 'PENDING' && !isOutstandingInvoice(t) && !isImportedInvoice(t) && !isPreviousSettledFee(t),
   );
   const currentPendingAmount = currentPendingFees.reduce(
     (sum: number, fee: any) => sum + (Number(fee.amount) || 0),
@@ -261,7 +268,9 @@ export default function StudentPortal() {
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Rent</div>
-                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>₹{student.rent?.toLocaleString('en-IN') || 0}</div>
+                  <div style={{ fontSize: '15px', color: '#0f172a', fontWeight: 700 }}>
+                    ₹{((student.rent && student.rent > 0) ? student.rent : (student.room?.rent || 0)).toLocaleString('en-IN')}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Mess Fee</div>

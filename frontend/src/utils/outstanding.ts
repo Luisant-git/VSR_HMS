@@ -189,7 +189,7 @@ export const calculatePendingDues = (fees: any[]) => {
   let pending = 0;
 
   fees.forEach(fee => {
-    if (fee?.status === 'PENDING' && !isOutstandingInvoice(fee) && !isImportedInvoice(fee)) {
+    if (fee?.status === 'PENDING' && !isOutstandingInvoice(fee) && !isImportedInvoice(fee) && !isPreviousSettledFee(fee)) {
       pending += Number(fee.amount) || 0;
     }
   });
