@@ -11,6 +11,7 @@ import { LoadingRow } from '../components/LoadingSpinner';
 import {
   buildOutstandingTotals,
   getStudentKey,
+  isImportedInvoice,
   isOutstandingDescription,
   isOutstandingInvoice,
   isOutstandingPayment,
@@ -138,7 +139,7 @@ const Fees = () => {
 
   const filteredFees = fees.filter(fee => {
     let match = true;
-    if (filter === 'UNPAID') match = fee.status === 'PENDING';
+    if (filter === 'UNPAID') match = fee.status === 'PENDING' && !isImportedInvoice(fee);
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
 
@@ -173,7 +174,7 @@ const Fees = () => {
   });
 
   const totalInvoiced = filteredFees
-    .filter(f => !isOutstandingPayment(f))
+    .filter(f => !isOutstandingPayment(f) && !isImportedInvoice(f))
     .reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
   const totalCollected = filteredFees
     .filter(f => f.status === 'COMPLETED')
@@ -248,7 +249,7 @@ const Fees = () => {
     filteredFees.forEach(fee => {
       if (fee.status === 'PENDING') {
         pendingStudents.add(getStudentKey(fee));
-        if (!isOutstandingInvoice(fee)) {
+        if (!isOutstandingInvoice(fee) && !isImportedInvoice(fee)) {
           pending += Number(fee.amount) || 0;
         }
       }
@@ -285,7 +286,7 @@ const Fees = () => {
       if (f.status === 'PENDING') {
         // Original outstanding invoices are handled separately (shown as an
         // unpaid row only while no payment exists).
-        if (isOutstandingInvoice(f)) return;
+        if (isOutstandingInvoice(f) || isImportedInvoice(f)) return;
         if (!pendingByStudent.has(studentId)) {
           pendingByStudent.set(studentId, {
             isGrouped: true,

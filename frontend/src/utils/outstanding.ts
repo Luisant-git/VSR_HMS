@@ -36,6 +36,10 @@ export const isOutstandingInvoice = (fee: any) =>
   String(fee.transactionType || '').toUpperCase() !== OUTSTANDING_PAYMENT_TYPE &&
   isOutstandingDescription(fee);
 
+/** Imported month-1 dues for existing students (already paid up to Oct 31, 2026). */
+export const isImportedInvoice = (fee: any) =>
+  /imported/i.test(String(fee?.description || ''));
+
 export const getStudentKey = (fee: any) =>
   fee?.student?.regNo ||
   fee?.student?.manualRegsiName ||
@@ -135,7 +139,7 @@ export const calculatePendingDues = (fees: any[]) => {
   let pending = 0;
 
   fees.forEach(fee => {
-    if (fee?.status === 'PENDING' && !isOutstandingInvoice(fee)) {
+    if (fee?.status === 'PENDING' && !isOutstandingInvoice(fee) && !isImportedInvoice(fee)) {
       pending += Number(fee.amount) || 0;
     }
   });

@@ -8,7 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
-import { buildOutstandingSummary, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
+import { buildOutstandingSummary, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -100,7 +100,7 @@ const StudentProfile = () => {
         // Original outstanding invoices are handled separately (shown as an
         // unpaid row only while no payment exists). Do not fold them into the
         // current-month pending row.
-        if (isOutstandingInvoice(f)) return;
+        if (isOutstandingInvoice(f) || isImportedInvoice(f)) return;
         pendingGroup.totalAmount += Number(f.amount) || 0;
         pendingGroup[category] += Number(f.amount) || 0;
         pendingGroup.feesList.push(f);
@@ -1051,7 +1051,7 @@ const StudentProfile = () => {
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Pending Dues</div>
                   <div className="sp-stat-value">₹{roundMoney(
-                    fees.filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f)).reduce((sum, f) => sum + Number(f.amount || 0), 0)
+                    fees.filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f) && !isImportedInvoice(f)).reduce((sum, f) => sum + Number(f.amount || 0), 0)
                     + outstandingSummary.remaining
                   ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>

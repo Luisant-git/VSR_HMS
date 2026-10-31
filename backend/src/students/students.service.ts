@@ -494,9 +494,19 @@ export class StudentsService {
 
     if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
       if (params.feeFilter === 'Un-Paid') {
-        where.transactions = { some: { status: 'PENDING' } };
+        where.transactions = {
+          some: {
+            status: 'PENDING',
+            NOT: { description: { contains: 'Imported', mode: 'insensitive' } }
+          }
+        };
       } else if (params.feeFilter === 'Paid') {
-        where.transactions = { some: { status: 'COMPLETED' }, none: { status: 'PENDING' } };
+        where.transactions = {
+          none: {
+            status: 'PENDING',
+            NOT: { description: { contains: 'Imported', mode: 'insensitive' } }
+          }
+        };
       } else if (params.feeFilter === 'No Dues') {
         where.transactions = { none: {} };
       }
