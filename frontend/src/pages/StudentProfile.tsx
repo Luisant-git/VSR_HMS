@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, Plus, Trash2, Save, Loader2, DollarSign, Calendar, Home, Zap } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, Plus, Trash2, Save, Loader2, IndianRupee, Calendar, Home, Zap } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -452,7 +452,7 @@ const StudentProfile = () => {
 
   const tabs = [
     { name: 'Master Profile', icon: <User size={16} /> },
-    { name: 'Outstanding Payments', icon: <DollarSign size={16} /> },
+    { name: 'Outstanding Payments', icon: <IndianRupee size={16} /> },
     { name: 'Gate Logs', icon: <Clock size={16} /> },
     { name: 'Fees & Receipts', icon: <CreditCard size={16} /> },
     { name: 'Advance Deposit', icon: <ShieldCheck size={16} /> },
@@ -775,7 +775,7 @@ const StudentProfile = () => {
             <div>
               <div className="sp-tab-head">
                 <h3 className="sp-section-title sp-tab-title">
-                  <DollarSign size={20} color="#f59e0b" /> Outstanding Payment Details
+                  <IndianRupee size={20} color="#f59e0b" /> Outstanding Payment Details
                 </h3>
               </div>
 
@@ -784,7 +784,7 @@ const StudentProfile = () => {
                 <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <div style={{ width: '56px', height: '56px', background: '#fde047', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <DollarSign size={28} color="#a16207" />
+                      <IndianRupee size={28} color="#a16207" />
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Outstanding Balance</div>
@@ -838,7 +838,7 @@ const StudentProfile = () => {
                 <div style={{ padding: '16px 20px' }}>
                   {outstandingRows.length === 0 ? (
                     <div className="sp-empty" style={{ textAlign: 'center', padding: '40px 20px' }}>
-                      <DollarSign size={48} style={{ color: '#cbd5e1', marginBottom: '16px' }} />
+                      <IndianRupee size={48} style={{ color: '#cbd5e1', marginBottom: '16px' }} />
                       <p style={{ color: '#64748b', marginBottom: '16px', fontSize: '15px' }}>No outstanding payment rows added yet.</p>
                       <button onClick={addOutstandingRow} className="ui-btn ui-btn-primary">
                         <Plus size={16} /> Add First Row
