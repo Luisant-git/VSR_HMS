@@ -633,6 +633,17 @@ export class StudentsService {
       }
     }
 
+    // Keep pending RENT invoices in sync with the student's current rent.
+    // When an admin edits Student.rent (e.g. via the registration form), every
+    // already-generated pending rent invoice must reflect the new rate so that
+    // Pending Fees = Monthly Rent + Monthly Mess + EB - Total Paid stays correct.
+    if (cleanData.rent !== undefined && Number(cleanData.rent) > 0) {
+      await this.prisma.feeTransaction.updateMany({
+        where: { studentId: existingStudent.id, transactionType: 'RENT', status: 'PENDING' },
+        data: { amount: Number(cleanData.rent) },
+      });
+    }
+
     const oldRoom = existingStudent?.roomNo;
     const newRoom = updatedStudent.roomNo;
     const oldStatus = existingStudent?.status;
