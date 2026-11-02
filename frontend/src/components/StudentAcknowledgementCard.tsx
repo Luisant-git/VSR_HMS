@@ -19,7 +19,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
   useEffect(() => {
     getSystemSettings().then(data => {
       if (data && data.hostelName) setHostelName(data.hostelName);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const handleDownload = async () => {
@@ -134,7 +134,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
               marginTop: '-30px'
             }}>
               {student.photoUrl ? (
-                <img src={student.photoUrl} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                <img src={student.photoUrl} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} crossOrigin="anonymous" />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>No Photo</div>
               )}

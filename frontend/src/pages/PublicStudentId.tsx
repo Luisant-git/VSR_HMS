@@ -316,7 +316,7 @@ export default function PublicStudentId() {
               flexShrink: 0, background: '#e2e8f0'
             }}>
               {student.photoUrl ? (
-                <img src={student.photoUrl} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
+                <img src={student.photoUrl} alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }} crossOrigin="anonymous" />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: 600 }}>No Photo</div>
               )}

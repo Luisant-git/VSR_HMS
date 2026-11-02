@@ -2533,6 +2533,7 @@ textarea.ui-form-control {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .ui-note {
@@ -3726,6 +3727,7 @@ textarea.ui-form-control {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .sp-profile-name {
@@ -4739,6 +4741,7 @@ textarea.ui-form-control {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .hostellers-modal-name {
@@ -6090,6 +6093,7 @@ textarea.ui-form-control {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .sa-chips {
