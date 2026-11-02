@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, Min } from 'class-validator';
 
 export class CreateEbBillDto {
   @IsString()
@@ -7,7 +7,6 @@ export class CreateEbBillDto {
   @IsString()
   billingCycle: string;
 
-  // Normal meter
   @IsNumber()
   @Min(0)
   prevReading: number;
@@ -19,20 +18,4 @@ export class CreateEbBillDto {
   @IsNumber()
   @Min(0)
   tariffRate: number;
-
-  // AC meter (optional — omit entirely for single-meter rooms)
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  acPrevReading?: number;
-
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  acCurrReading?: number;
-
-  @IsNumber()
-  @IsOptional()
-  @Min(0)
-  acTariffRate?: number;
 }
