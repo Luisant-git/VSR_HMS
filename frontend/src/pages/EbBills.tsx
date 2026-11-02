@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
 import { Calculator, History, X, FileSpreadsheet, Pencil, /* Trash2, */ AlertTriangle, RotateCcw, SquarePen, Wind } from 'lucide-react';
 import Select from 'react-select';
@@ -214,10 +214,12 @@ const EbBills = () => {
   const meterCell = (bill: any) => {
     const ac = (bill.acCurrReading || 0) > 0 || (bill.acPrevReading || 0) > 0 || !!bill.hasAcMeter;
     if (ac) {
+      const acUnits = Math.max(0, Number(bill.acCurrReading || 0) - Number(bill.acPrevReading || 0));
+      const normalUnits = Math.max(0, Number(bill.normalCurrReading || 0) - Number(bill.normalPrevReading || 0));
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px' }}>
-          <span style={{ color: '#2563eb' }}>AC: {Number(bill.acPrevReading || 0).toFixed(1)} → {Number(bill.acCurrReading || 0).toFixed(1)}</span>
-          <span style={{ color: '#64748b' }}>Normal: {Number(bill.normalPrevReading || 0).toFixed(1)} → {Number(bill.normalCurrReading || 0).toFixed(1)}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+          <span style={{ color: '#2563eb', fontWeight: 600 }}>AC: {Number(bill.acPrevReading || 0).toFixed(1)} → {Number(bill.acCurrReading || 0).toFixed(1)} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({acUnits.toFixed(1)} u)</span></span>
+          <span style={{ color: '#64748b', fontWeight: 600 }}>Normal: {Number(bill.normalPrevReading || 0).toFixed(1)} → {Number(bill.normalCurrReading || 0).toFixed(1)} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({normalUnits.toFixed(1)} u)</span></span>
         </div>
       );
     }
@@ -291,11 +293,6 @@ const EbBills = () => {
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>
               {mode === 'edit' ? 'Edit Room EB Bill' : 'Calculate Room EB Bill'}
             </h3>
-            {mode === 'edit' && (
-              <button onClick={cancelEdit} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', fontSize: '12px', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>
-                <RotateCcw size={14} /> Cancel Edit
-              </button>
-            )}
           </div>
 
           <div style={{ padding: '14px 16px' }}>
@@ -397,6 +394,11 @@ const EbBills = () => {
             <button onClick={handleSubmit} disabled={isSubmitting || isDuplicate} style={{ width: '100%', marginTop: '16px', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: isSubmitting || isDuplicate ? '#94a3b8' : 'var(--sidebar-active)', border: 'none', color: 'white', cursor: isSubmitting || isDuplicate ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: isSubmitting || isDuplicate ? 'none' : '0 4px 10px rgba(74, 114, 250, 0.3)' }}>
               {isSubmitting ? 'Saving...' : mode === 'edit' ? 'Update Bill' : isDuplicate ? 'Already Entered — Use Edit' : 'Generate Student Invoices'}
             </button>
+            {mode === 'edit' && (
+              <button onClick={cancelEdit} style={{ width: '100%', marginTop: '8px', padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <RotateCcw size={14} /> Cancel Edit
+              </button>
+            )}
           </div>
         </div>
 
