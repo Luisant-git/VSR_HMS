@@ -186,15 +186,28 @@ model EbBill {
   room   Room   @relation(fields: [roomNo], references: [id])
 
   billingCycle  String // e.g. "2026-08"
+
+  // Normal meter
   prevReading   Float
   currReading   Float
   unitsConsumed Float
   tariffRate    Float
-  totalAmount   Float
 
+  // AC meter (optional — only for rooms with a separate AC sub-meter)
+  acPrevReading   Float? // null = no AC meter for this room/bill
+  acCurrReading   Float?
+  acUnitsConsumed Float?
+  acTariffRate    Float?
+  acTotalAmount   Float?
+
+  // Combined totals
+  totalAmount   Float
   perStudentShare Float // Computed based on number of active students in the room
 
   createdAt DateTime @default(now())
+
+  // A room can only have one bill per billing cycle
+  @@unique([roomNo, billingCycle])
 }
 
 // ---------------------------------------------------------
