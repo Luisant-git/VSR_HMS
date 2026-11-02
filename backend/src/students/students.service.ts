@@ -3,13 +3,13 @@ import { PrismaService } from '../prisma.service';
 
 @Injectable()
 export class StudentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getNextRegsiName(dateOfJoining?: Date | string) {
     const ref = dateOfJoining ? new Date(dateOfJoining) : new Date();
     const yearStr = (isNaN(ref.getTime()) ? new Date() : ref).getFullYear().toString().slice(-2);
     const prefix = `SEASIND${yearStr}`;
-    
+
     // Find highest numeric sequence for this prefix
     const students = await this.prisma.student.findMany({
       where: { manualRegsiName: { startsWith: prefix } },
@@ -36,7 +36,7 @@ export class StudentsService {
 
   async create(createStudentDto: any) {
     const cleanData = { ...createStudentDto };
-    
+
     const isPlaceholder = (val: any) => {
       if (val === undefined || val === null) return true;
       const s = val.toString().trim();
@@ -102,7 +102,7 @@ export class StudentsService {
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
     }
-    
+
     if (cleanData.dateOfJoining) {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
@@ -484,12 +484,12 @@ export class StudentsService {
         { fatherName: { contains: q, mode: 'insensitive' } }
       ];
     }
-    
+
     if (params?.roomFilter && params.roomFilter !== '-- All Rooms --') {
       const r = params.roomFilter.replace('Room ', '').trim();
       where.roomNo = r;
     }
-    
+
     if (params?.collegeFilter && params.collegeFilter !== '-- All Colleges --') {
       where.college = {
         name: params.collegeFilter
@@ -560,7 +560,7 @@ export class StudentsService {
   async findOne(id: string) {
     // Check if ID is a UUID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    
+
     if (isUuid) {
       return this.prisma.student.findUnique({
         where: { id },
@@ -588,13 +588,13 @@ export class StudentsService {
         cleanData[key] = null;
       }
     });
-    
+
     console.log('cleanData:', cleanData);
-    
+
     if (cleanData.dob) {
       cleanData.dob = new Date(cleanData.dob);
     }
-    
+
     if (cleanData.dateOfJoining) {
       cleanData.dateOfJoining = new Date(cleanData.dateOfJoining);
     }
@@ -666,6 +666,44 @@ export class StudentsService {
     }
 
     return updatedStudent;
+  }
+
+  /**
+   * Repair: any student who has a ClearanceRecord but whose status is not 'Vacated'
+   * (clearance was created without properly updating the student status). Sets
+   * status to 'Vacated' and frees their room/bed.
+   */
+  async syncVacatedStatus() {
+    const cleared = await this.prisma.clearanceRecord.findMany({
+      select: { studentId: true },
+    });
+    const clearedIds = cleared.map((c) => c.studentId);
+
+    const broken = await this.prisma.student.findMany({
+      where: { id: { in: clearedIds }, status: { not: 'Vacated' } },
+      select: { id: true, roomNo: true },
+    });
+
+    let fixedCount = 0;
+    for (const s of broken) {
+      await this.prisma.student.update({
+        where: { id: s.id },
+        data: { status: 'Vacated', roomNo: null, bedNo: null },
+      });
+      if (s.roomNo) {
+        await this.prisma.room.update({
+          where: { id: s.roomNo },
+          data: { occupiedCount: { decrement: 1 } },
+        }).catch(() => { /* room may have been deleted */ });
+      }
+      fixedCount++;
+    }
+
+    return {
+      message: `Synced ${fixedCount} cleared student(s) to Vacated status.`,
+      fixedCount,
+      totalCleared: clearedIds.length,
+    };
   }
 }
 

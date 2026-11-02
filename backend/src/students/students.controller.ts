@@ -10,7 +10,7 @@ export class StudentsController {
     private readonly studentsService: StudentsService,
     private readonly fineCronService: FineCronService,
     private readonly monthlyFeeCronService: MonthlyFeeCronService
-  ) {}
+  ) { }
 
   @Post()
   create(@Body() createStudentDto: any) {
@@ -68,5 +68,10 @@ export class StudentsController {
   async triggerMonthlyFees() {
     await this.monthlyFeeCronService.handleMonthlyFees();
     return { message: 'Monthly fees generated successfully' };
+  }
+
+  @Post('actions/sync-vacated')
+  async syncVacated() {
+    return this.studentsService.syncVacatedStatus();
   }
 }
