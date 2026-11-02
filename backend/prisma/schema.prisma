@@ -186,11 +186,20 @@ model EbBill {
   room   Room   @relation(fields: [roomNo], references: [id])
 
   billingCycle  String // e.g. "2026-08"
+
+  // Dual-meter support: AC + Normal. A room with one meter leaves AC at 0.
+  hasAcMeter      Boolean @default(false)
+  acPrevReading   Float   @default(0.0)
+  acCurrReading   Float   @default(0.0)
+  normalPrevReading Float @default(0.0)
+  normalCurrReading Float @default(0.0)
+
+  // Combined / legacy fields (prev/curr mirror the Normal meter for backward compat)
   prevReading   Float
   currReading   Float
-  unitsConsumed Float
+  unitsConsumed Float   // = AC units + Normal units
   tariffRate    Float
-  totalAmount   Float
+  totalAmount   Float   // = unitsConsumed * tariffRate
 
   perStudentShare Float // Computed based on number of active students in the room
 

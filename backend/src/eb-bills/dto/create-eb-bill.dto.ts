@@ -1,4 +1,4 @@
-import { IsString, IsNumber, Min } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, Min } from 'class-validator';
 
 export class CreateEbBillDto {
   @IsString()
@@ -7,15 +7,43 @@ export class CreateEbBillDto {
   @IsString()
   billingCycle: string;
 
-  @IsNumber()
-  @Min(0)
-  prevReading: number;
+  // Dual-meter support
+  @IsBoolean()
+  @IsOptional()
+  hasAcMeter?: boolean;
 
   @IsNumber()
+  @IsOptional()
   @Min(0)
-  currReading: number;
+  acPrevReading?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  acCurrReading?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  normalPrevReading?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  normalCurrReading?: number;
 
   @IsNumber()
   @Min(0)
   tariffRate: number;
+
+  // Legacy single-meter fields (kept for backward compatibility)
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  prevReading?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  currReading?: number;
 }

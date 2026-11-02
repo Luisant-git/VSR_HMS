@@ -7,18 +7,59 @@ import { UpdateEbBillDto } from './dto/update-eb-bill.dto';
 export class EbBillsService {
   constructor(private prisma: PrismaService) { }
 
-  async create(data: CreateEbBillDto) {
-    const unitsConsumed = data.currReading - data.prevReading;
-    if (unitsConsumed < 0) {
+  // Normalize incoming readings into AC + Normal + computed units.
+  private resolveReadings(data: any, existing?: any) {
+    const hasAc = data.hasAcMeter !== undefined ? !!data.hasAcMeter : (existing?.hasAcMeter ?? false);
+
+    let acPrev = Number(data.acPrevReading);
+    let acCurr = Number(data.acCurrReading);
+    let normalPrev = Number(data.normalPrevReading);
+    let normalCurr = Number(data.normalCurrReading);
+
+    // Fall back to existing values when not provided (used by update)
+    if (existing) {
+      if (isNaN(acPrev)) acPrev = Number(existing.acPrevReading) || 0;
+      if (isNaN(acCurr)) acCurr = Number(existing.acCurrReading) || 0;
+      if (isNaN(normalPrev)) normalPrev = Number(existing.normalPrevReading) ?? Number(existing.prevReading) ?? 0;
+      if (isNaN(normalCurr)) normalCurr = Number(existing.normalCurrReading) ?? Number(existing.currReading) ?? 0;
+    }
+
+    // Legacy single-meter fallback: if Normal not sent, use prev/curr
+    if (isNaN(normalPrev)) normalPrev = Number(data.prevReading) || 0;
+    if (isNaN(normalCurr)) normalCurr = Number(data.currReading) || 0;
+
+    acPrev = acPrev || 0;
+    acCurr = acCurr || 0;
+    normalPrev = normalPrev || 0;
+    normalCurr = normalCurr || 0;
+
+    if (acCurr < acPrev || normalCurr < normalPrev) {
       throw new BadRequestException('Current reading cannot be less than previous reading');
     }
 
-    // Find the room with its active (non-vacated) students
+    const acUnits = acCurr - acPrev;
+    const normalUnits = normalCurr - normalPrev;
+    const unitsConsumed = acUnits + normalUnits;
+
+    return {
+      hasAcMeter: hasAc,
+      acPrevReading: acPrev,
+      acCurrReading: acCurr,
+      normalPrevReading: normalPrev,
+      normalCurrReading: normalCurr,
+      prevReading: normalPrev,   // legacy field mirrors the Normal meter
+      currReading: normalCurr,
+      unitsConsumed,
+    };
+  }
+
+  async create(data: CreateEbBillDto) {
+    const r = this.resolveReadings(data);
+
     const room = await this.prisma.room.findUnique({
       where: { id: data.roomNo },
       include: { students: { where: { status: { not: 'Vacated' } } } },
     });
-
     if (!room) {
       throw new BadRequestException('Room not found');
     }
@@ -33,41 +74,39 @@ export class EbBillsService {
       );
     }
 
-    const totalAmount = unitsConsumed * data.tariffRate;
-    const activeStudents = room.students;
-    const studentCount = activeStudents.length;
-
+    const totalAmount = r.unitsConsumed * data.tariffRate;
+    const studentCount = room.students.length;
     const perStudentShare = studentCount > 0 ? totalAmount / studentCount : 0;
 
-    // Use a transaction
     return this.prisma.$transaction(async (prisma) => {
       const ebBill = await prisma.ebBill.create({
         data: {
           roomNo: data.roomNo,
           billingCycle: data.billingCycle,
-          prevReading: data.prevReading,
-          currReading: data.currReading,
-          unitsConsumed,
+          hasAcMeter: r.hasAcMeter,
+          acPrevReading: r.acPrevReading,
+          acCurrReading: r.acCurrReading,
+          normalPrevReading: r.normalPrevReading,
+          normalCurrReading: r.normalCurrReading,
+          prevReading: r.prevReading,
+          currReading: r.currReading,
+          unitsConsumed: r.unitsConsumed,
           tariffRate: data.tariffRate,
           totalAmount,
           perStudentShare,
         },
       });
 
-      // Create fee transactions for each student
       if (studentCount > 0) {
-        const feeTransactions = activeStudents.map(student => ({
+        const feeTransactions = room.students.map((student) => ({
           studentId: student.id,
           transactionType: 'EB_BILL',
           amount: perStudentShare,
           description: `EB Bill for ${data.billingCycle}`,
           status: 'PENDING',
-          dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Due in 7 days
+          dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
         }));
-
-        await prisma.feeTransaction.createMany({
-          data: feeTransactions
-        });
+        await prisma.feeTransaction.createMany({ data: feeTransactions });
       }
 
       return ebBill;
@@ -86,16 +125,10 @@ export class EbBillsService {
     const roomNo = existing.roomNo;
     const oldCycle = existing.billingCycle;
     const billingCycle = data.billingCycle ?? existing.billingCycle;
-    const prevReading = data.prevReading ?? existing.prevReading;
-    const currReading = data.currReading ?? existing.currReading;
     const tariffRate = data.tariffRate ?? existing.tariffRate;
 
-    const unitsConsumed = currReading - prevReading;
-    if (unitsConsumed < 0) {
-      throw new BadRequestException('Current reading cannot be less than previous reading');
-    }
+    const r = this.resolveReadings(data, existing);
 
-    // If the cycle changed, make sure it doesn't clash with another bill for this room
     if (billingCycle !== oldCycle) {
       const conflict = await this.prisma.ebBill.findFirst({
         where: { roomNo, billingCycle, NOT: { id } },
@@ -107,7 +140,7 @@ export class EbBillsService {
       }
     }
 
-    const totalAmount = unitsConsumed * tariffRate;
+    const totalAmount = r.unitsConsumed * tariffRate;
 
     const room = await this.prisma.room.findUnique({
       where: { id: roomNo },
@@ -117,8 +150,7 @@ export class EbBillsService {
       throw new BadRequestException('Room not found');
     }
 
-    const activeStudents = room.students;
-    const studentCount = activeStudents.length;
+    const studentCount = room.students.length;
     const perStudentShare = studentCount > 0 ? totalAmount / studentCount : 0;
 
     return this.prisma.$transaction(async (prisma) => {
@@ -126,20 +158,22 @@ export class EbBillsService {
         where: { id },
         data: {
           billingCycle,
-          prevReading,
-          currReading,
-          unitsConsumed,
+          hasAcMeter: r.hasAcMeter,
+          acPrevReading: r.acPrevReading,
+          acCurrReading: r.acCurrReading,
+          normalPrevReading: r.normalPrevReading,
+          normalCurrReading: r.normalCurrReading,
+          prevReading: r.prevReading,
+          currReading: r.currReading,
+          unitsConsumed: r.unitsConsumed,
           tariffRate,
           totalAmount,
           perStudentShare,
         },
       });
 
-      // Sync pending student fee transactions for this room + cycle.
-      // Matches the original description (`EB Bill for <oldCycle>`) and updates both
-      // the amount and the description (in case the cycle was changed).
       if (studentCount > 0) {
-        const studentIds = activeStudents.map(s => s.id);
+        const studentIds = room.students.map((s) => s.id);
         await prisma.feeTransaction.updateMany({
           where: {
             studentId: { in: studentIds },
@@ -171,9 +205,8 @@ export class EbBillsService {
       where: { id: roomNo },
       include: { students: { where: { status: { not: 'Vacated' } } } },
     });
-    const studentIds = room ? room.students.map(s => s.id) : [];
+    const studentIds = room ? room.students.map((s) => s.id) : [];
 
-    // Block deletion if any student has already paid this bill
     if (studentIds.length > 0) {
       const paid = await this.prisma.feeTransaction.findFirst({
         where: {
@@ -191,7 +224,6 @@ export class EbBillsService {
     }
 
     return this.prisma.$transaction(async (prisma) => {
-      // Remove only the pending charges this bill created
       if (studentIds.length > 0) {
         await prisma.feeTransaction.deleteMany({
           where: {
