@@ -74,4 +74,9 @@ export class StudentsController {
   async syncVacated() {
     return this.studentsService.syncVacatedStatus();
   }
+
+  @Post('actions/sync-rent-invoices')
+  async syncRentInvoices() {
+    return this.studentsService.syncRentInvoices();
+  }
 }

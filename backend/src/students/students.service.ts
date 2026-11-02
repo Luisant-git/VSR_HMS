@@ -705,5 +705,34 @@ export class StudentsService {
       totalCleared: clearedIds.length,
     };
   }
+
+  /**
+   * Repair: sync any PENDING RENT invoice to the student's current Student.rent.
+   * Fixes stale invoices created before a room/student rent change.
+   */
+  async syncRentInvoices() {
+    const pendingRent = await this.prisma.feeTransaction.findMany({
+      where: { transactionType: 'RENT', status: 'PENDING' },
+      include: { student: true },
+    });
+
+    let fixedCount = 0;
+    for (const tx of pendingRent) {
+      const studentRent = tx.student?.rent ?? 0;
+      if (studentRent > 0 && Math.abs(studentRent - tx.amount) > 0.001) {
+        await this.prisma.feeTransaction.update({
+          where: { id: tx.id },
+          data: { amount: studentRent },
+        });
+        fixedCount++;
+      }
+    }
+
+    return {
+      message: `Synced ${fixedCount} pending RENT invoice(s) to match current student rent.`,
+      fixedCount,
+      totalPendingRent: pendingRent.length,
+    };
+  }
 }
 
