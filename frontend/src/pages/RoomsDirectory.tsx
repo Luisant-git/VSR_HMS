@@ -63,8 +63,13 @@ const RoomsDirectory = () => {
       };
 
       if (isEditing) {
-        await RoomAPI.update(newRoom.id, payload);
-        toast.success('Room updated successfully!');
+        const result = await RoomAPI.update(newRoom.id, payload);
+        const updated = result?.studentsUpdated ?? 0;
+        if (result?.rentPropagated && updated > 0) {
+          toast.success(`Room updated! Rent synced to ${updated} student${updated === 1 ? '' : 's'} on room default.`);
+        } else {
+          toast.success('Room updated successfully!');
+        }
       } else {
         await RoomAPI.create({ ...payload, id: newRoom.id });
         toast.success('Room created successfully!');
@@ -232,8 +237,8 @@ const RoomsDirectory = () => {
         ))}
 
         <div style={{ marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}>
-          <select 
-            value={filterType} 
+          <select
+            value={filterType}
             onChange={e => { setFilterType(e.target.value); setPage(1); }}
             style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: 'white', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
           >
@@ -259,172 +264,172 @@ const RoomsDirectory = () => {
       ) : (
         <>
           {viewMode === 'grid' && (
-        <div style={{ marginBottom: '30px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-            {filteredGridData.length === 0 && (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No entries found</div>
-            )}
-            {filteredGridData.map((r, i) => (
-
-              <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                {r.amenities.includes('AC') ? (
-                  <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <Wind size={14} /> AC
-                  </span>
-                ) : (
-                  <span className="status-pill" style={{ position: 'absolute', top: '16px', right: '16px', border: '1px solid #cbd5e1', color: '#334155', background: '#e2e8f0' }}>
-                    Non-AC
-                  </span>
+            <div style={{ marginBottom: '30px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-heading)', marginBottom: '15px' }}>Live Room Layout Visualizer</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                {filteredGridData.length === 0 && (
+                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8' }}>No entries found</div>
                 )}
+                {filteredGridData.map((r, i) => (
 
-                <button onClick={() => handleEditClick(r)} style={{ position: 'absolute', top: '48px', right: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(59, 130, 246, 0.1)' }} title="Edit Room">
-                  <SquarePen size={14} />
-                </button>
+                  <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                    {r.amenities.includes('AC') ? (
+                      <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <Wind size={14} /> AC
+                      </span>
+                    ) : (
+                      <span className="status-pill" style={{ position: 'absolute', top: '16px', right: '16px', border: '1px solid #cbd5e1', color: '#334155', background: '#e2e8f0' }}>
+                        Non-AC
+                      </span>
+                    )}
 
-                <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                  <h3 className="card-title" style={{ margin: 0 }}>Room {r.id}</h3>
-                </div>
-                <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
+                    <button onClick={() => handleEditClick(r)} style={{ position: 'absolute', top: '48px', right: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(59, 130, 246, 0.1)' }} title="Edit Room">
+                      <SquarePen size={14} />
+                    </button>
 
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2 text-muted">
-                    <Users size={16} />
-                    <span style={{ fontSize: '14px', fontWeight: 500 }}>Occupied</span>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: '#f8f9fa',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)'
-                  }}>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: r.filled === r.total ? '#dc3545' : 'var(--sidebar-active)' }}>
-                      {r.filled}
-                    </span>
-                    <span className="text-muted" style={{ fontSize: '13px', fontWeight: 600 }}>/ {r.total}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                  {Array.from({ length: r.total }).map((_, idx) => {
-                    const isOccupied = idx < r.filled;
-                    const isFull = r.filled === r.total;
-
-
-                    return (
-                      <div key={idx} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        width: '38px', height: '38px', borderRadius: '10px',
-                        backgroundColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.1)' : 'rgba(74, 114, 250, 0.1)') : '#f4f6f8',
-                        color: isOccupied ? (isFull ? '#dc3545' : 'var(--sidebar-active)') : '#adb5bd',
-                        border: '1px solid',
-                        borderColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.2)' : 'rgba(74, 114, 250, 0.2)') : '#e9ecef'
-                      }}>
-                        <Bed size={20} strokeWidth={isOccupied ? 2.5 : 2} />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{ marginTop: 'auto' }}>
-                  {r.filled > 0 && (
-                    <div style={{ fontSize: '12px', color: '#64748b', background: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
-                      <div style={{ fontWeight: 600, marginBottom: '4px' }}>CURRENT OCCUPANTS:</div>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.occupants}</div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                      <h3 className="card-title" style={{ margin: 0 }}>Room {r.id}</h3>
                     </div>
-                  )}
+                    <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
 
-                  <button
-                    style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
-                    onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
-                  >
-                    {r.filled === r.total ? 'View Students' : 'Assign Student'}
-                  </button>
-                </div>
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2 text-muted">
+                        <Users size={16} />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>Occupied</span>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        background: '#f8f9fa',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)'
+                      }}>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: r.filled === r.total ? '#dc3545' : 'var(--sidebar-active)' }}>
+                          {r.filled}
+                        </span>
+                        <span className="text-muted" style={{ fontSize: '13px', fontWeight: 600 }}>/ {r.total}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                      {Array.from({ length: r.total }).map((_, idx) => {
+                        const isOccupied = idx < r.filled;
+                        const isFull = r.filled === r.total;
+
+
+                        return (
+                          <div key={idx} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: '38px', height: '38px', borderRadius: '10px',
+                            backgroundColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.1)' : 'rgba(74, 114, 250, 0.1)') : '#f4f6f8',
+                            color: isOccupied ? (isFull ? '#dc3545' : 'var(--sidebar-active)') : '#adb5bd',
+                            border: '1px solid',
+                            borderColor: isOccupied ? (isFull ? 'rgba(220, 53, 69, 0.2)' : 'rgba(74, 114, 250, 0.2)') : '#e9ecef'
+                          }}>
+                            <Bed size={20} strokeWidth={isOccupied ? 2.5 : 2} />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ marginTop: 'auto' }}>
+                      {r.filled > 0 && (
+                        <div style={{ fontSize: '12px', color: '#64748b', background: '#f8f9fa', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px' }}>CURRENT OCCUPANTS:</div>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.occupants}</div>
+                        </div>
+                      )}
+
+                      <button
+                        style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
+                        onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
+                      >
+                        {r.filled === r.total ? 'View Students' : 'Assign Student'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {totalGridPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '30px' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: page === 1 ? '#f8f9fa' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
-              <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Page {page} of {totalGridPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalGridPages, p + 1))} disabled={page === totalGridPages} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: page === totalGridPages ? '#f8f9fa' : 'white', color: page === totalGridPages ? '#94a3b8' : '#334155', cursor: page === totalGridPages ? 'not-allowed' : 'pointer' }}>Next</button>
+              {totalGridPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '30px' }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: page === 1 ? '#f8f9fa' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>Previous</button>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Page {page} of {totalGridPages}</span>
+                  <button onClick={() => setPage(p => Math.min(totalGridPages, p + 1))} disabled={page === totalGridPages} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: page === totalGridPages ? '#f8f9fa' : 'white', color: page === totalGridPages ? '#94a3b8' : '#334155', cursor: page === totalGridPages ? 'not-allowed' : 'pointer' }}>Next</button>
+                </div>
+              )}
+
             </div>
           )}
 
-        </div>
-      )}
+          {viewMode === 'table' && (
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+              <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Rooms Master Directory</h3>
+              </div>
 
-      {viewMode === 'table' && (
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)', margin: 0 }}>Rooms Master Directory</h3>
-          </div>
+              <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
+                      <th style={{ padding: '16px 20px' }}>Room #</th>
+                      <th style={{ padding: '16px 20px' }}>Location</th>
+                      <th style={{ padding: '16px 20px' }}>Type</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'center' }}>Capacity</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'center' }}>Occupied</th>
+                      <th style={{ padding: '16px 20px', textAlign: 'center' }}>Vacant</th>
+                      <th style={{ padding: '16px 20px' }}>Monthly Fee Rates</th>
+                      <th style={{ padding: '16px 20px' }}>Amenities</th>
+                      <th style={{ padding: '16px 20px' }}>Live Occupants</th>
+                      <th style={{ padding: '16px 20px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTableData.length === 0 && (
+                      <tr>
+                        <td colSpan={10} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No entries found</td>
+                      </tr>
+                    )}
+                    {filteredTableData.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
+                        <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <span style={{ border: `1px solid ${getTypeStyle(row.type).borderColor}`, background: getTypeStyle(row.type).background, padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: getTypeStyle(row.type).color, fontWeight: 600 }}>{row.type}</span>
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 600 }}>{row.cap}</td>
+                        <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.occ > 0 ? '#0f172a' : '#94a3b8' }}>{row.occ}</td>
+                        <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.vac > 0 ? '#22c55e' : '#ef4444' }}>{row.vac}</td>
+                        <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12px' }}>
+                          <div>Rent: ₹{Number(row.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                          <div>Mess: ₹{Number(row.mess || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                          <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>Total: ₹{Number(row.tot || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</div>
+                        </td>
+                        <td style={{ padding: '16px 20px', color: '#475569' }}>{row.amen}</td>
+                        <td style={{ padding: '16px 20px', color: row.occ > 0 ? '#334155' : '#94a3b8' }}>{row.live}</td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <button onClick={() => handleEditClick(row)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                            <SquarePen size={14} /> Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className="table-responsive" style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ textTransform: 'uppercase', fontSize: '11px', color: '#64748b', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  <th style={{ padding: '16px 20px' }}>Room #</th>
-                  <th style={{ padding: '16px 20px' }}>Location</th>
-                  <th style={{ padding: '16px 20px' }}>Type</th>
-                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Capacity</th>
-                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Occupied</th>
-                  <th style={{ padding: '16px 20px', textAlign: 'center' }}>Vacant</th>
-                  <th style={{ padding: '16px 20px' }}>Monthly Fee Rates</th>
-                  <th style={{ padding: '16px 20px' }}>Amenities</th>
-                  <th style={{ padding: '16px 20px' }}>Live Occupants</th>
-                  <th style={{ padding: '16px 20px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTableData.length === 0 && (
-                  <tr>
-                    <td colSpan={10} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>No entries found</td>
-                  </tr>
-                )}
-                {filteredTableData.map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
-                    <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <span style={{ border: `1px solid ${getTypeStyle(row.type).borderColor}`, background: getTypeStyle(row.type).background, padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: getTypeStyle(row.type).color, fontWeight: 600 }}>{row.type}</span>
-                    </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 600 }}>{row.cap}</td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.occ > 0 ? '#0f172a' : '#94a3b8' }}>{row.occ}</td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.vac > 0 ? '#22c55e' : '#ef4444' }}>{row.vac}</td>
-                    <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12px' }}>
-                      <div>Rent: ₹{Number(row.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div>Mess: ₹{Number(row.mess || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>Total: ₹{Number(row.tot || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</div>
-                    </td>
-                    <td style={{ padding: '16px 20px', color: '#475569' }}>{row.amen}</td>
-                    <td style={{ padding: '16px 20px', color: row.occ > 0 ? '#334155' : '#94a3b8' }}>{row.live}</td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <button onClick={() => handleEditClick(row)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                        <SquarePen size={14} /> Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>{filteredTableDataRaw.length === 0 ? 'Showing 0 of 0 entries' : `Showing ${(page - 1) * limit + 1} to ${Math.min(page * limit, filteredTableDataRaw.length)} of ${filteredTableDataRaw.length} entries`}</span>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f8f9fa' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>Prev</button>
-              <button onClick={() => setPage(p => Math.min(totalTablePages, p + 1))} disabled={page === totalTablePages} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === totalTablePages ? '#f8f9fa' : 'white', color: page === totalTablePages ? '#94a3b8' : '#334155', cursor: page === totalTablePages ? 'not-allowed' : 'pointer' }}>Next</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderTop: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '13px', color: '#64748b' }}>{filteredTableDataRaw.length === 0 ? 'Showing 0 of 0 entries' : `Showing ${(page - 1) * limit + 1} to ${Math.min(page * limit, filteredTableDataRaw.length)} of ${filteredTableDataRaw.length} entries`}</span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === 1 ? '#f8f9fa' : 'white', color: page === 1 ? '#94a3b8' : '#334155', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>Prev</button>
+                  <button onClick={() => setPage(p => Math.min(totalTablePages, p + 1))} disabled={page === totalTablePages} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: page === totalTablePages ? '#f8f9fa' : 'white', color: page === totalTablePages ? '#94a3b8' : '#334155', cursor: page === totalTablePages ? 'not-allowed' : 'pointer' }}>Next</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-      </>
+          )}
+        </>
       )}
       {/* Add Room Modal */}
       {isModalOpen && (

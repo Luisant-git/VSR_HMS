@@ -28,6 +28,13 @@ export class AuthController {
     return this.usersService.create(body);
   }
 
+  @Post('register')
+  @ApiOperation({ summary: 'Register a new user (alias)' })
+  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  async register(@Body() body: CreateUserDto) {
+    return this.usersService.create(body);
+  }
+
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })

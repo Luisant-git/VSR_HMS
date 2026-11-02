@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Patch, Delete } from '@nestjs/common';
 import { EbBillsService } from './eb-bills.service';
 import { CreateEbBillDto } from './dto/create-eb-bill.dto';
+import { UpdateEbBillDto } from './dto/update-eb-bill.dto';
 
 @Controller('eb-bills')
 export class EbBillsController {
-  constructor(private readonly ebBillsService: EbBillsService) {}
+  constructor(private readonly ebBillsService: EbBillsService) { }
 
   @Post()
   create(@Body() createEbBillDto: CreateEbBillDto) {
@@ -20,9 +21,9 @@ export class EbBillsController {
     @Query('toDate') toDate?: string,
   ) {
     return this.ebBillsService.findAll(
-      page ? parseInt(page) : 1, 
-      limit ? parseInt(limit) : 10, 
-      search, 
+      page ? parseInt(page) : 1,
+      limit ? parseInt(limit) : 10,
+      search,
       fromDate,
       toDate
     );
@@ -36,5 +37,15 @@ export class EbBillsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ebBillsService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateEbBillDto: UpdateEbBillDto) {
+    return this.ebBillsService.update(id, updateEbBillDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.ebBillsService.remove(id);
   }
 }
