@@ -181,15 +181,41 @@ export const buildOutstandingSummary = (fees: any[]) => {
 };
 
 /**
+ * Transaction types that count toward the "Pending Fees" total:
+ * Monthly Rent + Monthly Mess + EB Bill. Fines and advances are intentionally
+ * excluded — they are not part of the recurring monthly fee calculation.
+ *   Pending Fees = Monthly Rent + Monthly Mess Fee + EB Bill − Total Paid
+ * (Total Paid is represented by COMPLETED rows, which are excluded by the
+ * PENDING filter below, so the sum of PENDING Rent/Mess/EB already equals
+ * "billed − paid" for those categories.)
+ */
+const CURRENT_FEE_TYPES = new Set(['RENT', 'MESS', 'EB_BILL']);
+
+/** A current-cycle pending fee (Rent / Mess / EB) that should be counted in
+ *  the Pending Fees total. Excludes outstanding invoices, imported/legacy
+ *  rows, pre-Nov-2026 settled rows, and non-recurring types (Fine, Advance). */
+export const isCurrentCycleFee = (fee: any): boolean =>
+  !!fee &&
+  fee.status === 'PENDING' &&
+  CURRENT_FEE_TYPES.has(String(fee.transactionType || '').toUpperCase()) &&
+  !isOutstandingInvoice(fee) &&
+  !isImportedInvoice(fee) &&
+  !isPreviousSettledFee(fee);
+
+/**
  * Pending dues for a complete transaction list:
- *   current PENDING dues (Rent / EB / Mess / Fine)
+ *   current PENDING dues (Rent + Mess + EB only, i.e. Monthly Rent + Monthly
+ *   Mess Fee + EB Bill, with Total Paid already netted out via COMPLETED rows)
  * + remaining historical outstanding (original - confirmed payments).
+ *
+ * This implements: Pending Fees = Monthly Rent + Monthly Mess Fee + EB Bill
+ *                  − Total Paid  (+ any separately-tracked historical dues).
  */
 export const calculatePendingDues = (fees: any[]) => {
   let pending = 0;
 
   fees.forEach(fee => {
-    if (fee?.status === 'PENDING' && !isOutstandingInvoice(fee) && !isImportedInvoice(fee) && !isPreviousSettledFee(fee)) {
+    if (isCurrentCycleFee(fee)) {
       pending += Number(fee.amount) || 0;
     }
   });

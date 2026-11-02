@@ -14,7 +14,7 @@ import { CollegeAPI } from '../api/college.api';
 import {
   isOutstandingInvoice,
   isOutstandingPayment,
-  isImportedInvoice,
+  isCurrentCycleFee,
   roundMoney,
 } from '../utils/outstanding';
 import { toast } from 'react-toastify';
@@ -127,7 +127,7 @@ const Hostellers = () => {
           .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
         const outstandingRemaining = roundMoney(Math.max(0, outstandingOriginal - outstandingPaid));
         const currentPending = transactions
-          .filter((f: any) => f.status === 'PENDING' && !isOutstandingInvoice(f) && !isImportedInvoice(f))
+          .filter(isCurrentCycleFee)
           .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
         // Original outstanding invoices are netted by confirmed payments; they
         // are never added again at full value.

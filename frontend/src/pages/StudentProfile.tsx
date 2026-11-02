@@ -8,7 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
-import { buildOutstandingSummary, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
+import { buildOutstandingSummary, calculatePendingDues, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -386,11 +386,11 @@ const StudentProfile = () => {
 
   const handleSaveOutstanding = async () => {
     if (!student?.uuid || outstandingRows.length === 0) return;
-    
+
     setIsSavingOutstanding(true);
     try {
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
+
       for (const row of outstandingRows) {
         const rentAmount = getRowRent(row);
         const ebAmount = getRowEb(row);
@@ -398,7 +398,7 @@ const StudentProfile = () => {
         const monthVal = String(row.month).trim();
         const year = (yearVal === '' || yearVal === '0') ? new Date().getFullYear() : Number(row.year);
         const month = (monthVal === '' || monthVal === '0') ? new Date().getMonth() + 1 : Number(row.month);
-        
+
         if (rentAmount > 0) {
           await FeesAPI.create({
             studentId: student.uuid,
@@ -418,7 +418,7 @@ const StudentProfile = () => {
           });
         }
       }
-      
+
       toast.success('Outstanding payments saved successfully!');
       setOutstandingRows([]);
       fetchStudentData(); // Refresh to show new payments
@@ -809,15 +809,15 @@ const StudentProfile = () => {
               <div className="ui-card ui-card--flush">
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                   <h4 className="sp-section-title" style={{ fontSize: '16px', marginBottom: 0, color: '#3b82f6' }}>
-                     Add Outstanding Payment Rows
+                    Add Outstanding Payment Rows
                   </h4>
                   {outstandingRows.length > 0 && (
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={addOutstandingRow} className="ui-btn ui-btn-secondary ui-btn-sm">
                         <Plus size={14} /> Add Row
                       </button>
-                      <button 
-                        onClick={handleSaveOutstanding} 
+                      <button
+                        onClick={handleSaveOutstanding}
                         disabled={isSavingOutstanding || outstandingRows.every(r => getRowRent(r) === 0 && getRowEb(r) === 0)}
                         className="ui-btn ui-btn-primary ui-btn-sm"
                       >
@@ -1072,11 +1072,7 @@ const StudentProfile = () => {
                 </div>
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Pending Dues</div>
-                  <div className="sp-stat-value">₹{roundMoney(
-                    displayFees
-                      .filter(f => f.displayStatus === 'Unpaid')
-                      .reduce((sum, f) => sum + (Number(f.displayBalance) || Number(f.totalAmount) || 0), 0)
-                  ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-value">₹{calculatePendingDues(fees).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
@@ -1282,7 +1278,7 @@ const StudentProfile = () => {
                               <tr key={txn.id}>
                                 <td>
                                   {new Date(txn.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                  <br/>
+                                  <br />
                                   <span className="ui-cell-sub">{new Date(txn.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </td>
                                 <td>
@@ -1425,17 +1421,17 @@ const StudentProfile = () => {
       {showIdCard && (
         <div className="ui-modal-overlay sp-idcard-overlay">
           <div className="sp-idcard">
-             <button onClick={() => setShowIdCard(false)} className="sp-idcard-close">
-               <X size={20} />
-             </button>
-             <div className="sp-idcard-body">
-               <StudentAcknowledgementCard 
-                 student={{ ...student, regNo: student.id, collegeId: student.college }} 
-                 collegeName={student.college?.split('(')[0]?.trim()}
-                 onBack={() => setShowIdCard(false)} 
-                 isViewOnly={true}
-               />
-             </div>
+            <button onClick={() => setShowIdCard(false)} className="sp-idcard-close">
+              <X size={20} />
+            </button>
+            <div className="sp-idcard-body">
+              <StudentAcknowledgementCard
+                student={{ ...student, regNo: student.id, collegeId: student.college }}
+                collegeName={student.college?.split('(')[0]?.trim()}
+                onBack={() => setShowIdCard(false)}
+                isViewOnly={true}
+              />
+            </div>
           </div>
         </div>
       )}
