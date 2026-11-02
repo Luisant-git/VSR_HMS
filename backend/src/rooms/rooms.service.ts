@@ -92,6 +92,17 @@ export class RoomsService {
           where: { id: { in: defaultRentStudentIds } },
           data: { rent: newRent },
         });
+
+        // Also update any existing PENDING RENT invoices for these students
+        // so the invoice amount matches the new rent.
+        await this.prisma.feeTransaction.updateMany({
+          where: {
+            studentId: { in: defaultRentStudentIds },
+            transactionType: 'RENT',
+            status: 'PENDING',
+          },
+          data: { amount: newRent },
+        });
       }
     }
 
