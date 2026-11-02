@@ -303,7 +303,7 @@ const EbBills = () => {
               {mode === 'edit' ? 'Edit Room EB Bill' : 'Calculate Room EB Bill'}
             </h3>
             {mode === 'edit' && (
-              <button onClick={cancelEdit} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', fontSize: '12px', color: '#64748b', cursor: 'pointer' }}>
+              <button onClick={cancelEdit} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', fontSize: '12px', fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>
                 <RotateCcw size={14} /> Cancel Edit
               </button>
             )}
@@ -337,20 +337,17 @@ const EbBills = () => {
 
             {/* Friendly duplicate warning */}
             {isDuplicate && (
-              <div style={{ marginBottom: '15px', padding: '12px 14px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <AlertTriangle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-                <div style={{ flex: 1, fontSize: '13px', color: '#92400e' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                    Already entered for Room {selectedRoom?.value?.id} in {billingCycle}
-                  </div>
-                  <div>A bill for this room and month already exists. You can edit it instead of creating a new one.</div>
-                  <button
-                    onClick={() => existingBill && loadForEdit(existingBill)}
-                    style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #d97706', borderRadius: '6px', background: 'white', fontSize: '12px', fontWeight: 600, color: '#d97706', cursor: 'pointer' }}
-                  >
-                    <Pencil size={13} /> Edit existing bill
-                  </button>
-                </div>
+              <div style={{ marginBottom: '12px', padding: '8px 10px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertTriangle size={14} color="#d97706" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', color: '#92400e', flex: 1 }}>
+                  Already entered for Room <strong>{selectedRoom?.value?.id}</strong> in {billingCycle}.
+                </span>
+                <button
+                  onClick={() => existingBill && loadForEdit(existingBill)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', border: '1px solid #d97706', borderRadius: '5px', background: 'white', fontSize: '11px', fontWeight: 600, color: '#d97706', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  <Pencil size={11} /> Edit
+                </button>
               </div>
             )}
 
