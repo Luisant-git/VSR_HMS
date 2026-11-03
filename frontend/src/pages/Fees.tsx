@@ -8,6 +8,7 @@ import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { LoadingRow } from '../components/LoadingSpinner';
+import { RoomAPI } from '../api/room.api';
 import {
   buildOutstandingTotals,
   getStudentKey,
@@ -31,6 +32,7 @@ const Fees = () => {
 
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,6 +41,7 @@ const Fees = () => {
     label: studentParam ? `${studentParam}` : '-- All Students --'
   });
   const [collegeFilter, setCollegeFilter] = useState<any>({ value: 'ALL', label: '-- All Colleges --' });
+  const [roomFilter, setRoomFilter] = useState<any>({ value: 'ALL', label: '-- All Rooms --' });
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
@@ -65,6 +68,17 @@ const Fees = () => {
     fetchFees();
   }, []);
 
+  useEffect(() => {
+    RoomAPI.findAll()
+      .then(data => {
+        const allRooms = Array.isArray(data) ? data : (data.data || []);
+        setRooms(allRooms.map((room: any) => String(room.id)));
+      })
+      .catch(err => {
+        console.error('Failed to load rooms for Fees filter:', err);
+      });
+  }, []);
+
   const studentOptions = useMemo(() => {
     const students = new Map();
     fees.forEach(fee => {
@@ -89,6 +103,20 @@ const Fees = () => {
     });
     return [{ value: 'ALL', label: '-- All Colleges --' }, ...Array.from(colleges).map(c => ({ value: c, label: c }))];
   }, [fees]);
+
+  const roomOptions = useMemo(() => {
+    const roomNumbers = new Set<string>(rooms);
+    fees.forEach(fee => {
+      const roomNo = fee.student?.roomNo;
+      if (roomNo) roomNumbers.add(String(roomNo));
+    });
+    return [
+      { value: 'ALL', label: '-- All Rooms --' },
+      ...Array.from(roomNumbers)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        .map(room => ({ value: room, label: `Room ${room}` })),
+    ];
+  }, [fees, rooms]);
 
   useEffect(() => {
     if (studentParam && studentOptions.length > 1) {
@@ -154,6 +182,8 @@ const Fees = () => {
       const c = typeof fee.student?.college === 'string' ? fee.student.college : fee.student?.college?.name;
       if (c !== collegeFilter.value) match = false;
     }
+
+    if (roomFilter.value !== 'ALL' && String(fee.student?.roomNo || '') !== roomFilter.value) match = false;
 
     if (fromDate) {
       if (new Date(fee.createdAt) < new Date(fromDate)) match = false;
@@ -360,6 +390,7 @@ const Fees = () => {
         const c = typeof studentObj?.college === 'string' ? studentObj.college : studentObj?.college?.name;
         if (c !== collegeFilter.value) return;
       }
+      if (roomFilter.value !== 'ALL' && String(studentObj?.roomNo || '') !== roomFilter.value) return;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matches = (
@@ -509,6 +540,7 @@ const Fees = () => {
   const hasFilters =
     selectedStudent.value !== 'ALL' ||
     collegeFilter.value !== 'ALL' ||
+    roomFilter.value !== 'ALL' ||
     filter !== 'ALL' ||
     fromDate !== '' ||
     toDate !== '' ||
@@ -517,6 +549,7 @@ const Fees = () => {
   const clearFilters = () => {
     setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
     setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
+    setRoomFilter({ value: 'ALL', label: '-- All Rooms --' });
     setFilter('ALL');
     setFromDate('');
     setToDate('');
@@ -661,6 +694,15 @@ const Fees = () => {
           onChange={(val) => { setCollegeFilter(val); setPage(1); }}
           styles={selectStyles}
           placeholder="Search college..."
+          isSearchable={true}
+        />
+
+        <Select
+          options={roomOptions}
+          value={roomFilter}
+          onChange={(val) => { setRoomFilter(val || { value: 'ALL', label: '-- All Rooms --' }); setPage(1); }}
+          styles={selectStyles}
+          placeholder="Search room..."
           isSearchable={true}
         />
 
