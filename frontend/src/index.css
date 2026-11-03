@@ -4555,7 +4555,7 @@ textarea.ui-form-control {
 .hostellers-table {
   table-layout: fixed;
   width: 100%;
-  min-width: 960px;
+  min-width: 1100px;
 }
 
 .hostellers-table .hostellers-col-id {
@@ -4563,15 +4563,19 @@ textarea.ui-form-control {
 }
 
 .hostellers-table .hostellers-col-person {
-  width: 19%;
+  width: 18%;
 }
 
 .hostellers-table .hostellers-col-room {
-  width: 9%;
+  width: 8%;
+}
+
+.hostellers-table .hostellers-col-status {
+  width: 8%;
 }
 
 .hostellers-table .hostellers-col-college {
-  width: 14%;
+  width: 13%;
 }
 
 .hostellers-table .hostellers-col-advance {
@@ -4591,7 +4595,7 @@ textarea.ui-form-control {
 }
 
 .hostellers-table .hostellers-col-actions {
-  width: 13%;
+  width: 10%;
 }
 
 .hostellers-table th,
@@ -4686,7 +4690,7 @@ textarea.ui-form-control {
 
 /* Short columns stay on one line and clip safely */
 .hostellers-table td:nth-child(3),
-.hostellers-table td:nth-child(5),
+.hostellers-table td:nth-child(4),
 .hostellers-table td:nth-child(6),
 .hostellers-table td:nth-child(7),
 .hostellers-table td:nth-child(8) {

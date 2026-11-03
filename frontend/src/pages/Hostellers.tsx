@@ -80,6 +80,7 @@ const Hostellers = () => {
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
   const [feeStatusFilter, setFeeStatusFilter] = useState('-- All Fee Status --');
+  const [statusFilter, setStatusFilter] = useState('-- All Status --');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortFilter, setSortFilter] = useState('latest');
 
@@ -114,7 +115,8 @@ const Hostellers = () => {
       roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
       collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
       sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
-      feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined
+      feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined,
+      statusFilter: statusFilter !== '-- All Status --' ? statusFilter : undefined
     }).then(res => {
       const data = res.data || [];
       const mapped = data.map((h: any) => {
@@ -164,7 +166,7 @@ const Hostellers = () => {
 
   useEffect(() => {
     fetchHostellers();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, statusFilter]);
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
@@ -308,7 +310,7 @@ const Hostellers = () => {
   // the data or pagination changes so it never points at a stale row.
   useEffect(() => {
     closeDropdown();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, closeDropdown]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, statusFilter, closeDropdown]);
 
   const rooms = useMemo(() => {
     const uniqueRooms = new Set<string>(allRooms);
@@ -518,6 +520,25 @@ const Hostellers = () => {
 
           <Select
             options={[
+              { value: '-- All Status --', label: '-- All Status --' },
+              { value: 'ACTIVE', label: 'Active Hostellers' },
+              { value: 'INACTIVE', label: 'Inactive / Vacated' },
+            ]}
+            value={{
+              value: statusFilter,
+              label: statusFilter === 'ACTIVE'
+                ? 'Active Hostellers'
+                : statusFilter === 'INACTIVE'
+                  ? 'Inactive / Vacated'
+                  : statusFilter,
+            }}
+            onChange={(opt) => { setStatusFilter(opt?.value || '-- All Status --'); setPage(1); }}
+            styles={selectStyles}
+            isSearchable={false}
+          />
+
+          <Select
+            options={[
               { value: 'latest', label: 'All Students' },
               { value: 'updated', label: 'Updated Profiles Only' }
             ]}
@@ -531,13 +552,14 @@ const Hostellers = () => {
             isSearchable={false}
           />
 
-          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || feeStatusFilter !== '-- All Fee Status --') && (
+          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || feeStatusFilter !== '-- All Fee Status --' || statusFilter !== '-- All Status --') && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setRoomFilter('-- All Rooms --');
                 setCollegeFilter('-- All Colleges --');
                 setFeeStatusFilter('-- All Fee Status --');
+                setStatusFilter('-- All Status --');
                 setSortFilter('latest');
                 setPage(1);
               }}
@@ -561,6 +583,7 @@ const Hostellers = () => {
                 <col className="hostellers-col-id" />
                 <col className="hostellers-col-person" />
                 <col className="hostellers-col-room" />
+                <col className="hostellers-col-status" />
                 <col className="hostellers-col-college" />
                 <col className="hostellers-col-advance" />
                 <col className="hostellers-col-fee" />
@@ -573,6 +596,7 @@ const Hostellers = () => {
                   <th>Student ID</th>
                   <th>Full Name & Contact</th>
                   <th>Room</th>
+                  <th>Status</th>
                   <th>College / Dept</th>
                   <th>Advance Held</th>
                   <th>Fee Status</th>
@@ -583,16 +607,16 @@ const Hostellers = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <LoadingRow colSpan={9} />
+                  <LoadingRow colSpan={10} />
                 ) : error ? (
                   <tr>
-                    <td colSpan={9} className="ui-empty ui-empty-danger">
+                    <td colSpan={10} className="ui-empty ui-empty-danger">
                       {error}
                     </td>
                   </tr>
                 ) : filteredHostellers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="ui-empty">
+                    <td colSpan={10} className="ui-empty">
                       No enrolled students found.
                     </td>
                   </tr>
@@ -626,6 +650,11 @@ const Hostellers = () => {
                       </td>
                       <td>
                         <span className="ui-badge ui-badge-blue" title={`Room ${h.room}`}>Room {h.room}</span>
+                      </td>
+                      <td>
+                        <span className={h.raw.status === 'Vacated' ? 'ui-badge ui-badge-red' : 'ui-badge ui-badge-green'}>
+                          {h.raw.status || 'In'}
+                        </span>
                       </td>
                       <td>
                         <div className="hostellers-college-name" title={h.college?.name || h.college || '-'}>{h.college?.name || h.college || '-'}</div>

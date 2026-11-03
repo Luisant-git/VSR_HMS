@@ -464,7 +464,7 @@ export class StudentsService {
     };
   }
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string }) {
     const hasPagination = params?.page !== undefined || params?.limit !== undefined;
     const page = params?.page || 1;
     const limit = params?.limit || 10;
@@ -494,6 +494,12 @@ export class StudentsService {
       where.college = {
         name: params.collegeFilter
       };
+    }
+
+    if (params?.statusFilter === 'ACTIVE') {
+      where.status = { not: 'Vacated' };
+    } else if (params?.statusFilter === 'INACTIVE') {
+      where.status = 'Vacated';
     }
 
     if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
@@ -746,4 +752,3 @@ export class StudentsService {
     };
   }
 }
-
