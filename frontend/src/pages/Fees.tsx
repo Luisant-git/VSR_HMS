@@ -13,6 +13,7 @@ import {
   buildOutstandingTotals,
   getStudentKey,
   isImportedInvoice,
+  isMessFee,
   isOutstandingDescription,
   isOutstandingInvoice,
   isOutstandingPayment,
@@ -275,6 +276,8 @@ const Fees = () => {
     const paidByBatch = new Map();
 
     filteredFees.forEach(f => {
+      if (isMessFee(f)) return;
+
       const studentId = getStudentKey(f);
 
       const type = (f.transactionType || '').toUpperCase();
@@ -501,7 +504,8 @@ const Fees = () => {
           f.status === 'PENDING' &&
           !isOutstandingInvoice(f) &&
           !isImportedInvoice(f) &&
-          !isPreviousSettledFee(f),
+          !isPreviousSettledFee(f) &&
+          !isMessFee(f),
         )
         .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
     );
@@ -577,7 +581,7 @@ const Fees = () => {
       'Advance': fee.advance || 0,
       'Rent': fee.rent || 0,
       'EB': fee.eb || 0,
-      'Mess': fee.mess || 0,
+      // 'Mess': fee.mess || 0,
       'Fine': fee.fine || 0,
       'Outstanding Balance': fee.displayBalance || 0,
       'Total Paid': fee.displayPaid || 0,
@@ -595,7 +599,7 @@ const Fees = () => {
       'Advance': displayFees.reduce((sum, f) => sum + f.advance, 0),
       'Rent': displayFees.reduce((sum, f) => sum + f.rent, 0),
       'EB': displayFees.reduce((sum, f) => sum + f.eb, 0),
-      'Mess': displayFees.reduce((sum, f) => sum + f.mess, 0),
+      // 'Mess': displayFees.reduce((sum, f) => sum + f.mess, 0),
       'Fine': displayFees.reduce((sum, f) => sum + f.fine, 0),
       'Total Paid': displayFees.reduce((sum, f) => sum + (f.displayPaid || 0), 0),
       'Outstanding Balance': displayFees
@@ -617,7 +621,7 @@ const Fees = () => {
     <div className="ui-page fees-page">
       <PageHeader
         title="Fees Paid / Unpaid"
-        subtitle="Track hostel rent, mess bills, pending dues, and issue payment receipts"
+        subtitle="Track hostel fee invoices, pending dues, and issue payment receipts"
         icon={<Wallet size={24} color="#fff" />} iconBg="linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
         rightContent={
           <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
@@ -756,7 +760,7 @@ const Fees = () => {
               <col className="fees-col-advance" />
               <col className="fees-col-rent" />
               <col className="fees-col-eb" />
-              <col className="fees-col-mess" />
+              {/* <col className="fees-col-mess" /> */}
               <col className="fees-col-fine" />
               <col className="fees-col-outstanding" />
               <col className="fees-col-total" />
@@ -773,7 +777,7 @@ const Fees = () => {
                 <th className="num">Advance</th>
                 <th className="num">Rent</th>
                 <th className="num">EB</th>
-                <th className="num">Mess</th>
+                {/* <th className="num">Mess</th> */}
                 <th className="num">Fine</th>
                 <th className="num">Outstanding Balance</th>
                 <th className="num fees-total">Total Paid</th>
@@ -784,14 +788,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading ? (
-                <LoadingRow colSpan={14} />
+                <LoadingRow colSpan={13} />
               ) : error ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={13} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={13} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -837,6 +841,7 @@ const Fees = () => {
                         })()}
                       </td>
                       <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                      {/*
                       <td className="num">
                         <div>₹{fee.mess.toLocaleString('en-IN')}</div>
                         {fee.feesList?.filter((x: any) => x.transactionType === 'MESS DEDUCTION').map((d: any, idx: number) => {
@@ -862,6 +867,7 @@ const Fees = () => {
                           return null;
                         })()}
                       </td>
+                      */}
                       <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
                       <td className={`num fees-outstanding${(fee.displayBalance || 0) > 0 ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>

@@ -709,6 +709,7 @@ const Register = () => {
                         Loaded from Room Master (₹{Number(selectedRoom.room.rent || 0).toLocaleString('en-IN')}). You can edit this rent for this student.
                       </div>
                     )}
+                    {/*
                     <div className="register-calc-row">
                       <span>Standard Mess Fee (₹):</span>
                       <input
@@ -725,6 +726,7 @@ const Register = () => {
                       <span>Total Monthly Charge:</span>
                       <span className="register-calc-amount">₹{((Number(customRent) || 0) + (Number(customMessFee) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
+                    */}
                   </div>
                 )}
               </div>

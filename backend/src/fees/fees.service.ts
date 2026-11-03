@@ -324,6 +324,7 @@ export class FeesService {
       where: {
         studentId,
         status: 'PENDING',
+        transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] },
         description: { startsWith: OUTSTANDING_PREFIX, mode: 'insensitive' },
       },
       orderBy: { createdAt: 'asc' },

@@ -8,7 +8,7 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
-import { buildOutstandingSummary, calculatePendingDues, isImportedInvoice, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
+import { buildOutstandingSummary, calculatePendingDues, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -85,6 +85,8 @@ const StudentProfile = () => {
       });
 
     fees.forEach(f => {
+      if (isMessFee(f)) return;
+
       // Pre-November fees are settled prior to the fresh billing cycle and should not be displayed in active fee transactions
       if (isPreviousSettledFee(f)) return;
 
@@ -703,6 +705,7 @@ const StudentProfile = () => {
                     )}
                   </div>
                 </div>
+                {/*
                 <div className="ui-kv">
                   <div className="ui-kv-label">Monthly Mess Fee</div>
                   <div className="ui-kv-value sp-kv-strong">
@@ -724,6 +727,7 @@ const StudentProfile = () => {
                     })()}
                   </div>
                 </div>
+                */}
                 <div className="ui-kv">
                   <div className="ui-kv-label">Advance Paid</div>
                   <div className="ui-kv-value sp-kv-strong">₹{student.advance}</div>
@@ -1091,7 +1095,7 @@ const StudentProfile = () => {
                           <th className="num">Advance</th>
                           <th className="num">Rent</th>
                           <th className="num">EB</th>
-                          <th className="num">Mess</th>
+                          {/* <th className="num">Mess</th> */}
                           <th className="num">Fine</th>
                           <th className="num">Outstanding Balance</th>
                           <th className="num">Total Paid</th>
@@ -1124,6 +1128,7 @@ const StudentProfile = () => {
                               })()}
                             </td>
                             <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                            {/*
                             <td className="num">
                               <div>₹{fee.mess.toLocaleString('en-IN')}</div>
                               {fee.status === 'COMPLETED' && (() => {
@@ -1136,6 +1141,7 @@ const StudentProfile = () => {
                                 return null;
                               })()}
                             </td>
+                            */}
                             <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
                             <td className={`num sp-outstanding${(fee.displayBalance || 0) > 0 ? ' is-due' : ' is-clear'}`}>

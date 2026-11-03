@@ -18,7 +18,11 @@ export class ClearanceService {
 
       // Calculate dues
       const pendingFees = await prisma.feeTransaction.findMany({
-        where: { studentId: data.studentId, status: 'PENDING' }
+        where: {
+          studentId: data.studentId,
+          status: 'PENDING',
+          transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] }
+        }
       });
       const pendingDues = pendingFees.reduce((acc, fee) => acc + fee.amount, 0);
       const advanceHeld = student.advance || 0;

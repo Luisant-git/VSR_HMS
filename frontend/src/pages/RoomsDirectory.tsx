@@ -125,7 +125,8 @@ const RoomsDirectory = () => {
     id: r.id,
     block: `${r.block} | ${r.type}`,
     status: r.occupiedCount === r.capacity ? 'Full' : r.occupiedCount === 0 ? 'Fully Vacant' : 'Partially Filled',
-    price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+    // price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
+    price: `₹${Number(r.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
     type: r.type,
     amenities: r.amenities ? r.amenities.split(',').map((a: string) => a.trim()) : [],
     filled: r.occupiedCount,
@@ -145,7 +146,8 @@ const RoomsDirectory = () => {
     vac: r.capacity - r.occupiedCount,
     rent: r.rent || 0,
     mess: r.messFee || 0,
-    tot: (r.rent || 0) + (r.messFee || 0),
+    // tot: (r.rent || 0) + (r.messFee || 0),
+    tot: r.rent || 0,
     amen: r.amenities || 'None',
     live: r.occupiedCount > 0 ? `${r.occupiedCount} Students` : 'None (Vacant)',
     floor: r.floor
@@ -380,7 +382,7 @@ const RoomsDirectory = () => {
                       <th style={{ padding: '16px 20px', textAlign: 'center' }}>Capacity</th>
                       <th style={{ padding: '16px 20px', textAlign: 'center' }}>Occupied</th>
                       <th style={{ padding: '16px 20px', textAlign: 'center' }}>Vacant</th>
-                      <th style={{ padding: '16px 20px' }}>Monthly Fee Rates</th>
+                      <th style={{ padding: '16px 20px' }}>Monthly Rent</th>
                       <th style={{ padding: '16px 20px' }}>Amenities</th>
                       <th style={{ padding: '16px 20px' }}>Live Occupants</th>
                       <th style={{ padding: '16px 20px' }}>Actions</th>
@@ -403,9 +405,12 @@ const RoomsDirectory = () => {
                         <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.occ > 0 ? '#0f172a' : '#94a3b8' }}>{row.occ}</td>
                         <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 700, color: row.vac > 0 ? '#22c55e' : '#ef4444' }}>{row.vac}</td>
                         <td style={{ padding: '16px 20px', color: '#475569', fontSize: '12px' }}>
+                          {/*
                           <div>Rent: ₹{Number(row.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           <div>Mess: ₹{Number(row.mess || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>Total: ₹{Number(row.tot || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo</div>
+                          */}
+                          ₹{Number(row.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
                         </td>
                         <td style={{ padding: '16px 20px', color: '#475569' }}>{row.amen}</td>
                         <td style={{ padding: '16px 20px', color: row.occ > 0 ? '#334155' : '#94a3b8' }}>{row.live}</td>
@@ -478,6 +483,19 @@ const RoomsDirectory = () => {
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
                   />
                 </div>
+                {/*
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mess Fee (₹)</label>
+                  <input
+                    type="number"
+                    value={newRoom.messFee === 0 || newRoom.messFee === '0' ? '' : newRoom.messFee}
+                    onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value })}
+                    onFocus={e => e.target.select()}
+                    placeholder="Enter mess fee (e.g. 2000)"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
+                  />
+                </div>
+                */}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
@@ -489,17 +507,6 @@ const RoomsDirectory = () => {
                     onChange={e => setNewRoom({ ...newRoom, rent: e.target.value })}
                     onFocus={e => e.target.select()}
                     placeholder="Enter rent (e.g. 8500)"
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>Mess Fee (₹)</label>
-                  <input
-                    type="number"
-                    value={newRoom.messFee === 0 || newRoom.messFee === '0' ? '' : newRoom.messFee}
-                    onChange={e => setNewRoom({ ...newRoom, messFee: e.target.value })}
-                    onFocus={e => e.target.select()}
-                    placeholder="Enter mess fee (e.g. 2000)"
                     style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
                   />
                 </div>

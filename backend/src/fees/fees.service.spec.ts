@@ -30,6 +30,10 @@ const matchesWhere = (row: FakeRow, where: any = {}) => {
       }
       continue;
     }
+    if (value && typeof value === 'object' && 'notIn' in value) {
+      if ((value as { notIn: unknown[] }).notIn.includes((row as any)[key])) return false;
+      continue;
+    }
     if ((row as any)[key] !== value) return false;
   }
   return true;
@@ -310,5 +314,28 @@ describe('FeesService - outstanding payment ledger', () => {
       'INV-2026-10-002',
       'INV-2026-10-003',
     ]);
+  });
+
+  it('does not count or accept outstanding mess-fee invoices for payment', async () => {
+    const messInvoice = makeRow({
+      id: 'invoice-mess',
+      amount: 2000,
+      transactionType: 'MESS',
+      description: 'Outstanding Mess Fee for Jan 2026',
+    });
+    const fake = createFakePrisma([messInvoice]);
+    const messOnlyService = new FeesService(fake.prisma);
+
+    await expect(
+      messOnlyService.payOutstanding({
+        studentId: 'student-1',
+        amount: 100,
+        paymentMode: 'UPI',
+        requestId: 'req-mess-only',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(fake.store).toContainEqual(messInvoice);
+    expect(fake.store.filter(row => row.transactionType === 'OUTSTANDING_PAYMENT')).toHaveLength(0);
   });
 });

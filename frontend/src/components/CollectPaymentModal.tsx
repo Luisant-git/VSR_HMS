@@ -37,6 +37,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   // invoices are consolidated into a single OUTSTANDING item.
   const outstandingItems = itemsToPay.filter(isOutstandingFee);
   const currentItems = itemsToPay.filter((f: any) => !isOutstandingFee(f));
+  const selectableCurrentItems = isStudentMode
+    ? currentItems.filter((f: any) => !(f.transactionType || '').toUpperCase().startsWith('MESS'))
+    : currentItems;
 
   // Original outstanding invoice amounts minus payments already confirmed by
   // the backend. Invoices are never mutated, so this is the only safe way to
@@ -65,13 +68,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const [outstandingAmountInput, setOutstandingAmountInput] = useState('');
   const [feeStates, setFeeStates] = useState<Record<string, { selected: boolean }>>(() => {
     const initialState: Record<string, { selected: boolean }> = {};
-    currentItems.forEach((f: any) => {
+    selectableCurrentItems.forEach((f: any) => {
       initialState[f.id] = { selected: !hasOutstandingItems };
     });
     return initialState;
   });
 
-  const activeItemsToPay = currentItems.filter(f => feeStates[f.id]?.selected !== false);
+  const activeItemsToPay = selectableCurrentItems.filter(f => feeStates[f.id]?.selected !== false);
 
   const getMultiplier = (type: string) => {
     const t = (type || '').toUpperCase().trim();
@@ -265,7 +268,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
     setIsSubmitting(false);
   };
 
-  const monthSourceDesc = currentItems[0]?.description || itemsToPay[0]?.description || '';
+  const monthSourceDesc = selectableCurrentItems[0]?.description || itemsToPay[0]?.description || '';
   const currentMonthStr = itemsToPay.length > 0 ? getMonthNames(1, monthSourceDesc) : '';
   const coveredPeriodStr = itemsToPay.length > 0 ? getMonthNames(months, monthSourceDesc) : '';
 
@@ -289,12 +292,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
   const selectRentOnly = () => setFeeStates(prev => {
     const next = { ...prev };
-    currentItems.forEach(f => {
+    selectableCurrentItems.forEach(f => {
       next[f.id] = { selected: (f.transactionType || '').toUpperCase().includes('RENT') };
     });
     return next;
   });
 
+  /*
   const selectMessOnly = () => setFeeStates(prev => {
     const next = { ...prev };
     currentItems.forEach(f => {
@@ -302,6 +306,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
     });
     return next;
   });
+  */
 
   const outstandingInvalid = outstandingSelected && outstandingInputTrimmed !== '' && outstandingError !== null;
   const canSubmit =
@@ -347,7 +352,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
             <div style={{ padding: '24px', overflowY: 'auto' }}>
 
               {/* Duration Section */}
-              {currentItems.some(f => (f.transactionType || '').toUpperCase().trim() === 'RENT' || (f.transactionType || '').toUpperCase().trim() === 'MESS') && (
+              {selectableCurrentItems.some(f => (f.transactionType || '').toUpperCase().trim() === 'RENT') && (
                 <div style={{ marginBottom: '24px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Duration</label>
                   <div style={{ position: 'relative' }}>
@@ -372,22 +377,24 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
               {/* Fees List */}
               <div style={{ marginBottom: '24px' }}>
-                {currentItems.length > 0 && (
+                {selectableCurrentItems.length > 0 && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Fees to Pay</label>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button onClick={selectAll} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[All]</button>
                         <button onClick={selectRentOnly} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[Rent Only]</button>
+                        {/*
                         <button onClick={selectMessOnly} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[Mess]</button>
+                        */}
                       </div>
                     </div>
 
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                      {currentItems.map((f, index) => {
+                      {selectableCurrentItems.map((f, index) => {
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
-                        const isLast = index === currentItems.length - 1;
+                        const isLast = index === selectableCurrentItems.length - 1;
                         const calculatedAmount = f.amount * currentMultiplier;
 
                         return (
@@ -422,8 +429,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
                 {/* OUTSTANDING item: one consolidated previous balance */}
                 {outstandingBalance > 0 && (
-                  <div style={{ marginTop: currentItems.length > 0 ? '12px' : '0' }}>
-                    {currentItems.length === 0 && (
+                  <div style={{ marginTop: selectableCurrentItems.length > 0 ? '12px' : '0' }}>
+                    {selectableCurrentItems.length === 0 && (
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Outstanding</label>
                     )}
                     <div style={{ border: '1px solid #fde68a', borderRadius: '8px', overflow: 'hidden', background: '#fffbeb' }}>
