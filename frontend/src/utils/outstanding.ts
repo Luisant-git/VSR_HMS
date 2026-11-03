@@ -63,8 +63,8 @@ export const isPreviousSettledFee = (fee: any): boolean => {
 };
 
 /**
- * Checks if a pending fee is an initial Month 1 or current October fee that was already
- * paid up to Oct 31, 2026.
+ * Checks if a pending fee is an imported invoice or a current October fee that
+ * was already paid up to Oct 31, 2026.
  * Genuine historical dues (e.g. "Outstanding Rent for Sep 2026") are NEVER matched here.
  * Tomorrow's November fees ("... for November 2026") are NEVER matched here.
  */
@@ -75,7 +75,6 @@ export const isImportedInvoice = (fee: any) => {
 
   const desc = String(fee.description || '');
   if (/imported/i.test(desc)) return true;
-  if (/month\s*1\b/i.test(desc)) return true;
   if (/october\s*2026\b/i.test(desc)) return true;
 
   // Any non-outstanding fee created on or before Oct 31, 2026 (excluding November+)

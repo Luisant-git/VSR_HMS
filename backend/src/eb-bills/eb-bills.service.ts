@@ -174,18 +174,45 @@ export class EbBillsService {
 
       if (studentCount > 0) {
         const studentIds = room.students.map((s) => s.id);
+        const oldDescription = `EB Bill for ${oldCycle}`;
+        const description = `EB Bill for ${billingCycle}`;
+
         await prisma.feeTransaction.updateMany({
           where: {
             studentId: { in: studentIds },
             transactionType: 'EB_BILL',
             status: 'PENDING',
-            description: `EB Bill for ${oldCycle}`,
+            description: oldDescription,
           },
           data: {
             amount: perStudentShare,
-            description: `EB Bill for ${billingCycle}`,
+            description,
           },
         });
+
+        const existingStudentFees = await prisma.feeTransaction.findMany({
+          where: {
+            studentId: { in: studentIds },
+            transactionType: 'EB_BILL',
+            description,
+          },
+          select: { studentId: true },
+        });
+        const studentsWithFee = new Set(existingStudentFees.map((fee) => fee.studentId));
+        const missingStudentFees = room.students
+          .filter((student) => !studentsWithFee.has(student.id))
+          .map((student) => ({
+            studentId: student.id,
+            transactionType: 'EB_BILL',
+            amount: perStudentShare,
+            description,
+            status: 'PENDING',
+            dueDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+          }));
+
+        if (missingStudentFees.length > 0) {
+          await prisma.feeTransaction.createMany({ data: missingStudentFees });
+        }
       }
 
       return updated;
