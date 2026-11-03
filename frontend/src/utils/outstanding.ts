@@ -20,6 +20,10 @@ export const roundMoney = (value: number) =>
 export const isOutstandingDescription = (fee: any) =>
   /^\s*outstanding\b/i.test(String(fee?.description || ''));
 
+const isOctoberEbBill = (fee: any) =>
+  String(fee?.transactionType || '').toUpperCase() === 'EB_BILL' &&
+  /(?:\b2026-10\b|\boct(?:ober)?\s*2026\b)/i.test(String(fee?.description || ''));
+
 /** A confirmed payment towards the outstanding balance. */
 export const isOutstandingPayment = (fee: any) =>
   !!fee &&
@@ -38,15 +42,15 @@ export const isOutstandingInvoice = (fee: any) =>
 
 /**
  * Fresh billing and collection cycle starts from November 1, 2026.
- * All prior fees (receipts and invoices before Nov 1, 2026) are considered
- * completely paid / settled outside the fresh cycle.
+ * Prior fees (receipts and invoices before Nov 1, 2026) are considered
+ * settled outside the fresh cycle, except October 2026 EB bill shares.
  * Any fee created before November 1, 2026 that is NOT for November 2026 or later
  * is considered a previous settled fee and must not be shown on the fresh Fees page.
  */
 export const isPreviousSettledFee = (fee: any): boolean => {
   if (!fee) return false;
   // Preserve genuine historical outstanding transactions
-  if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) return false;
+  if (isOutstandingDescription(fee) || isOutstandingPayment(fee) || isOctoberEbBill(fee)) return false;
 
   const desc = String(fee.description || '');
   // November 2026 and future months belong to the fresh billing cycle starting Nov 1
@@ -63,15 +67,15 @@ export const isPreviousSettledFee = (fee: any): boolean => {
 };
 
 /**
- * Checks if a pending fee is an imported invoice or a current October fee that
- * was already paid up to Oct 31, 2026.
+ * Checks if a pending fee is an imported invoice or a current October rent/mess
+ * fee that was already paid up to Oct 31, 2026.
  * Genuine historical dues (e.g. "Outstanding Rent for Sep 2026") are NEVER matched here.
  * Tomorrow's November fees ("... for November 2026") are NEVER matched here.
  */
 export const isImportedInvoice = (fee: any) => {
   if (!fee) return false;
   // Always preserve genuine historical outstanding invoices
-  if (isOutstandingDescription(fee)) return false;
+  if (isOutstandingDescription(fee) || isOctoberEbBill(fee)) return false;
 
   const desc = String(fee.description || '');
   if (/imported/i.test(desc)) return true;
