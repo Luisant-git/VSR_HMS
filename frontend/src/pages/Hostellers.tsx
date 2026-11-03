@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } fr
 import { createPortal } from 'react-dom';
 import { Search, X, Phone, Mail, MapPin, Wallet, Eye, FileText, LogOut, Upload, FileSpreadsheet, Users } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
@@ -76,6 +76,7 @@ const Hostellers = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
 
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
@@ -84,7 +85,10 @@ const Hostellers = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortFilter, setSortFilter] = useState('latest');
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const requestedPage = Number(searchParams.get('page'));
+    return Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  });
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -167,6 +171,14 @@ const Hostellers = () => {
   useEffect(() => {
     fetchHostellers();
   }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, statusFilter]);
+
+  useEffect(() => {
+    setSearchParams(current => {
+      if (page === 1) current.delete('page');
+      else current.set('page', String(page));
+      return current;
+    }, { replace: true });
+  }, [page, setSearchParams]);
 
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
