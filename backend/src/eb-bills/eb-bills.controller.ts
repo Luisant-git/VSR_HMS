@@ -19,14 +19,21 @@ export class EbBillsController {
     @Query('search') search?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('billingCycle') billingCycle?: string,
   ) {
     return this.ebBillsService.findAll(
       page ? parseInt(page) : 1,
       limit ? parseInt(limit) : 10,
       search,
       fromDate,
-      toDate
+      toDate,
+      billingCycle,
     );
+  }
+
+  @Get('cycles')
+  findBillingCycles() {
+    return this.ebBillsService.findBillingCycles();
   }
 
   @Get('room/:roomNo')

@@ -2,6 +2,40 @@ import { describe, expect, it, vi } from 'vitest';
 import { EbBillsService } from './eb-bills.service';
 
 describe('EbBillsService', () => {
+  it('filters room bill rows by the selected billing cycle', async () => {
+    const ebBill = {
+      findMany: vi.fn(async () => [{ id: 'bill-1', roomNo: 'WMT', billingCycle: '2026-11' }]),
+      count: vi.fn(async () => 1),
+    };
+    const service = new EbBillsService({ ebBill } as any);
+
+    const result = await service.findAll(1, 10, undefined, undefined, undefined, '2026-11');
+
+    expect(ebBill.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { billingCycle: '2026-11' } }),
+    );
+    expect(ebBill.count).toHaveBeenCalledWith({ where: { billingCycle: '2026-11' } });
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].roomNo).toBe('WMT');
+  });
+
+  it('returns distinct billing cycles newest first', async () => {
+    const ebBill = {
+      findMany: vi.fn(async () => [
+        { billingCycle: '2026-12' },
+        { billingCycle: '2026-11' },
+      ]),
+    };
+    const service = new EbBillsService({ ebBill } as any);
+
+    await expect(service.findBillingCycles()).resolves.toEqual(['2026-12', '2026-11']);
+    expect(ebBill.findMany).toHaveBeenCalledWith({
+      select: { billingCycle: true },
+      distinct: ['billingCycle'],
+      orderBy: { billingCycle: 'desc' },
+    });
+  });
+
   it('creates missing shares for active students when an existing bill is edited', async () => {
     const activeStudents = [
       { id: 'student-1' },

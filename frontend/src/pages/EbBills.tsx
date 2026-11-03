@@ -10,6 +10,15 @@ import { EbBillsAPI } from '../api/eb-bill.api';
 import { toast } from 'react-toastify';
 
 const currentMonthStr = new Date().toISOString().slice(0, 7);
+const formatBillingCycle = (cycle: string) => {
+  const match = /^(\d{4})-(\d{2})$/.exec(cycle);
+  if (!match) return cycle;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, 1);
+  return Number.isNaN(date.getTime())
+    ? cycle
+    : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+};
 
 // Keep numeric text inputs clean: digits and a single decimal point only.
 const sanitizeNumber = (v: string) => {
@@ -71,15 +80,16 @@ const EbBills = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState('');
+  const [billingCycles, setBillingCycles] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const limit = 10;
 
   useEffect(() => { fetchRooms(); }, []);
-  useEffect(() => { fetchBillingHistory(); }, [page, searchTerm, fromDate, toDate]);
+  useEffect(() => { fetchBillingCycles(); }, []);
+  useEffect(() => { fetchBillingHistory(); }, [page, searchTerm, selectedBillingCycle]);
   useEffect(() => { fetchRoomBills(); }, [selectedRoom]);
 
   const fetchRooms = async () => {
@@ -96,13 +106,27 @@ const EbBills = () => {
   const fetchBillingHistory = async () => {
     try {
       setIsLoading(true); setError(null);
-      const res = await EbBillsAPI.findAll({ page, limit, search: searchTerm, fromDate, toDate });
+      const res = await EbBillsAPI.findAll({
+        page,
+        limit,
+        search: searchTerm,
+        billingCycle: selectedBillingCycle || undefined,
+      });
       const data = Array.isArray(res) ? res : (res.data || []);
       setBillingHistory(data);
       setTotalPages(res.totalPages || 1);
       setTotalRecords(res.total || data.length);
     } catch { setError('Failed to load EB bills history'); }
     finally { setIsLoading(false); }
+  };
+
+  const fetchBillingCycles = async () => {
+    try {
+      const cycles = await EbBillsAPI.findBillingCycles();
+      setBillingCycles(Array.isArray(cycles) ? cycles : []);
+    } catch {
+      setError('Failed to load EB billing cycles');
+    }
   };
 
   const activeStudentsInRoom = selectedRoom?.value?.students?.filter((s: any) => s.status !== 'Vacated') || [];
@@ -229,49 +253,55 @@ const EbBills = () => {
   const handleExportExcel = async () => {
     try {
       setIsExporting(true);
-      const res = await EbBillsAPI.findAll({ limit: 100000 });
+      const res = await EbBillsAPI.findAll({
+        limit: 100000,
+        search: searchTerm || undefined,
+        billingCycle: selectedBillingCycle || undefined,
+      });
       const all = Array.isArray(res) ? res : (res.data || []);
       if (all.length === 0) { toast.info('No EB bills to export'); return; }
 
-      const byCycle: Record<string, any[]> = {};
-      all.forEach((b: any) => { (byCycle[b.billingCycle] ||= []).push(b); });
-      const cycles = Object.keys(byCycle).sort();
+      const columns = ['Room', 'Cycle', 'Meter readings', 'Units', 'Total bill', 'Per head share'];
+      const rows: Array<Record<(typeof columns)[number], string>> = all.map((bill: any) => {
+        const acPrev = Number(bill.acPrevReading || 0);
+        const acCurr = Number(bill.acCurrReading || 0);
+        const normalPrev = Number(bill.normalPrevReading ?? bill.prevReading ?? 0);
+        const normalCurr = Number(bill.normalCurrReading ?? bill.currReading ?? 0);
+        const acUnits = Math.max(0, acCurr - acPrev);
+        const normalUnits = Math.max(0, normalCurr - normalPrev);
+        const hasAc = !!bill.hasAcMeter || acUnits > 0 || acCurr > 0 || acPrev > 0;
+        const meterReadings = hasAc
+          ? `AC: ${acPrev.toFixed(1)} → ${acCurr.toFixed(1)} (${acUnits.toFixed(1)} u); Normal: ${normalPrev.toFixed(1)} → ${normalCurr.toFixed(1)} (${normalUnits.toFixed(1)} u)`
+          : `${normalPrev.toFixed(1)} → ${normalCurr.toFixed(1)}`;
+
+        return {
+          Room: bill.roomNo,
+          Cycle: bill.billingCycle,
+          'Meter readings': meterReadings,
+          Units: Number(bill.unitsConsumed || 0).toFixed(1),
+          'Total bill': `₹${Number(bill.totalAmount || 0).toFixed(2)}`,
+          'Per head share': `₹${Number(bill.perStudentShare || 0).toFixed(2)}`,
+        };
+      });
 
       const wb = XLSX.utils.book_new();
+      const exportedCycles = Array.from(
+        new Set<string>(all.map((bill: any) => String(bill.billingCycle || ''))),
+      ).filter(Boolean);
+      const reportCycle = selectedBillingCycle || (exportedCycles.length === 1 ? exportedCycles[0] : '');
+      const reportTitle = reportCycle
+        ? `EB Bills - ${formatBillingCycle(reportCycle)}`
+        : 'EB Bills - All Billing Cycles';
+      const worksheet = XLSX.utils.aoa_to_sheet([
+        [reportTitle],
+        [],
+        columns,
+        ...rows.map((row) => columns.map((column) => row[column as keyof typeof row])),
+      ]);
+      XLSX.utils.book_append_sheet(wb, worksheet, 'EB Bills');
 
-      const summary = cycles.map((c) => {
-        const rows = byCycle[c];
-        const totalUnits = rows.reduce((s, r) => s + (r.unitsConsumed || 0), 0);
-        const totalBill = rows.reduce((s, r) => s + (r.totalAmount || 0), 0);
-        return { Month: c, Rooms: rows.length, 'Total Units': +totalUnits.toFixed(1), 'Total Bill (₹)': +totalBill.toFixed(2) };
-      });
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary');
-
-      cycles.forEach((c) => {
-        const rows = byCycle[c].slice().sort((a, b) => String(a.roomNo).localeCompare(String(b.roomNo), undefined, { numeric: true }));
-        const data = rows.map((r) => {
-          const acUnits = Math.max(0, Number(r.acCurrReading || 0) - Number(r.acPrevReading || 0));
-          const normalUnits = Math.max(0, Number(r.normalCurrReading || 0) - Number(r.normalPrevReading || 0));
-          const hasAc = !!r.hasAcMeter || acUnits > 0 || (r.acCurrReading || 0) > 0 || (r.acPrevReading || 0) > 0;
-          return {
-            Room: r.roomNo,
-            Cycle: r.billingCycle,
-            'AC Prev': hasAc ? r.acPrevReading : '',
-            'AC Curr': hasAc ? r.acCurrReading : '',
-            'AC Units': hasAc ? +acUnits.toFixed(1) : '',
-            'Normal Prev': r.normalPrevReading ?? r.prevReading,
-            'Normal Curr': r.normalCurrReading ?? r.currReading,
-            'Normal Units': +normalUnits.toFixed(1),
-            'Total Units': +(r.unitsConsumed || 0).toFixed(1),
-            'Tariff Rate': r.tariffRate,
-            'Total Bill (₹)': r.totalAmount,
-            'Per Head Share (₹)': r.perStudentShare,
-          };
-        });
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), c);
-      });
-
-      XLSX.writeFile(wb, `EB_Bills_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const cycleSuffix = reportCycle ? `_${reportCycle}` : '';
+      XLSX.writeFile(wb, `EB_Bills${cycleSuffix}_${new Date().toISOString().slice(0, 10)}.xlsx`);
       toast.success('Excel exported successfully');
     } catch { toast.error('Failed to export Excel'); }
     finally { setIsExporting(false); }
@@ -424,17 +454,20 @@ const EbBills = () => {
                   </button>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 150px', minWidth: '140px' }}>
-                <label style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>From:</label>
-                <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(1); }} style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155', minWidth: '0' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 190px', minWidth: '180px' }}>
+                <label htmlFor="eb-billing-cycle-filter" style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>Billing Month / Cycle:</label>
+                <select
+                  id="eb-billing-cycle-filter"
+                  value={selectedBillingCycle}
+                  onChange={(e) => { setSelectedBillingCycle(e.target.value); setPage(1); }}
+                  style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155', minWidth: '0', background: 'white' }}
+                >
+                  <option value="">All Billing Cycles</option>
+                  {billingCycles.map((cycle) => (
+                    <option key={cycle} value={cycle}>{formatBillingCycle(cycle)}</option>
+                  ))}
+                </select>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 150px', minWidth: '140px' }}>
-                <label style={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap' }}>To:</label>
-                <input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(1); }} style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', outline: 'none', color: '#334155', minWidth: '0' }} />
-              </div>
-              {(fromDate || toDate) && (
-                <button onClick={() => { setFromDate(''); setToDate(''); setPage(1); }} style={{ padding: '8px 12px', background: '#f1f5f9', border: 'none', borderRadius: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear Dates</button>
-              )}
             </div>
           </div>
 

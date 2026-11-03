@@ -266,10 +266,20 @@ export class EbBillsService {
     });
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string) {
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    fromDate?: string,
+    toDate?: string,
+    billingCycle?: string,
+  ) {
     const where: any = {};
     if (search) {
       where.roomNo = { contains: search, mode: 'insensitive' };
+    }
+    if (billingCycle) {
+      where.billingCycle = billingCycle;
     }
     if (fromDate || toDate) {
       where.createdAt = {};
@@ -294,6 +304,15 @@ export class EbBillsService {
     ]);
 
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+  }
+
+  async findBillingCycles() {
+    const cycles = await this.prisma.ebBill.findMany({
+      select: { billingCycle: true },
+      distinct: ['billingCycle'],
+      orderBy: { billingCycle: 'desc' },
+    });
+    return cycles.map((bill) => bill.billingCycle);
   }
 
   async findByRoom(roomNo: string) {
