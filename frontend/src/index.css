@@ -2040,6 +2040,16 @@ textarea:focus {
   overflow-x: auto;
 }
 
+.eb-bills-layout {
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .eb-bills-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .ui-table-scroll {
   overflow-x: auto;
 }

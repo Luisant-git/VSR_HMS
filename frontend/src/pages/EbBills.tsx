@@ -234,20 +234,21 @@ const EbBills = () => {
       .catch((e: any) => toast.error(e.message || 'Failed to delete EB bill'));
   }; */
 
-  // Helper: format a meter reading pair for the table
-  const meterCell = (bill: any) => {
-    const ac = (bill.acCurrReading || 0) > 0 || (bill.acPrevReading || 0) > 0 || !!bill.hasAcMeter;
-    if (ac) {
-      const acUnits = Math.max(0, Number(bill.acCurrReading || 0) - Number(bill.acPrevReading || 0));
-      const normalUnits = Math.max(0, Number(bill.normalCurrReading || 0) - Number(bill.normalPrevReading || 0));
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
-          <span style={{ color: '#2563eb', fontWeight: 600 }}>AC: {Number(bill.acPrevReading || 0).toFixed(1)} → {Number(bill.acCurrReading || 0).toFixed(1)} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({acUnits.toFixed(1)} u)</span></span>
-          <span style={{ color: '#64748b', fontWeight: 600 }}>Normal: {Number(bill.normalPrevReading || 0).toFixed(1)} → {Number(bill.normalCurrReading || 0).toFixed(1)} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({normalUnits.toFixed(1)} u)</span></span>
-        </div>
-      );
-    }
-    return <span style={{ color: '#64748b', fontSize: '12px' }}>{Number(bill.prevReading || 0).toFixed(1)} → {Number(bill.currReading || 0).toFixed(1)}</span>;
+  const getBillReadings = (bill: any) => {
+    const acPrev = Number(bill.acPrevReading || 0);
+    const acCurr = Number(bill.acCurrReading || 0);
+    const normalPrev = Number(bill.normalPrevReading || bill.prevReading || 0);
+    const normalCurr = Number(bill.normalCurrReading || bill.currReading || 0);
+    const hasAc = !!bill.hasAcMeter || acPrev > 0 || acCurr > 0;
+
+    return {
+      previous: hasAc
+        ? [{ label: 'AC', value: acPrev }, { label: 'Normal', value: normalPrev }]
+        : [{ label: '', value: normalPrev }],
+      current: hasAc
+        ? [{ label: 'AC', value: acCurr }, { label: 'Normal', value: normalCurr }]
+        : [{ label: '', value: normalCurr }],
+    };
   };
 
   const handleExportExcel = async () => {
@@ -261,23 +262,17 @@ const EbBills = () => {
       const all = Array.isArray(res) ? res : (res.data || []);
       if (all.length === 0) { toast.info('No EB bills to export'); return; }
 
-      const columns = ['Room', 'Cycle', 'Meter readings', 'Units', 'Total bill', 'Per head share'];
+      const columns = ['Room', 'Cycle', 'Previous Reading', 'Current Reading', 'Units', 'Total bill', 'Per head share'];
       const rows: Array<Record<(typeof columns)[number], string>> = all.map((bill: any) => {
-        const acPrev = Number(bill.acPrevReading || 0);
-        const acCurr = Number(bill.acCurrReading || 0);
-        const normalPrev = Number(bill.normalPrevReading ?? bill.prevReading ?? 0);
-        const normalCurr = Number(bill.normalCurrReading ?? bill.currReading ?? 0);
-        const acUnits = Math.max(0, acCurr - acPrev);
-        const normalUnits = Math.max(0, normalCurr - normalPrev);
-        const hasAc = !!bill.hasAcMeter || acUnits > 0 || acCurr > 0 || acPrev > 0;
-        const meterReadings = hasAc
-          ? `AC: ${acPrev.toFixed(1)} → ${acCurr.toFixed(1)} (${acUnits.toFixed(1)} u); Normal: ${normalPrev.toFixed(1)} → ${normalCurr.toFixed(1)} (${normalUnits.toFixed(1)} u)`
-          : `${normalPrev.toFixed(1)} → ${normalCurr.toFixed(1)}`;
+        const readings = getBillReadings(bill);
+        const formatReadings = (values: Array<{ label: string; value: number }>) =>
+          values.map(({ label, value }) => `${label ? `${label}: ` : ''}${value.toFixed(1)}`).join('; ');
 
         return {
           Room: bill.roomNo,
           Cycle: bill.billingCycle,
-          'Meter readings': meterReadings,
+          'Previous Reading': formatReadings(readings.previous),
+          'Current Reading': formatReadings(readings.current),
           Units: Number(bill.unitsConsumed || 0).toFixed(1),
           'Total bill': `₹${Number(bill.totalAmount || 0).toFixed(2)}`,
           'Per head share': `₹${Number(bill.perStudentShare || 0).toFixed(2)}`,
@@ -308,14 +303,14 @@ const EbBills = () => {
   };
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
+    <div className="eb-bills-page" style={{ paddingBottom: '40px', minWidth: 0, width: '100%' }}>
       <PageHeader
         title="Rooms EB Bill Sharing Calculator"
         subtitle="Sub-meter electricity calculation and automatic equal cost distribution across room hostellers"
         icon={<Calculator size={24} color="#fff" />} iconBg="linear-gradient(135deg, #eab308 0%, #ca8a04 100%)"
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 300px), 440px) 1fr', gap: '25px', alignItems: 'start' }}>
+      <div className="eb-bills-layout" style={{ display: 'grid', gap: '25px', alignItems: 'start', minWidth: 0, width: '100%' }}>
         {/* Left Column: Form */}
         <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -433,7 +428,7 @@ const EbBills = () => {
         </div>
 
         {/* Right Column: History */}
-        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
           <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -471,47 +466,72 @@ const EbBills = () => {
             </div>
           </div>
 
-          <div className="table-responsive" style={{ flex: 1, overflowX: 'auto' }}>
+          <div className="table-responsive" style={{ flex: 1, minWidth: 0, width: '100%', overflowX: 'auto' }}>
             {isLoading ? (
               <LoadingBlock text="Loading history..." padding="20px" />
             ) : error ? (
               <div style={{ padding: '20px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
             ) : (
-              <table className="data-table" style={{ width: '100%', minWidth: '820px', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <table className="data-table eb-bills-history-table" style={{ width: '100%', minWidth: 0, tableLayout: 'fixed', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <colgroup>
+                  {Array.from({ length: 8 }, (_, index) => <col key={index} style={{ width: '12.5%' }} />)}
+                </colgroup>
                 <thead>
                   <tr style={{ background: '#f8fafc', color: '#475569', fontSize: '12px', letterSpacing: '0.02em' }}>
-                    <th style={{ padding: '10px 16px' }}>Room</th>
-                    <th style={{ padding: '10px 16px' }}>Cycle</th>
-                    <th style={{ padding: '10px 16px' }}>Meter readings</th>
-                    <th style={{ padding: '10px 16px' }}>Units</th>
-                    <th style={{ padding: '10px 16px' }}>Total bill</th>
-                    <th style={{ padding: '10px 16px' }}>Per head share</th>
-                    <th style={{ padding: '10px 16px', textAlign: 'center' }}>Actions</th>
+                    <th style={{ padding: '6px 6px' }}>Room</th>
+                    <th style={{ padding: '6px 6px' }}>Cycle</th>
+                    <th style={{ padding: '4px 6px', whiteSpace: 'normal', minWidth: 0, lineHeight: 1 }}>
+                      <span style={{ display: 'block' }}>Previous</span>
+                      <span style={{ display: 'block' }}>Reading</span>
+                    </th>
+                    <th style={{ padding: '4px 6px', whiteSpace: 'normal', minWidth: 0, lineHeight: 1 }}>
+                      <span style={{ display: 'block' }}>Current</span>
+                      <span style={{ display: 'block' }}>Reading</span>
+                    </th>
+                    <th style={{ padding: '6px' }}>Units</th>
+                    <th style={{ padding: '6px', whiteSpace: 'normal' }}>Total bill</th>
+                    <th style={{ padding: '6px', whiteSpace: 'normal', lineHeight: 1.1 }}>
+                      Per head<br />share
+                    </th>
+                    <th style={{ padding: '6px', textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {billingHistory.map((bill) => (
-                    <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#1e293b' }}>{bill.roomNo}</td>
-                      <td style={{ padding: '12px 16px' }}><span style={{ background: '#f1f5f9', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>{bill.billingCycle}</span></td>
-                      <td style={{ padding: '12px 16px' }}>{meterCell(bill)}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{(bill.unitsConsumed || 0).toFixed(1)}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: '#ef4444' }}>₹{(bill.totalAmount || 0).toFixed(2)}</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{(bill.perStudentShare || 0).toFixed(2)}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                          <button onClick={() => loadForEdit(bill)} title="Edit" style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                            <SquarePen size={14} /> Edit
-                          </button>
-                          {/* <button onClick={() => handleDelete(bill)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #fecaca', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#dc2626' }}>
-                            <Trash2 size={14} />
-                          </button> */}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {billingHistory.map((bill) => {
+                    const readings = getBillReadings(bill);
+                    return (
+                      <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 6px', fontWeight: 600, color: '#1e293b', overflowWrap: 'anywhere' }}>{bill.roomNo}</td>
+                        <td style={{ padding: '8px 6px', overflowWrap: 'anywhere' }}><span style={{ background: '#f1f5f9', padding: '3px 4px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{bill.billingCycle}</span></td>
+                        {[readings.previous, readings.current].map((columnReadings, columnIndex) => (
+                          <td key={columnIndex} style={{ padding: '8px 6px', color: '#64748b', fontSize: '11px', overflowWrap: 'anywhere' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              {columnReadings.map((reading, index) => (
+                                <span key={index} style={{ color: reading.label === 'AC' ? '#2563eb' : '#64748b', fontWeight: reading.label ? 600 : 400 }}>
+                                  {reading.label ? `${reading.label}: ` : ''}{reading.value.toFixed(1)}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        ))}
+                        <td style={{ padding: '8px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{(bill.unitsConsumed || 0).toFixed(1)}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 700, color: '#ef4444', whiteSpace: 'nowrap' }}>₹{(bill.totalAmount || 0).toFixed(2)}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--sidebar-active)', whiteSpace: 'nowrap' }}>₹{(bill.perStudentShare || 0).toFixed(2)}</td>
+                        <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                            <button onClick={() => loadForEdit(bill)} title="Edit" style={{ padding: '5px 6px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                              <SquarePen size={14} /> Edit
+                            </button>
+                            {/* <button onClick={() => handleDelete(bill)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #fecaca', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#dc2626' }}>
+                              <Trash2 size={14} />
+                            </button> */}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {billingHistory.length === 0 && (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No billing history found</td></tr>
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>No billing history found</td></tr>
                   )}
                 </tbody>
               </table>
