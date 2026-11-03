@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow, LoadingBlock } from '../components/LoadingSpinner';
 import { ClearanceAPI } from '../api/clearance.api';
 import { StudentAPI } from '../api/student.api';
 import { useNavigate } from 'react-router-dom';
-import { X, FileText } from 'lucide-react';
+import { X, FileText, FileSpreadsheet, Search } from 'lucide-react';
 import Select from 'react-select';
 
 const ClearanceRecords = () => {
@@ -17,6 +18,9 @@ const ClearanceRecords = () => {
   const [isSearching, setIsSearching] = useState(false);
 
   const [studentOptions, setStudentOptions] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     fetchRecords();
@@ -68,6 +72,51 @@ const ClearanceRecords = () => {
     }
   };
 
+  const filteredRecords = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return records.filter(record => {
+      const clearanceDate = new Date(record.clearanceDate);
+      if (fromDate) {
+        const from = new Date(`${fromDate}T00:00:00`);
+        if (clearanceDate < from) return false;
+      }
+      if (toDate) {
+        const to = new Date(`${toDate}T23:59:59.999`);
+        if (clearanceDate > to) return false;
+      }
+      if (!query) return true;
+
+      return [
+        record.student?.name,
+        record.student?.manualRegsiName,
+        record.student?.regNo,
+        record.reason,
+        record.remarks,
+      ].some(value => String(value || '').toLowerCase().includes(query));
+    });
+  }, [records, searchQuery, fromDate, toDate]);
+
+  const handleExport = () => {
+    if (filteredRecords.length === 0) {
+      return;
+    }
+
+    const rows = filteredRecords.map(record => ({
+      Date: new Date(record.clearanceDate).toLocaleString('en-IN'),
+      Student: record.student?.name || 'Unknown',
+      'Registration No': record.student?.manualRegsiName || record.student?.regNo || '',
+      Reason: record.reason,
+      'Pending Dues': Number(record.pendingDues) || 0,
+      Deductions: Number(record.deductions) || 0,
+      'Net Refund': Number(record.netRefund) || 0,
+      Remarks: record.remarks || '',
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clearance Records');
+    XLSX.writeFile(workbook, `Clearance_Records_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   return (
     <div className="ui-page">
       <PageHeader 
@@ -75,16 +124,51 @@ const ClearanceRecords = () => {
         subtitle="View history of vacated students and settled dues"
         icon={<FileText size={24} color="#fff" />} iconBg="linear-gradient(135deg, #ec4899 0%, #db2777 100%)"
         rightContent={
-          <button 
-            onClick={() => { setIsModalOpen(true); }}
-            className="ui-btn ui-btn-primary"
-          >
-            Process New Clearance
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button onClick={handleExport} className="ui-btn ui-btn-success" disabled={filteredRecords.length === 0}>
+              <FileSpreadsheet size={16} /> Export Excel
+            </button>
+            <button
+              onClick={() => { setIsModalOpen(true); }}
+              className="ui-btn ui-btn-primary"
+            >
+              Process New Clearance
+            </button>
+          </div>
         }
       />
 
       <div className="ui-card ui-card--flush">
+        <div style={{ padding: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search student, registration, reason..."
+              aria-label="Search clearance records"
+              style={{ width: '100%', padding: '9px 12px 9px 34px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '13px' }}
+            />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
+            From:
+            <input type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} aria-label="From date" style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#334155' }} />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
+            To:
+            <input type="date" value={toDate} onChange={event => setToDate(event.target.value)} aria-label="To date" style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#334155' }} />
+          </label>
+          {(searchQuery || fromDate || toDate) && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); }}
+              className="ui-btn ui-btn-secondary"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
         <div className="ui-table-wrap">
           <table className="ui-table">
             <thead>
@@ -105,12 +189,12 @@ const ClearanceRecords = () => {
                 <tr>
                   <td colSpan={7} className="ui-empty ui-empty--danger">{error}</td>
                 </tr>
-              ) : records.length === 0 ? (
+              ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="ui-empty">No clearance records found.</td>
+                  <td colSpan={7} className="ui-empty">{records.length === 0 ? 'No clearance records found.' : 'No records match the selected filters.'}</td>
                 </tr>
               ) : (
-                records.map(record => (
+                filteredRecords.map(record => (
                   <tr key={record.id}>
                     <td>
                       {new Date(record.clearanceDate).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
