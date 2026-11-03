@@ -13,6 +13,8 @@ const ClearanceRecords = () => {
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -96,6 +98,9 @@ const ClearanceRecords = () => {
     });
   }, [records, searchQuery, fromDate, toDate]);
 
+  const totalPages = Math.ceil(filteredRecords.length / limit);
+  const paginatedRecords = filteredRecords.slice((page - 1) * limit, page * limit);
+
   const handleExport = () => {
     if (filteredRecords.length === 0) {
       return;
@@ -146,23 +151,23 @@ const ClearanceRecords = () => {
               type="text"
               className="ui-input"
               value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
+              onChange={event => { setSearchQuery(event.target.value); setPage(1); }}
               placeholder="Search student, registration, reason..."
               aria-label="Search clearance records"
             />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
             From:
-            <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={event => setFromDate(event.target.value)} aria-label="From date" />
+            <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={event => { setFromDate(event.target.value); setPage(1); }} aria-label="From date" />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
             To:
-            <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={event => setToDate(event.target.value)} aria-label="To date" />
+            <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={event => { setToDate(event.target.value); setPage(1); }} aria-label="To date" />
           </label>
           {(searchQuery || fromDate || toDate) && (
             <button
               type="button"
-              onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); }}
+              onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); setPage(1); }}
               className="ui-btn ui-btn-secondary"
             >
               Clear filters
@@ -173,6 +178,7 @@ const ClearanceRecords = () => {
           <table className="ui-table">
             <thead>
               <tr>
+                <th>S.No.</th>
                 <th>Date</th>
                 <th>Student</th>
                 <th>Reason</th>
@@ -184,18 +190,19 @@ const ClearanceRecords = () => {
             </thead>
             <tbody>
               {loading ? (
-                <LoadingRow colSpan={7} text="Loading records..." />
+                <LoadingRow colSpan={8} text="Loading records..." />
               ) : error ? (
                 <tr>
-                  <td colSpan={7} className="ui-empty ui-empty--danger">{error}</td>
+                  <td colSpan={8} className="ui-empty ui-empty--danger">{error}</td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="ui-empty">{records.length === 0 ? 'No clearance records found.' : 'No records match the selected filters.'}</td>
+                  <td colSpan={8} className="ui-empty">{records.length === 0 ? 'No clearance records found.' : 'No records match the selected filters.'}</td>
                 </tr>
               ) : (
-                filteredRecords.map(record => (
+                paginatedRecords.map((record, index) => (
                   <tr key={record.id}>
+                    <td>{(page - 1) * limit + index + 1}</td>
                     <td>
                       {new Date(record.clearanceDate).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
@@ -213,6 +220,30 @@ const ClearanceRecords = () => {
               )}
             </tbody>
           </table>
+          {!loading && !error && filteredRecords.length > 0 && (
+            <div className="ui-pagination">
+              <div className="ui-pagination-info">
+                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, filteredRecords.length)} of {filteredRecords.length} entries
+              </div>
+              <div className="ui-pagination-pages">
+                <button
+                  onClick={() => setPage(current => Math.max(1, current - 1))}
+                  disabled={page === 1}
+                  className="ui-page-btn"
+                >
+                  Previous
+                </button>
+                <button className="ui-page-btn active">{page}</button>
+                <button
+                  onClick={() => setPage(current => Math.min(totalPages, current + 1))}
+                  disabled={page >= totalPages}
+                  className="ui-page-btn"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
