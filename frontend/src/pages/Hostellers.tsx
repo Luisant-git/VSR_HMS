@@ -81,7 +81,7 @@ const Hostellers = () => {
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
   const [feeStatusFilter, setFeeStatusFilter] = useState('-- All Fee Status --');
-  const [statusFilter, setStatusFilter] = useState('-- All Status --');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortFilter, setSortFilter] = useState('latest');
 
@@ -571,7 +571,7 @@ const Hostellers = () => {
                 setRoomFilter('-- All Rooms --');
                 setCollegeFilter('-- All Colleges --');
                 setFeeStatusFilter('-- All Fee Status --');
-                setStatusFilter('-- All Status --');
+                setStatusFilter('ACTIVE');
                 setSortFilter('latest');
                 setPage(1);
               }}
