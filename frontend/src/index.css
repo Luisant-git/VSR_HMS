@@ -2993,6 +2993,10 @@ textarea.ui-form-control {
   font-size: 13px;
 }
 
+.clearance-records-search {
+  width: 280px;
+}
+
 /* Fees --------------------------------------------------------------------- */
 .fees-stats {
   margin-bottom: 12px;

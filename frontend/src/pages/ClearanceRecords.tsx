@@ -139,25 +139,25 @@ const ClearanceRecords = () => {
       />
 
       <div className="ui-card ui-card--flush">
-        <div style={{ padding: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border-color)' }}>
-          <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+        <div className="ui-toolbar">
+          <div className="ui-input-icon clearance-records-search">
+            <Search size={16} />
             <input
-              type="search"
+              type="text"
+              className="ui-input"
               value={searchQuery}
               onChange={event => setSearchQuery(event.target.value)}
               placeholder="Search student, registration, reason..."
               aria-label="Search clearance records"
-              style={{ width: '100%', padding: '9px 12px 9px 34px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '13px' }}
             />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
             From:
-            <input type="date" value={fromDate} onChange={event => setFromDate(event.target.value)} aria-label="From date" style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#334155' }} />
+            <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={event => setFromDate(event.target.value)} aria-label="From date" />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
             To:
-            <input type="date" value={toDate} onChange={event => setToDate(event.target.value)} aria-label="To date" style={{ padding: '8px', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#334155' }} />
+            <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={event => setToDate(event.target.value)} aria-label="To date" />
           </label>
           {(searchQuery || fromDate || toDate) && (
             <button
