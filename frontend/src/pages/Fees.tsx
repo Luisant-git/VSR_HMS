@@ -461,15 +461,20 @@ const Fees = () => {
     return result;
   }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
-  // Fresh billing cycle begins November 1, 2026.
-  // Card 1: Total Invoiced for the fresh cycle (November invoices starting tomorrow)
+  // Sum pending invoice transactions directly so every eligible share (including
+  // October 2026 EB bills) is counted once, independent of display grouping.
   const totalInvoiced = useMemo(() => {
     return roundMoney(
-      displayFees
-        .filter(f => f.status === 'PENDING' && !isOutstandingInvoice(f) && !isPreviousSettledFee(f))
-        .reduce((sum, f) => sum + Number(f.totalAmount || 0), 0)
+      filteredFees
+        .filter(f =>
+          f.status === 'PENDING' &&
+          !isOutstandingInvoice(f) &&
+          !isImportedInvoice(f) &&
+          !isPreviousSettledFee(f),
+        )
+        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
     );
-  }, [displayFees]);
+  }, [filteredFees]);
 
   // Card 2: Total Fees Collected for the fresh cycle (collections starting from tomorrow)
   const totalCollected = useMemo(() => {
