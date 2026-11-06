@@ -60,21 +60,10 @@ export default function PortalTopBar({
             left: 0;
             right: 0;
             bottom: calc(100% - 1px);
-            height: 26px;
+            height: 40px;
             background: #ffffff;
             pointer-events: none;
-            z-index: 1;
-          }
-          .portal-topbar::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(100% - 1px);
-            height: 18px;
-            background: #ffffff;
-            pointer-events: none;
-            z-index: 1;
+            z-index: 2;
           }
         `}
       </style>
@@ -85,17 +74,17 @@ export default function PortalTopBar({
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          marginBottom: '26px',
+          marginBottom: '12px',
           marginLeft: flush ? '-22px' : undefined,
           marginRight: flush ? '-22px' : undefined,
           marginTop: flush ? '-22px' : undefined,
           background: '#ffffff',
           border: 'none',
-          borderRadius: flush ? '28px 28px 0 0' : '18px',
-          padding: '15px 18px 22px',
+          borderRadius: flush ? '20px 20px 0 0' : '18px',
+          padding: '12px 16px 14px',
           color: '#ffffff',
-          boxShadow: '0 8px 20px -10px rgba(37, 99, 235, 0.7)',
-          overflow: 'hidden',
+          boxShadow: '0 8px 20px -12px rgba(37, 99, 235, 0.6)',
+          overflow: 'visible',
         }}
       >
         <svg
@@ -113,30 +102,31 @@ export default function PortalTopBar({
             </linearGradient>
           </defs>
           <rect width="1000" height="120" fill="#ffffff" />
-          <path d="M18 0H982Q1000 0 1000 18V92C845 105 705 113 530 111C335 109 155 90 0 101V18Q0 0 18 0Z" fill="#93b4ff" />
-          <path d="M18 0H982Q1000 0 1000 18V82C845 95 705 102 530 100C335 98 155 79 0 91V18Q0 0 18 0Z" fill="url(#portal-header-gradient)" />
+          <path d="M18 0H982Q1000 0 1000 18V85C845 92 700 96 532 95C330 94 160 82 0 90V18Q0 0 18 0Z" fill="#93b4ff" />
+          <path d="M18 0H982Q1000 0 1000 18V76C845 83 700 88 532 87C330 86 160 73 0 82V18Q0 0 18 0Z" fill="url(#portal-header-gradient)" />
           <path
-            d="M18 0H982Q1000 0 1000 18V92C845 105 705 113 530 111C335 109 155 90 0 101V18Q0 0 18 0Z"
+            d="M18 0H982Q1000 0 1000 18V85C845 92 700 96 532 95C330 94 160 82 0 90V18Q0 0 18 0Z"
             fill="none"
-            stroke="#dbeafe"
-            strokeWidth="2"
+            stroke="rgba(191,219,254,0.9)"
+            strokeWidth="1.2"
             vectorEffect="non-scaling-stroke"
           />
         </svg>
 
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-              <UsersRound size={25} strokeWidth={2.2} style={{ flexShrink: 0 }} />
-              <div style={{ width: '1px', height: '32px', background: 'rgba(255, 255, 255, 0.45)', flexShrink: 0 }} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+              <UsersRound size={24} strokeWidth={2.1} style={{ flexShrink: 0 }} />
+              <div style={{ width: '1px', height: '26px', background: 'rgba(255, 255, 255, 0.45)', flexShrink: 0 }} />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div
                   className="portal-topbar-brand"
                   style={{
                     color: '#ffffff',
-                    fontSize: 'clamp(11px, 2.5vw, 16px)',
+                    fontSize: 'clamp(10px, 2vw, 15px)',
                     fontWeight: 800,
-                    lineHeight: 1.2,
+                    lineHeight: 1.1,
+                    letterSpacing: '0.02em',
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
