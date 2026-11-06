@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Building } from 'lucide-react';
+import { ArrowLeft, UsersRound } from 'lucide-react';
 import { BRAND_NAME } from '../utils/branding';
 
 type PortalTopBarProps = {
@@ -39,7 +39,7 @@ export default function PortalTopBar({
       <style>
         {`
           @media (max-width: 640px) {
-            .portal-topbar { padding: 11px 13px !important; border-radius: 14px !important; }
+            .portal-topbar { padding: 12px 14px 18px !important; border-radius: 14px !important; }
             .portal-topbar-brand { font-size: 11px !important; }
             .portal-topbar-student { display: none !important; }
           }
@@ -56,7 +56,7 @@ export default function PortalTopBar({
           background: 'transparent',
           border: 'none',
           borderRadius: '18px',
-          padding: '12px 16px',
+          padding: '15px 18px 22px',
           color: '#ffffff',
           boxShadow: '0 8px 20px -10px rgba(37, 99, 235, 0.7)',
           overflow: 'hidden',
@@ -83,7 +83,7 @@ export default function PortalTopBar({
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
-              <Building size={25} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+              <UsersRound size={25} strokeWidth={2.2} style={{ flexShrink: 0 }} />
               <div style={{ width: '1px', height: '32px', background: 'rgba(255, 255, 255, 0.45)', flexShrink: 0 }} />
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div

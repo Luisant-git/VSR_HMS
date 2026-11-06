@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FileText, Mail, MapPin, Phone, RotateCcw, ShieldCheck } from 'lucide-react';
 import { setDocumentTitle } from '../utils/documentTitle';
@@ -91,6 +91,7 @@ function getPolicyKey(pathname: string): PolicyKey {
 
 export default function PolicyPage() {
   const { pathname } = useLocation();
+  const pageRef = useRef<HTMLDivElement>(null);
   const policyKey = getPolicyKey(pathname);
   const policy = POLICIES[policyKey];
   const Icon = policy.icon;
@@ -100,21 +101,37 @@ export default function PolicyPage() {
     // modal is not forced open when the student goes back.
     sessionStorage.setItem('student_portal_return_from_policy', '1');
     setDocumentTitle(`${policy.title} | ${BRAND_NAME}`);
+    // Reset the page's own scroll container, otherwise opening a policy from
+    // a footer link can keep the previous page's scroll position.
+    pageRef.current?.scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo(0, 0);
-  }, [policy.title]);
+  }, [policy.title, pathname]);
 
   return (
-    <div className="policy-page" style={{ height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', boxSizing: 'border-box', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '32px 20px' }}>
+    <div ref={pageRef} className="policy-page" style={{ height: '100vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch', boxSizing: 'border-box', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '32px 20px' }}>
       <style>
         {`
           @media (max-width: 640px) {
             .policy-page { padding: 20px 14px !important; }
+            .policy-shell { padding: 14px !important; border-radius: 20px !important; }
             .policy-card { padding: 22px !important; border-radius: 16px !important; }
             .policy-title { font-size: 22px !important; }
           }
         `}
       </style>
-      <div style={{ maxWidth: '850px', margin: '0 auto' }}>
+      <div
+        className="policy-shell"
+        style={{
+          maxWidth: '860px',
+          margin: '0 auto',
+          background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+          border: '1px solid #dbeafe',
+          borderRadius: '28px',
+          padding: '22px',
+          boxShadow: '0 24px 60px -45px rgba(30, 64, 175, 0.35)',
+          boxSizing: 'border-box',
+        }}
+      >
         <PortalTopBar backTo="/student-portal?fromPolicy=1" />
 
         <div className="policy-card" style={{ background: 'white', borderRadius: '20px', padding: '36px', boxShadow: '0 10px 30px -15px rgba(0,0,0,0.1)', border: '1px solid #f1f5f9' }}>

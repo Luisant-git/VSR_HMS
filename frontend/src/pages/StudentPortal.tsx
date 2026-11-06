@@ -40,6 +40,12 @@ export default function StudentPortal() {
         setError("No student registered with this mobile number. Please check the number and try again.");
         setStudent(null);
         sessionStorage.removeItem('student_portal_mobile');
+      } else if (data.status === 'Vacated') {
+        // Inactive students must not be able to open the payment portal.
+        setError('This student account is inactive. Please contact the hostel office for assistance.');
+        setStudent(null);
+        setFeesToPay([]);
+        sessionStorage.removeItem('student_portal_mobile');
       } else {
         if (data.transactions) {
           data.transactions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
