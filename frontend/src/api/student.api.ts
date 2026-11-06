@@ -57,7 +57,8 @@ export const StudentAPI = {
   async findByMobile(mobileNo: string) {
     const res = await fetch(`${API_URL}/students/mobile/${mobileNo}`);
     if (!res.ok) throw new Error('Failed to fetch student by mobile');
-    return res.json();
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
   },
 
   async getNextRegsiName() {

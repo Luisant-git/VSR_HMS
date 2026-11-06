@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Wallet, ArrowLeft, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { CheckCircle, Wallet, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
-import { getSystemSettings } from '../api/settings.api';
 import { setDocumentTitle } from '../utils/documentTitle';
+import { BRAND_NAME } from '../utils/branding';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
+import PortalTopBar from '../components/PortalTopBar';
+import PortalFooter from '../components/PortalFooter';
 import {
   buildOutstandingSummary,
   calculatePendingDues,
@@ -13,22 +16,23 @@ import {
 } from '../utils/outstanding';
 
 export default function StudentPortal() {
+  const location = useLocation();
+  const fromPolicy =
+    new URLSearchParams(location.search).get('fromPolicy') === '1' ||
+    sessionStorage.getItem('student_portal_return_from_policy') === '1';
   const [mobileNo, setMobileNo] = useState('');
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [feesToPay, setFeesToPay] = useState<any[]>([]);
   const [receiptToShow, setReceiptToShow] = useState<any>(null);
   const [error, setError] = useState('');
-  const [hostelName, setHostelName] = useState('Hostel Management System');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   useEffect(() => {
-    getSystemSettings().then(data => {
-      if (data && data.hostelName) setHostelName(data.hostelName);
-      setDocumentTitle(data?.hostelName);
-    }).catch(() => { });
+    setDocumentTitle(BRAND_NAME);
   }, []);
 
-  const loadStudent = async (searchMobile: string) => {
+  const loadStudent = async (searchMobile: string, openPaymentModal = true) => {
     setLoading(true);
     try {
       const data = await StudentAPI.findByMobile(searchMobile);
@@ -46,7 +50,7 @@ export default function StudentPortal() {
         // settled outstanding invoices remain PENDING on purpose (their
         // original amounts are preserved), so net them with confirmed payments.
         const pendingDues = calculatePendingDues(data.transactions || []);
-        if (pendingDues > 0.005) {
+        if (pendingDues > 0.005 && openPaymentModal) {
           const pending = (data.transactions || []).filter(isCurrentCycleFee);
           setFeesToPay(pending.map((p: any) => ({ ...p, student: data })));
         } else {
@@ -63,13 +67,23 @@ export default function StudentPortal() {
     const savedMobile = sessionStorage.getItem('student_portal_mobile');
     if (savedMobile) {
       setMobileNo(savedMobile);
-      loadStudent(savedMobile);
+      // Returning from a policy page should restore the student details but
+      // must not pop the payment modal automatically.
+      loadStudent(savedMobile, !fromPolicy);
     }
   }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    // A deliberate search from the portal is a fresh visit, so future
+    // restores may show the payment modal again.
+    sessionStorage.removeItem('student_portal_return_from_policy');
+
+    if (!agreedToTerms) {
+      setError('Please accept the Terms and Conditions to continue.');
+      return;
+    }
 
     const cleanMobile = mobileNo.trim().replace(/\D/g, '');
     if (cleanMobile.length !== 10) {
@@ -132,58 +146,84 @@ export default function StudentPortal() {
     ...(outstandingSummary.remaining > 0.005 ? outstandingSummary.invoices : []),
   ].map((fee: any) => ({ ...fee, student }));
 
+  const studentInitials = (student?.name || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part: string) => part.charAt(0).toUpperCase())
+    .join('');
+
   if (!student) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '20px' }}>
-        <div style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '40px', borderRadius: '24px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-            <div style={{ width: '64px', height: '64px', background: '#eff6ff', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-              <Wallet size={32} />
+      <div className="portal-login-shell" style={{ height: '100vh', width: '100%', overflowY: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#f8fafc', fontFamily: '"Inter", sans-serif' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px 20px' }}>
+          <div className="login-card" style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '22px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ width: '56px', height: '56px', background: '#eff6ff', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                <Wallet size={28} />
+              </div>
             </div>
-          </div>
 
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h2 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Fee Portal</h2>
-            <p style={{ color: '#64748b', margin: 0, fontSize: '15px' }}>Enter your registered mobile number to securely pay your fees.</p>
-          </div>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '22px', fontWeight: 900, color: '#1e3a8a', margin: '0 0 6px 0', letterSpacing: '0.2px', lineHeight: 1.25 }}>{BRAND_NAME}</h1>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px 0', letterSpacing: '-0.3px' }}>Student Payment Portal</h2>
+              <p style={{ color: '#64748b', margin: 0, fontSize: '14px' }}>Pay your hostel fees securely.</p>
+            </div>
 
-          <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+            <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    value={mobileNo}
+                    onChange={(e) => setMobileNo(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    style={{
+                      width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: '#f8fafc', color: '#1e293b', boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <input
-                  type="text"
-                  value={mobileNo}
-                  onChange={(e) => setMobileNo(e.target.value)}
-                  placeholder="e.g. 9876543210"
-                  style={{
-                    width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: '#f8fafc', color: '#1e293b'
+                  id="portal-terms"
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => {
+                    setAgreedToTerms(e.target.checked);
+                    if (e.target.checked) setError('');
                   }}
-                  onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; }}
-                  onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                  style={{ width: '17px', height: '17px', accentColor: '#2563eb', flexShrink: 0, cursor: 'pointer' }}
                 />
+                <label htmlFor="portal-terms" style={{ color: '#475569', fontSize: '13px', cursor: 'pointer' }}>I agree to the</label>
+                <Link to="/terms-and-conditions" style={{ color: '#2563eb', fontSize: '13px', fontWeight: 600, textDecoration: 'underline' }}>Terms &amp; Conditions</Link>
               </div>
-            </div>
 
-            {error && (
-              <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', color: '#ef4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <AlertCircle size={20} style={{ flexShrink: 0 }} /> <span>{error}</span>
-              </div>
-            )}
+              {error && (
+                <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', color: '#ef4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AlertCircle size={20} style={{ flexShrink: 0 }} /> <span>{error}</span>
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                background: '#2563eb', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '8px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-              }}
-              onMouseOver={(e) => { if (!loading) { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)'; } }}
-              onMouseOut={(e) => { if (!loading) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
-            >
-              {loading ? 'Searching...' : 'Continue to Fee Portal →'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  background: '#2563eb', color: 'white', padding: '14px', borderRadius: '12px', border: 'none', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: '4px', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                }}
+                onMouseOver={(e) => { if (!loading) { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)'; } }}
+                onMouseOut={(e) => { if (!loading) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
+              >
+                {loading ? 'Searching...' : 'Continue to Payment Portal →'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
@@ -195,6 +235,8 @@ export default function StudentPortal() {
         {`
           @media (max-width: 640px) {
             .profile-card { flex-direction: column !important; align-items: flex-start !important; gap: 15px; }
+            .profile-main { align-items: flex-start !important; gap: 12px !important; }
+            .profile-avatar { width: 56px !important; height: 56px !important; font-size: 17px !important; }
             .profile-details { flex-direction: column !important; gap: 8px !important; }
             .pending-block { flex-direction: column !important; align-items: flex-start !important; gap: 15px; }
             .pending-block button { width: 100%; justify-content: center; }
@@ -205,37 +247,50 @@ export default function StudentPortal() {
             .login-card { padding: 24px !important; }
             .portal-container { padding: 20px 15px !important; }
             .student-header-box { flex-direction: column; text-align: center; }
+            .portal-topbar { padding: 8px 10px !important; border-radius: 14px !important; gap: 8px !important; }
+            .portal-topbar-brand { font-size: 11px !important; }
+            .portal-topbar-back { width: 30px !important; height: 30px !important; }
+            .portal-footer { margin: 24px -14px -14px !important; padding: 24px 20px !important; border-radius: 0 0 19px 19px !important; box-shadow: none !important; }
+            .portal-shell { padding: 14px !important; border-radius: 20px !important; }
           }
           .history-cards { display: none; }
           .history-cards::-webkit-scrollbar { width: 4px; }
           .history-cards::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         `}
       </style>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 className="portal-title" style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 8px 0', background: 'linear-gradient(to right, #1e3a8a, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{hostelName} Student Portal</h1>
-          <p className="portal-subtitle" style={{ color: '#64748b', fontSize: '16px', margin: 0, fontWeight: 500 }}>View your details and securely pay your fees online.</p>
-        </div>
-        <div>
-          <button
-            onClick={() => {
-              setStudent(null);
-              setMobileNo('');
-              sessionStorage.removeItem('student_portal_mobile');
-            }}
-            style={{ background: 'transparent', border: 'none', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '20px', padding: 0 }}
-          >
-            <ArrowLeft size={16} /> Back to Search
-          </button>
+      <div className="portal-shell" style={{ maxWidth: '860px', margin: '0 auto', background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)', border: '1px solid #dbeafe', borderRadius: '28px', padding: '22px', boxShadow: '0 24px 60px -45px rgba(30, 64, 175, 0.35)', boxSizing: 'border-box' }}>
+        <PortalTopBar
+          studentName={student.name}
+          studentRegNo={student.manualRegsiName || student.regNo}
+          onBack={() => {
+            setStudent(null);
+            setMobileNo('');
+            sessionStorage.removeItem('student_portal_mobile');
+          }}
+        />
 
+        <div>
           {/* Profile Card */}
           <div className="profile-card" style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0' }}>{student.name}</h2>
-              <div className="profile-details" style={{ display: 'flex', gap: '20px', color: '#475569', fontSize: '14px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><IdCard size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Reg No:</strong> {student.manualRegsiName || student.regNo}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Room:</strong> {student.roomNo || 'N/A'}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><GraduationCap size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>College:</strong> {student.college?.name || 'N/A'}</span>
+            <div className="profile-main" style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0 }}>
+              <div className="profile-avatar" style={{ position: 'relative', width: '68px', height: '68px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', border: '2px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: '20px', fontWeight: 800, letterSpacing: '0.5px', boxShadow: '0 4px 10px -4px rgba(37, 99, 235, 0.35)' }}>
+                {studentInitials || <IdCard size={24} />}
+                {student.photoUrl && (
+                  <img
+                    src={student.photoUrl}
+                    alt={student.name}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                  />
+                )}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0' }}>{student.name}</h2>
+                <div className="profile-details" style={{ display: 'flex', gap: '20px', color: '#475569', fontSize: '14px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><IdCard size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Reg No:</strong> {student.manualRegsiName || student.regNo}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Building size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>Room:</strong> {student.roomNo || 'N/A'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><GraduationCap size={16} color="#94a3b8" /><strong style={{ color: '#1e293b' }}>College:</strong> {student.college?.name || 'N/A'}</span>
+                </div>
               </div>
             </div>
             <div style={{ background: '#dcfce7', color: '#166534', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -324,6 +379,8 @@ export default function StudentPortal() {
           )}
 
         </div>
+
+        <PortalFooter />
 
       </div>
 

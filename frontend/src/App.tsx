@@ -34,6 +34,7 @@ import BiometricRegistration from './pages/biometrics/BiometricRegistration';
 import BiometricIdentify from './pages/biometrics/BiometricIdentify';
 import BiometricRecords from './pages/biometrics/BiometricRecords';
 import PublicStudentId from './pages/PublicStudentId';
+import PolicyPage from './pages/PolicyPage';
 import { MessAttendanceReport } from './pages/MessAttendanceReport';
 import StaffMaster from './pages/StaffMaster';
 import StaffAttendance from './pages/StaffAttendance';
@@ -74,6 +75,9 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/student-portal" element={<StudentPortal />} />
+        <Route path="/privacy-policy" element={<PolicyPage />} />
+        <Route path="/return-policy" element={<PolicyPage />} />
+        <Route path="/terms-and-conditions" element={<PolicyPage />} />
         <Route path="/student-admission" element={<StudentAdmissionForm />} />
         <Route path="/id/:id" element={<PublicStudentId />} />
         <Route path="/canteen" element={<ProtectedRoute><CanteenMaster /></ProtectedRoute>} />
