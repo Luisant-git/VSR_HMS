@@ -51,6 +51,31 @@ export default function PortalTopBar({
             .portal-topbar-brand { font-size: 11px !important; }
             .portal-topbar-student { display: none !important; }
           }
+          .portal-topbar {
+            isolation: isolate;
+          }
+          .portal-topbar::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: calc(100% - 1px);
+            height: 26px;
+            background: #ffffff;
+            pointer-events: none;
+            z-index: 1;
+          }
+          .portal-topbar::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% - 1px);
+            height: 18px;
+            background: #ffffff;
+            pointer-events: none;
+            z-index: 1;
+          }
         `}
       </style>
 
@@ -59,12 +84,12 @@ export default function PortalTopBar({
         style={{
           position: 'sticky',
           top: 0,
-          zIndex: 30,
+          zIndex: 100,
           marginBottom: '26px',
           marginLeft: flush ? '-22px' : undefined,
           marginRight: flush ? '-22px' : undefined,
           marginTop: flush ? '-22px' : undefined,
-          background: 'transparent',
+          background: '#ffffff',
           border: 'none',
           borderRadius: flush ? '28px 28px 0 0' : '18px',
           padding: '15px 18px 22px',
@@ -78,7 +103,7 @@ export default function PortalTopBar({
           focusable="false"
           viewBox="0 0 1000 120"
           preserveAspectRatio="none"
-          style={{ position: 'absolute', inset: 0, zIndex: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          style={{ position: 'absolute', inset: 0, zIndex: 0, width: '100%', height: '100%', borderRadius: 'inherit', pointerEvents: 'none' }}
         >
           <defs>
             <linearGradient id="portal-header-gradient" x1="0" y1="0" x2="1" y2="0">
@@ -87,8 +112,16 @@ export default function PortalTopBar({
               <stop offset="100%" stopColor="#3b82f6" />
             </linearGradient>
           </defs>
+          <rect width="1000" height="120" fill="#ffffff" />
           <path d="M18 0H982Q1000 0 1000 18V92C845 105 705 113 530 111C335 109 155 90 0 101V18Q0 0 18 0Z" fill="#93b4ff" />
           <path d="M18 0H982Q1000 0 1000 18V82C845 95 705 102 530 100C335 98 155 79 0 91V18Q0 0 18 0Z" fill="url(#portal-header-gradient)" />
+          <path
+            d="M18 0H982Q1000 0 1000 18V92C845 105 705 113 530 111C335 109 155 90 0 101V18Q0 0 18 0Z"
+            fill="none"
+            stroke="#dbeafe"
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+          />
         </svg>
 
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
