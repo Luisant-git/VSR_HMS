@@ -61,20 +61,28 @@ export default function StudentPortal() {
           if (result.paymentApplied) {
             data = await StudentAPI.findByMobile(searchMobile);
           }
-          if (result.pendingOrderId) {
+          if (result.refundRequired) {
+            setUnconfirmedPaymentOrderId(result.pendingOrderId || null);
+            setPaymentCheckRequired(true);
+            paymentNeedsCheck = true;
+            setPaymentStatusNotice(
+              'A captured payment needs hostel-office reconciliation. Do not pay again; contact the hostel office.',
+            );
+          } else if (result.paymentApplied && result.pendingOrderId) {
+            sessionStorage.setItem(orderStorageKey, result.pendingOrderId);
+            setUnconfirmedPaymentOrderId(result.pendingOrderId);
+            setPaymentCheckRequired(true);
+            paymentNeedsCheck = true;
+            setPaymentStatusNotice(
+              'Your captured payment was verified and applied. Another checkout is still being confirmed; do not pay again until it is checked.',
+            );
+          } else if (result.pendingOrderId) {
             sessionStorage.setItem(orderStorageKey, result.pendingOrderId);
             setUnconfirmedPaymentOrderId(result.pendingOrderId);
             setPaymentCheckRequired(true);
             paymentNeedsCheck = true;
             setPaymentStatusNotice(
               'Your payment is still being confirmed. Do not pay again until its status is checked.',
-            );
-          } else if (result.refundRequired) {
-            setUnconfirmedPaymentOrderId(null);
-            setPaymentCheckRequired(true);
-            paymentNeedsCheck = true;
-            setPaymentStatusNotice(
-              'A captured payment needs hostel-office reconciliation. Do not pay again; contact the hostel office.',
             );
           } else {
             sessionStorage.removeItem(orderStorageKey);
@@ -210,6 +218,16 @@ export default function StudentPortal() {
         setPaymentCheckRequired(true);
         setPaymentStatusNotice(
           'A captured payment needs hostel-office reconciliation. Do not pay again; contact the hostel office.',
+        );
+      } else if (result.paymentApplied && result.pendingOrderId) {
+        sessionStorage.setItem(
+          `razorpay_pending_order_${student.id}`,
+          result.pendingOrderId,
+        );
+        setUnconfirmedPaymentOrderId(result.pendingOrderId);
+        setPaymentCheckRequired(true);
+        setPaymentStatusNotice(
+          'Your captured payment was verified and applied. Another checkout is still being confirmed; do not pay again until it is checked.',
         );
       } else if (result.pendingOrderId) {
         sessionStorage.setItem(

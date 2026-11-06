@@ -346,4 +346,43 @@ describe('RazorpayPaymentService signature checks', () => {
       payments: [],
     });
   });
+
+  it('reports an applied captured payment alongside a separate pending order', async () => {
+    const prisma = {
+      razorpayOrder: {
+        findMany: vi.fn().mockResolvedValue([
+          { orderId: 'order-pending' },
+          { orderId: 'order-captured' },
+        ]),
+      },
+    };
+    const paymentService = new RazorpayPaymentService(
+      prisma as never,
+      {} as FeesService,
+    );
+    paymentService['reconcileOrder'] = vi
+      .fn()
+      .mockResolvedValueOnce({
+        duplicate: false,
+        orderId: 'order-pending',
+        paymentId: null,
+        status: 'CREATED',
+        paymentStatus: 'authorized',
+        payments: [],
+      })
+      .mockResolvedValueOnce({
+        duplicate: false,
+        orderId: 'order-captured',
+        paymentId: 'pay-captured',
+        payments: [{ id: 'fee-1', status: 'COMPLETED' }],
+      });
+
+    await expect(
+      paymentService.reconcileStudentOrders('student-1'),
+    ).resolves.toEqual({
+      paymentApplied: true,
+      pendingOrderId: 'order-pending',
+      refundRequired: false,
+    });
+  });
 });
