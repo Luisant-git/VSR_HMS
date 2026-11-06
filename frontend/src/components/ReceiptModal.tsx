@@ -29,6 +29,18 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const feesList = isGrouped ? fee.feesList : [fee];
   const firstFee = feesList[0];
   const primaryStudent = isGrouped ? fee.student : firstFee?.student;
+  const razorpayOrderId =
+    fee?.razorpayOrderId ||
+    feesList.find((item: any) => item.razorpayOrderId)?.razorpayOrderId;
+  const razorpayPaymentId =
+    fee?.razorpayPaymentId ||
+    feesList.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId;
+  const paymentStatus =
+    fee?.paymentStatus ||
+    feesList.find((item: any) => item.paymentStatus)?.paymentStatus;
+  const paymentMethod =
+    fee?.paymentMethod ||
+    feesList.find((item: any) => item.paymentMethod)?.paymentMethod;
   
   const totalAmount = isGrouped ? fee.totalAmount : firstFee?.amount;
   const paymentMode = isGrouped ? fee.paymentMode : firstFee?.paymentMode;
@@ -117,6 +129,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   Registration No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</span><br/>
                   Room No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</span><br/>
                   Payment Mode: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</span>
+                  {paymentMethod && <><br/>Gateway Method: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMethod.toUpperCase()}</span></>}
+                  {razorpayOrderId && <><br/>Razorpay Order ID: <span style={{ fontWeight: 600, color: '#1e293b' }}>{razorpayOrderId}</span></>}
+                  {razorpayPaymentId && <><br/>Razorpay Payment ID: <span style={{ fontWeight: 600, color: '#1e293b' }}>{razorpayPaymentId}</span></>}
+                  {paymentStatus && <><br/>Payment Status: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentStatus.toUpperCase()}</span></>}
                   {refNo && <><br/>Transaction Ref: <span style={{ fontWeight: 600, color: '#1e293b' }}>{refNo}</span></>}
                   {notesText && <><br/>Notes: <span style={{ fontWeight: 600, color: '#1e293b' }}>{notesText}</span></>}
                 </div>

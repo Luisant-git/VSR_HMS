@@ -878,7 +878,24 @@ const Fees = () => {
                         ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                       </td>
 
-                      <td className="fees-method" title={fee.status === 'COMPLETED' ? fee.paymentMode : undefined}>
+                      <td
+                        className="fees-method"
+                        title={
+                          fee.status === 'COMPLETED'
+                            ? [
+                                fee.paymentMode,
+                                fee.feesList?.find((item: any) => item.razorpayOrderId)?.razorpayOrderId &&
+                                  `Order: ${fee.feesList.find((item: any) => item.razorpayOrderId).razorpayOrderId}`,
+                                fee.feesList?.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId &&
+                                  `Payment: ${fee.feesList.find((item: any) => item.razorpayPaymentId).razorpayPaymentId}`,
+                                fee.feesList?.find((item: any) => item.paymentMethod)?.paymentMethod &&
+                                  `Gateway method: ${fee.feesList.find((item: any) => item.paymentMethod).paymentMethod}`,
+                              ]
+                                .filter(Boolean)
+                                .join(' | ')
+                            : undefined
+                        }
+                      >
                         {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
                       </td>
                       <td className="fees-status">

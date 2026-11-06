@@ -57,7 +57,16 @@ export default function StudentPortal() {
         // original amounts are preserved), so net them with confirmed payments.
         const pendingDues = calculatePendingDues(data.transactions || []);
         if (pendingDues > 0.005 && openPaymentModal) {
-          const pending = (data.transactions || []).filter(isCurrentCycleFee);
+          const currentFees = (data.transactions || []).filter(isCurrentCycleFee);
+          const historicalOutstanding = buildOutstandingSummary(
+            data.transactions || [],
+          );
+          const pending = [
+            ...currentFees,
+            ...(historicalOutstanding.remaining > 0.005
+              ? historicalOutstanding.invoices
+              : []),
+          ];
           setFeesToPay(pending.map((p: any) => ({ ...p, student: data })));
         } else {
           setFeesToPay([]);

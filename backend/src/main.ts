@@ -1,3 +1,4 @@
+require('dotenv').config();
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
@@ -12,7 +13,9 @@ async function bootstrap() {
   if (!existsSync(uploadDir)) {
     mkdirSync(uploadDir, { recursive: true });
   }
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe());
@@ -45,4 +48,3 @@ async function bootstrap() {
   console.log(`📚 Swagger documentation is available at: http://localhost:${port}/api`);
 }
 bootstrap();
-

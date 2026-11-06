@@ -115,6 +115,7 @@ model Student {
   room         Room?            @relation(fields: [roomNo], references: [id])
   gateLogs     GateLog[]
   transactions FeeTransaction[]
+  razorpayOrders RazorpayOrder[]
   clearance    ClearanceRecord?
   outpasses    Outpass[]
   messAttendances MessAttendance[]
@@ -156,7 +157,11 @@ model FeeTransaction {
   amount          Float
   description     String?
   status          String // "PENDING", "COMPLETED", "FAILED"
-  paymentMode     String? // "CASH", "UPI", "BANK_TRANSFER"
+  paymentMode     String? // "CASH", "UPI", "BANK_TRANSFER", "RAZORPAY"
+  razorpayOrderId String?
+  razorpayPaymentId String?
+  paymentStatus   String?
+  paymentMethod   String?
 
   // Stable, sequential invoice number assigned once (e.g. INV-2026-10-001).
   // It is never recalculated, so adding a payment cannot renumber older rows.
@@ -169,6 +174,28 @@ model FeeTransaction {
   updatedAt DateTime @updatedAt
 
   @@index([invoiceNumber])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+}
+
+model RazorpayOrder {
+  id                     String   @id @default(uuid())
+  studentId              String
+  student                Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  clientRequestId        String   @unique
+  orderId                String?  @unique
+  paymentId              String?  @unique
+  paymentMethod          String?
+  amountPaise            Int
+  currency               String   @default("INR")
+  status                 String   @default("CREATING")
+  paymentStatus          String?
+  feeItems               Json
+  outstandingAmountPaise Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([studentId, status])
 }
 
 // One row per calendar month, used to allocate invoice numbers atomically.

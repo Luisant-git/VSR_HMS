@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { FeesService } from './fees.service';
 import { FeesController } from './fees.controller';
 import { PrismaService } from '../prisma.service';
+import { RazorpayPaymentService } from './razorpay-payment.service';
 
 @Module({
-  providers: [FeesService, PrismaService],
+  providers: [FeesService, RazorpayPaymentService, PrismaService],
   controllers: [FeesController]
 })
 export class FeesModule {}

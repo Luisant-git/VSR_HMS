@@ -57,5 +57,40 @@ export const FeesAPI = {
       throw new Error(error.message || 'Failed to process outstanding payment');
     }
     return res.json();
-  }
+  },
+
+  async createRazorpayOrder(data: {
+    studentId: string;
+    feeItems: Array<{ feeId: string; months: number }>;
+    outstandingAmount: number;
+    requestId: string;
+  }) {
+    const res = await fetch(`${API_URL}/fees/razorpay/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to start online payment');
+    }
+    return res.json();
+  },
+
+  async verifyRazorpayPayment(data: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) {
+    const res = await fetch(`${API_URL}/fees/razorpay/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to verify online payment');
+    }
+    return res.json();
+  },
 };

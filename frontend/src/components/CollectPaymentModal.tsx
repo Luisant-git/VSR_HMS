@@ -1,8 +1,68 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { X, CheckCircle } from 'lucide-react';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
+
+interface RazorpayCheckoutResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayPaymentFailure {
+  error?: { description?: string; reason?: string };
+}
+
+interface RazorpayCheckoutInstance {
+  open: () => void;
+  on: (event: 'payment.failed', handler: (response: RazorpayPaymentFailure) => void) => void;
+}
+
+interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  notes?: Record<string, string>;
+  theme?: { color: string };
+  handler: (response: RazorpayCheckoutResponse) => void | Promise<void>;
+  modal?: { ondismiss?: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayCheckoutOptions) => RazorpayCheckoutInstance;
+  }
+}
+
+let razorpayScriptPromise: Promise<void> | null = null;
+
+const loadRazorpayCheckout = () => {
+  if (window.Razorpay) return Promise.resolve();
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        razorpayScriptPromise = null;
+        reject(new Error('Could not load Razorpay Checkout. Check your connection and try again.'));
+      };
+      document.body.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+};
+
+const createPaymentRequestId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `RZP-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 interface CollectPaymentModalProps {
   fee?: any;
@@ -29,6 +89,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ updatedItems: any[], paymentMode: string } | null>(null);
+  const onlineRequestId = useRef<string | null>(null);
+  const [onlineConfirmationPending, setOnlineConfirmationPending] = useState(false);
 
   const itemsToPay = fees && fees.length > 0 ? fees : fee ? [fee] : [];
   const primaryStudent = itemsToPay.length > 0 ? itemsToPay[0].student : null;
@@ -268,6 +330,119 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
     setIsSubmitting(false);
   };
 
+  const handleOnlinePayment = async () => {
+    if (!isStudentMode) return;
+    if (outstandingSelected && outstandingError) {
+      toast.error(outstandingError);
+      return;
+    }
+    if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
+      toast.error('Please select at least one fee or enter an outstanding amount.');
+      return;
+    }
+
+    const studentId =
+      primaryStudent?.id ||
+      primaryStudent?.uuid ||
+      itemsToPay[0]?.studentId ||
+      itemsToPay[0]?.student?.id;
+    if (!studentId) {
+      toast.error('Unable to identify the student for this payment.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await loadRazorpayCheckout();
+      if (!window.Razorpay) {
+        throw new Error('Razorpay Checkout did not initialize. Please try again.');
+      }
+
+      const order = await FeesAPI.createRazorpayOrder({
+        studentId,
+        feeItems: activeItemsToPay.map(item => ({
+          feeId: item.id,
+          months: getMultiplier(item.transactionType),
+        })),
+        outstandingAmount: hasOutstandingPayment ? outstandingAmount : 0,
+        requestId:
+          onlineRequestId.current ||
+          (onlineRequestId.current = createPaymentRequestId()),
+      });
+
+      let paymentHandled = false;
+      const checkout = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.orderId,
+        name: 'VSR Hostel Management',
+        description: `Hostel fees for ${primaryStudent?.name || 'student'}`,
+        prefill: {
+          name: primaryStudent?.name || order.studentName,
+          email: primaryStudent?.emailId || order.email,
+          contact: primaryStudent?.mobileNo || order.contact,
+        },
+        notes: { studentId },
+        theme: { color: '#2563eb' },
+        handler: async response => {
+          paymentHandled = true;
+          try {
+            const result = await FeesAPI.verifyRazorpayPayment(response);
+            if (result.refundRequired) {
+              setOnlineConfirmationPending(true);
+              toast.error(
+                `Razorpay captured payment ${response.razorpay_payment_id}, but the fee changed before it could be applied. Contact the hostel office; do not pay again.`,
+                { autoClose: false },
+              );
+              setIsSubmitting(false);
+              return;
+            }
+            const paidItems = (result.payments || []).map((item: any) => ({
+              ...item,
+              student: item.student || primaryStudent,
+            }));
+            toast.success('Online payment verified successfully.');
+            setPaymentSuccessData({
+              updatedItems: paidItems,
+              paymentMode: 'RAZORPAY',
+            });
+          } catch (error: any) {
+            setOnlineConfirmationPending(true);
+            toast.error(
+              `Payment was submitted to Razorpay but confirmation is pending. Do not pay again; refresh the portal shortly. ${error.message || ''}`,
+              { autoClose: false },
+            );
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            if (!paymentHandled) {
+              onlineRequestId.current = null;
+              setIsSubmitting(false);
+              toast.info('Payment was cancelled. No fees were marked as paid.');
+            }
+          },
+        },
+      });
+      checkout.on('payment.failed', response => {
+        paymentHandled = true;
+        onlineRequestId.current = null;
+        setIsSubmitting(false);
+        toast.error(
+          response.error?.description || 'Razorpay could not complete the payment.',
+        );
+      });
+      checkout.open();
+    } catch (error: any) {
+      onlineRequestId.current = null;
+      setIsSubmitting(false);
+      toast.error(error.message || 'Could not start online payment.');
+    }
+  };
+
   const monthSourceDesc = selectableCurrentItems[0]?.description || itemsToPay[0]?.description || '';
   const currentMonthStr = itemsToPay.length > 0 ? getMonthNames(1, monthSourceDesc) : '';
   const coveredPeriodStr = itemsToPay.length > 0 ? getMonthNames(months, monthSourceDesc) : '';
@@ -311,6 +486,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const outstandingInvalid = outstandingSelected && outstandingInputTrimmed !== '' && outstandingError !== null;
   const canSubmit =
     !isSubmitting &&
+    !onlineConfirmationPending &&
     !outstandingInvalid &&
     (activeItemsToPay.length > 0 || hasOutstandingPayment);
 
@@ -504,24 +680,32 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
               {/* Payment Details */}
               <div style={{ marginBottom: '24px' }}>
-                <div style={{ display: 'flex', gap: '16px', marginBottom: !isStudentMode ? '16px' : '0' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Mode <span style={{color: '#ef4444'}}>*</span></label>
-                    <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', outline: 'none', fontSize: '14px', color: '#1e293b' }}>
-                      <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
-                      {!isStudentMode && <option value="CASH">Cash</option>}
-                      <option value="CARD">Credit / Debit Card</option>
-                      <option value="NETBANKING">Net Banking</option>
-                      {!isStudentMode && <option value="BANK_TRANSFER">Bank Transfer</option>}
-                    </select>
-                  </div>
+                {!isStudentMode && (
+                  <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Mode <span style={{color: '#ef4444'}}>*</span></label>
+                      <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', outline: 'none', fontSize: '14px', color: '#1e293b' }}>
+                        <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
+                        <option value="CASH">Cash</option>
+                        <option value="CARD">Credit / Debit Card</option>
+                        <option value="NETBANKING">Net Banking</option>
+                        <option value="BANK_TRANSFER">Bank Transfer</option>
+                      </select>
+                    </div>
                   {!isStudentMode && (
                     <div style={{ flex: 1 }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
                       <input type="text" placeholder="UPI Ref ID or Cheque #" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px' }} />
                     </div>
                   )}
-                </div>
+                  </div>
+                )}
+
+                {isStudentMode && (
+                  <div style={{ padding: '12px 14px', border: '1px solid #bfdbfe', borderRadius: '8px', background: '#eff6ff', color: '#1e40af', fontSize: '13px' }}>
+                    Secure online checkout supports UPI, cards, net banking, and other Razorpay-enabled payment methods.
+                  </div>
+                )}
 
                 {!isStudentMode && (
                   <div>
@@ -546,11 +730,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
               </div>
 
               <button
-                onClick={handleSubmit}
+                onClick={isStudentMode ? handleOnlinePayment : handleSubmit}
                 disabled={!canSubmit}
                 style={{ width: '100%', padding: '16px', borderRadius: '10px', background: !canSubmit ? '#94a3b8' : (isStudentMode ? '#2563eb' : '#10b981'), color: 'white', border: 'none', cursor: !canSubmit ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: canSubmit ? '0 4px 6px -1px rgba(16, 185, 129, 0.2), 0 2px 4px -1px rgba(16, 185, 129, 0.1)' : 'none', transition: 'all 0.2s' }}
               >
-                {isSubmitting ? 'Processing Payment...' : `Proceed to Pay ₹${totalAmount.toLocaleString('en-IN')}`}
+                {onlineConfirmationPending
+                  ? 'Payment Confirmation Pending'
+                  : isSubmitting
+                    ? 'Processing Payment...'
+                    : `${isStudentMode ? 'Pay Online' : 'Proceed to Pay'} ₹${totalAmount.toLocaleString('en-IN')}`}
               </button>
             </div>
           </>

@@ -1291,7 +1291,14 @@ const StudentProfile = () => {
                                   {txn.status === 'COMPLETED' ? formatInvoiceNumber({ ...txn, student }, fees) : '—'}
                                 </td>
                                 <td>
-                                  <span className="ui-badge ui-badge-neutral">
+                                  <span
+                                    className="ui-badge ui-badge-neutral"
+                                    title={
+                                      txn.razorpayPaymentId
+                                        ? `Razorpay Order: ${txn.razorpayOrderId || 'N/A'} | Payment: ${txn.razorpayPaymentId} | Status: ${txn.paymentStatus || 'N/A'}`
+                                        : undefined
+                                    }
+                                  >
                                     {txn.paymentMode || 'N/A'}
                                   </span>
                                 </td>

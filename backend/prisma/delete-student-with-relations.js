@@ -95,6 +95,18 @@ async function findTarget(client) {
       clearance: { select: { id: true } },
       outpasses: { select: { id: true } },
       messAttendances: { select: { id: true } },
+      razorpayOrders: {
+        select: {
+          id: true,
+          orderId: true,
+          paymentId: true,
+          amountPaise: true,
+          status: true,
+          paymentStatus: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      },
     },
     take: 2,
   });
@@ -140,6 +152,7 @@ function relatedCounts(student) {
     clearanceRecords: student.clearance ? 1 : 0,
     outpasses: student.outpasses.length,
     messAttendanceRows: student.messAttendances.length,
+    razorpayOrders: student.razorpayOrders.length,
   };
 }
 
@@ -165,6 +178,19 @@ function printPreview(student) {
   );
   console.log('\nRelated records that will also be deleted:');
   console.table([counts]);
+  if (student.razorpayOrders.length > 0) {
+    console.log('\nRazorpay order/payment records that will be deleted:');
+    console.table(
+      student.razorpayOrders.map(order => ({
+        id: order.id,
+        orderId: order.orderId || '—',
+        paymentId: order.paymentId || '—',
+        amount: `₹${(order.amountPaise / 100).toFixed(2)}`,
+        status: order.status,
+        paymentStatus: order.paymentStatus || '—',
+      })),
+    );
+  }
   console.log(
     '\nThe Student record and all listed fee/payment history, gate logs, clearance, outpasses, and mess attendance are permanently removed. Room D1 itself is preserved.',
   );

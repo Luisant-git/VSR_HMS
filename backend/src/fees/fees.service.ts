@@ -205,11 +205,41 @@ export class FeesService {
     );
   }
 
+  async applyVerifiedRazorpayOutstandingPayment(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+    amount: number,
+    orderId: string,
+    paymentId: string,
+    paymentStatus: string,
+    paymentMethod?: string,
+  ) {
+    return this.applyOutstandingPayment(
+      tx,
+      {
+        studentId,
+        amount,
+        paymentMode: 'RAZORPAY',
+        referenceNumber: `Razorpay ${paymentId}`,
+        requestId: `RZP-${orderId}`,
+      },
+      roundMoney(amount),
+      `RZP-${orderId}`,
+      { orderId, paymentId, paymentStatus, paymentMethod },
+    );
+  }
+
   private async applyOutstandingPayment(
     tx: Prisma.TransactionClient,
     dto: PayOutstandingDto,
     amount: number,
     requestId?: string,
+    gateway?: {
+      orderId: string;
+      paymentId: string;
+      paymentStatus: string;
+      paymentMethod?: string;
+    },
   ) {
     const { studentId } = dto;
 
@@ -297,6 +327,10 @@ export class FeesService {
         paidDate,
         invoiceNumber,
         description: `Outstanding payment${this.buildDescriptionSuffix(dto, requestId)}`,
+        razorpayOrderId: gateway?.orderId,
+        razorpayPaymentId: gateway?.paymentId,
+        paymentStatus: gateway?.paymentStatus,
+        paymentMethod: gateway?.paymentMethod,
       },
     });
 
