@@ -1,5 +1,5 @@
 /**
- * Marks the specified invoice unpaid in the configured database.
+ * Marks the specified RENT fee unpaid in the configured database.
  *
  * Preview (default):
  *   node prisma/set-invoice-unpaid.js
@@ -17,6 +17,7 @@ const TARGET = {
   invoiceNumber: 'INV-2026-11-003',
   registrationNumber: 'SEASIND26332',
   studentName: 'V. Sakthi',
+  transactionType: 'RENT',
   amount: 6000,
 };
 const CONFIRMATION = 'SET-INV-2026-11-003-UNPAID-SEASIND26332';
@@ -110,6 +111,7 @@ async function findTargetInvoice(client, studentId) {
       paymentMode: true,
       paidDate: true,
       invoiceNumber: true,
+      description: true,
     },
     orderBy: { createdAt: 'asc' },
   });
@@ -124,35 +126,32 @@ async function findTargetInvoice(client, studentId) {
       `Invoice has an unexpected transaction status. No changes made. Statuses: ${rows.map(row => row.status).join(', ')}`,
     );
   }
-  if (
-    rows.some(
-      row => String(row.transactionType).toUpperCase() === 'OUTSTANDING_PAYMENT',
-    )
-  ) {
+
+  const targets = rows.filter(
+    row =>
+      String(row.transactionType).toUpperCase() === TARGET.transactionType &&
+      Math.round(Number(row.amount || 0) * 100) ===
+        Math.round(TARGET.amount * 100),
+  );
+  if (targets.length !== 1) {
     throw new Error(
-      'The invoice contains an outstanding-payment receipt, not a fee invoice. No changes made.',
+      `Expected exactly one ${TARGET.transactionType} row of ₹${TARGET.amount.toFixed(2)} in ${TARGET.invoiceNumber}; found ${targets.length}. No changes made.`,
     );
   }
-  const invoiceAmountInPaise = rows.reduce(
-    (total, row) => total + Math.round(Number(row.amount || 0) * 100),
-    0,
-  );
-  if (invoiceAmountInPaise !== Math.round(TARGET.amount * 100)) {
+  if (String(targets[0].transactionType).toUpperCase() === 'OUTSTANDING_PAYMENT') {
     throw new Error(
-      `Expected invoice rows totaling ₹${TARGET.amount.toFixed(2)}, found ₹${(invoiceAmountInPaise / 100).toFixed(2)}. No changes made.`,
+      'The selected row is an outstanding-payment receipt, not a fee invoice. No changes made.',
     );
   }
 
-  return rows;
+  return { rows, targetRow: targets[0] };
 }
 
-function printPreview(student, rows) {
-  const rowsToChange = rows.filter(row => row.status === 'COMPLETED');
-  const amountToRestore = rowsToChange.reduce(
-    (total, row) => total + Number(row.amount || 0),
-    0,
-  );
-  const unpaidAfterUpdate = rows.reduce(
+function printPreview(student, { rows, targetRow }) {
+  const amountToRestore =
+    targetRow.status === 'COMPLETED' ? Number(targetRow.amount || 0) : 0;
+  const unpaidAfterUpdate = Number(targetRow.amount || 0);
+  const invoiceRowsTotal = rows.reduce(
     (total, row) => total + Number(row.amount || 0),
     0,
   );
@@ -161,30 +160,32 @@ function printPreview(student, rows) {
   console.log(`  Student:     ${student.name}`);
   console.log(`  Registration:${student.manualRegsiName || student.regNo}`);
   console.log(`  Invoice:     ${TARGET.invoiceNumber}`);
-  console.log('\nMatching invoice ledger rows:');
+  console.log('\nMatching invoice ledger rows (only the marked target will change):');
   console.table(
     rows.map(row => ({
       id: row.id,
       transactionType: row.transactionType,
       amount: `₹${Number(row.amount).toFixed(2)}`,
       status: row.status,
+      action: row.id === targetRow.id ? 'SET UNPAID' : 'UNCHANGED',
     })),
   );
-  console.log(`Rows to change: ${rowsToChange.length}`);
+  console.log(`Shared invoice rows total: ₹${invoiceRowsTotal.toFixed(2)}`);
+  console.log(`Rows to change: ${targetRow.status === 'COMPLETED' ? 1 : 0}`);
   console.log(
     `Amount returned to unpaid fees: ₹${amountToRestore.toFixed(2)}`,
   );
   console.log(
-    `Unpaid amount after update: ₹${unpaidAfterUpdate.toFixed(2)} (expected ₹${TARGET.amount.toFixed(2)})`,
+    `Target ${TARGET.transactionType} unpaid amount after update: ₹${unpaidAfterUpdate.toFixed(2)} (expected ₹${TARGET.amount.toFixed(2)})`,
   );
 }
 
-async function markInvoiceUnpaid(client, studentId, previewRows) {
+async function markInvoiceUnpaid(client, studentId, preview) {
   return client.$transaction(
     async tx => {
-      const currentRows = await findTargetInvoice(tx, studentId);
-      const expectedIds = previewRows.map(row => row.id).sort();
-      const currentIds = currentRows.map(row => row.id).sort();
+      const current = await findTargetInvoice(tx, studentId);
+      const expectedIds = preview.rows.map(row => row.id).sort();
+      const currentIds = current.rows.map(row => row.id).sort();
       if (
         expectedIds.length !== currentIds.length ||
         expectedIds.some((id, index) => id !== currentIds[index])
@@ -194,13 +195,25 @@ async function markInvoiceUnpaid(client, studentId, previewRows) {
         );
       }
 
-      const completedRows = currentRows.filter(row => row.status === 'COMPLETED');
-      if (completedRows.length > 0) {
+      if (
+        current.targetRow.id !== preview.targetRow.id ||
+        current.targetRow.status !== preview.targetRow.status ||
+        Math.round(Number(current.targetRow.amount || 0) * 100) !==
+          Math.round(Number(preview.targetRow.amount || 0) * 100)
+      ) {
+        throw new Error(
+          'The target fee changed after preview. Transaction aborted; run the script again to review the current records.',
+        );
+      }
+
+      if (current.targetRow.status === 'COMPLETED') {
         const result = await tx.feeTransaction.updateMany({
           where: {
-            id: { in: completedRows.map(row => row.id) },
+            id: current.targetRow.id,
             studentId,
             invoiceNumber: TARGET.invoiceNumber,
+            transactionType: TARGET.transactionType,
+            amount: TARGET.amount,
             status: 'COMPLETED',
           },
           data: {
@@ -210,26 +223,32 @@ async function markInvoiceUnpaid(client, studentId, previewRows) {
           },
         });
 
-        if (result.count !== completedRows.length) {
+        if (result.count !== 1) {
           throw new Error(
             'The number of updated rows did not match the preview. Transaction aborted.',
           );
         }
       }
 
-      return tx.feeTransaction.findMany({
-        where: {
-          studentId,
-          invoiceNumber: TARGET.invoiceNumber,
-        },
-        select: {
-          id: true,
-          transactionType: true,
-          amount: true,
-          status: true,
-        },
-        orderBy: { createdAt: 'asc' },
-      });
+      return {
+        rows: await tx.feeTransaction.findMany({
+          where: {
+            studentId,
+            invoiceNumber: TARGET.invoiceNumber,
+          },
+          select: {
+            id: true,
+            transactionType: true,
+            amount: true,
+            status: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        target: await tx.feeTransaction.findUnique({
+          where: { id: current.targetRow.id },
+          select: { id: true, transactionType: true, amount: true, status: true },
+        }),
+      };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
@@ -241,8 +260,8 @@ async function main() {
   const client = new PrismaClient();
   try {
     const student = await findTargetStudent(client);
-    const rows = await findTargetInvoice(client, student.id);
-    printPreview(student, rows);
+    const preview = await findTargetInvoice(client, student.id);
+    printPreview(student, preview);
 
     if (!APPLY_ENABLED) {
       console.log('\nPreview only; no database changes were made.');
@@ -252,33 +271,30 @@ async function main() {
       return;
     }
 
-    const updatedRows = await markInvoiceUnpaid(client, student.id, rows);
-    if (updatedRows.some(row => row.status !== 'PENDING')) {
+    const result = await markInvoiceUnpaid(client, student.id, preview);
+    if (
+      result.target?.status !== 'PENDING' ||
+      result.target.transactionType !== TARGET.transactionType ||
+      Math.round(Number(result.target.amount || 0) * 100) !==
+        Math.round(TARGET.amount * 100)
+    ) {
       throw new Error(
-        'Post-update verification failed: not all invoice rows are PENDING.',
-      );
-    }
-    const unpaidAmountInPaise = updatedRows.reduce(
-      (total, row) => total + Math.round(Number(row.amount || 0) * 100),
-      0,
-    );
-    if (unpaidAmountInPaise !== Math.round(TARGET.amount * 100)) {
-      throw new Error(
-        `Post-update verification failed: unpaid invoice total is ₹${(unpaidAmountInPaise / 100).toFixed(2)}, expected ₹${TARGET.amount.toFixed(2)}.`,
+        'Post-update verification failed: the target RENT row is not PENDING at the expected amount.',
       );
     }
 
     console.log('\nInvoice status update committed and verified:');
     console.table(
-      updatedRows.map(row => ({
+      result.rows.map(row => ({
         id: row.id,
         transactionType: row.transactionType,
         amount: `₹${Number(row.amount).toFixed(2)}`,
         status: row.status,
+        action: row.id === result.target.id ? 'SET UNPAID' : 'UNCHANGED',
       })),
     );
     console.log(
-      '₹6,000 now appears as unpaid and can be paid through the existing Fees payment flow. The original fee amounts and other invoices were not changed. Refresh the Fees UI to reload the balance.',
+      'The ₹6,000 RENT fee now appears as unpaid and can be paid through the existing Fees payment flow. Other rows sharing this invoice number and all other invoices were left unchanged. Refresh the Fees UI to reload the balance.',
     );
   } finally {
     await client.$disconnect();
