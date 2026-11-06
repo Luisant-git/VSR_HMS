@@ -61,6 +61,11 @@ gateway method are stored on the fee ledger and shown in receipts/payment
 history. Repeated verification of the same captured order does not create
 another fee payment.
 
+Orders request automatic payment capture. If the browser callback is missed
+after a UPI app return, the portal can reconcile the saved order directly with
+Razorpay and applies fees only when Razorpay reports a captured payment. An
+authorized, pending, or failed payment is never marked paid.
+
 Admin/cash collection continues through its existing flow.
 
 If a captured payment cannot be safely matched to still-pending fees, the order

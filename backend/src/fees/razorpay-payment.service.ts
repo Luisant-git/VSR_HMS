@@ -15,6 +15,20 @@ import { CreateRazorpayOrderDto } from './dto/create-razorpay-order.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 
 type StoredFeeItem = { feeId: string; months: number };
+type GatewayOrderRequest = {
+  amount: number;
+  currency: 'INR';
+  payment: {
+    capture: 'automatic';
+    capture_options: {
+      automatic_expiry_period: number;
+      manual_expiry_period: number;
+      refund_speed: 'normal';
+    };
+  };
+  receipt: string;
+  notes: { checkout_id: string; student_id: string };
+};
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -159,7 +173,6 @@ export class RazorpayPaymentService {
     }
 
     const keyId = this.getKeyId();
-    const secret = this.getKeySecret();
     const localOrder = await this.prisma.razorpayOrder.create({
       data: {
         studentId: student.id,
@@ -172,12 +185,17 @@ export class RazorpayPaymentService {
     });
 
     try {
-      const gatewayOrder = await new Razorpay({
-        key_id: keyId,
-        key_secret: secret,
-      }).orders.create({
+      const gatewayOrder = await this.createGatewayOrder({
         amount: totalPaise,
         currency: 'INR',
+        payment: {
+          capture: 'automatic',
+          capture_options: {
+            automatic_expiry_period: 12,
+            manual_expiry_period: 7200,
+            refund_speed: 'normal',
+          },
+        },
         receipt: localOrder.id,
         notes: {
           checkout_id: localOrder.id,
@@ -233,6 +251,119 @@ export class RazorpayPaymentService {
       'captured',
       paymentMethod,
     );
+  }
+
+  async reconcileOrder(orderId: string) {
+    const order = await this.prisma.razorpayOrder.findUnique({
+      where: { orderId },
+    });
+    if (!order) throw new NotFoundException('Razorpay order was not found.');
+
+    if (order.status === 'PAID' && order.paymentId) {
+      return this.applyCapturedPayment(
+        orderId,
+        order.paymentId,
+        order.paymentStatus || 'captured',
+        order.paymentMethod || undefined,
+      );
+    }
+    if (order.status === 'REFUND_REQUIRED') {
+      return {
+        duplicate: false,
+        refundRequired: true,
+        orderId,
+        paymentId: order.paymentId,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        payments: [],
+      };
+    }
+
+    let gatewayPayments: Awaited<
+      ReturnType<Razorpay['orders']['fetchPayments']>
+    >;
+    try {
+      gatewayPayments = await this.fetchOrderPayments(orderId);
+    } catch (error) {
+      this.logger.error(
+        'Could not retrieve Razorpay order payments.',
+        error instanceof Error ? error.message : String(error),
+      );
+      throw new ServiceUnavailableException(
+        'Unable to check payment status with Razorpay. Please try again.',
+      );
+    }
+
+    const latestPayment = [...gatewayPayments.items].sort(
+      (left, right) => right.created_at - left.created_at,
+    )[0];
+    const capturedPayment = gatewayPayments.items.find(
+      (payment) =>
+        payment.order_id === orderId &&
+        payment.status === 'captured' &&
+        payment.captured,
+    );
+    if (!capturedPayment) {
+      return {
+        duplicate: false,
+        orderId,
+        paymentId: null,
+        status: order.status,
+        paymentStatus: latestPayment?.status || order.paymentStatus || 'pending',
+        attemptCount: gatewayPayments.count,
+        payments: [],
+      };
+    }
+
+    const paymentMethod = await this.verifyProviderPayment(
+      orderId,
+      capturedPayment.id,
+    );
+    return this.applyCapturedPayment(
+      orderId,
+      capturedPayment.id,
+      'captured',
+      paymentMethod,
+    );
+  }
+
+  async reconcileStudentOrders(studentId: string) {
+    const orders = await this.prisma.razorpayOrder.findMany({
+      where: {
+        studentId,
+        status: { in: ['CREATED', 'REFUND_REQUIRED'] },
+        orderId: { not: null },
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { orderId: true },
+    });
+
+    let paymentApplied = false;
+    let pendingOrderId: string | null = null;
+    let refundRequired = false;
+    for (const order of orders) {
+      if (!order.orderId) continue;
+      const result = await this.reconcileOrder(order.orderId);
+      if (result.refundRequired) {
+        refundRequired = true;
+      } else if (
+        ('status' in result && result.status === 'PAID') ||
+        result.payments.length > 0
+      ) {
+        paymentApplied = true;
+      } else if (
+        (!('paymentStatus' in result) || result.paymentStatus !== 'failed') &&
+        !pendingOrderId
+      ) {
+        pendingOrderId = order.orderId;
+      }
+    }
+
+    return { paymentApplied, pendingOrderId, refundRequired };
   }
 
   async handleWebhook(
@@ -333,6 +464,20 @@ export class RazorpayPaymentService {
       );
     }
     return payment.method;
+  }
+
+  private fetchOrderPayments(orderId: string) {
+    return new Razorpay({
+      key_id: this.getKeyId(),
+      key_secret: this.getKeySecret(),
+    }).orders.fetchPayments(orderId);
+  }
+
+  private createGatewayOrder(order: GatewayOrderRequest) {
+    return new Razorpay({
+      key_id: this.getKeyId(),
+      key_secret: this.getKeySecret(),
+    }).orders.create(order);
   }
 
   private async applyCapturedPayment(

@@ -93,4 +93,30 @@ export const FeesAPI = {
     }
     return res.json();
   },
+
+  async reconcileRazorpayOrder(data: { orderId: string }) {
+    const res = await fetch(`${API_URL}/fees/razorpay/reconcile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to check online payment status');
+    }
+    return res.json();
+  },
+
+  async reconcileRecentRazorpayStudentOrders(data: { studentId: string }) {
+    const res = await fetch(`${API_URL}/fees/razorpay/reconcile-student`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to check recent online payments');
+    }
+    return res.json();
+  },
 };

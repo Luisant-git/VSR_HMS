@@ -6,6 +6,8 @@ import { UpdateFeeDto } from './dto/update-fee.dto';
 import { PayOutstandingDto } from './dto/pay-outstanding.dto';
 import { CreateRazorpayOrderDto } from './dto/create-razorpay-order.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
+import { ReconcileRazorpayOrderDto } from './dto/reconcile-razorpay-order.dto';
+import { ReconcileRazorpayStudentDto } from './dto/reconcile-razorpay-student.dto';
 
 @Controller('fees')
 export class FeesController {
@@ -32,6 +34,16 @@ export class FeesController {
   @Post('razorpay/verify')
   verifyRazorpayPayment(@Body() dto: VerifyRazorpayPaymentDto) {
     return this.razorpayPaymentService.verifyCheckout(dto);
+  }
+
+  @Post('razorpay/reconcile')
+  reconcileRazorpayOrder(@Body() dto: ReconcileRazorpayOrderDto) {
+    return this.razorpayPaymentService.reconcileOrder(dto.orderId);
+  }
+
+  @Post('razorpay/reconcile-student')
+  reconcileRazorpayStudent(@Body() dto: ReconcileRazorpayStudentDto) {
+    return this.razorpayPaymentService.reconcileStudentOrders(dto.studentId);
   }
 
   @Post('razorpay/webhook')

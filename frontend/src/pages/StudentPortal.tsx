@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, Wallet, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
+import { FeesAPI } from '../api/fees.api';
 import { setDocumentTitle } from '../utils/documentTitle';
 import { BRAND_NAME } from '../utils/branding';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
@@ -27,6 +28,10 @@ export default function StudentPortal() {
   const [receiptToShow, setReceiptToShow] = useState<any>(null);
   const [error, setError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [unconfirmedPaymentOrderId, setUnconfirmedPaymentOrderId] = useState<string | null>(null);
+  const [paymentCheckRequired, setPaymentCheckRequired] = useState(false);
+  const [paymentStatusNotice, setPaymentStatusNotice] = useState('');
+  const [checkingPaymentStatus, setCheckingPaymentStatus] = useState(false);
 
   useEffect(() => {
     setDocumentTitle(BRAND_NAME);
@@ -35,7 +40,7 @@ export default function StudentPortal() {
   const loadStudent = async (searchMobile: string, openPaymentModal = true) => {
     setLoading(true);
     try {
-      const data = await StudentAPI.findByMobile(searchMobile);
+      let data = await StudentAPI.findByMobile(searchMobile);
       if (!data) {
         setError("No student registered with this mobile number. Please check the number and try again.");
         setStudent(null);
@@ -47,6 +52,51 @@ export default function StudentPortal() {
         setFeesToPay([]);
         sessionStorage.removeItem('student_portal_mobile');
       } else {
+        let paymentNeedsCheck = false;
+        const orderStorageKey = `razorpay_pending_order_${data.id}`;
+        try {
+          const result = await FeesAPI.reconcileRecentRazorpayStudentOrders({
+            studentId: data.id,
+          });
+          if (result.paymentApplied) {
+            data = await StudentAPI.findByMobile(searchMobile);
+          }
+          if (result.pendingOrderId) {
+            sessionStorage.setItem(orderStorageKey, result.pendingOrderId);
+            setUnconfirmedPaymentOrderId(result.pendingOrderId);
+            setPaymentCheckRequired(true);
+            paymentNeedsCheck = true;
+            setPaymentStatusNotice(
+              'Your payment is still being confirmed. Do not pay again until its status is checked.',
+            );
+          } else if (result.refundRequired) {
+            setUnconfirmedPaymentOrderId(null);
+            setPaymentCheckRequired(true);
+            paymentNeedsCheck = true;
+            setPaymentStatusNotice(
+              'A captured payment needs hostel-office reconciliation. Do not pay again; contact the hostel office.',
+            );
+          } else {
+            sessionStorage.removeItem(orderStorageKey);
+            setUnconfirmedPaymentOrderId(null);
+            setPaymentCheckRequired(false);
+            setPaymentStatusNotice(
+              result.paymentApplied ? 'Your online payment was verified.' : '',
+            );
+          }
+        } catch {
+          paymentNeedsCheck = true;
+          setUnconfirmedPaymentOrderId(
+            sessionStorage.getItem(orderStorageKey),
+          );
+          setPaymentCheckRequired(true);
+          setPaymentStatusNotice(
+            'We could not confirm your recent payment status. Do not pay again until it is checked below.',
+          );
+        }
+        if (!paymentNeedsCheck) {
+          setUnconfirmedPaymentOrderId(null);
+        }
         if (data.transactions) {
           data.transactions.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
@@ -56,7 +106,7 @@ export default function StudentPortal() {
         // settled outstanding invoices remain PENDING on purpose (their
         // original amounts are preserved), so net them with confirmed payments.
         const pendingDues = calculatePendingDues(data.transactions || []);
-        if (pendingDues > 0.005 && openPaymentModal) {
+        if (pendingDues > 0.005 && openPaymentModal && !paymentNeedsCheck) {
           const currentFees = (data.transactions || []).filter(isCurrentCycleFee);
           const historicalOutstanding = buildOutstandingSummary(
             data.transactions || [],
@@ -115,6 +165,10 @@ export default function StudentPortal() {
     // payments are new ledger rows (the original invoices stay untouched), so
     // append them instead of only replacing existing rows.
     if (student && paidItems) {
+      sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+      setUnconfirmedPaymentOrderId(null);
+      setPaymentCheckRequired(false);
+      setPaymentStatusNotice('');
       const updatedTransactions = [...(student.transactions || [])];
       paidItems.forEach((paidItem: any) => {
         const index = updatedTransactions.findIndex((t: any) => t.id === paidItem.id);
@@ -137,6 +191,55 @@ export default function StudentPortal() {
         paidDate: new Date().toISOString()
       };
       setReceiptToShow(groupedFee);
+    }
+  };
+
+  const checkPreviousPayment = async () => {
+    if (!student) return;
+    setCheckingPaymentStatus(true);
+    try {
+      const result = await FeesAPI.reconcileRecentRazorpayStudentOrders({
+        studentId: student.id,
+      });
+      if (result.paymentApplied) {
+        const refreshedStudent = await StudentAPI.findByMobile(student.mobileNo);
+        if (refreshedStudent) setStudent(refreshedStudent);
+      }
+      if (result.refundRequired) {
+        setUnconfirmedPaymentOrderId(result.pendingOrderId || null);
+        setPaymentCheckRequired(true);
+        setPaymentStatusNotice(
+          'A captured payment needs hostel-office reconciliation. Do not pay again; contact the hostel office.',
+        );
+      } else if (result.pendingOrderId) {
+        sessionStorage.setItem(
+          `razorpay_pending_order_${student.id}`,
+          result.pendingOrderId,
+        );
+        setUnconfirmedPaymentOrderId(result.pendingOrderId);
+        setPaymentCheckRequired(true);
+        setPaymentStatusNotice(
+          'Payment is not confirmed yet. Do not pay again; check again shortly.',
+        );
+      } else {
+        sessionStorage.removeItem(
+          `razorpay_pending_order_${student.id}`,
+        );
+        setUnconfirmedPaymentOrderId(null);
+        setPaymentCheckRequired(false);
+        setPaymentStatusNotice(
+          result.paymentApplied
+            ? 'Your online payment was verified.'
+            : 'No successful payment was found. You can try paying again.',
+        );
+      }
+    } catch (statusError: any) {
+      setPaymentCheckRequired(true);
+      setPaymentStatusNotice(
+        `Could not check payment status: ${statusError.message || 'try again shortly'}. Do not pay again yet.`,
+      );
+    } finally {
+      setCheckingPaymentStatus(false);
     }
   };
 
@@ -398,6 +501,22 @@ export default function StudentPortal() {
 
           {/* Pending Fees */}
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '16px' }}>Pending Fees</h3>
+          {paymentStatusNotice && (
+            <div
+              role="status"
+              style={{
+                background: unconfirmedPaymentOrderId ? '#fff7ed' : '#eff6ff',
+                color: unconfirmedPaymentOrderId ? '#9a3412' : '#1e40af',
+                border: `1px solid ${unconfirmedPaymentOrderId ? '#fed7aa' : '#bfdbfe'}`,
+                borderRadius: '10px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                fontSize: '14px',
+              }}
+            >
+              {paymentStatusNotice}
+            </div>
+          )}
           {totalPendingAmount > 0.005 ? (
             <div style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '40px', padding: '30px' }}>
               <div className="pending-block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -407,12 +526,22 @@ export default function StudentPortal() {
                     You have outstanding dues totaling <strong style={{ color: '#0f172a' }}>₹{totalPendingAmount.toLocaleString('en-IN')}</strong>. Please clear them to avoid late fines.
                   </div>
                 </div>
-                <button
-                  onClick={() => setFeesToPay(pendingFeesToPay)}
-                  style={{ background: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
-                >
-                  <Wallet size={18} /> Pay All Dues Now
-                </button>
+                {paymentCheckRequired ? (
+                  <button
+                    onClick={checkPreviousPayment}
+                    disabled={checkingPaymentStatus}
+                    style={{ background: checkingPaymentStatus ? '#94a3b8' : '#d97706', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: checkingPaymentStatus ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    {checkingPaymentStatus ? 'Checking Payment...' : 'Check Payment Status'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setFeesToPay(pendingFeesToPay)}
+                    style={{ background: '#2563eb', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+                  >
+                    <Wallet size={18} /> Pay All Dues Now
+                  </button>
+                )}
               </div>
             </div>
           ) : (

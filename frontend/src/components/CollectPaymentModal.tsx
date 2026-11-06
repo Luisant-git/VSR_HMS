@@ -90,6 +90,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ updatedItems: any[], paymentMode: string } | null>(null);
   const onlineRequestId = useRef<string | null>(null);
+  const onlineOrderId = useRef<string | null>(null);
   const [onlineConfirmationPending, setOnlineConfirmationPending] = useState(false);
 
   const itemsToPay = fees && fees.length > 0 ? fees : fee ? [fee] : [];
@@ -330,6 +331,69 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
     setIsSubmitting(false);
   };
 
+  const applyOnlinePaymentResult = (result: any, studentId: string) => {
+    if (result.refundRequired) {
+      setOnlineConfirmationPending(true);
+      toast.error(
+        `Captured payment ${result.paymentId || ''} needs hostel-office reconciliation. Do not pay again.`,
+        { autoClose: false },
+      );
+      return true;
+    }
+
+    if (result.status !== 'PAID' && !result.payments?.length) return false;
+
+    const paidItems = (result.payments || []).map((item: any) => ({
+      ...item,
+      student: item.student || primaryStudent,
+    }));
+    sessionStorage.removeItem(`razorpay_pending_order_${studentId}`);
+    onlineOrderId.current = null;
+    setOnlineConfirmationPending(false);
+    toast.success('Online payment verified successfully.');
+    setPaymentSuccessData({
+      updatedItems: paidItems,
+      paymentMode: 'RAZORPAY',
+    });
+    return true;
+  };
+
+  const checkOnlinePaymentStatus = async (
+    orderId: string,
+    studentId: string,
+    failureMessage?: string,
+  ) => {
+    setIsSubmitting(true);
+    setOnlineConfirmationPending(true);
+    try {
+      const result = await FeesAPI.reconcileRazorpayOrder({ orderId });
+      if (applyOnlinePaymentResult(result, studentId)) return;
+
+      if (result.paymentStatus === 'failed') {
+        sessionStorage.removeItem(`razorpay_pending_order_${studentId}`);
+        onlineOrderId.current = null;
+        onlineRequestId.current = null;
+        setOnlineConfirmationPending(false);
+        toast.info(
+          failureMessage || 'No successful payment was found. You can try the payment again.',
+        );
+        return;
+      }
+
+      toast.info(
+        'Payment is not confirmed yet. Do not pay again; check the status again shortly.',
+        { autoClose: false },
+      );
+    } catch (error: any) {
+      toast.error(
+        `Could not confirm payment status. Do not pay again until it is checked. ${error.message || ''}`,
+        { autoClose: false },
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleOnlinePayment = async () => {
     if (!isStudentMode) return;
     if (outstandingSelected && outstandingError) {
@@ -369,6 +433,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
           onlineRequestId.current ||
           (onlineRequestId.current = createPaymentRequestId()),
       });
+      onlineOrderId.current = order.orderId;
+      sessionStorage.setItem(`razorpay_pending_order_${studentId}`, order.orderId);
 
       let paymentHandled = false;
       const checkout = new window.Razorpay({
@@ -389,30 +455,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
           paymentHandled = true;
           try {
             const result = await FeesAPI.verifyRazorpayPayment(response);
-            if (result.refundRequired) {
-              setOnlineConfirmationPending(true);
-              toast.error(
-                `Razorpay captured payment ${response.razorpay_payment_id}, but the fee changed before it could be applied. Contact the hostel office; do not pay again.`,
-                { autoClose: false },
-              );
-              setIsSubmitting(false);
-              return;
+            if (!applyOnlinePaymentResult(result, studentId)) {
+              await checkOnlinePaymentStatus(order.orderId, studentId);
             }
-            const paidItems = (result.payments || []).map((item: any) => ({
-              ...item,
-              student: item.student || primaryStudent,
-            }));
-            toast.success('Online payment verified successfully.');
-            setPaymentSuccessData({
-              updatedItems: paidItems,
-              paymentMode: 'RAZORPAY',
-            });
-          } catch (error: any) {
-            setOnlineConfirmationPending(true);
-            toast.error(
-              `Payment was submitted to Razorpay but confirmation is pending. Do not pay again; refresh the portal shortly. ${error.message || ''}`,
-              { autoClose: false },
-            );
+          } catch {
+            await checkOnlinePaymentStatus(order.orderId, studentId);
           } finally {
             setIsSubmitting(false);
           }
@@ -420,18 +467,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
         modal: {
           ondismiss: () => {
             if (!paymentHandled) {
-              onlineRequestId.current = null;
-              setIsSubmitting(false);
-              toast.info('Payment was cancelled. No fees were marked as paid.');
+              void checkOnlinePaymentStatus(order.orderId, studentId);
             }
           },
         },
       });
       checkout.on('payment.failed', response => {
         paymentHandled = true;
-        onlineRequestId.current = null;
-        setIsSubmitting(false);
-        toast.error(
+        void checkOnlinePaymentStatus(
+          order.orderId,
+          studentId,
           response.error?.description || 'Razorpay could not complete the payment.',
         );
       });
@@ -522,7 +567,14 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                   <span>Current: {currentMonthStr}</span>
                 </div>
               </div>
-              <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+              <button
+                onClick={onClose}
+                disabled={isStudentMode && onlineConfirmationPending}
+                title={onlineConfirmationPending ? 'Check payment status before closing' : 'Close'}
+                style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: isStudentMode && onlineConfirmationPending ? 'not-allowed' : 'pointer', opacity: isStudentMode && onlineConfirmationPending ? 0.5 : 1, padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div style={{ padding: '24px', overflowY: 'auto' }}>
@@ -730,12 +782,22 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
               </div>
 
               <button
-                onClick={isStudentMode ? handleOnlinePayment : handleSubmit}
-                disabled={!canSubmit}
+                onClick={() => {
+                  const orderId = onlineOrderId.current;
+                  const studentId = primaryStudent?.id || primaryStudent?.uuid;
+                  if (onlineConfirmationPending && orderId && studentId) {
+                    void checkOnlinePaymentStatus(orderId, studentId);
+                  } else if (isStudentMode) {
+                    void handleOnlinePayment();
+                  } else {
+                    void handleSubmit();
+                  }
+                }}
+                disabled={onlineConfirmationPending ? isSubmitting : !canSubmit}
                 style={{ width: '100%', padding: '16px', borderRadius: '10px', background: !canSubmit ? '#94a3b8' : (isStudentMode ? '#2563eb' : '#10b981'), color: 'white', border: 'none', cursor: !canSubmit ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', boxShadow: canSubmit ? '0 4px 6px -1px rgba(16, 185, 129, 0.2), 0 2px 4px -1px rgba(16, 185, 129, 0.1)' : 'none', transition: 'all 0.2s' }}
               >
                 {onlineConfirmationPending
-                  ? 'Payment Confirmation Pending'
+                  ? isSubmitting ? 'Checking Payment...' : 'Check Payment Status'
                   : isSubmitting
                     ? 'Processing Payment...'
                     : `${isStudentMode ? 'Pay Online' : 'Proceed to Pay'} ₹${totalAmount.toLocaleString('en-IN')}`}
