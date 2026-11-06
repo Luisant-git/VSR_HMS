@@ -162,9 +162,37 @@ export default function StudentPortal() {
 
   if (!student) {
     return (
-      <div className="portal-login-shell" style={{ height: '100vh', width: '100%', overflowY: 'auto', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#f8fafc', fontFamily: '"Inter", sans-serif' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 20px 20px' }}>
-          <div className="login-card" style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '22px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9' }}>
+      <div className="portal-login-shell" style={{ height: '100vh', width: '100%', overflowY: 'auto', boxSizing: 'border-box', background: '#f8fafc', fontFamily: '"Inter", sans-serif', padding: '24px 20px' }}>
+        <style>
+          {`
+            @media (max-width: 640px) {
+              .portal-login-shell { padding: 16px 14px !important; }
+              .portal-login-shell-inner { padding: 14px !important; border-radius: 20px !important; min-height: calc(100vh - 32px) !important; }
+              .portal-login-body { padding: 4px 0 18px !important; }
+              .portal-footer { margin: 24px -14px -14px !important; padding: 24px 20px !important; border-radius: 0 0 19px 19px !important; box-shadow: none !important; }
+              .login-card { padding: 24px !important; }
+            }
+          `}
+        </style>
+        <div
+          className="portal-login-shell-inner"
+          style={{
+            maxWidth: '860px',
+            margin: '0 auto',
+            minHeight: 'calc(100vh - 48px)',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+            border: '1px solid #dbeafe',
+            borderRadius: '28px',
+            padding: '22px',
+            boxShadow: '0 24px 60px -45px rgba(30, 64, 175, 0.35)',
+            boxSizing: 'border-box',
+          }}
+        >
+          <PortalTopBar flush />
+          <div className="portal-login-body" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px 0 26px' }}>
+            <div className="login-card" style={{ background: 'white', width: '100%', maxWidth: '440px', padding: '32px', borderRadius: '22px', boxShadow: '0 20px 40px -15px rgba(0,0,0,0.08)', border: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
               <div style={{ width: '56px', height: '56px', background: '#eff6ff', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
                 <Wallet size={28} />
@@ -230,6 +258,8 @@ export default function StudentPortal() {
               </button>
             </form>
           </div>
+        </div>
+        <PortalFooter />
         </div>
       </div>
     );

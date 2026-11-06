@@ -8,6 +8,7 @@ type PortalTopBarProps = {
   studentRegNo?: string;
   onBack?: () => void;
   backTo?: string;
+  flush?: boolean;
 };
 
 export default function PortalTopBar({
@@ -15,6 +16,7 @@ export default function PortalTopBar({
   studentRegNo,
   onBack,
   backTo,
+  flush = false,
 }: PortalTopBarProps) {
   const showBack = Boolean(onBack || backTo);
 
@@ -40,6 +42,12 @@ export default function PortalTopBar({
         {`
           @media (max-width: 640px) {
             .portal-topbar { padding: 12px 14px 18px !important; border-radius: 14px !important; }
+            .portal-topbar--flush {
+              margin-left: -14px !important;
+              margin-right: -14px !important;
+              margin-top: -14px !important;
+              border-radius: 20px 20px 0 0 !important;
+            }
             .portal-topbar-brand { font-size: 11px !important; }
             .portal-topbar-student { display: none !important; }
           }
@@ -47,15 +55,18 @@ export default function PortalTopBar({
       </style>
 
       <header
-        className="portal-topbar"
+        className={`portal-topbar${flush ? ' portal-topbar--flush' : ''}`}
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 30,
           marginBottom: '26px',
+          marginLeft: flush ? '-22px' : undefined,
+          marginRight: flush ? '-22px' : undefined,
+          marginTop: flush ? '-22px' : undefined,
           background: 'transparent',
           border: 'none',
-          borderRadius: '18px',
+          borderRadius: flush ? '28px 28px 0 0' : '18px',
           padding: '15px 18px 22px',
           color: '#ffffff',
           boxShadow: '0 8px 20px -10px rgba(37, 99, 235, 0.7)',
