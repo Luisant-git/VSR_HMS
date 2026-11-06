@@ -157,7 +157,7 @@ const Dashboard = () => {
           <div className="value">{activeLateWarnings}</div>
         </div>
 
-        <div className="metric-card metric-card-purple" style={{ cursor: 'pointer' }} onClick={() => navigate('/fees')}>
+        <div className="metric-card metric-card-purple metric-card-pending-fees" style={{ cursor: 'pointer' }} onClick={() => navigate('/fees')}>
           <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             Pending Fees
             <CreditCard size={18} />

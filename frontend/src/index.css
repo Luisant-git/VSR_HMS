@@ -752,6 +752,11 @@ textarea {
   font-weight: 700;
 }
 
+.metric-card-pending-fees .value {
+  font-size: clamp(14px, 1.65vw, 22px);
+  white-space: nowrap;
+}
+
 .metric-card-blue {
   background-color: var(--card-blue);
 }
