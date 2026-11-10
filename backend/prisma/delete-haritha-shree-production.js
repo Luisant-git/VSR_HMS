@@ -141,19 +141,16 @@ async function findTarget(client) {
   const invoiceMatches = student.transactions.filter(
     transaction => transaction.invoiceNumber === TARGET.invoiceNumber,
   );
-  if (invoiceMatches.length !== 1) {
+  const expectedPayments = invoiceMatches.filter(
+    transaction =>
+      transaction.status === 'COMPLETED' &&
+      transaction.paymentMode === 'RAZORPAY' &&
+      Math.round(Number(transaction.amount) * 100) ===
+        TARGET.paymentAmount * 100,
+  );
+  if (expectedPayments.length !== 1) {
     throw new Error(
-      `Expected exactly one related transaction with invoice ${TARGET.invoiceNumber}; found ${invoiceMatches.length}. No changes made.`,
-    );
-  }
-  const invoice = invoiceMatches[0];
-  if (
-    invoice.status !== 'COMPLETED' ||
-    invoice.paymentMode !== 'RAZORPAY' ||
-    Math.round(Number(invoice.amount) * 100) !== TARGET.paymentAmount * 100
-  ) {
-    throw new Error(
-      `Invoice ${TARGET.invoiceNumber} does not match the expected completed Razorpay payment of ₹${TARGET.paymentAmount.toFixed(2)}. No changes made.`,
+      `Expected exactly one completed Razorpay transaction of ₹${TARGET.paymentAmount.toFixed(2)} with invoice ${TARGET.invoiceNumber}; found ${expectedPayments.length} among ${invoiceMatches.length} transaction(s) sharing that invoice number. No changes made.`,
     );
   }
 
@@ -195,8 +192,10 @@ function printPreview(student, room) {
   console.table([
     {
       name: student.name,
-      registration: student.manualRegsiName || student.regNo,
+      registration: student.manualRegsiName,
+      regNo: student.regNo,
       internalId: student.id,
+      mobile: student.mobileNo || '—',
       room: student.roomNo,
       status: student.status,
       feeStatus: student.feeStatus,
@@ -216,6 +215,21 @@ function printPreview(student, room) {
       razorpayOrderId: transaction.razorpayOrderId || '—',
       razorpayPaymentId: transaction.razorpayPaymentId || '—',
     })),
+  );
+  console.log(`\nRows sharing invoice ${TARGET.invoiceNumber}:`);
+  console.table(
+    student.transactions
+      .filter(transaction => transaction.invoiceNumber === TARGET.invoiceNumber)
+      .map(transaction => ({
+        id: transaction.id,
+        type: transaction.transactionType,
+        amount: `₹${Number(transaction.amount).toFixed(2)}`,
+        status: transaction.status,
+        paymentMode: transaction.paymentMode || '—',
+        paymentStatus: transaction.paymentStatus || '—',
+        razorpayOrderId: transaction.razorpayOrderId || '—',
+        razorpayPaymentId: transaction.razorpayPaymentId || '—',
+      })),
   );
   if (student.razorpayOrders.length > 0) {
     console.log('\nRelated Razorpay order records that will be deleted:');
