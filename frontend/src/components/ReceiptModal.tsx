@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Printer } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { Download, X, Printer } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { getSystemSettings } from '../api/settings.api';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 
@@ -9,6 +12,8 @@ interface ReceiptModalProps {
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
+  const receiptContentRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
   const [settings, setSettings] = useState<any>({
     hostelName: 'HOSTEL MANAGEMENT SYSTEM',
     address: '123 University Road, City Campus\nState, ZIP 12345',
@@ -54,6 +59,64 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  const handleDownload = async () => {
+    if (!receiptContentRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(receiptContentRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const pageHeightPixels = Math.floor(
+        (pageHeight * canvas.width) / pageWidth,
+      );
+      let offsetY = 0;
+      while (offsetY < canvas.height) {
+        const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const context = pageCanvas.getContext('2d');
+        if (!context) throw new Error('Could not prepare receipt for download.');
+        context.drawImage(
+          canvas,
+          0,
+          offsetY,
+          canvas.width,
+          sliceHeight,
+          0,
+          0,
+          canvas.width,
+          sliceHeight,
+        );
+        if (offsetY > 0) pdf.addPage();
+        pdf.addImage(
+          pageCanvas.toDataURL('image/png'),
+          'PNG',
+          0,
+          0,
+          pageWidth,
+          (sliceHeight * pageWidth) / canvas.width,
+        );
+        offsetY += sliceHeight;
+      }
+      const fileName = (invoiceNo || receiptNo).replace(/[<>:"/\\|?*]+/g, '_');
+      pdf.save(`Receipt_${fileName}.pdf`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? `Could not download receipt: ${error.message}`
+          : 'Could not download receipt.',
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const firstFeeDesc = firstFee?.description || '';
   const refMatch = firstFeeDesc.match(/\|\s*Ref:\s*([^|]+)/);
   const refNo = refMatch ? refMatch[1].trim() : null;
@@ -97,7 +160,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             PAID
           </div>
 
-          <div style={{ position: 'relative', zIndex: 1 }}>
+          <div ref={receiptContentRef} style={{ position: 'relative', zIndex: 1 }}>
             {/* Header Section */}
             <div className="receipt-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
               <div>
@@ -217,6 +280,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         <div className="action-bar no-print" style={{ padding: '20px 40px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
           <button onClick={onClose} style={{ background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer', padding: '10px 24px', borderRadius: '8px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
             <X size={18} /> Close
+          </button>
+          <button onClick={handleDownload} disabled={downloading} style={{ background: '#16a34a', border: 'none', cursor: downloading ? 'wait' : 'pointer', opacity: downloading ? 0.7 : 1, padding: '10px 24px', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.2)' }}>
+            <Download size={18} /> {downloading ? 'Preparing PDF...' : 'Download Receipt'}
           </button>
           <button onClick={() => window.print()} style={{ background: '#0f172a', border: 'none', cursor: 'pointer', padding: '10px 24px', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)' }}>
             <Printer size={18} /> Print Document

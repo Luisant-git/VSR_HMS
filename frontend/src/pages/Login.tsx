@@ -5,6 +5,10 @@ import { toast } from 'react-toastify';
 import { UserAPI } from '../api/user.api';
 import { getSystemSettings } from '../api/settings.api';
 import { setDocumentTitle } from '../utils/documentTitle';
+import {
+  STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
+  STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
+} from '../utils/studentPortalPayment';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,11 +19,19 @@ const Login = () => {
   const [hostelName, setHostelName] = useState('Hostel Management System');
 
   useEffect(() => {
+    if (
+      localStorage.getItem(STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY) &&
+      localStorage.getItem(STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY)
+    ) {
+      navigate('/student-portal', { replace: true });
+      return;
+    }
+
     getSystemSettings().then(data => {
       if (data && data.hostelName) setHostelName(data.hostelName);
       setDocumentTitle(data?.hostelName);
     }).catch(() => {});
-  }, []);
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

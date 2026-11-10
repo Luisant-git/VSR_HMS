@@ -5,6 +5,11 @@ import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
 import { setDocumentTitle } from '../utils/documentTitle';
 import { BRAND_NAME } from '../utils/branding';
+import {
+  clearStudentPortalPaymentReturn,
+  STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
+  STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
+} from '../utils/studentPortalPayment';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { ReceiptModal } from '../components/ReceiptModal';
 import PortalTopBar from '../components/PortalTopBar';
@@ -37,6 +42,31 @@ export default function StudentPortal() {
     setDocumentTitle(BRAND_NAME);
   }, []);
 
+  const showPaymentReceipt = (
+    payments: any[],
+    studentData: any,
+    paymentMode = 'RAZORPAY',
+  ) => {
+    const paidItems = payments.map((item: any) => ({
+      ...item,
+      student: item.student || studentData,
+    }));
+    setReceiptToShow({
+      isGrouped: true,
+      feesList: paidItems,
+      student: studentData,
+      totalAmount: paidItems.reduce(
+        (total: number, item: any) => total + (Number(item.amount) || 0),
+        0,
+      ),
+      paymentMode,
+      paidDate:
+        paidItems[0]?.paidDate ||
+        paidItems[0]?.createdAt ||
+        new Date().toISOString(),
+    });
+  };
+
   const loadStudent = async (searchMobile: string, openPaymentModal = true) => {
     setLoading(true);
     try {
@@ -54,12 +84,41 @@ export default function StudentPortal() {
       } else {
         let paymentNeedsCheck = false;
         const orderStorageKey = `razorpay_pending_order_${data.id}`;
+        const returningOrderId =
+          localStorage.getItem(STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY) ||
+          sessionStorage.getItem(orderStorageKey);
         try {
           const result = await FeesAPI.reconcileRecentRazorpayStudentOrders({
             studentId: data.id,
           });
           if (result.paymentApplied) {
             data = await StudentAPI.findByMobile(searchMobile);
+          }
+          let recoveredPayments: any[] = [];
+          let recoveredPaymentFound = false;
+          if (returningOrderId) {
+            const orderResult = await FeesAPI.reconcileRazorpayOrder({
+              orderId: returningOrderId,
+            });
+            if (
+              orderResult.status === 'PAID' ||
+              orderResult.payments?.length > 0
+            ) {
+              recoveredPayments = orderResult.payments || [];
+              recoveredPaymentFound = true;
+              data = await StudentAPI.findByMobile(searchMobile);
+              sessionStorage.removeItem(orderStorageKey);
+              clearStudentPortalPaymentReturn();
+              setPaymentStatusNotice('Payment received successfully. Your receipt is ready to download.');
+              setUnconfirmedPaymentOrderId(null);
+              setPaymentCheckRequired(false);
+            } else if (orderResult.paymentStatus === 'failed') {
+              sessionStorage.removeItem(orderStorageKey);
+              clearStudentPortalPaymentReturn();
+            }
+          }
+          if (recoveredPayments.length > 0) {
+            showPaymentReceipt(recoveredPayments, data);
           }
           if (result.refundRequired) {
             setUnconfirmedPaymentOrderId(result.pendingOrderId || null);
@@ -89,7 +148,11 @@ export default function StudentPortal() {
             setUnconfirmedPaymentOrderId(null);
             setPaymentCheckRequired(false);
             setPaymentStatusNotice(
-              result.paymentApplied ? 'Your online payment was verified.' : '',
+              recoveredPaymentFound
+                ? 'Payment received successfully. Your receipt is ready to download.'
+                : result.paymentApplied
+                  ? 'Your online payment was verified.'
+                  : '',
             );
           }
         } catch {
@@ -137,7 +200,9 @@ export default function StudentPortal() {
   };
 
   useEffect(() => {
-    const savedMobile = sessionStorage.getItem('student_portal_mobile');
+    const savedMobile =
+      sessionStorage.getItem('student_portal_mobile') ||
+      localStorage.getItem(STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY);
     if (savedMobile) {
       setMobileNo(savedMobile);
       // Returning from a policy page should restore the student details but
@@ -174,9 +239,10 @@ export default function StudentPortal() {
     // append them instead of only replacing existing rows.
     if (student && paidItems) {
       sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+      clearStudentPortalPaymentReturn();
       setUnconfirmedPaymentOrderId(null);
       setPaymentCheckRequired(false);
-      setPaymentStatusNotice('');
+      setPaymentStatusNotice('Payment received successfully. Your receipt is ready to download.');
       const updatedTransactions = [...(student.transactions || [])];
       paidItems.forEach((paidItem: any) => {
         const index = updatedTransactions.findIndex((t: any) => t.id === paidItem.id);
@@ -209,6 +275,32 @@ export default function StudentPortal() {
       const result = await FeesAPI.reconcileRecentRazorpayStudentOrders({
         studentId: student.id,
       });
+      const returnOrderId =
+        localStorage.getItem(STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY) ||
+        sessionStorage.getItem(`razorpay_pending_order_${student.id}`);
+      let recoveredPaymentFound = false;
+      if (returnOrderId) {
+        const orderResult = await FeesAPI.reconcileRazorpayOrder({
+          orderId: returnOrderId,
+        });
+        if (
+          orderResult.status === 'PAID' ||
+          orderResult.payments?.length > 0
+        ) {
+          const paidItems = orderResult.payments || [];
+          const refreshedStudent = await StudentAPI.findByMobile(student.mobileNo);
+          if (refreshedStudent) {
+            setStudent(refreshedStudent);
+            showPaymentReceipt(paidItems, refreshedStudent);
+          }
+          sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+          clearStudentPortalPaymentReturn();
+          recoveredPaymentFound = true;
+        } else if (orderResult.paymentStatus === 'failed') {
+          sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+          clearStudentPortalPaymentReturn();
+        }
+      }
       if (result.paymentApplied) {
         const refreshedStudent = await StudentAPI.findByMobile(student.mobileNo);
         if (refreshedStudent) setStudent(refreshedStudent);
@@ -246,9 +338,11 @@ export default function StudentPortal() {
         setUnconfirmedPaymentOrderId(null);
         setPaymentCheckRequired(false);
         setPaymentStatusNotice(
-          result.paymentApplied
-            ? 'Your online payment was verified.'
-            : 'No successful payment was found. You can try paying again.',
+          recoveredPaymentFound
+            ? 'Payment received successfully. Your receipt is ready to download.'
+            : result.paymentApplied
+              ? 'Your online payment was verified.'
+              : 'No successful payment was found. You can try paying again.',
         );
       }
     } catch (statusError: any) {
@@ -523,9 +617,23 @@ export default function StudentPortal() {
             <div
               role="status"
               style={{
-                background: unconfirmedPaymentOrderId ? '#fff7ed' : '#eff6ff',
-                color: unconfirmedPaymentOrderId ? '#9a3412' : '#1e40af',
-                border: `1px solid ${unconfirmedPaymentOrderId ? '#fed7aa' : '#bfdbfe'}`,
+                background: unconfirmedPaymentOrderId
+                  ? '#fff7ed'
+                  : paymentStatusNotice.startsWith('Payment received')
+                    ? '#f0fdf4'
+                    : '#eff6ff',
+                color: unconfirmedPaymentOrderId
+                  ? '#9a3412'
+                  : paymentStatusNotice.startsWith('Payment received')
+                    ? '#166534'
+                    : '#1e40af',
+                border: `1px solid ${
+                  unconfirmedPaymentOrderId
+                    ? '#fed7aa'
+                    : paymentStatusNotice.startsWith('Payment received')
+                      ? '#bbf7d0'
+                      : '#bfdbfe'
+                }`,
                 borderRadius: '10px',
                 padding: '12px 16px',
                 marginBottom: '16px',

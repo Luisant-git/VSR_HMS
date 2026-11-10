@@ -3,6 +3,11 @@ import { X, CheckCircle } from 'lucide-react';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { toast } from 'react-toastify';
+import {
+  clearStudentPortalPaymentReturn,
+  STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
+  STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
+} from '../utils/studentPortalPayment';
 
 interface RazorpayCheckoutResponse {
   razorpay_order_id: string;
@@ -371,6 +376,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
       if (result.paymentStatus === 'failed') {
         sessionStorage.removeItem(`razorpay_pending_order_${studentId}`);
+        clearStudentPortalPaymentReturn();
         onlineOrderId.current = null;
         onlineRequestId.current = null;
         setOnlineConfirmationPending(false);
@@ -435,6 +441,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
       });
       onlineOrderId.current = order.orderId;
       sessionStorage.setItem(`razorpay_pending_order_${studentId}`, order.orderId);
+      if (primaryStudent?.mobileNo) {
+        localStorage.setItem(
+          STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
+          primaryStudent.mobileNo,
+        );
+        localStorage.setItem(
+          STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
+          order.orderId,
+        );
+      }
 
       let paymentHandled = false;
       const checkout = new window.Razorpay({
