@@ -205,13 +205,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             #receipt-printable-area { display: block; position: relative; width: 100%; max-width: none; height: auto; max-height: none; overflow: visible; border-radius: 0; box-shadow: none; background: #fff; }
             .receipt-pad { display: block; position: relative; width: 100%; height: auto; max-height: none; min-height: 0; padding: 10mm 8mm; overflow: visible; }
             .receipt-content { position: relative; z-index: 1; }
-            .receipt-header { display: grid !important; grid-template-columns: minmax(0, 1fr) 210px; gap: 24px; }
+            .receipt-header { display: grid !important; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; }
             .receipt-header h1 { overflow-wrap: anywhere; }
             .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-            .receipt-header-meta { width: 210px; margin-left: auto; }
+            .receipt-header-meta { width: 250px; margin-left: auto; }
             .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
-            .receipt-header .receipt-meta-table td:first-child { width: 92px; padding-right: 12px; text-align: left; white-space: nowrap; }
-            .receipt-header .receipt-meta-table td:last-child { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+            .receipt-header .receipt-meta-table td:first-child { width: 94px; padding-right: 10px; text-align: left; white-space: nowrap; }
+            .receipt-header .receipt-meta-table td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
             .receipt-fee-scroll { width: 100%; overflow: visible; }
             .receipt-fee-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; }
             .receipt-fee-table thead { display: table-header-group; }
@@ -271,10 +271,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           }
           .receipt-header h1 { overflow-wrap: anywhere; }
           .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-          .receipt-header-meta { width: 210px; margin-left: auto; }
+          .receipt-header-meta { width: 250px; margin-left: auto; }
           .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
-          .receipt-header .receipt-meta-table td:first-child { width: 92px; padding-right: 12px; text-align: left; white-space: nowrap; }
-          .receipt-header .receipt-meta-table td:last-child { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+          .receipt-header .receipt-meta-table td:first-child { width: 94px; padding-right: 10px; text-align: left; white-space: nowrap; }
+          .receipt-header .receipt-meta-table td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
           @media print {
             @page { size: A4 portrait; margin: 12mm; }
             html, body, #root {
@@ -408,7 +408,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
           <div className="receipt-content">
             {/* Header Section */}
-            <div className="receipt-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 210px', gap: '24px', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
+            <div className="receipt-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px', gap: '24px', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
               <div style={{ minWidth: 0 }}>
                 {hostelName && <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>{hostelName}</h1>}
                 {hasOrganizationDetails && <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
