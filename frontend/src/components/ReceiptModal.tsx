@@ -15,10 +15,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const receiptCaptureRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [settings, setSettings] = useState<any>({
-    hostelName: 'HOSTEL MANAGEMENT SYSTEM',
-    address: '123 University Road, City Campus\nState, ZIP 12345',
-    phone: '+91 98765 43210',
-    gstin: '22AAAAA0000A1Z5'
+    hostelName: '',
+    address: '',
+    phone: '',
+    email: '',
+    gstin: ''
   });
 
   useEffect(() => {
@@ -34,9 +35,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const feesList = isGrouped ? fee.feesList : [fee];
   const firstFee = feesList[0];
   const primaryStudent = isGrouped ? fee.student : firstFee?.student;
-  const razorpayOrderId =
-    fee?.razorpayOrderId ||
-    feesList.find((item: any) => item.razorpayOrderId)?.razorpayOrderId;
   const razorpayPaymentId =
     fee?.razorpayPaymentId ||
     feesList.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId;
@@ -51,6 +49,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const paymentMode = isGrouped ? fee.paymentMode : firstFee?.paymentMode;
   // unused description
 
+  const hostelName = String(settings.hostelName || '').trim();
+  const address = String(settings.address || '').trim();
+  const phone = String(settings.phone || '').trim();
+  const email = String(settings.email || '').trim();
+  const gstin = String(settings.gstin || '').trim();
+  const hasOrganizationDetails = Boolean(hostelName || address || phone || email || gstin);
+
   const invoiceSource = firstFee || fee;
   const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
   
@@ -58,7 +63,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const count = parseInt((firstFee?.id || '0').substring(0, 8), 16) % 10000 || Math.floor(Math.random() * 9999);
   const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
   const handleDownload = async () => {
     if (!receiptCaptureRef.current) return;
     setDownloading(true);
@@ -201,6 +205,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             #receipt-printable-area { display: block; position: relative; width: 100%; max-width: none; height: auto; max-height: none; overflow: visible; border-radius: 0; box-shadow: none; background: #fff; }
             .receipt-pad { display: block; position: relative; width: 100%; height: auto; max-height: none; min-height: 0; padding: 10mm 8mm; overflow: visible; }
             .receipt-content { position: relative; z-index: 1; }
+            .receipt-header { display: grid !important; grid-template-columns: minmax(0, 1fr) 210px; gap: 24px; }
+            .receipt-header h1 { overflow-wrap: anywhere; }
+            .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+            .receipt-header-meta { width: 210px; margin-left: auto; }
+            .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
+            .receipt-header .receipt-meta-table td:first-child { width: 92px; padding-right: 12px; text-align: left; white-space: nowrap; }
+            .receipt-header .receipt-meta-table td:last-child { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
             .receipt-fee-scroll { width: 100%; overflow: visible; }
             .receipt-fee-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; }
             .receipt-fee-table thead { display: table-header-group; }
@@ -224,9 +235,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const refMatch = firstFeeDesc.match(/\|\s*Ref:\s*([^|]+)/);
   const refNo = refMatch ? refMatch[1].trim() : null;
   
-  const notesMatch = firstFeeDesc.match(/\|\s*Notes:\s*([^|]+)/);
-  const notesText = notesMatch ? notesMatch[1].trim() : null;
-
   return (
     <div className="receipt-overlay">
       <style>
@@ -261,6 +269,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             position: relative;
             z-index: 1;
           }
+          .receipt-header h1 { overflow-wrap: anywhere; }
+          .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+          .receipt-header-meta { width: 210px; margin-left: auto; }
+          .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
+          .receipt-header .receipt-meta-table td:first-child { width: 92px; padding-right: 12px; text-align: left; white-space: nowrap; }
+          .receipt-header .receipt-meta-table td:last-child { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
           @media print {
             @page { size: A4 portrait; margin: 12mm; }
             html, body, #root {
@@ -329,12 +343,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             .receipt-overlay { align-items: stretch; padding: 8px; box-sizing: border-box; }
             .receipt-modal { width: 100%; max-width: none; height: 100%; max-height: none; min-width: 0; border-radius: 12px; }
             .receipt-modal > .print-exact { height: 6px !important; flex: 0 0 6px; }
-            .receipt-header, .receipt-footer { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
+            .receipt-header { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
+            .receipt-footer { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
             .receipt-header > div:last-child { text-align: left !important; margin-left: 0 !important; }
+            .receipt-header-meta { width: 100%; }
             .receipt-header > div:first-child { min-width: 0; width: 100%; }
             .receipt-header h1 { font-size: 22px !important; overflow-wrap: anywhere; }
             .receipt-header .title-text { font-size: 24px !important; letter-spacing: 2px !important; margin-bottom: 8px !important; }
-            .receipt-header .receipt-meta-table { display: table !important; width: auto !important; max-width: 100%; margin: 0 !important; text-align: left !important; white-space: normal !important; }
+            .receipt-header .receipt-meta-table { display: table !important; width: 100% !important; max-width: 100%; margin: 0 !important; text-align: left !important; white-space: normal !important; }
+            .receipt-header .receipt-meta-table td:first-child { text-align: left; }
+            .receipt-header .receipt-meta-table td:last-child { text-align: right; }
             .receipt-meta-table td { overflow-wrap: anywhere; }
             .receipt-pad { flex: 1 1 auto; min-width: 0; min-height: 0 !important; padding: 18px 18px 28px !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
             .receipt-header { margin-bottom: 22px !important; padding-bottom: 18px !important; }
@@ -376,7 +394,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           }
         `}
       </style>
-      <div id="receipt-printable-area" className="receipt-modal">
+      <div id="receipt-printable-area" className="receipt-modal" role="dialog" aria-modal="true" aria-label="Fee receipt">
         
         {/* Top Accent Bar */}
         <div className="print-exact" style={{ height: '8px', background: 'linear-gradient(90deg, #1e293b, #334155)', width: '100%' }}></div>
@@ -390,21 +408,22 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
           <div className="receipt-content">
             {/* Header Section */}
-            <div className="receipt-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
-              <div>
-                <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>{settings.hostelName}</h1>
-                <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-                  {settings.address.split('\n').map((line: string, i: number) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
-                  Phone: {settings.phone}<br/>
-                  GSTIN: {settings.gstin}
-                </div>
+            <div className="receipt-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 210px', gap: '24px', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
+              <div style={{ minWidth: 0 }}>
+                {hostelName && <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>{hostelName}</h1>}
+                {hasOrganizationDetails && <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
+                  {address && address.split(/\r?\n/).map((line: string, i: number) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                  {phone && <>Phone: {phone}<br/></>}
+                  {email && <>Email: {email}<br/></>}
+                  {gstin && <>GSTIN: {gstin}</>}
+                </div>}
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div className="receipt-header-meta" style={{ textAlign: 'right' }}>
                 <div className="title-text" style={{ fontSize: '32px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px', lineHeight: 1, marginBottom: '15px' }}>RECEIPT</div>
-                <table className="receipt-meta-table" style={{ fontSize: '13px', textAlign: 'right', marginLeft: 'auto', color: '#334155' }}>
+                <table className="receipt-meta-table" style={{ fontSize: '13px', textAlign: 'right', color: '#334155' }}>
                   <tbody>
                     <tr><td style={{ paddingBottom: '4px', paddingRight: '12px', fontWeight: 600 }}>Receipt No:</td><td style={{ paddingBottom: '4px', fontWeight: 700, color: '#0f172a' }}>{receiptNo}</td></tr>
-                    <tr><td style={{ paddingBottom: '4px', paddingRight: '12px', fontWeight: 600 }}>Invoice No:</td><td style={{ paddingBottom: '4px', fontWeight: 700, color: '#0f172a' }}>{invoiceNo}</td></tr>
+                    <tr><td style={{ paddingRight: '12px', fontWeight: 600 }}>Receipt ID:</td><td style={{ fontWeight: 700, color: '#0f172a' }}>{invoiceNo}</td></tr>
                     <tr><td style={{ paddingRight: '12px', fontWeight: 600 }}>Date:</td><td style={{ fontWeight: 700, color: '#0f172a' }}>{receiptDate}</td></tr>
                   </tbody>
                 </table>
@@ -416,17 +435,23 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               <div>
                 <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', margin: 0 }}>Received From</h3>
                 <div className="receipt-student-name" style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{primaryStudent?.name || 'Unknown Student'}</div>
-                <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-                  Registration No: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</span><br/>
-                  Room No: <span style={{ fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</span><br/>
-                  Payment Mode: <span style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</span>
-                  {paymentMethod && <><br/>Gateway Method: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{paymentMethod.toUpperCase()}</span></>}
-                  {razorpayOrderId && <><br/>Razorpay Order ID: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{razorpayOrderId}</span></>}
-                  {razorpayPaymentId && <><br/>Razorpay Payment ID: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{razorpayPaymentId}</span></>}
-                  {paymentStatus && <><br/>Payment Status: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{paymentStatus.toUpperCase()}</span></>}
-                  {refNo && <><br/>Transaction Ref: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{refNo}</span></>}
-                  {notesText && <><br/>Notes: <span className="receipt-breakable" style={{ fontWeight: 600, color: '#1e293b' }}>{notesText}</span></>}
-                </div>
+                <table className="receipt-student-details" style={{ width: '100%', maxWidth: '520px', borderCollapse: 'collapse', color: '#475569', fontSize: '14px', lineHeight: 1.6 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '8px 16px 8px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', textAlign: 'left', textTransform: 'uppercase' }}>Field</th>
+                      <th style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', textAlign: 'left', textTransform: 'uppercase' }}>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Registration No</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</td></tr>
+                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Room No</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</td></tr>
+                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment Mode</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</td></tr>
+                    {paymentMethod && <tr><td style={{ padding: '7px 16px 7px 0' }}>Gateway Method</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentMethod.toUpperCase()}</td></tr>}
+                    {razorpayPaymentId && <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment ID</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{razorpayPaymentId}</td></tr>}
+                    {refNo && <tr><td style={{ padding: '7px 16px 7px 0' }}>Transaction Ref</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{refNo}</td></tr>}
+                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment Status</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentStatus?.toUpperCase() || 'PAID'}</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -494,13 +519,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             <div className="receipt-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
               <div style={{ maxWidth: '300px' }}>
                 <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
-                  <strong style={{ color: '#334155' }}>Note:</strong> This is a computer generated receipt. Payments are non-refundable and subject to hostel terms and conditions. Keep this receipt for your records.
+                  <strong style={{ color: '#15803d' }}>Payment Successful</strong><br />
+                  Thank you for your payment.
                 </div>
               </div>
               <div className="receipt-signature" style={{ textAlign: 'center' }}>
                 <div className="receipt-signature-line" style={{ width: '180px', borderBottom: '1px solid #94a3b8', marginBottom: '8px', height: '40px' }}></div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Authorized Signatory</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>{settings.hostelName}</div>
+                {hostelName && <div style={{ fontSize: '11px', color: '#64748b' }}>{hostelName}</div>}
               </div>
             </div>
           </div>

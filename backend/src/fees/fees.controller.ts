@@ -8,6 +8,7 @@ import { CreateRazorpayOrderDto } from './dto/create-razorpay-order.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 import { ReconcileRazorpayOrderDto } from './dto/reconcile-razorpay-order.dto';
 import { ReconcileRazorpayStudentDto } from './dto/reconcile-razorpay-student.dto';
+import { ImportFeesDto } from './dto/import-fees.dto';
 
 @Controller('fees')
 export class FeesController {
@@ -19,6 +20,11 @@ export class FeesController {
   @Post()
   create(@Body() createFeeDto: CreateFeeDto) {
     return this.feesService.create(createFeeDto);
+  }
+
+  @Post('import')
+  importFees(@Body() dto: ImportFeesDto) {
+    return this.feesService.importFeeEdits(dto);
   }
 
   @Post('pay-outstanding')

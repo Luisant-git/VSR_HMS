@@ -78,7 +78,9 @@ export default function PortalTopBar({
           marginLeft: flush ? '-22px' : undefined,
           marginRight: flush ? '-22px' : undefined,
           marginTop: flush ? '-22px' : undefined,
-          background: '#ffffff',
+          // Solid blue fallback so the white title never disappears if the
+          // decorative wave SVG fails to repaint while the header is sticky.
+          background: 'linear-gradient(90deg, #1d4ed8 0%, #2563eb 72%, #3b82f6 100%)',
           border: 'none',
           borderRadius: flush ? '20px 20px 0 0' : '18px',
           padding: '12px 16px 14px',
@@ -101,7 +103,9 @@ export default function PortalTopBar({
               <stop offset="100%" stopColor="#3b82f6" />
             </linearGradient>
           </defs>
-          <rect width="1000" height="120" fill="#ffffff" />
+          {/* White area below the wave. Unlike a full white rect, this leaves
+              the header's blue fallback visible behind the title text. */}
+          <path d="M0 90C160 82 330 94 532 95C700 96 845 92 1000 85L1000 120L0 120Z" fill="#ffffff" />
           <path d="M18 0H982Q1000 0 1000 18V85C845 92 700 96 532 95C330 94 160 82 0 90V18Q0 0 18 0Z" fill="#93b4ff" />
           <path d="M18 0H982Q1000 0 1000 18V76C845 83 700 88 532 87C330 86 160 73 0 82V18Q0 0 18 0Z" fill="url(#portal-header-gradient)" />
           <path

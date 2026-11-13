@@ -1,14 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
 import Select from 'react-select';
+import { toast } from 'react-toastify';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
+import { parseFeeImportFile, type FeeImportRow } from '../utils/feeImport';
 import {
   buildOutstandingTotals,
   getStudentKey,
@@ -53,15 +55,23 @@ const Fees = () => {
   const [feesToCollect, setFeesToCollect] = useState<any[]>([]);
   const [activeFeeId, setActiveFeeId] = useState<string | null>(null);
 
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [importRows, setImportRows] = useState<FeeImportRow[] | null>(null);
+  const [importPreview, setImportPreview] = useState<any | null>(null);
+  const [importResult, setImportResult] = useState<any | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+
 
 
   const fetchFees = () => {
     setError(null);
-    FeesAPI.findAll().then(data => {
+    return FeesAPI.findAll().then(data => {
       setFees(data);
+      return data as any[];
     }).catch(err => {
       console.error(err);
       setError('Failed to load fees');
+      return [] as any[];
     }).finally(() => setLoading(false));
   };
 
@@ -571,6 +581,13 @@ const Fees = () => {
     }
   };
 
+  const getExportFeeType = (fee: any) => {
+    if (fee.displayStatus === 'Paid' || fee.displayStatus === 'Partial') {
+      return 'Receipt';
+    }
+    return Number(fee.displayBalance || 0) > 0 ? 'Outstanding' : 'Current Due';
+  };
+
   const handleExportExcel = () => {
     const data = displayFees.map(fee => ({
       'Receipt No': fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')) : '—',
@@ -586,27 +603,30 @@ const Fees = () => {
       'Outstanding Balance': fee.displayBalance || 0,
       'Total Paid': fee.displayPaid || 0,
       'Payment Method': fee.displayStatus !== 'Unpaid' ? (fee.paymentMode || '-') : '—',
-      'Status': fee.displayStatus
+      'Status': fee.displayStatus,
+      'Fee Type': getExportFeeType(fee),
     }));
 
-    // Calculate totals
+    // Calculate totals (keep the same keys/order as the data rows so the
+    // sheet stays aligned for re-import).
     const totalRow = {
       'Receipt No': 'TOTAL',
-      'Reg. No': '',
+      'Student ID': '',
       'Student Name': '',
       'Room': '',
       'Payment Date': '',
-      'Advance': displayFees.reduce((sum, f) => sum + f.advance, 0),
-      'Rent': displayFees.reduce((sum, f) => sum + f.rent, 0),
-      'EB': displayFees.reduce((sum, f) => sum + f.eb, 0),
-      // 'Mess': displayFees.reduce((sum, f) => sum + f.mess, 0),
-      'Fine': displayFees.reduce((sum, f) => sum + f.fine, 0),
-      'Total Paid': displayFees.reduce((sum, f) => sum + (f.displayPaid || 0), 0),
+      'Advance': displayFees.reduce((sum, f) => sum + (f.advance || 0), 0),
+      'Rent': displayFees.reduce((sum, f) => sum + (f.rent || 0), 0),
+      'EB': displayFees.reduce((sum, f) => sum + (f.eb || 0), 0),
+      // 'Mess': displayFees.reduce((sum, f) => sum + (f.mess || 0), 0),
+      'Fine': displayFees.reduce((sum, f) => sum + (f.fine || 0), 0),
       'Outstanding Balance': displayFees
         .filter(f => f.displayStatus === 'Unpaid')
         .reduce((sum, f) => sum + (f.displayBalance || 0), 0),
+      'Total Paid': displayFees.reduce((sum, f) => sum + (f.displayPaid || 0), 0),
       'Payment Method': '',
-      'Status': ''
+      'Status': '',
+      'Fee Type': ''
     };
 
     data.push(totalRow as any);
@@ -617,6 +637,242 @@ const Fees = () => {
     XLSX.writeFile(workbook, "Fees_Report.xlsx");
   };
 
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setImportBusy(true);
+    try {
+      const parsed = await parseFeeImportFile(file);
+      if (parsed.errors.length > 0) {
+        toast.warning(parsed.errors.slice(0, 2).join(' '));
+      }
+      if (parsed.rows.length === 0) {
+        toast.error('No editable unpaid fee rows were found in that file. Use the exported file and edit only Rent / EB / Fine / Advance.');
+        return;
+      }
+
+      const preview = await FeesAPI.importEdits(parsed.rows, true);
+      const changeCount = preview.changes?.length || 0;
+      const errorCount = preview.errors?.length || 0;
+
+      if (changeCount === 0 && errorCount === 0) {
+        toast.info('No changes found — the Excel values already match the current fees.');
+        return;
+      }
+
+      setImportRows(parsed.rows);
+      setImportPreview({ ...preview, parse: parsed });
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to read the Excel file.');
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const closeImportPreview = () => {
+    if (importBusy) return;
+    setImportRows(null);
+    setImportPreview(null);
+  };
+
+  const handleApplyImport = async () => {
+    if (!importRows) return;
+
+    setImportBusy(true);
+    try {
+      const result = await FeesAPI.importEdits(importRows, false);
+      const updated = Number(result.updated) || 0;
+      const skipped = result.errors?.length || 0;
+
+      if (updated > 0) {
+        toast.success(`Fees updated for ${updated} student${updated === 1 ? '' : 's'}${skipped ? ` (${skipped} skipped)` : ''}.`);
+      } else if (skipped > 0) {
+        toast.error('No fees were updated. Please check the skipped rows.');
+      } else {
+        toast.info('No changes were applied.');
+      }
+
+      if (skipped > 0) {
+        const firstError = result.errors?.[0];
+        const detail = firstError
+          ? `${firstError.studentKey ? `${firstError.studentKey}: ` : ''}${firstError.message}`
+          : '';
+        toast.warning(`Skipped ${skipped} row${skipped === 1 ? '' : 's'}${detail ? ` — ${detail}` : ''}.`);
+        console.warn('Fee import skipped rows', result.errors);
+      }
+
+      // Refresh first so the result download can include the live, updated
+      // fee list for the students that changed.
+      const freshFees = await fetchFees();
+
+      if (updated > 0) {
+        // Keep a summary of this import open so the admin can see exactly
+        // whose fees changed and download the before/after Excel.
+        setImportResult({ ...result, freshFees });
+        setImportRows(null);
+        setImportPreview(null);
+      } else if (skipped === 0) {
+        setImportRows(null);
+        setImportPreview(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to import fees.');
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const closeImportResult = () => {
+    setImportResult(null);
+  };
+
+  const handleDownloadUpdatedExcel = () => {
+    const changes = importResult?.changes || [];
+    if (changes.length === 0) return;
+
+    const categories = [
+      { key: 'advance', label: 'Advance' },
+      { key: 'rent', label: 'Rent' },
+      { key: 'eb', label: 'EB' },
+      { key: 'fine', label: 'Fine' },
+    ];
+
+    const summaryRows = changes.map((change: any) => {
+      const itemsByCategory = new Map(
+        (change.items || []).map((item: any) => [item.category, item]),
+      );
+      const row: Record<string, any> = {
+        'Student ID': change.studentKey,
+        'Student Name': change.studentName,
+        'Room': change.roomNo ? `Room ${change.roomNo}` : '',
+      };
+
+      categories.forEach(category => {
+        const item: any = itemsByCategory.get(category.key);
+        row[`${category.label} Before`] = item ? item.from : '';
+        row[`${category.label} After`] = item ? item.to : '';
+      });
+
+      const totalBefore = (change.items || []).reduce(
+        (sum: number, item: any) => sum + Number(item.from || 0),
+        0,
+      );
+      const totalAfter = (change.items || []).reduce(
+        (sum: number, item: any) => sum + Number(item.to || 0),
+        0,
+      );
+      row['Total Before'] = roundMoney(totalBefore);
+      row['Total After'] = roundMoney(totalAfter);
+      row['Difference'] = roundMoney(totalAfter - totalBefore);
+      return row;
+    });
+
+    const detailRows: any[] = [];
+    changes.forEach((change: any) => {
+      (change.items || []).forEach((item: any) => {
+        detailRows.push({
+          'Student ID': change.studentKey,
+          'Student Name': change.studentName,
+          'Room': change.roomNo ? `Room ${change.roomNo}` : '',
+          'Fee': item.label,
+          'Before': item.from,
+          'After': item.to,
+          'Difference': item.delta,
+        });
+      });
+    });
+
+    // Current live fee list for only the students that were updated. This is
+    // the same "updated student" view the Fees page shows after the refresh.
+    const freshFees = importResult?.freshFees || [];
+    const updatedIds = new Set(changes.map((change: any) => String(change.studentId)));
+    const feeListByStudent = new Map<string, any>();
+    changes.forEach((change: any) => {
+      feeListByStudent.set(String(change.studentId), {
+        'Student ID': change.studentKey,
+        'Student Name': change.studentName,
+        'Room': change.roomNo ? `Room ${change.roomNo}` : '',
+        'Advance': 0,
+        'Rent': 0,
+        'EB': 0,
+        'Fine': 0,
+        'Other': 0,
+      });
+    });
+
+    freshFees.forEach((fee: any) => {
+      if (!fee?.studentId || !updatedIds.has(String(fee.studentId))) return;
+      if (fee.status !== 'PENDING') return;
+      if (
+        isOutstandingInvoice(fee) ||
+        isImportedInvoice(fee) ||
+        isPreviousSettledFee(fee) ||
+        isMessFee(fee)
+      ) {
+        return;
+      }
+
+      const row = feeListByStudent.get(String(fee.studentId));
+      if (!row) return;
+
+      const amount = Number(fee.amount) || 0;
+      const type = String(fee.transactionType || '').toUpperCase();
+      if (type.includes('RENT')) row.Rent += amount;
+      else if (type.includes('EB') || type.includes('ELECTRIC')) row.EB += amount;
+      else if (type.includes('FINE')) row.Fine += amount;
+      else if (type.includes('ADVANCE')) row.Advance += amount;
+      else row.Other += amount;
+    });
+
+    const feeListRows = Array.from(feeListByStudent.values()).map((row: any) => ({
+      ...row,
+      'Advance': roundMoney(row.Advance),
+      'Rent': roundMoney(row.Rent),
+      'EB': roundMoney(row.EB),
+      'Fine': roundMoney(row.Fine),
+      'Other': roundMoney(row.Other),
+      'Total Due': roundMoney(
+        row.Advance + row.Rent + row.EB + row.Fine + row.Other,
+      ),
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    if (freshFees.length > 0) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.json_to_sheet(feeListRows),
+        'Updated Fee List',
+      );
+    }
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(summaryRows),
+      'Before vs After',
+    );
+    if (detailRows.length > 0) {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.json_to_sheet(detailRows),
+        'All Changes',
+      );
+    }
+    XLSX.writeFile(
+      workbook,
+      `Updated_Fees_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+  };
+
+  const importTotalChanges = importPreview?.changes?.reduce(
+    (sum: number, change: any) => sum + (change.items?.length || 0),
+    0,
+  ) || 0;
+
   return (
     <div className="ui-page fees-page">
       <PageHeader
@@ -624,9 +880,26 @@ const Fees = () => {
         subtitle="Track hostel fee invoices, pending dues, and issue payment receipts"
         icon={<Wallet size={24} color="#fff" />} iconBg="linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
         rightContent={
-          <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
-            <FileSpreadsheet size={16} /> Export Excel
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
+            />
+            <button
+              onClick={handleImportClick}
+              className="ui-btn ui-btn-primary"
+              disabled={importBusy}
+              title="Upload the exported Excel after editing Rent / EB / Fine / Advance"
+            >
+              <Upload size={16} /> {importBusy ? 'Reading…' : 'Import Excel'}
+            </button>
+            <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
+              <FileSpreadsheet size={16} /> Export Excel
+            </button>
+          </div>
         }
       />
 
@@ -955,6 +1228,235 @@ const Fees = () => {
         )}
 
       </div>
+
+      {/* Import Preview Modal */}
+      {importPreview && (
+        <div className="ui-modal-overlay">
+          <div className="ui-modal ui-modal-lg">
+            <div className="ui-modal-head">
+              <div>
+                <div className="ui-modal-title">Import Fees from Excel</div>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+                  {importTotalChanges} change{importTotalChanges === 1 ? '' : 's'} across{' '}
+                  {(importPreview.changes || []).length} student
+                  {(importPreview.changes || []).length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <button className="ui-modal-close" onClick={closeImportPreview} disabled={importBusy}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="ui-modal-body">
+              <div className="ui-alert ui-alert-info">
+                Only current unpaid dues can be edited. Leave a cell blank to keep
+                it unchanged, or enter 0 to clear that fee. Paid receipts, historical
+                outstanding balances and the read-only columns stay unchanged.
+              </div>
+
+              {importPreview.parse && (
+                <div style={{ fontSize: '12px', color: '#64748b' }}>
+                  {importPreview.parse.skippedPaid > 0 && (
+                    <span>{importPreview.parse.skippedPaid} paid/receipt row(s) skipped. </span>
+                  )}
+                  {importPreview.parse.skippedOutstanding > 0 && (
+                    <span>{importPreview.parse.skippedOutstanding} outstanding row(s) skipped. </span>
+                  )}
+                  {importPreview.parse.skippedBlank > 0 && (
+                    <span>{importPreview.parse.skippedBlank} blank row(s) skipped.</span>
+                  )}
+                </div>
+              )}
+
+              {(importPreview.changes || []).length > 0 && (
+                <div className="ui-table-wrap">
+                  <table className="ui-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Fee Changes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(importPreview.changes || []).map((change: any) => (
+                        <tr key={change.studentKey}>
+                          <td style={{ verticalAlign: 'top' }}>
+                            <div style={{ fontWeight: 600 }}>{change.studentName}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>
+                              {change.studentKey}
+                              {change.roomNo ? ` • Room ${change.roomNo}` : ''}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="ui-stack" style={{ gap: '4px' }}>
+                              {(change.items || []).map((item: any) => (
+                                <div
+                                  key={item.category}
+                                  style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}
+                                >
+                                  <span style={{ color: '#475569' }}>{item.label}</span>
+                                  <span style={{ fontWeight: 600 }}>
+                                    ₹{Number(item.from).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    {' → '}
+                                    <span style={{ color: item.delta > 0 ? '#dc2626' : '#16a34a' }}>
+                                      ₹{Number(item.to).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {(importPreview.errors || []).length > 0 && (
+                <div className="ui-alert ui-alert-warning">
+                  <AlertTriangle size={16} />
+                  <div>
+                    <strong>{(importPreview.errors || []).length} row(s) will be skipped</strong>
+                    <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+                      {(importPreview.errors || []).slice(0, 10).map((rowError: any, index: number) => (
+                        <li key={index}>
+                          {rowError.studentKey ? `${rowError.studentKey}: ` : ''}
+                          {rowError.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="ui-modal-foot">
+              <button className="ui-btn ui-btn-secondary" onClick={closeImportPreview} disabled={importBusy}>
+                Cancel
+              </button>
+              <button
+                className="ui-btn ui-btn-primary"
+                onClick={handleApplyImport}
+                disabled={importBusy || (importPreview.changes || []).length === 0}
+              >
+                <CheckCircle2 size={16} /> {importBusy ? 'Applying…' : 'Apply Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Result Modal */}
+      {importResult && (
+        <div className="ui-modal-overlay">
+          <div className="ui-modal ui-modal-lg">
+            <div className="ui-modal-head">
+              <div>
+                <div className="ui-modal-title">Import Complete</div>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+                  Fees updated for {importResult.updated} student
+                  {importResult.updated === 1 ? '' : 's'}
+                  {(importResult.errors || []).length > 0
+                    ? ` · ${(importResult.errors || []).length} row(s) skipped`
+                    : ''}
+                </p>
+              </div>
+              <button className="ui-modal-close" onClick={closeImportResult}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="ui-modal-body">
+              <div className="ui-alert ui-alert-info">
+                <CheckCircle2 size={16} />
+                <div>
+                  The fees list has been refreshed with the new amounts. Download
+                  the updated Excel to keep a record of exactly whose fees changed
+                  and the before / after values.
+                </div>
+              </div>
+
+              {(importResult.changes || []).length > 0 && (
+                <div className="ui-table-wrap">
+                  <table className="ui-table">
+                    <thead>
+                      <tr>
+                        <th>Student</th>
+                        <th>Fee Changes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(importResult.changes || []).map((change: any) => (
+                        <tr key={change.studentKey}>
+                          <td style={{ verticalAlign: 'top' }}>
+                            <div style={{ fontWeight: 600 }}>{change.studentName}</div>
+                            <div style={{ fontSize: '12px', color: '#64748b' }}>
+                              {change.studentKey}
+                              {change.roomNo ? `  Room ${change.roomNo}` : ''}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="ui-stack" style={{ gap: '4px' }}>
+                              {(change.items || []).map((item: any) => (
+                                <div
+                                  key={item.category}
+                                  style={{ display: 'flex', justifyContent: 'space-between', gap: '16px' }}
+                                >
+                                  <span style={{ color: '#475569' }}>{item.label}</span>
+                                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                    <span style={{ color: '#94a3b8', textDecoration: 'line-through' }}>
+                                      ₹{Number(item.from || 0).toLocaleString('en-IN')}
+                                    </span>{' '}
+                                    <span style={{ color: '#64748b' }}>→</span>{' '}
+                                    <span style={{ fontWeight: 600, color: '#0f172a' }}>
+                                      ₹{Number(item.to || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {(importResult.errors || []).length > 0 && (
+                <div className="ui-alert ui-alert-warning">
+                  <AlertTriangle size={16} />
+                  <div>
+                    <strong>{(importResult.errors || []).length} row(s) were skipped</strong>
+                    <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+                      {(importResult.errors || []).slice(0, 10).map((rowError: any, index: number) => (
+                        <li key={index}>
+                          {rowError.studentKey ? `${rowError.studentKey}: ` : ''}
+                          {rowError.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="ui-modal-foot">
+              <button className="ui-btn ui-btn-secondary" onClick={closeImportResult}>
+                Close
+              </button>
+              <button
+                className="ui-btn ui-btn-success"
+                onClick={handleDownloadUpdatedExcel}
+                disabled={(importResult.changes || []).length === 0}
+              >
+                <FileSpreadsheet size={16} /> Download Updated Excel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Receipt Modal */}
       {selectedReceipt && (

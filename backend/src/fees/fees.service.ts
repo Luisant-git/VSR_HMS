@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
 import { PayOutstandingDto } from './dto/pay-outstanding.dto';
+import { ImportFeeRowInput, ImportFeesDto } from './dto/import-fees.dto';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -19,6 +20,44 @@ const MONEY_EPSILON = 0.001;
 
 const isOutstandingDescription = (fee: any) =>
   /^\s*outstanding\b/i.test(String(fee?.description || ''));
+
+/**
+ * October 2026 EB bills were imported as-is and are still collectable, so the
+ * "previous settled" cut-off must not hide them. Kept in sync with the Fees
+ * page helpers in frontend/src/utils/outstanding.ts.
+ */
+const isOctober2026EbBill = (fee: any) =>
+  String(fee?.transactionType || '').toUpperCase() === 'EB_BILL' &&
+  /(?:\b2026-10\b|\boct(?:ober)?\s*2026\b)/i.test(String(fee?.description || ''));
+
+const IMPORTABLE_CATEGORIES = ['rent', 'eb', 'fine', 'advance'] as const;
+type ImportCategory = (typeof IMPORTABLE_CATEGORIES)[number];
+
+const IMPORT_CATEGORY_META: Record<
+  ImportCategory,
+  { label: string; transactionType: string; description: string }
+> = {
+  rent: {
+    label: 'Rent',
+    transactionType: 'RENT',
+    description: 'Room Rent (adjusted from fees sheet)',
+  },
+  eb: {
+    label: 'EB',
+    transactionType: 'EB_BILL',
+    description: 'EB Bill (adjusted from fees sheet)',
+  },
+  fine: {
+    label: 'Fine',
+    transactionType: 'FINE',
+    description: 'Fine (adjusted from fees sheet)',
+  },
+  advance: {
+    label: 'Advance',
+    transactionType: 'ADVANCE',
+    description: 'Advance Deposit (adjusted from fees sheet)',
+  },
+};
 
 @Injectable()
 export class FeesService {
@@ -420,6 +459,320 @@ export class FeesService {
     if (dto.notes) suffix += ` | Notes: ${dto.notes}`;
     if (requestId) suffix += ` | [REQ:${requestId}]`;
     return suffix;
+  }
+
+  /**
+   * Applies Rent / EB / Fine / Advance values edited in the Fees Excel sheet.
+   *
+   * Only the student's *current* PENDING dues are touched. Paid receipts,
+   * historical outstanding invoices and the pre-cutoff imported ledger are
+   * never edited. A category is adjusted by its delta on the newest matching
+   * row, so split invoices (for example EB shares) keep their structure.
+   */
+  async importFeeEdits(dto: ImportFeesDto) {
+    const rows = Array.isArray(dto?.rows) ? dto.rows : [];
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'The uploaded file does not contain any fee rows.',
+      );
+    }
+
+    const dryRun = dto.dryRun === true;
+    const changes: Array<{
+      studentKey: string;
+      studentId: string;
+      studentName: string;
+      roomNo: string | null;
+      items: Array<{
+        category: ImportCategory;
+        label: string;
+        from: number;
+        to: number;
+        delta: number;
+      }>;
+    }> = [];
+    const errors: Array<{ studentKey: string; message: string }> = [];
+    const seenStudents = new Set<string>();
+    let unchanged = 0;
+
+    for (const row of rows) {
+      const studentKey = String(row?.studentKey ?? '').trim();
+      if (!studentKey) {
+        errors.push({ studentKey: '', message: 'Missing Student ID.' });
+        continue;
+      }
+
+      const dedupeKey = studentKey.toUpperCase();
+      if (seenStudents.has(dedupeKey)) {
+        errors.push({
+          studentKey,
+          message: 'Duplicate Student ID in the uploaded file.',
+        });
+        continue;
+      }
+      seenStudents.add(dedupeKey);
+
+      const parsed = this.parseImportAmounts(row);
+      if (parsed.error) {
+        errors.push({ studentKey, message: parsed.error });
+        continue;
+      }
+      if (Object.keys(parsed.amounts).length === 0) {
+        errors.push({
+          studentKey,
+          message:
+            'No editable fee amount found (Rent / EB / Fine / Advance).',
+        });
+        continue;
+      }
+
+      try {
+        const result = await this.applyFeeImportRow(
+          studentKey,
+          parsed.amounts,
+          dryRun,
+        );
+        if (result.items.length > 0) {
+          changes.push(result);
+        } else {
+          unchanged += 1;
+        }
+      } catch (error: any) {
+        errors.push({
+          studentKey,
+          message: error?.message || 'Failed to update this student.',
+        });
+      }
+    }
+
+    return {
+      dryRun,
+      updated: changes.length,
+      unchanged,
+      errors,
+      changes,
+    };
+  }
+
+  private parseImportAmounts(row: ImportFeeRowInput): {
+    amounts: Partial<Record<ImportCategory, number>>;
+    error?: string;
+  } {
+    const amounts: Partial<Record<ImportCategory, number>> = {};
+
+    for (const category of IMPORTABLE_CATEGORIES) {
+      const raw = row?.[category];
+      if (raw === undefined || raw === null) continue;
+      if (typeof raw === 'string' && raw.trim() === '') continue;
+
+      const numeric =
+        typeof raw === 'number'
+          ? raw
+          : Number(String(raw).replace(/[₹,\s]/g, ''));
+
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        return {
+          amounts,
+          error: `${IMPORT_CATEGORY_META[category].label} must be a number greater than or equal to 0.`,
+        };
+      }
+
+      amounts[category] = roundMoney(numeric);
+    }
+
+    return { amounts };
+  }
+
+  private async applyFeeImportRow(
+    studentKey: string,
+    amounts: Partial<Record<ImportCategory, number>>,
+    dryRun: boolean,
+  ) {
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [
+          { regNo: { equals: studentKey, mode: 'insensitive' } },
+          { manualRegsiName: { equals: studentKey, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        regNo: true,
+        manualRegsiName: true,
+        name: true,
+        roomNo: true,
+      },
+    });
+
+    if (!student) {
+      throw new BadRequestException(
+        `Student "${studentKey}" was not found.`,
+      );
+    }
+
+    return this.prisma.$transaction(async tx => {
+      const pendingRows = await tx.feeTransaction.findMany({
+        where: { studentId: student.id, status: 'PENDING' },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const editableRows = pendingRows.filter(fee =>
+        this.isEditablePendingFeeRow(fee),
+      );
+
+      const items: Array<{
+        category: ImportCategory;
+        label: string;
+        from: number;
+        to: number;
+        delta: number;
+      }> = [];
+
+      for (const category of IMPORTABLE_CATEGORIES) {
+        const requested = amounts[category];
+        if (requested === undefined) continue;
+
+        const categoryRows = editableRows.filter(
+          fee => this.importCategoryOf(fee) === category,
+        );
+        const currentTotal = this.sumAmounts(categoryRows);
+        const targetTotal = roundMoney(requested);
+
+        if (Math.abs(targetTotal - currentTotal) < MONEY_EPSILON) continue;
+
+        if (!dryRun) {
+          await this.setCategoryTotal(
+            tx,
+            student.id,
+            category,
+            categoryRows,
+            targetTotal,
+          );
+        }
+
+        items.push({
+          category,
+          label: IMPORT_CATEGORY_META[category].label,
+          from: currentTotal,
+          to: targetTotal,
+          delta: roundMoney(targetTotal - currentTotal),
+        });
+      }
+
+      return {
+        studentKey: student.manualRegsiName || student.regNo,
+        studentId: student.id,
+        studentName: student.name,
+        roomNo: student.roomNo,
+        items,
+      };
+    });
+  }
+
+  private async setCategoryTotal(
+    tx: Prisma.TransactionClient,
+    studentId: string,
+    category: ImportCategory,
+    categoryRows: Array<{ id: string; amount: number; createdAt: Date }>,
+    targetTotal: number,
+  ) {
+    const meta = IMPORT_CATEGORY_META[category];
+    const currentTotal = this.sumAmounts(categoryRows);
+    const delta = roundMoney(targetTotal - currentTotal);
+
+    if (categoryRows.length === 0) {
+      if (targetTotal > 0) {
+        await tx.feeTransaction.create({
+          data: {
+            studentId,
+            transactionType: meta.transactionType,
+            amount: targetTotal,
+            status: 'PENDING',
+            description: meta.description,
+          },
+        });
+      }
+      return;
+    }
+
+    if (delta > 0) {
+      const newest = categoryRows[categoryRows.length - 1];
+      await tx.feeTransaction.update({
+        where: { id: newest.id },
+        data: {
+          amount: roundMoney((Number(newest.amount) || 0) + delta),
+        },
+      });
+      return;
+    }
+
+    // Lowering the total: trim the newest rows first, deleting a row once it
+    // reaches zero. Older rows are left untouched unless more has to go.
+    let toReduce = roundMoney(-delta);
+    for (
+      let index = categoryRows.length - 1;
+      index >= 0 && toReduce > MONEY_EPSILON;
+      index -= 1
+    ) {
+      const fee = categoryRows[index];
+      const amount = roundMoney(Number(fee.amount) || 0);
+      if (amount <= 0) continue;
+
+      if (amount <= toReduce + MONEY_EPSILON) {
+        toReduce = roundMoney(toReduce - amount);
+        await tx.feeTransaction.delete({ where: { id: fee.id } });
+      } else {
+        await tx.feeTransaction.update({
+          where: { id: fee.id },
+          data: { amount: roundMoney(amount - toReduce) },
+        });
+        toReduce = 0;
+      }
+    }
+  }
+
+  /**
+   * Mirrors the "Current Due" rows the Fees page renders: PENDING, not a mess
+   * fee, not an outstanding invoice and not a pre-cutoff imported/settled row.
+   */
+  private isEditablePendingFeeRow(fee: any) {
+    if (String(fee?.status || '').toUpperCase() !== 'PENDING') return false;
+
+    const type = String(fee?.transactionType || '').toUpperCase();
+    if (type.startsWith('MESS')) return false;
+    if (isOutstandingDescription(fee)) return false;
+
+    return !this.isHistoricalOrImportedFeeRow(fee);
+  }
+
+  private isHistoricalOrImportedFeeRow(fee: any) {
+    if (isOctober2026EbBill(fee)) return false;
+
+    const description = String(fee?.description || '');
+    if (/november|december|2027/i.test(description)) return false;
+    if (/imported/i.test(description) || /october\s*2026\b/i.test(description)) {
+      return true;
+    }
+
+    const dateVal = fee?.paidDate || fee?.createdAt;
+    const feeDate = new Date(dateVal);
+    if (
+      !Number.isNaN(feeDate.getTime()) &&
+      feeDate < new Date('2026-11-01T00:00:00')
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private importCategoryOf(fee: any): ImportCategory | 'other' {
+    const type = String(fee?.transactionType || '').toUpperCase();
+    if (type.includes('RENT')) return 'rent';
+    if (type.includes('EB') || type.includes('ELECTRIC')) return 'eb';
+    if (type.includes('FINE')) return 'fine';
+    if (type.includes('ADVANCE')) return 'advance';
+    return 'other';
   }
 
   async remove(id: string) {

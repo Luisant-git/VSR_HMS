@@ -108,13 +108,12 @@ const SystemSettings = () => {
           </div>
 
           <div className="ui-form-group ss-address">
-            <label className="ui-form-label">Full Address (Supports multiple lines) <span className="ss-req">*</span></label>
+            <label className="ui-form-label">Full Address (Supports multiple lines)</label>
             <textarea
               rows={3}
               value={settings.address}
               onChange={(e) => setSettings({...settings, address: e.target.value})}
               className="ui-form-control"
-              required
             />
           </div>
 

@@ -94,6 +94,38 @@ export const FeesAPI = {
     return res.json();
   },
 
+  async importEdits(
+    rows: Array<{
+      studentKey: string;
+      rent?: number;
+      eb?: number;
+      fine?: number;
+      advance?: number;
+    }>,
+    dryRun = false,
+  ) {
+    const res = await fetch(`${API_URL}/fees/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows, dryRun }),
+    });
+    if (!res.ok) {
+      let message = 'Failed to import fees from Excel';
+      try {
+        const error = await res.json();
+        if (error?.message) {
+          message = Array.isArray(error.message)
+            ? error.message.join(', ')
+            : error.message;
+        }
+      } catch {
+        // keep the generic message when the server did not return JSON
+      }
+      throw new Error(message);
+    }
+    return res.json();
+  },
+
   async reconcileRazorpayOrder(data: { orderId: string }) {
     const res = await fetch(`${API_URL}/fees/razorpay/reconcile`, {
       method: 'POST',
