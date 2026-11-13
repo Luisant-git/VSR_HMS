@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, type ReactElement } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { ChartNoAxesCombined, UserStar, LogOut, Menu, X, Settings2, ChevronDown, DoorClosed, UserRoundKey, ConciergeBell, Shapes, Braces, House } from 'lucide-react';
+import { ChartNoAxesCombined, UserStar, LogOut, Menu, X, Settings2, ChevronDown, DoorClosed, UserRoundKey, ConciergeBell, Shapes, Braces, House, Fingerprint } from 'lucide-react';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
 import { getSystemSettings } from '../api/settings.api';
 import { setDocumentTitle } from '../utils/documentTitle';
@@ -64,6 +64,24 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Clearance', to: '/clearance', perm: ['clearance'] },
       { label: 'Fees', to: '/fees', perm: ['fees'] },
       { label: 'Mess Attendance Reports', to: '/mess-attendance-reports', perm: ['mess_attendance_reports'] },
+    ],
+  },
+  {
+    id: 'biometric',
+    label: 'Biometric',
+    icon: <Fingerprint size={18} />,
+    children: [
+      { label: 'Attendance Dashboard', to: '/biometric-attendance', perm: ['biometric_attendance'], end: true },
+      { label: 'Live Punch Monitor', to: '/biometric-attendance/live-monitor', perm: ['biometric_attendance'] },
+      { label: 'Currently Inside', to: '/biometric-attendance/inside', perm: ['biometric_attendance'] },
+      { label: 'Currently Outside', to: '/biometric-attendance/outside', perm: ['biometric_attendance'] },
+      { label: 'Daily Attendance', to: '/biometric-attendance/daily', perm: ['biometric_attendance'] },
+      { label: 'Absentee Report', to: '/biometric-attendance/absentees', perm: ['biometric_attendance'] },
+      { label: 'Curfew & Late Entry', to: '/biometric-attendance/curfew', perm: ['biometric_attendance'] },
+      { label: 'Room-wise Attendance', to: '/biometric-attendance/room-wise', perm: ['biometric_attendance'] },
+      { label: 'Monthly Attendance', to: '/biometric-attendance/monthly', perm: ['biometric_attendance'] },
+      { label: 'Student Punch History', to: '/biometric-attendance/student-history', perm: ['biometric_attendance'] },
+      { label: 'Device & Sync Status', to: '/biometric-attendance/devices', perm: ['biometric_attendance'] },
     ],
   },
   {

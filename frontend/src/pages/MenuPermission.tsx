@@ -53,6 +53,7 @@ const MenuPermission = () => {
       clearance: false,
       outpass: false,
       late_warnings: false,
+      biometric_attendance: false,
       colleges: false,
       staff_master: false,
       staff_attendance: false,
@@ -167,7 +168,7 @@ const MenuPermission = () => {
                             if (!perm?.permissions) return <span style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No modules allowed</span>;
                             
                             const allKeys = [
-                              'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                              'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'biometric_attendance',
                               'hostel_blocks', 'rooms_master', 'eb_bills',
                               'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                               'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
@@ -188,6 +189,7 @@ const MenuPermission = () => {
                             const parentCats = [
                               { name: 'Dashboard', keys: ['dashboard'] },
                               { name: 'Hostellers', keys: ['hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'mess_attendance_reports'] },
+                              { name: 'Biometric', keys: ['biometric_attendance'] },
                               { name: 'Rooms', keys: ['hostel_blocks', 'rooms_master', 'eb_bills'] },
                               { name: 'Staff', keys: ['staff_master', 'staff_attendance', 'staff_salary'] },
                               { name: 'Canteen', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'] },
@@ -240,7 +242,7 @@ const MenuPermission = () => {
                   <input 
                     type="checkbox" 
                     checked={
-                      ['dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                      ['dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'biometric_attendance',
                        'hostel_blocks', 'rooms_master', 'eb_bills',
                        'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                        'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'].every(id => editData[id])
@@ -248,7 +250,7 @@ const MenuPermission = () => {
                     onChange={(e) => {
                       const isChecked = e.target.checked;
                       const allKeys = [
-                        'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees',
+                        'dashboard', 'hostellers', 'student_register', 'gate_logs', 'outpass', 'late_warnings', 'clearance', 'fees', 'biometric_attendance',
                         'hostel_blocks', 'rooms_master', 'eb_bills',
                         'colleges', 'staff_master', 'staff_attendance', 'staff_salary', 'canteen_master', 'mess_attendance_reports', 'kitchen_construction', 'stock_report', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments',
                         'fine_master', 'mess_deduction', 'user_management', 'menu_permission', 'system_settings'
@@ -303,6 +305,24 @@ const MenuPermission = () => {
                       { id: 'clearance', label: 'Clearance' },
                       { id: 'fees', label: 'Fees & Payments' },
                       { id: 'mess_attendance_reports', label: 'Mess Attendance Reports' },
+                    ].map(module => (
+                      <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                        <span style={{ fontWeight: 400, color: '#334155', fontSize: '14px' }}>{module.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Biometric */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={['biometric_attendance'].every(id => editData[id])} onChange={() => toggleGroup(['biometric_attendance'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Biometric Attendance</span>
+                  </label>
+                  <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {[
+                      { id: 'biometric_attendance', label: 'Attendance Dashboard, Live Monitor & Reports' },
                     ].map(module => (
                       <label key={module.id} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                         <input type="checkbox" checked={editData[module.id] || false} onChange={() => togglePermission(module.id)} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />

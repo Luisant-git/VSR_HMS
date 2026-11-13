@@ -28,11 +28,6 @@ import StudentAdmissionForm from './pages/StudentAdmissionForm';
 import MessDeductionMaster from './pages/MessDeductionMaster';
 import SystemSettings from './pages/SystemSettings';
 import CanteenMaster from './pages/CanteenMaster';
-
-import BiometricDashboard from './pages/biometrics/BiometricDashboard';
-import BiometricRegistration from './pages/biometrics/BiometricRegistration';
-import BiometricIdentify from './pages/biometrics/BiometricIdentify';
-import BiometricRecords from './pages/biometrics/BiometricRecords';
 import PublicStudentId from './pages/PublicStudentId';
 import PolicyPage from './pages/PolicyPage';
 import { MessAttendanceReport } from './pages/MessAttendanceReport';
@@ -41,6 +36,18 @@ import StaffAttendance from './pages/StaffAttendance';
 import StaffSalaryRegister from './pages/StaffSalaryRegister';
 import KitchenConstruction from './pages/KitchenConstruction';
 import KitchenStockReport from './pages/KitchenStockReport';
+import BiometricAttendanceLayout from './pages/biometric-attendance/BiometricAttendanceLayout';
+import BioAttendanceDashboard from './pages/biometric-attendance/Dashboard';
+import BioLiveMonitor from './pages/biometric-attendance/LiveMonitor';
+import BioCurrentlyInside from './pages/biometric-attendance/CurrentlyInside';
+import BioCurrentlyOutside from './pages/biometric-attendance/CurrentlyOutside';
+import BioDailyAttendance from './pages/biometric-attendance/DailyAttendance';
+import BioAbsentees from './pages/biometric-attendance/Absentees';
+import BioCurfew from './pages/biometric-attendance/Curfew';
+import BioRoomWise from './pages/biometric-attendance/RoomWise';
+import BioMonthlyAttendance from './pages/biometric-attendance/MonthlyAttendance';
+import BioStudentHistory from './pages/biometric-attendance/StudentHistory';
+import BioDevices from './pages/biometric-attendance/Devices';
 
 const ComingSoon = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center" style={{ height: '60vh', color: 'var(--text-muted)' }}>
@@ -84,6 +91,19 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="mess-attendance-reports" element={<MessAttendanceReport />} />
+          <Route path="biometric-attendance" element={<BiometricAttendanceLayout />}>
+            <Route index element={<BioAttendanceDashboard />} />
+            <Route path="live-monitor" element={<BioLiveMonitor />} />
+            <Route path="inside" element={<BioCurrentlyInside />} />
+            <Route path="outside" element={<BioCurrentlyOutside />} />
+            <Route path="daily" element={<BioDailyAttendance />} />
+            <Route path="absentees" element={<BioAbsentees />} />
+            <Route path="curfew" element={<BioCurfew />} />
+            <Route path="room-wise" element={<BioRoomWise />} />
+            <Route path="monthly" element={<BioMonthlyAttendance />} />
+            <Route path="student-history" element={<BioStudentHistory />} />
+            <Route path="devices" element={<BioDevices />} />
+          </Route>
           <Route path="hostellers">
             <Route index element={<Hostellers />} />
             <Route path="clearance/:id" element={<Clearance />} />
@@ -102,12 +122,7 @@ function App() {
             <Route path="eb-bills" element={<EbBills />} />
             <Route path=":id" element={<RoomDetails />} />
           </Route>
-          <Route path="biometrics">
-            <Route index element={<BiometricDashboard />} />
-            <Route path="register" element={<BiometricRegistration />} />
-            <Route path="identify" element={<BiometricIdentify />} />
-            <Route path="records" element={<BiometricRecords />} />
-          </Route>
+          
           <Route path="settings">
             <Route path="system-settings" element={<SystemSettings />} />
             <Route path="fine-master" element={<FineMaster />} />
