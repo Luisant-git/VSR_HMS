@@ -249,8 +249,8 @@ export class BiometricAttendanceService {
     if (date) where.push(`b.punch_time::date = ${add(date)}::date`);
     if (options.fromDate) where.push(`b.punch_time::date >= ${add(options.fromDate)}::date`);
     if (options.toDate) where.push(`b.punch_time::date <= ${add(options.toDate)}::date`);
-    if (direction === 'IN') where.push(`b.punch_state_code IN (0, 3)`);
-    if (direction === 'OUT') where.push(`b.punch_state_code IN (1, 2)`);
+    if (direction === 'IN') where.push(`(b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')`);
+    if (direction === 'OUT') where.push(`(b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')`);
     if (search) {
       const term = add(`%${search}%`);
       where.push(
@@ -260,12 +260,12 @@ export class BiometricAttendanceService {
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const joins = `
-      LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
+      LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
       LEFT JOIN public.biometric_device_registry d ON d.device_id = b.device_id`;
     const count = await this.query<{ total: number; in_count: number; out_count: number; students: number }>(
       `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3))::int AS in_count,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2))::int AS out_count,
+              COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
+              COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count,
               COUNT(DISTINCT b.user_id)::int AS students
        FROM public.biometric_attendance_logs b ${joins} ${whereSql}`,
       params,
@@ -276,7 +276,7 @@ export class BiometricAttendanceService {
       `SELECT TO_CHAR(b.punch_time::date, 'YYYY-MM-DD') AS punch_date,
               b.punch_time,
               TO_CHAR(b.punch_time, 'HH12:MI:SS AM') AS time_of_punch,
-              CASE WHEN b.punch_state_code IN (0, 3) THEN 'IN' ELSE 'OUT' END AS direction,
+              CASE WHEN (b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') THEN 'IN' ELSE 'OUT' END AS direction,
               COALESCE(s."regNo", b.user_id) AS reg_no,
               COALESCE(s.name, 'Unregistered') AS student_name,
               s."roomNo" AS room_no,
@@ -358,8 +358,8 @@ export class BiometricAttendanceService {
     if (availability.tables.has(OBJ.logs)) {
       const movement = await this.query<any>(
         `SELECT COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE punch_state_code IN (0, 3))::int AS in_count,
-                COUNT(*) FILTER (WHERE punch_state_code IN (1, 2))::int AS out_count,
+                COUNT(*) FILTER (WHERE punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')::int AS in_count,
+                COUNT(*) FILTER (WHERE punch_state_code IN (1, 2) OR punch_state = 'Check-Out')::int AS out_count,
                 COUNT(DISTINCT user_id)::int AS active_students
          FROM public.biometric_attendance_logs
          WHERE punch_time::date = $1::date`,
@@ -419,7 +419,7 @@ export class BiometricAttendanceService {
             `SELECT COUNT(*)::int AS total
              FROM public.biometric_attendance_logs
              WHERE punch_time::date = $1::date
-               AND punch_state_code IN (0, 3)
+               AND (punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')
                AND punch_time::time > TIME '20:30:00'`,
             [date],
           )
@@ -687,7 +687,7 @@ export class BiometricAttendanceService {
         `SELECT COUNT(DISTINCT b.user_id)::int AS present,
                 COUNT(*)::int AS total_punches
          FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
+         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
          ${whereSql}`,
         params,
       );
@@ -705,7 +705,7 @@ export class BiometricAttendanceService {
       let statusSql = '';
       if (status && status.toUpperCase() !== 'ALL') {
         dataParams.push(status);
-        statusSql = ` AND (CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3)) > 0 THEN 'Present' ELSE 'Absent' END) ILIKE $${dataParams.length}`;
+        statusSql = ` AND (CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') > 0 THEN 'Present' ELSE 'Absent' END) ILIKE $${dataParams.length}`;
       }
       const data = await this.query<any>(
         `SELECT TO_CHAR($1::date, 'YYYY-MM-DD') AS attendance_date,
@@ -713,15 +713,15 @@ export class BiometricAttendanceService {
                 COALESCE(s.name, 'Unregistered') AS student_name,
                 s."roomNo" AS room_no,
                 s."bedNo" AS bed_no,
-                TO_CHAR(MIN(b.punch_time) FILTER (WHERE b.punch_state_code IN (0, 3)), 'HH12:MI:SS AM') AS first_in_time,
-                TO_CHAR(MAX(b.punch_time) FILTER (WHERE b.punch_state_code IN (1, 2)), 'HH12:MI:SS AM') AS last_out_time,
+                TO_CHAR(MIN(b.punch_time) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In'), 'HH12:MI:SS AM') AS first_in_time,
+                TO_CHAR(MAX(b.punch_time) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out'), 'HH12:MI:SS AM') AS last_out_time,
                 COUNT(*)::int AS total_punches,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3))::int AS in_count,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2))::int AS out_count,
+                COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
+                COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count,
                 ROUND(COALESCE(EXTRACT(EPOCH FROM (MAX(b.punch_time) - MIN(b.punch_time))) / 3600, 0)::numeric, 1)::float8 AS span_hours,
-                CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3)) > 0 THEN 'Present' ELSE 'Absent' END AS attendance_status
+                CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') > 0 THEN 'Present' ELSE 'Absent' END AS attendance_status
          FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
+         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
          ${whereSql}
          GROUP BY s.id, s."regNo", b.user_id, s.name, s."roomNo", s."bedNo"
          HAVING TRUE ${statusSql}
@@ -913,7 +913,7 @@ export class BiometricAttendanceService {
     } else if (availability.tables.has(OBJ.logs)) {
       const params: unknown[] = [fromDate, toDate, curfewTime];
       const where: string[] = [
-        `b.punch_state_code IN (0, 3)`,
+        `(b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')`,
         `b.punch_time::date BETWEEN $1::date AND $2::date`,
         `b.punch_time::time > $3::time`,
       ];
@@ -928,7 +928,7 @@ export class BiometricAttendanceService {
                 COALESCE(ROUND(AVG(GREATEST(EXTRACT(EPOCH FROM (b.punch_time::time - $3::time)) / 60, 0)))::int, 0) AS avg_late,
                 COALESCE(MAX(GREATEST(EXTRACT(EPOCH FROM (b.punch_time::time - $3::time)) / 60, 0))::int, 0) AS max_late
          FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
+         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
          ${whereSql}`,
         params,
       );
@@ -951,7 +951,7 @@ export class BiometricAttendanceService {
                 s."fatherName" AS father_name,
                 s."fatherMobileNo" AS father_mobile
          FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
+         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
          ${whereSql}
          ORDER BY b.punch_time DESC
          LIMIT ${limit} OFFSET ${offset}`,
@@ -1010,8 +1010,8 @@ export class BiometricAttendanceService {
                 s."fatherMobileNo" AS father_mobile,
                 s."mobileNo" AS student_mobile
          FROM public.biometric_attendance_logs b
-         JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id)
-         WHERE b.punch_state_code IN (0, 3)
+         JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
+         WHERE (b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')
            AND b.punch_time::time > $2::time
            AND b.punch_time >= (CURRENT_DATE - ($1::int * INTERVAL '1 day'))
            ${searchSql}
@@ -1273,11 +1273,11 @@ export class BiometricAttendanceService {
                 s."roomNo" AS room_no,
                 COUNT(DISTINCT b.punch_time::date)::int AS days_present,
                 COUNT(b.user_id)::int AS total_punches,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3))::int AS total_in_count,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2))::int AS total_out_count
+                COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS total_in_count,
+                COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS total_out_count
          FROM public."Student" s
          LEFT JOIN public.biometric_attendance_logs b
-           ON (b.user_id = s."biometricId" OR b.user_id = s."regNo")
+           ON (b.user_id = s."biometricId" OR b.user_id = s."regNo" OR b.user_id = s."manualRegsiName")
           AND b.punch_time::date BETWEEN $1::date AND $2::date
          WHERE ${where.join(' AND ')}
          GROUP BY s.id, s."regNo", s.name, s."roomNo"
@@ -1423,16 +1423,16 @@ export class BiometricAttendanceService {
       params.push(query.toDate);
       where.push(`b.punch_time::date <= $${params.length}::date`);
     }
-    if (direction === 'IN') where.push(`b.punch_state_code IN (0, 3)`);
-    if (direction === 'OUT') where.push(`b.punch_state_code IN (1, 2)`);
+    if (direction === 'IN') where.push(`(b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')`);
+    if (direction === 'OUT') where.push(`(b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')`);
     const whereSql = `WHERE ${where.join(' AND ')}`;
     const joins = `LEFT JOIN public.biometric_device_registry d ON d.device_id = b.device_id`;
 
     const aggregate = await this.query<any>(
       `SELECT COUNT(*)::int AS total_punches,
               COUNT(DISTINCT b.punch_time::date)::int AS days,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3))::int AS in_count,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2))::int AS out_count,
+              COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
+              COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count,
               MIN(b.punch_time) AS first_punch,
               MAX(b.punch_time) AS last_punch
        FROM public.biometric_attendance_logs b ${joins} ${whereSql}`,
@@ -1443,7 +1443,7 @@ export class BiometricAttendanceService {
       `SELECT TO_CHAR(b.punch_time::date, 'YYYY-MM-DD') AS punch_date,
               TO_CHAR(b.punch_time, 'HH12:MI:SS AM') AS punch_time,
               b.punch_time AS punch_time_raw,
-              CASE WHEN b.punch_state_code IN (0, 3) THEN 'IN' ELSE 'OUT' END AS direction,
+              CASE WHEN (b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') THEN 'IN' ELSE 'OUT' END AS direction,
               b.verify_type AS method,
               b.device_id,
               COALESCE(d.device_name, b.device_id) AS terminal_name,
