@@ -22,7 +22,9 @@
     "postinstall": "prisma generate",
     "mark-october-paid": "node mark-october-paid.js",
     "export:unallocated": "node export-unallocated-students.js",
-    "export:no-college": "node export-students-without-college.js"
+    "export:no-college": "node export-students-without-college.js",
+    "export:block-wise": "node export-block-wise-students.js",
+    "export:college-block": "node export-college-wise-block-students.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
