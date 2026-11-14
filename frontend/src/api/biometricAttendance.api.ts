@@ -137,6 +137,33 @@ export interface DailyResponse extends BioEnvelope {
   toDate?: string;
 }
 
+export interface DeviceUserRow {
+  device_id: string | null;
+  device_user_id: string;
+  name_on_device: string | null;
+  matched: boolean;
+  student_name: string | null;
+  reg_no: string | null;
+  room_no: string | null;
+  bed_no: string | null;
+  face_enrolled: boolean;
+  fingerprint_enrolled: boolean;
+  card_no: string | null;
+  last_synced: string | null;
+}
+
+export interface DeviceUsersResponse extends BioEnvelope {
+  data: DeviceUserRow[];
+  summary: {
+    totalUsers: number;
+    matched: number;
+    unmatched: number;
+    faceEnrolled: number;
+    fingerprintEnrolled: number;
+  };
+  pagination: BioPagination;
+}
+
 export interface BioDevice {
   device_id: string;
   device_name: string;
@@ -191,5 +218,7 @@ export const BiometricAttendanceAPI = {
     get<OutsideResponse>('/biometric-attendance/currently-outside', params),
   daily: (params: Record<string, unknown>) =>
     get<DailyResponse>('/biometric-attendance/daily', params),
+  deviceUsers: (params: Record<string, unknown>) =>
+    get<DeviceUsersResponse>('/biometric-attendance/device-users', params),
   devices: () => get<DevicesResponse>('/biometric-attendance/devices'),
 };

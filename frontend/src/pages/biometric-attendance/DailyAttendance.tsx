@@ -157,13 +157,11 @@ const DailyAttendance = () => {
           <table className="ui-table bio-table">
             <thead>
               <tr>
-                <th>Date</th>
                 <th>Student</th>
-                <th>First IN</th>
-                <th>Last OUT</th>
-                <th>Punches</th>
-                <th>IN / OUT</th>
-                <th>Span</th>
+                <th>Room</th>
+                <th>First In</th>
+                <th>Last Out</th>
+                <th>Total Punches</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -172,16 +170,21 @@ const DailyAttendance = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={8}
+                colSpan={6}
                 emptyTitle="No attendance rows for this date range"
                 emptyText="Pick another date range, clear the search, or switch the status filter."
                 onRetry={reload}
               />
               {rows.map((row) => (
                 <tr key={`${row.reg_no}-${row.attendance_date}`}>
-                  <td className="bio-strong">{formatDate(row.attendance_date)}</td>
                   <td>
-                    <BioStudent name={row.student_name} regNo={row.reg_no} room={row.room_no} bed={row.bed_no} />
+                    <BioStudent name={row.student_name} regNo={row.reg_no} />
+                  </td>
+                  <td>
+                    <div className="bio-cell-stack">
+                      <span className="bio-strong">{row.room_no || '—'}</span>
+                      {row.bed_no ? <span>{row.bed_no}</span> : null}
+                    </div>
                   </td>
                   <td>
                     {row.first_in_time ? (
@@ -202,11 +205,6 @@ const DailyAttendance = () => {
                     )}
                   </td>
                   <td className="bio-strong">{row.total_punches}</td>
-                  <td>
-                    <span className="bio-status is-success">{row.in_count} IN</span>{' '}
-                    <span className="bio-status is-warning">{row.out_count} OUT</span>
-                  </td>
-                  <td className="bio-subtle">{number(row.span_hours)}h</td>
                   <td><BioStatus status={row.attendance_status} /></td>
                 </tr>
               ))}

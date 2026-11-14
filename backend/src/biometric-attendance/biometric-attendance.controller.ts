@@ -78,6 +78,23 @@ export class BiometricAttendanceController {
     });
   }
 
+  @Get('device-users')
+  deviceUsers(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.biometric.getDeviceUsers({
+      page: numberOrUndefined(page),
+      limit: numberOrUndefined(limit),
+      search,
+      fromDate,
+      toDate,
+    });
+  }
+
   @Get('devices')
   devices() {
     return this.biometric.getDevices();

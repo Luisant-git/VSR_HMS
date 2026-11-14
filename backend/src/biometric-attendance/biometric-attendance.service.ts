@@ -53,6 +53,7 @@ interface Availability {
 @Injectable()
 export class BiometricAttendanceService {
   private availabilityCache: { at: number; value: Availability } | null = null;
+  private logsColumnsCache: { at: number; value: Set<string> } | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -717,6 +718,175 @@ export class BiometricAttendanceService {
         toDate,
       },
       error,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Device enrolled users
+  // ---------------------------------------------------------------------------
+
+  private async logsColumns(): Promise<Set<string>> {
+    if (this.logsColumnsCache && Date.now() - this.logsColumnsCache.at < 60_000) {
+      return this.logsColumnsCache.value;
+    }
+
+    const result = await this.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1`,
+      [OBJ.logs],
+    );
+    const value = new Set(result.rows.map((row) => row.column_name));
+    this.logsColumnsCache = { at: Date.now(), value };
+    return value;
+  }
+
+  /**
+   * Distinct device/user pairs observed in the attendance log, enriched with
+   * the matched student. Enrollment details that the terminal never pushes
+   * (card number, enrolled templates) stay null unless the log table stores
+   * them, so the UI can render them as "—" instead of inventing values.
+   */
+  async getDeviceUsers(query: PageQuery & { fromDate?: string; toDate?: string }) {
+    const availability = await this.availability();
+    const page = this.page(query.page);
+    const limit = this.limit(query.limit);
+    const offset = (page - 1) * limit;
+    const search = String(query.search || '').trim();
+    const fromDate = String(query.fromDate || '').trim();
+    const toDate = String(query.toDate || '').trim();
+    const params: unknown[] = [];
+    const where: string[] = [];
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(`(
+        device_user_id ILIKE $${params.length}
+        OR COALESCE(device_id, '') ILIKE $${params.length}
+        OR COALESCE(name_on_device, '') ILIKE $${params.length}
+        OR COALESCE(student_name, '') ILIKE $${params.length}
+        OR COALESCE(reg_no, '') ILIKE $${params.length}
+        OR COALESCE(room_no, '') ILIKE $${params.length}
+        OR COALESCE(card_no, '') ILIKE $${params.length}
+      )`);
+    }
+    if (fromDate) {
+      params.push(fromDate);
+      where.push(`last_synced::date >= $${params.length}::date`);
+    }
+    if (toDate) {
+      params.push(toDate);
+      where.push(`last_synced::date <= $${params.length}::date`);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const emptySummary = {
+      totalUsers: 0,
+      matched: 0,
+      unmatched: 0,
+      faceEnrolled: 0,
+      fingerprintEnrolled: 0,
+    };
+
+    if (!availability.tables.has(OBJ.logs)) {
+      return this.envelope(availability, {
+        data: [],
+        summary: emptySummary,
+        pagination: this.pagination(page, limit, 0),
+      });
+    }
+
+    const columns = await this.logsColumns();
+    const nameColumn = ['user_name', 'name', 'person_name', 'employee_name'].find((name) =>
+      columns.has(name),
+    );
+    const cardColumn = ['card_no', 'card_number', 'cardno'].find((name) => columns.has(name));
+    const nameExpr = nameColumn ? `MAX(b.${nameColumn}::text)` : 'NULL::text';
+    const cardExpr = cardColumn ? `MAX(b.${cardColumn}::text)` : 'NULL::text';
+    const verifyText = columns.has('verify_type')
+      ? `LOWER(COALESCE(b.verify_type::text, ''))`
+      : `''`;
+    const syncExpr = columns.has('synced_at')
+      ? 'b.synced_at'
+      : columns.has('created_at')
+        ? 'b.created_at'
+        : 'b.punch_time';
+
+    const cte = `
+      WITH users AS (
+        SELECT
+          b.device_id::text AS device_id,
+          b.user_id::text AS device_user_id,
+          MAX(${syncExpr}) AS last_synced,
+          BOOL_OR(${verifyText} IN ('15', '20', 'face', 'face+fp') OR ${verifyText} LIKE '%face%') AS face_enrolled,
+          BOOL_OR(
+            ${verifyText} IN ('1', '20', 'fp', 'finger', 'fingerprint', 'face+fp')
+            OR ${verifyText} LIKE '%finger%'
+            OR ${verifyText} LIKE '%fp%'
+          ) AS fingerprint_enrolled,
+          ${cardExpr} AS card_no,
+          ${nameExpr} AS name_on_device
+        FROM public.biometric_attendance_logs b
+        GROUP BY b.device_id, b.user_id
+      ),
+      joined AS (
+        SELECT
+          u.device_id,
+          u.device_user_id,
+          COALESCE(u.name_on_device, s.name) AS name_on_device,
+          (s.id IS NOT NULL) AS matched,
+          s.name AS student_name,
+          s."regNo" AS reg_no,
+          s."roomNo" AS room_no,
+          s."bedNo" AS bed_no,
+          u.face_enrolled,
+          u.fingerprint_enrolled,
+          u.card_no,
+          u.last_synced
+        FROM users u
+        LEFT JOIN public."Student" s
+          ON (s."biometricId" = u.device_user_id
+              OR s."regNo" = u.device_user_id
+              OR s."manualRegsiName" = u.device_user_id)
+      )
+    `;
+
+    const summaryResult = await this.query<any>(
+      `${cte}
+       SELECT COUNT(*)::int AS total_users,
+              COUNT(*) FILTER (WHERE matched)::int AS matched,
+              COUNT(*) FILTER (WHERE NOT matched)::int AS unmatched,
+              COUNT(*) FILTER (WHERE face_enrolled)::int AS face_enrolled,
+              COUNT(*) FILTER (WHERE fingerprint_enrolled)::int AS fingerprint_enrolled
+       FROM joined ${whereSql}`,
+      params,
+    );
+
+    const dataResult = await this.query<any>(
+      `${cte}
+       SELECT device_id, device_user_id, name_on_device, matched, student_name,
+              reg_no, room_no, bed_no, face_enrolled, fingerprint_enrolled, card_no, last_synced
+       FROM joined ${whereSql}
+       ORDER BY matched DESC, student_name ASC NULLS LAST, device_user_id ASC
+       LIMIT ${limit} OFFSET ${offset}`,
+      params,
+    );
+
+    const summaryRow = summaryResult.rows[0] || {};
+    const total = Number(summaryRow.total_users) || 0;
+
+    return this.envelope(
+      availability,
+      {
+        data: dataResult.rows,
+        summary: {
+          totalUsers: total,
+          matched: Number(summaryRow.matched) || 0,
+          unmatched: Number(summaryRow.unmatched) || 0,
+          faceEnrolled: Number(summaryRow.face_enrolled) || 0,
+          fingerprintEnrolled: Number(summaryRow.fingerprint_enrolled) || 0,
+        },
+        pagination: this.pagination(page, limit, total),
+      },
+      summaryResult.error || dataResult.error,
     );
   }
 

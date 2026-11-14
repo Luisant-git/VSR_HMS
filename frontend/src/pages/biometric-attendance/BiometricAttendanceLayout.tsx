@@ -6,6 +6,7 @@ import {
   LogOut,
   Radio,
   Router,
+  Users,
 } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
@@ -17,6 +18,7 @@ const TABS = [
   { to: '/biometric-attendance/live-monitor', label: 'Live Punch Monitor', icon: Radio },
   { to: '/biometric-attendance/outside', label: 'Currently Outside', icon: LogOut },
   { to: '/biometric-attendance/daily', label: 'Daily Attendance', icon: CalendarCheck },
+  { to: '/biometric-attendance/device-users', label: 'Device Enrolled Users', icon: Users },
   { to: '/biometric-attendance/devices', label: 'Device & Sync Status', icon: Router },
 ];
 

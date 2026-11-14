@@ -41,6 +41,7 @@ import BioAttendanceDashboard from './pages/biometric-attendance/Dashboard';
 import BioLiveMonitor from './pages/biometric-attendance/LiveMonitor';
 import BioCurrentlyOutside from './pages/biometric-attendance/CurrentlyOutside';
 import BioDailyAttendance from './pages/biometric-attendance/DailyAttendance';
+import BioDeviceUsers from './pages/biometric-attendance/DeviceUsers';
 import BioDevices from './pages/biometric-attendance/Devices';
 
 const ComingSoon = ({ title }: { title: string }) => (
@@ -90,6 +91,7 @@ function App() {
             <Route path="live-monitor" element={<BioLiveMonitor />} />
             <Route path="outside" element={<BioCurrentlyOutside />} />
             <Route path="daily" element={<BioDailyAttendance />} />
+            <Route path="device-users" element={<BioDeviceUsers />} />
             <Route path="devices" element={<BioDevices />} />
           </Route>
           <Route path="hostellers">
