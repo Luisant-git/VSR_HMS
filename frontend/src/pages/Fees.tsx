@@ -1141,7 +1141,18 @@ const Fees = () => {
                         })()}
                       </td>
                       */}
-                      <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
+                      <td className="num">
+                        <div>₹{fee.fine.toLocaleString('en-IN')}</div>
+                        {(() => {
+                          const fineFee = fee.feesList?.find(
+                            (item: any) => (item.transactionType || '').toUpperCase() === 'FINE',
+                          );
+                          const overdueDays = fineFee?.description?.match(/(\d+)\s+days?\s+overdue/i)?.[1];
+                          return overdueDays
+                            ? <div className="fees-note fees-note--danger">{overdueDays} day{Number(overdueDays) === 1 ? '' : 's'} overdue</div>
+                            : null;
+                        })()}
+                      </td>
 
                       <td className={`num fees-outstanding${(fee.displayBalance || 0) > 0 ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>
                         ₹{Number(fee.displayBalance || 0).toLocaleString('en-IN')}
@@ -1469,10 +1480,28 @@ const Fees = () => {
           fee={feeToCollect}
           fees={feesToCollect}
           outstandingPaid={modalOutstandingPaid}
+          allowPaymentDate
           onClose={closePaymentModal}
-          onSuccess={() => {
+          onSuccess={(paidItems, paymentMode) => {
             closePaymentModal();
             fetchFees();
+            if (paidItems?.length) {
+              const firstPaidItem = paidItems[0];
+              setSelectedReceipt({
+                isGrouped: true,
+                id: `paid-${firstPaidItem.id}`,
+                student: firstPaidItem.student,
+                feesList: paidItems,
+                totalAmount: paidItems.reduce(
+                  (total: number, item: any) => total + (Number(item.amount) || 0),
+                  0,
+                ),
+                paymentMode: paymentMode || firstPaidItem.paymentMode,
+                paidDate: firstPaidItem.paidDate,
+                createdAt: firstPaidItem.createdAt,
+                status: 'COMPLETED',
+              });
+            }
           }}
         />
       )}

@@ -30,10 +30,10 @@ export class FineCronService {
       const dueDate = new Date(college.dueDate);
       dueDate.setHours(0, 0, 0, 0);
 
-      // If the due date has passed
-      if (today > dueDate) {
+      // Fine accrues starting on the due date, matching date-based receipts.
+      if (today >= dueDate) {
         const timeDiff = today.getTime() - dueDate.getTime();
-        const daysOverdue = Math.floor(timeDiff / (1000 * 3600 * 24));
+        const daysOverdue = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
 
         this.logger.log(`College ${college.name} is ${daysOverdue} days overdue.`);
 
@@ -45,15 +45,21 @@ export class FineCronService {
           },
           include: {
             transactions: {
-              where: { status: 'PENDING' }
+              where: {
+                OR: [
+                  { status: 'PENDING' },
+                  { status: 'COMPLETED', transactionType: 'FINE' },
+                ],
+              },
             }
           }
         });
 
         for (const student of students) {
-          const hasPendingRent = student.transactions.some(t => t.transactionType === 'RENT' || t.transactionType === 'ADVANCE');
-          const hasPendingMess = student.transactions.some(t => t.transactionType === 'MESS');
-          const hasPendingEb = student.transactions.some(t => t.transactionType === 'EB_BILL');
+          const pendingTransactions = student.transactions.filter(t => t.status === 'PENDING');
+          const hasPendingRent = pendingTransactions.some(t => t.transactionType === 'RENT' || t.transactionType === 'ADVANCE');
+          const hasPendingMess = pendingTransactions.some(t => t.transactionType === 'MESS');
+          const hasPendingEb = pendingTransactions.some(t => t.transactionType === 'EB_BILL');
           
           if (hasPendingRent || hasPendingMess || hasPendingEb) {
             const dailyFine = (hasPendingRent ? rentFine : 0) + (hasPendingMess ? messFine : 0) + (hasPendingEb ? ebFine : 0);
@@ -61,11 +67,19 @@ export class FineCronService {
             if (dailyFine <= 0) continue;
 
             const expectedTotalFine = daysOverdue * dailyFine;
-            const pendingFines = student.transactions.filter(t => t.transactionType === 'FINE');
+            const pendingFines = pendingTransactions.filter(t => t.transactionType === 'FINE');
             const existingPendingFinesTotal = pendingFines.reduce((sum, t) => sum + t.amount, 0);
+            const paidFineTotal = student.transactions
+              .filter(t =>
+                t.status === 'COMPLETED' &&
+                t.transactionType === 'FINE' &&
+                /late fine accumulation/i.test(String(t.description || '')),
+              )
+              .reduce((sum, t) => sum + t.amount, 0);
+            const fineStillDue = Math.max(0, expectedTotalFine - paidFineTotal);
 
-            if (expectedTotalFine > existingPendingFinesTotal) {
-              const difference = expectedTotalFine - existingPendingFinesTotal;
+            if (fineStillDue > existingPendingFinesTotal) {
+              const difference = fineStillDue - existingPendingFinesTotal;
               const description = `Late fine accumulation for ${daysOverdue} days overdue (₹${dailyFine}/day)`;
               
               if (pendingFines.length > 0) {

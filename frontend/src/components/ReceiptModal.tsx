@@ -59,7 +59,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const invoiceSource = firstFee || fee;
   const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
   
-  const dateStr = new Date(firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
+  const dateStr = new Date(fee.paidDate || firstFee?.paidDate || firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
   const count = parseInt((firstFee?.id || '0').substring(0, 8), 16) % 10000 || Math.floor(Math.random() * 9999);
   const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });

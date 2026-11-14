@@ -162,6 +162,60 @@ describe('FeesService - outstanding payment ledger', () => {
     service = new FeesService(fake.prisma);
   });
 
+  describe('FeesService - date-based fine preview', () => {
+    const dateInput = (date: Date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    const makeService = (dueDate: Date) => {
+      const prisma = {
+        student: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'student-1',
+            college: {
+              dueDate,
+              fineMaster: { rentFine: 25, messFine: 10, ebFine: 5 },
+            },
+            transactions: [{ transactionType: 'RENT', status: 'PENDING' }],
+          }),
+        },
+        feeTransaction: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      };
+      return new FeesService(prisma as any);
+    };
+
+    it('calculates 10 days of rent fine from Nov 5 through Nov 14 (inclusive)', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() - 9);
+      const service = makeService(dueDate);
+
+      const quote = await service.previewFine('student-1', dateInput(today));
+
+      expect(quote.daysOverdue).toBe(10);
+      expect(quote.dailyFine).toBe(25);
+      expect(quote.amount).toBe(250);
+      expect(quote.currentAmount).toBe(250);
+    });
+
+    it('does not calculate a fine for a selected date before the due date', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() - 9);
+      const beforeDueDate = new Date(dueDate);
+      beforeDueDate.setDate(beforeDueDate.getDate() - 1);
+      const service = makeService(dueDate);
+
+      const quote = await service.previewFine('student-1', dateInput(beforeDueDate));
+
+      expect(quote.daysOverdue).toBe(0);
+      expect(quote.amount).toBe(0);
+    });
+  });
+
   it('creates one payment record and reduces ₹5,000 to ₹3,000 without touching invoices', async () => {
     const result: any = await service.payOutstanding({
       studentId: 'student-1',

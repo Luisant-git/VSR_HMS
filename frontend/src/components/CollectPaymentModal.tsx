@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle } from 'lucide-react';
 import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
@@ -8,6 +8,7 @@ import {
   STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
   STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
 } from '../utils/studentPortalPayment';
+import { formatDateDMY } from '../utils/date';
 
 interface RazorpayCheckoutResponse {
   razorpay_order_id: string;
@@ -81,6 +82,7 @@ interface CollectPaymentModalProps {
   onClose: () => void;
   onSuccess: (paidItems?: any[], paymentMode?: string) => void;
   isStudentMode?: boolean;
+  allowPaymentDate?: boolean;
 }
 
 const isOutstandingFee = (fee: any) =>
@@ -88,8 +90,35 @@ const isOutstandingFee = (fee: any) =>
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
-export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, fees, outstandingPaid = 0, onClose, onSuccess, isStudentMode }) => {
+const getTodayInput = () => {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+const isLateFine = (fee: any) =>
+  String(fee?.transactionType || '').toUpperCase() === 'FINE' &&
+  /late fine accumulation/i.test(String(fee?.description || ''));
+
+export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
+  fee,
+  fees,
+  outstandingPaid = 0,
+  onClose,
+  onSuccess,
+  isStudentMode,
+  allowPaymentDate = false,
+}) => {
   const [paymentMode, setPaymentMode] = useState('UPI');
+  const [paymentDate, setPaymentDate] = useState(getTodayInput);
+  const [fineQuote, setFineQuote] = useState({
+    amount: 0,
+    currentAmount: 0,
+    daysOverdue: 0,
+    dailyFine: 0,
+  });
+  const [fineQuoteError, setFineQuoteError] = useState<string | null>(null);
+  const [loadingFineQuote, setLoadingFineQuote] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,10 +133,29 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   // Current-month invoices stay exactly as before. Previous outstanding
   // invoices are consolidated into a single OUTSTANDING item.
   const outstandingItems = itemsToPay.filter(isOutstandingFee);
-  const currentItems = itemsToPay.filter((f: any) => !isOutstandingFee(f));
+  const lateFineItems = itemsToPay.filter(isLateFine);
+  const currentItems = itemsToPay.filter(
+    (f: any) => !isOutstandingFee(f) && !(allowPaymentDate && isLateFine(f)),
+  );
   const selectableCurrentItems = isStudentMode
     ? currentItems.filter((f: any) => !(f.transactionType || '').toUpperCase().startsWith('MESS'))
     : currentItems;
+  const dateFineItem =
+    allowPaymentDate && fineQuote.amount > 0
+      ? {
+          id: 'date-fine-preview',
+          studentId: primaryStudent?.id,
+          student: primaryStudent,
+          transactionType: 'FINE',
+          amount: fineQuote.amount,
+          status: 'PENDING',
+          description: `Late fine accumulation for ${fineQuote.daysOverdue} days overdue (₹${fineQuote.dailyFine}/day)`,
+          isDateFinePreview: true,
+        }
+      : null;
+  const payableCurrentItems = dateFineItem
+    ? [...selectableCurrentItems, dateFineItem]
+    : selectableCurrentItems;
 
   // Original outstanding invoice amounts minus payments already confirmed by
   // the backend. Invoices are never mutated, so this is the only safe way to
@@ -136,13 +184,46 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const [outstandingAmountInput, setOutstandingAmountInput] = useState('');
   const [feeStates, setFeeStates] = useState<Record<string, { selected: boolean }>>(() => {
     const initialState: Record<string, { selected: boolean }> = {};
-    selectableCurrentItems.forEach((f: any) => {
+    payableCurrentItems.forEach((f: any) => {
       initialState[f.id] = { selected: !hasOutstandingItems };
     });
     return initialState;
   });
 
-  const activeItemsToPay = selectableCurrentItems.filter(f => feeStates[f.id]?.selected !== false);
+  const activeItemsToPay = payableCurrentItems.filter(f => feeStates[f.id]?.selected !== false);
+
+  useEffect(() => {
+    if (!allowPaymentDate || !primaryStudent?.id) return;
+
+    let active = true;
+    setLoadingFineQuote(true);
+    setFineQuoteError(null);
+    FeesAPI.previewFine(primaryStudent.id, paymentDate)
+      .then((quote) => {
+        if (active) {
+          setFineQuote({
+            amount: Number(quote.amount) || 0,
+            currentAmount: Number(quote.currentAmount) || 0,
+            daysOverdue: Number(quote.daysOverdue) || 0,
+            dailyFine: Number(quote.dailyFine) || 0,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setFineQuoteError(
+            error instanceof Error ? error.message : 'Unable to calculate fine for this date.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingFineQuote(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [allowPaymentDate, primaryStudent?.id, paymentDate]);
 
   const getMultiplier = (type: string) => {
     const t = (type || '').toUpperCase().trim();
@@ -235,12 +316,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
     setIsSubmitting(true);
     try {
       let studentUpdates: any = {};
+      const selectedPaidDate = new Date(`${paymentDate}T12:00:00`).toISOString();
 
       const effectiveRef = isStudentMode && !referenceNumber
         ? 'TXN' + Math.floor(Math.random() * 10000000000).toString()
         : referenceNumber;
 
-      await Promise.all(activeItemsToPay.map(async (f: any) => {
+      const currentUpdatedItems = await Promise.all(activeItemsToPay.map(async (f: any) => {
         let finalDesc = f.description || '';
         const ref = effectiveRef;
         if (ref) finalDesc += ` | Ref: ${ref}`;
@@ -280,13 +362,42 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
           }
         }
 
-        await FeesAPI.update(f.id, {
-          status: 'COMPLETED',
-          paymentMode,
-          amount: f.amount * currentMultiplier,
-          description: finalDesc
-        });
+        if (f.isDateFinePreview) {
+          const created = await FeesAPI.create({
+            studentId: f.studentId,
+            transactionType: 'FINE',
+            amount: f.amount,
+            status: 'COMPLETED',
+            paymentMode,
+            paidDate: selectedPaidDate,
+            description: finalDesc,
+          });
+          return { ...created, student: created.student || f.student };
+        } else {
+          const updated = await FeesAPI.update(f.id, {
+            status: 'COMPLETED',
+            paymentMode,
+            paidDate: selectedPaidDate,
+            amount: f.amount * currentMultiplier,
+            description: finalDesc
+          });
+          return { ...updated, student: updated.student || f.student };
+        }
       }));
+
+      const selectedDateFine = activeItemsToPay.some((item: any) => item.isDateFinePreview);
+      if (selectedDateFine && lateFineItems.length > 0) {
+        const remainingAccruedFine = roundMoney(
+          Math.max(0, fineQuote.currentAmount - fineQuote.amount),
+        );
+        await Promise.all(
+          lateFineItems.map((item: any, index: number) =>
+            FeesAPI.update(item.id, {
+              amount: index === 0 ? remainingAccruedFine : 0,
+            }),
+          ),
+        );
+      }
 
       // Apply the outstanding payment through the dedicated backend endpoint.
       // The backend re-validates the amount against the live balance inside a
@@ -300,6 +411,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
           referenceNumber: effectiveRef || undefined,
           notes: notes || undefined,
           requestId,
+          paidDate: selectedPaidDate,
         });
 
         const studentForReceipt = primaryStudent || itemsToPay[0]?.student;
@@ -315,18 +427,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
       const paidCount = activeItemsToPay.length + (hasOutstandingPayment ? 1 : 0);
       toast.success(`Payment collected successfully for ${paidCount} item(s)!`);
-
-      const currentUpdatedItems = activeItemsToPay.map(f => {
-        const currentMultiplier = getMultiplier(f.transactionType);
-        const covered = currentMultiplier > 1 ? getMonthNames(currentMultiplier, f.description || '') : '';
-        return {
-          ...f,
-          status: 'COMPLETED',
-          paymentMode,
-          amount: f.amount * currentMultiplier,
-          description: (f.description || '') + (currentMultiplier > 1 ? ` | Paid for ${currentMultiplier} Months (${covered})` : '')
-        };
-      });
 
       // Instead of calling onSuccess immediately, we show the success confirmation state
       setPaymentSuccessData({ updatedItems: [...currentUpdatedItems, ...outstandingRecords], paymentMode });
@@ -522,13 +622,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
 
   const selectAll = () => setFeeStates(prev => {
     const next = { ...prev };
-    Object.keys(next).forEach(k => next[k].selected = true);
+    payableCurrentItems.forEach((item) => {
+      next[item.id] = { selected: true };
+    });
     return next;
   });
 
   const selectRentOnly = () => setFeeStates(prev => {
     const next = { ...prev };
-    selectableCurrentItems.forEach(f => {
+    payableCurrentItems.forEach(f => {
       next[f.id] = { selected: (f.transactionType || '').toUpperCase().includes('RENT') };
     });
     return next;
@@ -548,6 +650,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
   const canSubmit =
     !isSubmitting &&
     !onlineConfirmationPending &&
+    (!allowPaymentDate || (!loadingFineQuote && !fineQuoteError)) &&
     !outstandingInvalid &&
     (activeItemsToPay.length > 0 || hasOutstandingPayment);
 
@@ -619,9 +722,36 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                 </div>
               )}
 
+              {allowPaymentDate && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label htmlFor="fee-payment-date" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Payment / receipt date
+                  </label>
+                  <input
+                    id="fee-payment-date"
+                    type="date"
+                    value={paymentDate}
+                    max={getTodayInput()}
+                    onChange={(event) => setPaymentDate(event.target.value)}
+                    disabled={isSubmitting}
+                    style={{ width: '100%', padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', fontSize: '15px' }}
+                  />
+                  {loadingFineQuote ? (
+                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#64748b' }}>Checking fine for selected date…</div>
+                  ) : fineQuoteError ? (
+                    <div role="alert" style={{ marginTop: '8px', fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
+                  ) : (
+                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569' }}>
+                      Late fine on {formatDateDMY(paymentDate)}: <strong>₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                      {fineQuote.daysOverdue > 0 ? ` (${fineQuote.daysOverdue} overdue day${fineQuote.daysOverdue === 1 ? '' : 's'})` : ' (no overdue fine)'}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Fees List */}
               <div style={{ marginBottom: '24px' }}>
-                {selectableCurrentItems.length > 0 && (
+                {payableCurrentItems.length > 0 && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Fees to Pay</label>
@@ -635,7 +765,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({ fee, f
                     </div>
 
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                      {selectableCurrentItems.map((f, index) => {
+                      {payableCurrentItems.map((f, index) => {
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
                         const isLast = index === selectableCurrentItems.length - 1;

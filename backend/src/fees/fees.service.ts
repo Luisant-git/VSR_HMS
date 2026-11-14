@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
@@ -65,12 +65,14 @@ export class FeesService {
 
   async create(data: CreateFeeDto) {
     return this.prisma.$transaction(async tx => {
-      const date = (data as any).paidDate
-        ? new Date((data as any).paidDate)
-        : new Date();
+      const date = this.validatedPaymentDate(data.paidDate) || new Date();
       const invoiceNumber = await this.allocateInvoiceNumber(tx, date);
       return tx.feeTransaction.create({
-        data: { ...data, invoiceNumber },
+        data: {
+          ...data,
+          paidDate: data.paidDate ? date : undefined,
+          invoiceNumber,
+        },
       });
     });
   }
@@ -193,8 +195,111 @@ export class FeesService {
   async update(id: string, data: UpdateFeeDto) {
     return this.prisma.feeTransaction.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        paidDate: data.paidDate
+          ? this.validatedPaymentDate(data.paidDate)
+          : data.paidDate,
+      },
     });
+  }
+
+  private validatedPaymentDate(value?: string) {
+    if (!value) return undefined;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime()) || date > new Date()) {
+      throw new BadRequestException('Payment date must be valid and cannot be in the future.');
+    }
+    return date;
+  }
+
+  async previewFine(studentId: string, asOfDateValue: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDateValue || '')) {
+      throw new BadRequestException('Choose a valid payment date.');
+    }
+
+    const [year, month, day] = asOfDateValue.split('-').map(Number);
+    const asOfDate = new Date(year, month - 1, day);
+    if (
+      Number.isNaN(asOfDate.getTime()) ||
+      asOfDate.getFullYear() !== year ||
+      asOfDate.getMonth() !== month - 1 ||
+      asOfDate.getDate() !== day
+    ) {
+      throw new BadRequestException('Choose a valid payment date.');
+    }
+    asOfDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (asOfDate > today) {
+      throw new BadRequestException('Payment date cannot be in the future.');
+    }
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        college: { include: { fineMaster: true } },
+        transactions: { where: { status: 'PENDING' } },
+      },
+    });
+    if (!student) throw new NotFoundException('Student not found.');
+
+    const dueDate = student.college?.dueDate
+      ? new Date(student.college.dueDate)
+      : null;
+    const pending = student.transactions || [];
+    const hasPendingRent = pending.some(
+      (item) => item.transactionType === 'RENT' || item.transactionType === 'ADVANCE',
+    );
+    const hasPendingMess = pending.some((item) => item.transactionType === 'MESS');
+    const hasPendingEb = pending.some((item) => item.transactionType === 'EB_BILL');
+    const fineMaster = student.college?.fineMaster;
+    let dailyFine =
+      (hasPendingRent ? Number(fineMaster?.rentFine) || 0 : 0) +
+      (hasPendingMess ? Number(fineMaster?.messFine) || 0 : 0) +
+      (hasPendingEb ? Number(fineMaster?.ebFine) || 0 : 0);
+
+    const pendingLateFines = pending.filter(
+      (item) =>
+        item.transactionType === 'FINE' &&
+        /late fine accumulation/i.test(String(item.description || '')),
+    );
+    if (dailyFine <= 0) {
+      const rateMatch = pendingLateFines[0]?.description?.match(/₹([\d,.]+)\/day/i);
+      dailyFine = rateMatch ? Number(rateMatch[1].replace(/,/g, '')) || 0 : 0;
+    }
+
+    const daysFor = (date: Date) => {
+      if (!dueDate || dailyFine <= 0) return 0;
+      const dueDay = new Date(dueDate);
+      dueDay.setHours(0, 0, 0, 0);
+      if (date < dueDay) return 0;
+      return Math.floor((date.getTime() - dueDay.getTime()) / 86_400_000) + 1;
+    };
+
+    const completedFines = await this.prisma.feeTransaction.findMany({
+      where: {
+        studentId,
+        status: 'COMPLETED',
+        transactionType: 'FINE',
+        description: { startsWith: 'Late fine accumulation', mode: 'insensitive' },
+      },
+      select: { amount: true },
+    });
+    const alreadyPaid = roundMoney(
+      completedFines.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+    );
+    const amountFor = (date: Date) =>
+      roundMoney(Math.max(0, daysFor(date) * dailyFine - alreadyPaid));
+
+    return {
+      asOfDate: asOfDateValue,
+      daysOverdue: daysFor(asOfDate),
+      dailyFine: roundMoney(dailyFine),
+      amount: amountFor(asOfDate),
+      currentAmount: amountFor(today),
+    };
   }
 
   /**
@@ -220,6 +325,12 @@ export class FeesService {
     const amount = roundMoney(Number(dto.amount));
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestException('Payment amount must be greater than zero.');
+    }
+    if (dto.paidDate) {
+      const paidDate = new Date(dto.paidDate);
+      if (Number.isNaN(paidDate.getTime()) || paidDate > new Date()) {
+        throw new BadRequestException('Payment date must be valid and cannot be in the future.');
+      }
     }
 
     const requestId = dto.requestId?.trim() || undefined;
@@ -354,7 +465,7 @@ export class FeesService {
     }
 
     // ONE ledger row per payment. No invoice amount or status is touched.
-    const paidDate = new Date();
+    const paidDate = dto.paidDate ? new Date(dto.paidDate) : new Date();
     const invoiceNumber = await this.allocateInvoiceNumber(tx, paidDate);
     const created = await tx.feeTransaction.create({
       data: {

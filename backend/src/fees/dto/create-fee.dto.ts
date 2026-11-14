@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { IsDateString, IsString, IsNumber, IsOptional, IsEnum, IsUUID } from 'class-validator';
 
 export class CreateFeeDto {
   @IsUUID()
@@ -20,4 +20,8 @@ export class CreateFeeDto {
   @IsOptional()
   @IsString()
   paymentMode?: string;
+
+  @IsOptional()
+  @IsDateString()
+  paidDate?: string;
 }

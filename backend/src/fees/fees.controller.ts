@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, RawBody } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, RawBody, Query } from '@nestjs/common';
 import { FeesService } from './fees.service';
 import { RazorpayPaymentService } from './razorpay-payment.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
@@ -69,6 +69,14 @@ export class FeesController {
   @Get('student/:studentId')
   findByStudent(@Param('studentId') studentId: string) {
     return this.feesService.findByStudent(studentId);
+  }
+
+  @Get('fine-preview/:studentId')
+  finePreview(
+    @Param('studentId') studentId: string,
+    @Query('asOfDate') asOfDate: string,
+  ) {
+    return this.feesService.previewFine(studentId, asOfDate);
   }
 
   @Get(':id')

@@ -1,6 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const FeesAPI = {
+  async previewFine(studentId: string, asOfDate: string) {
+    const query = new URLSearchParams({ asOfDate });
+    const res = await fetch(`${API_URL}/fees/fine-preview/${encodeURIComponent(studentId)}?${query}`);
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to calculate the fine for this date');
+    }
+    return res.json() as Promise<{
+      asOfDate: string;
+      daysOverdue: number;
+      dailyFine: number;
+      amount: number;
+      currentAmount: number;
+    }>;
+  },
+
   async create(data: any) {
     const res = await fetch(`${API_URL}/fees`, {
       method: 'POST',
@@ -46,6 +62,7 @@ export const FeesAPI = {
     referenceNumber?: string;
     notes?: string;
     requestId?: string;
+    paidDate?: string;
   }) {
     const res = await fetch(`${API_URL}/fees/pay-outstanding`, {
       method: 'POST',
