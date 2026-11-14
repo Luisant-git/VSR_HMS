@@ -2,13 +2,10 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   ArrowUpRight,
-  Clock3,
   LogIn,
   LogOut,
   Percent,
   Router,
-  ShieldAlert,
-  TrendingUp,
   UserCheck,
   UserX,
 } from 'lucide-react';
@@ -16,15 +13,11 @@ import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
 import {
   BioCardHead,
-  BioEmpty,
   BioErrorNotice,
   BioExportButton,
   BioPageHead,
   BioRefresh,
-  BioSafetyStrip,
   BioStatGrid,
-  BioTableState,
-  DirectionBadge,
 } from './components/BioUI';
 import { downloadStamp, exportExcel, formatDate, formatTime, number, percent } from './utils';
 
@@ -32,13 +25,7 @@ const Dashboard = () => {
   const { data, loading, error, reload } = useApiData(() => BiometricAttendanceAPI.dashboard(), []);
   const stats = data?.stats;
   const recentPunches = data?.recentPunches || [];
-  const weeklyTrend = data?.weeklyTrend || [];
   const deviceSummary = data?.deviceSummary;
-
-  const maxTrend = Math.max(
-    1,
-    ...weeklyTrend.map((point) => Math.max(number(point.present), number(point.punches))),
-  );
 
   const handleExport = () => {
     if (!stats) return;
@@ -92,8 +79,6 @@ const Dashboard = () => {
       />
 
       {error ? <BioErrorNotice message={error} onRetry={reload} /> : null}
-
-      {stats ? <BioSafetyStrip inside={stats.inside} outside={stats.outside} late={stats.lateEntries} /> : null}
 
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
@@ -231,123 +216,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="bio-card">
-        <BioCardHead
-          title="7-day attendance trend"
-          subtitle="Unique students present and total punches per day"
-          icon={<TrendingUp size={17} />}
-        />
-        <div className="bio-card-body">
-          {weeklyTrend.length === 0 ? (
-            <BioEmpty
-              title="No trend data yet"
-              text="Daily biometric punches will appear here once the device sync starts recording attendance."
-              icon={<TrendingUp size={28} />}
-            />
-          ) : (
-            <div className="bio-chart">
-              {weeklyTrend.map((point) => {
-                const presentHeight = Math.max(4, (number(point.present) / maxTrend) * 100);
-                const punchHeight = Math.max(4, (number(point.punches) / maxTrend) * 100);
-                const day = new Date(`${point.date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short' });
-                return (
-                  <div className="bio-chart-col" key={point.date}>
-                    <div className="bio-chart-value">{point.present}</div>
-                    <div className="bio-chart-bars">
-                      <span className="bio-chart-bar" style={{ height: `${presentHeight}%` }} title={`${point.present} students present`} />
-                      <span className="bio-chart-bar is-soft" style={{ height: `${punchHeight}%` }} title={`${point.punches} punches`} />
-                    </div>
-                    <div className="bio-chart-label">{day}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bio-card">
-        <BioCardHead
-          title="Recent biometric punches"
-          subtitle="Newest IN / OUT movements recorded today"
-          icon={<Clock3 size={17} />}
-          action={
-            <Link className="ui-btn ui-btn-secondary ui-btn-sm" to="/biometric-attendance/live-monitor">
-              Live monitor <ArrowUpRight size={14} />
-            </Link>
-          }
-        />
-        <div className="bio-table-wrap">
-          <table className="ui-table bio-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Student</th>
-                <th>Direction</th>
-                <th>Room / Bed</th>
-                <th>Verified by</th>
-                <th>Device</th>
-              </tr>
-            </thead>
-            <tbody>
-              <BioTableState
-                loading={loading && !data}
-                error={error && !data ? error : null}
-                empty={recentPunches.length === 0}
-                colSpan={6}
-                emptyTitle="No punches recorded today"
-                emptyText="Once a student scans at a biometric terminal, the movement will show up here instantly."
-                onRetry={reload}
-              />
-              {recentPunches.map((punch) => (
-                <tr key={punch.id}>
-                  <td className="bio-time">{punch.time_of_punch || formatTime(punch.punch_time)}</td>
-                  <td>
-                    <div className="bio-person">
-                      <div className="bio-avatar">{String(punch.student_name || '?').slice(0, 2).toUpperCase()}</div>
-                      <div>
-                        <div className="bio-person-name">{punch.student_name || 'Unregistered'}</div>
-                        <div className="bio-person-meta">{punch.reg_no}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td><DirectionBadge direction={punch.direction} /></td>
-                  <td>
-                    <div className="bio-cell-stack">
-                      <span className="bio-strong">{punch.room_no || '—'}</span>
-                      <span>{punch.bed_no || 'No bed'}</span>
-                    </div>
-                  </td>
-                  <td className="bio-subtle">{punch.verified_by || '—'}</td>
-                  <td className="bio-subtle">{punch.gate_name || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bio-card">
-        <BioCardHead
-          title="Safety watch"
-          subtitle="Quick view of students currently outside the hostel"
-          icon={<ShieldAlert size={17} />}
-        />
-        <div className="bio-card-body">
-          <BioSafetyStrip inside={stats?.inside ?? 0} outside={stats?.outside ?? 0} late={stats?.lateEntries ?? 0} />
-          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Link className="ui-btn ui-btn-secondary ui-btn-sm" to="/biometric-attendance/outside">
-              <LogOut size={14} /> View students outside
-            </Link>
-            <Link className="ui-btn ui-btn-secondary ui-btn-sm" to="/biometric-attendance/inside">
-              <LogIn size={14} /> View students inside
-            </Link>
-            <Link className="ui-btn ui-btn-secondary ui-btn-sm" to="/biometric-attendance/curfew">
-              <ShieldAlert size={14} /> Curfew violations
-            </Link>
-          </div>
-        </div>
-      </div>
     </>
   );
 };
