@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download, X, Printer } from 'lucide-react';
+import { Download, X, Printer, Phone } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getSystemSettings } from '../api/settings.api';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
@@ -30,39 +30,44 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
   if (!fee) return null;
 
-  // Handle both grouped fee objects and raw single fees for backward compatibility
-  const isGrouped = fee.isGrouped;
-  const feesList = isGrouped ? fee.feesList : [fee];
+  const isGrouped = Boolean(fee.isGrouped);
+  const feesList =
+    isGrouped && Array.isArray(fee.feesList) && fee.feesList.length
+      ? fee.feesList
+      : [fee];
   const firstFee = feesList[0];
   const primaryStudent = isGrouped ? fee.student : firstFee?.student;
-  const razorpayPaymentId =
-    fee?.razorpayPaymentId ||
-    feesList.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId;
-  const paymentStatus =
-    fee?.paymentStatus ||
-    feesList.find((item: any) => item.paymentStatus)?.paymentStatus;
-  const paymentMethod =
-    fee?.paymentMethod ||
-    feesList.find((item: any) => item.paymentMethod)?.paymentMethod;
-  
+
+  // Payment fields can live on the grouped receipt row or on any transaction
+  // inside it, so read the first non-empty value instead of trusting the group.
+  const firstValue = (key: string) => {
+    const direct = String(fee?.[key] ?? '').trim();
+    if (direct) return direct;
+    const match = feesList.find((item: any) =>
+      String(item?.[key] ?? '').trim(),
+    );
+    return match ? String(match[key]).trim() : '';
+  };
+
+  const razorpayPaymentId = firstValue('razorpayPaymentId');
+  const razorpayOrderId = firstValue('razorpayOrderId');
+  const paymentStatus = firstValue('paymentStatus');
+  const paymentMethod = firstValue('paymentMethod');
+  const paymentMode = firstValue('paymentMode');
+
   const totalAmount = isGrouped ? fee.totalAmount : firstFee?.amount;
-  const paymentMode = isGrouped ? fee.paymentMode : firstFee?.paymentMode;
-  // unused description
 
   const hostelName = String(settings.hostelName || '').trim();
   const address = String(settings.address || '').trim();
   const phone = String(settings.phone || '').trim();
-  const email = String(settings.email || '').trim();
-  const gstin = String(settings.gstin || '').trim();
-  const hasOrganizationDetails = Boolean(hostelName || address || phone || email || gstin);
 
   const invoiceSource = firstFee || fee;
   const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
   
-  const dateStr = new Date(fee.paidDate || firstFee?.paidDate || firstFee?.createdAt || Date.now()).toISOString().slice(0,10).replace(/-/g, '');
-  const count = parseInt((firstFee?.id || '0').substring(0, 8), 16) % 10000 || Math.floor(Math.random() * 9999);
-  const receiptNo = `REC-${dateStr}-${count.toString().padStart(4, '0')}`;
+  const invoiceSerial = /^INV-\d{4}-\d{2}-(\d+)$/.exec(invoiceNo)?.[1];
+  const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   const handleDownload = async () => {
     if (!receiptCaptureRef.current) return;
     setDownloading(true);
@@ -201,17 +206,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           <style>
             @page { size: A4 portrait; margin: 12mm; }
             * { box-sizing: border-box; }
-            html, body { margin: 0; padding: 0; width: 100%; color: #0f172a; background: #fff; font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+            html, body { margin: 0; padding: 0; width: 100%; color: #000; background: #fff; font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif; }
             #receipt-printable-area { display: block; position: relative; width: 100%; max-width: none; height: auto; max-height: none; overflow: visible; border-radius: 0; box-shadow: none; background: #fff; }
             .receipt-pad { display: block; position: relative; width: 100%; height: auto; max-height: none; min-height: 0; padding: 10mm 8mm; overflow: visible; }
             .receipt-content { position: relative; z-index: 1; }
-            .receipt-header { display: grid !important; grid-template-columns: minmax(0, 1fr) 250px; gap: 24px; }
-            .receipt-header h1 { overflow-wrap: anywhere; }
-            .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-            .receipt-header-meta { width: 250px; margin-left: auto; }
-            .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
-            .receipt-header .receipt-meta-table td:first-child { width: 94px; padding-right: 10px; text-align: left; white-space: nowrap; }
-            .receipt-header .receipt-meta-table td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
             .receipt-fee-scroll { width: 100%; overflow: visible; }
             .receipt-fee-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; }
             .receipt-fee-table thead { display: table-header-group; }
@@ -231,10 +229,37 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
     }, 250);
   };
 
-  const firstFeeDesc = firstFee?.description || '';
-  const refMatch = firstFeeDesc.match(/\|\s*Ref:\s*([^|]+)/);
-  const refNo = refMatch ? refMatch[1].trim() : null;
-  
+  const refNo =
+    feesList
+      .map((item: any) =>
+        String(item?.description || '').match(/\|\s*Ref:\s*([^|]+)/)?.[1]?.trim(),
+      )
+      .find(Boolean) ||
+    razorpayPaymentId ||
+    razorpayOrderId ||
+    '';
+
+  const formatPaymentMode = (mode: string) => {
+    const upper = mode.toUpperCase();
+    if (upper === 'UPI') return 'UPI';
+    return mode
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const displayPaymentMode = paymentMode ? formatPaymentMode(paymentMode) : '—';
+  const displayGatewayMethod = paymentMethod
+    ? paymentMethod.toUpperCase()
+    : paymentMode && paymentMode.toUpperCase() !== 'RAZORPAY'
+      ? 'Manual'
+      : '—';
+  const displayPaymentId = razorpayPaymentId || refNo || '—';
+  const displayRefNo = refNo || razorpayPaymentId || razorpayOrderId || '—';
+  const displayPaymentStatus =
+    (paymentStatus || (firstFee?.status === 'COMPLETED' ? 'PAID' : '')).toUpperCase() ||
+    'PAID';
+
   return (
     <div className="receipt-overlay">
       <style>
@@ -256,11 +281,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             display: flex;
             flex-direction: column;
             width: 100%;
-            max-width: 750px;
+            max-width: 850px;
             max-height: 95vh;
             max-height: 95dvh;
             overflow: hidden;
-            border-radius: 16px;
+            border-radius: 4px;
             background: #fff;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -269,12 +294,183 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             position: relative;
             z-index: 1;
           }
-          .receipt-header h1 { overflow-wrap: anywhere; }
-          .receipt-meta-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-          .receipt-header-meta { width: 250px; margin-left: auto; }
-          .receipt-header .receipt-meta-table td { padding: 3px 0; vertical-align: top; }
-          .receipt-header .receipt-meta-table td:first-child { width: 94px; padding-right: 10px; text-align: left; white-space: nowrap; }
-          .receipt-header .receipt-meta-table td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+          
+          /* Vintage Header Styles */
+          .vintage-header {
+            text-align: center;
+            color: #000;
+            margin-bottom: 25px;
+          }
+          .vintage-header .top-text {
+            font-family: "Georgia", serif;
+            font-size: 16px;
+            font-style: italic;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+          }
+          .vintage-header .temple-icon {
+            width: 40px;
+            height: auto;
+            margin: 0 auto 12px;
+            display: block;
+          }
+          
+          .vintage-header .subtitle {
+            font-family: "Times New Roman", serif;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+          }
+          .vintage-header .address-text {
+            font-family: "Arial", sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+            line-height: 1.4;
+            padding: 0 20px;
+          }
+          
+          .vintage-header .ornament-line {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px auto;
+            max-width: 550px;
+          }
+          .vintage-header .ornament-line::before,
+          .vintage-header .ornament-line::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1.5px solid #000;
+          }
+          .vintage-header .ornament-diamond {
+            width: 6px;
+            height: 6px;
+            background: #000;
+            transform: rotate(45deg);
+            margin: 0 12px;
+          }
+
+          /* Center Title Text */
+          .receipt-title-text {
+            text-align: center;
+            font-family: "Times New Roman", serif;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: 25px;
+            margin-bottom: 25px;
+          }
+          
+          /* Metadata Split Layout */
+          .receipt-meta-split {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding: 0 10px;
+            align-items: flex-start;
+          }
+          
+          .receipt-meta-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+          
+          .receipt-meta-line {
+            display: flex;
+            align-items: center;
+            font-family: "Arial", sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+          }
+          .receipt-meta-line .label {
+            font-family: "Times New Roman", serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #000;
+            margin-right: 8px;
+          }
+          .receipt-meta-line .value {
+            font-weight: 700;
+            color: #000;
+            font-size: 15px;
+          }
+          .receipt-meta-line .value--regular {
+            font-weight: 400;
+          }
+          
+          .receipt-sub-line {
+            font-family: "Arial", sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .receipt-sub-line.left-align {
+            justify-content: flex-start;
+          }
+          .receipt-sub-line.right-align {
+            justify-content: flex-end;
+            color: #000;
+            font-size: 14px;
+          }
+
+          /* Side-by-side Flex Layout */
+          .receipt-side-by-side {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .receipt-col-half {
+            flex: 1;
+            width: 50%;
+            min-width: 0;
+          }
+
+          /* Shared Table Styles */
+          .receipt-student-details,
+          .receipt-payment-details {
+            width: 100%;
+            border-collapse: collapse;
+            color: #000;
+            font-size: 13px;
+            line-height: 1.4;
+            table-layout: fixed;
+          }
+          .receipt-student-details th,
+          .receipt-payment-details th {
+            padding: 6px 10px 6px 0;
+            border-bottom: 1px solid #ccc;
+            color: #555;
+            font-size: 11px;
+            text-align: left;
+            text-transform: uppercase;
+          }
+          .receipt-student-details td,
+          .receipt-payment-details td {
+            padding: 6px 10px 6px 0;
+            word-break: break-word;
+          }
+          .receipt-student-details td:last-child,
+          .receipt-payment-details td:last-child {
+            padding: 6px 0;
+            font-weight: 600;
+          }
+
+          .receipt-fee-scroll { width: 100%; overflow: visible; }
+          .receipt-fee-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; }
+          .receipt-fee-table thead { display: table-header-group; }
+          .receipt-fee-table tr, .receipt-footer { break-inside: avoid; page-break-inside: avoid; }
+
           @media print {
             @page { size: A4 portrait; margin: 12mm; }
             html, body, #root {
@@ -332,6 +528,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               box-sizing: border-box !important;
             }
             .receipt-content { position: relative !important; }
+            .receipt-side-by-side { display: flex !important; flex-direction: row !important; gap: 20px !important; }
+            .receipt-col-half { flex: 1 !important; width: 50% !important; min-width: 0 !important; }
             .receipt-fee-scroll { width: 100% !important; overflow: visible !important; }
             .receipt-fee-table { width: 100% !important; min-width: 0 !important; table-layout: fixed !important; }
             .receipt-fee-table thead { display: table-header-group; }
@@ -342,134 +540,157 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           @media (max-width: 640px) {
             .receipt-overlay { align-items: stretch; padding: 8px; box-sizing: border-box; }
             .receipt-modal { width: 100%; max-width: none; height: 100%; max-height: none; min-width: 0; border-radius: 12px; }
-            .receipt-modal > .print-exact { height: 6px !important; flex: 0 0 6px; }
-            .receipt-header { grid-template-columns: minmax(0, 1fr) !important; gap: 12px !important; }
-            .receipt-footer { flex-direction: column !important; align-items: flex-start !important; gap: 12px; }
-            .receipt-header > div:last-child { text-align: left !important; margin-left: 0 !important; }
-            .receipt-header-meta { width: 100%; }
-            .receipt-header > div:first-child { min-width: 0; width: 100%; }
-            .receipt-header h1 { font-size: 22px !important; overflow-wrap: anywhere; }
-            .receipt-header .title-text { font-size: 24px !important; letter-spacing: 2px !important; margin-bottom: 8px !important; }
-            .receipt-header .receipt-meta-table { display: table !important; width: 100% !important; max-width: 100%; margin: 0 !important; text-align: left !important; white-space: normal !important; }
-            .receipt-header .receipt-meta-table td:first-child { text-align: left; }
-            .receipt-header .receipt-meta-table td:last-child { text-align: right; }
-            .receipt-meta-table td { overflow-wrap: anywhere; }
             .receipt-pad { flex: 1 1 auto; min-width: 0; min-height: 0 !important; padding: 18px 18px 28px !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
-            .receipt-header { margin-bottom: 22px !important; padding-bottom: 18px !important; }
-            .receipt-billed-to { flex-direction: column; }
-            .receipt-billed-to > div { min-width: 0; width: 100%; }
-            .receipt-billed-to { margin-bottom: 22px !important; }
-            .receipt-student-name { font-size: 16px !important; overflow-wrap: anywhere; }
-            .receipt-breakable { overflow-wrap: anywhere; word-break: break-word; }
+            .vintage-header .top-text { font-size: 13px; }
+            .vintage-header .subtitle { font-size: 16px; }
+            .vintage-header .address-text { font-size: 11px; padding: 0 10px; }
+            .vintage-header .ornament-line { max-width: 100%; margin: 10px 20px; }
+            .vintage-header .temple-icon { width: 30px; }
+            
+            .receipt-meta-split { flex-direction: column; gap: 20px; }
+            .receipt-sub-line.right-align { justify-content: flex-start; }
+            
+            .receipt-side-by-side { flex-direction: column; gap: 20px; }
+            .receipt-col-half { width: 100%; }
+
+            .receipt-billed-to { flex-direction: column; margin-bottom: 22px !important; }
             .receipt-fee-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
-            .receipt-fee-table { display: table !important; width: 100% !important; min-width: 520px !important; table-layout: auto; border-collapse: collapse; white-space: normal !important; }
-            .receipt-fee-table th,
-            .receipt-fee-table td { padding: 9px 8px !important; font-size: 13px !important; vertical-align: top; white-space: normal !important; overflow-wrap: anywhere; }
-            .receipt-fee-table th { min-width: 110px; padding: 9px 8px !important; font-size: 12px !important; letter-spacing: 0.02em; }
-            .receipt-fee-table th:first-child,
-            .receipt-fee-table td:first-child:not(.receipt-total-label) { min-width: 230px; }
-            .receipt-fee-table th:nth-child(2),
-            .receipt-fee-table td:nth-child(2) { min-width: 120px; }
-            .receipt-fee-table th:last-child,
-            .receipt-fee-table td:last-child { min-width: 150px; }
-            .receipt-fee-table .receipt-total-label { font-size: 12px !important; letter-spacing: 0 !important; }
-            .receipt-fee-table .receipt-total-amount { font-size: 15px !important; }
-            .receipt-footer { margin-top: 30px !important; }
-            .receipt-signature { align-self: flex-end; max-width: 100%; }
-            .receipt-signature-line { max-width: 100%; }
-            .watermark { font-size: 52px !important; letter-spacing: 4px !important; }
+            .receipt-fee-table { display: table !important; width: 100% !important; min-width: 520px !important; table-layout: auto; }
+            .receipt-fee-table th, .receipt-fee-table td { padding: 9px 8px !important; font-size: 12px !important; vertical-align: top; }
             .action-bar { position: relative; z-index: 2; flex: 0 0 auto; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 12px !important; gap: 8px !important; }
             .action-bar button { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; justify-content: center; padding: 10px 8px !important; font-size: 12px !important; white-space: nowrap; }
             .action-bar button:last-child { grid-column: 1 / -1; }
-          }
-          @media (max-width: 380px) {
-            .receipt-pad { padding: 12px 12px 24px !important; }
-            .receipt-header { gap: 10px !important; }
-            .receipt-header h1 { font-size: 20px !important; }
-            .action-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .action-bar button:first-child { grid-column: 1; grid-row: 2; }
-            .action-bar button:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
-            .action-bar button:last-child { grid-column: 2; grid-row: 2; }
-            .watermark { font-size: 44px !important; letter-spacing: 3px !important; }
           }
         `}
       </style>
       <div id="receipt-printable-area" className="receipt-modal" role="dialog" aria-modal="true" aria-label="Fee receipt">
         
-        {/* Top Accent Bar */}
-        <div className="print-exact" style={{ height: '8px', background: 'linear-gradient(90deg, #1e293b, #334155)', width: '100%' }}></div>
-
         <div ref={receiptCaptureRef} className="receipt-pad" style={{ padding: '40px 50px', flex: 1, overflowY: 'auto', position: 'relative', minHeight: 0 }}>
           
           {/* PAID Watermark */}
-          <div className="watermark print-exact" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: '120px', fontWeight: 900, color: 'rgba(22, 163, 74, 0.05)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
+          <div className="watermark print-exact" style={{ position: 'absolute', top: '88%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: '120px', fontWeight: 900, color: 'rgba(0, 0, 0, 0.04)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
             PAID
           </div>
 
           <div className="receipt-content">
-            {/* Header Section */}
-            <div className="receipt-header" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 250px', gap: '24px', alignItems: 'flex-start', marginBottom: '40px', borderBottom: '2px solid #f1f5f9', paddingBottom: '30px' }}>
-              <div style={{ minWidth: 0 }}>
-                {hostelName && <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>{hostelName}</h1>}
-                {hasOrganizationDetails && <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
-                  {address && address.split(/\r?\n/).map((line: string, i: number) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
-                  {phone && <>Phone: {phone}<br/></>}
-                  {email && <>Email: {email}<br/></>}
-                  {gstin && <>GSTIN: {gstin}</>}
-                </div>}
-              </div>
-              <div className="receipt-header-meta" style={{ textAlign: 'right' }}>
-                <div className="title-text" style={{ fontSize: '32px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '4px', lineHeight: 1, marginBottom: '15px' }}>RECEIPT</div>
-                <table className="receipt-meta-table" style={{ fontSize: '13px', textAlign: 'right', color: '#334155' }}>
-                  <tbody>
-                    <tr><td style={{ paddingBottom: '4px', paddingRight: '12px', fontWeight: 600 }}>Receipt No:</td><td style={{ paddingBottom: '4px', fontWeight: 700, color: '#0f172a' }}>{receiptNo}</td></tr>
-                    <tr><td style={{ paddingRight: '12px', fontWeight: 600 }}>Receipt ID:</td><td style={{ fontWeight: 700, color: '#0f172a' }}>{invoiceNo}</td></tr>
-                    <tr><td style={{ paddingRight: '12px', fontWeight: 600 }}>Date:</td><td style={{ fontWeight: 700, color: '#0f172a' }}>{receiptDate}</td></tr>
-                  </tbody>
-                </table>
+            
+            {/* Vintage Header Section */}
+            <div className="vintage-header">
+              <div className="top-text">Mayanur Sri Sellandiamman Thunai</div>
+              
+              <svg className="temple-icon" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M50 5 L55 15 L60 15 L60 20 L65 25 L65 30 L70 35 L70 40 L75 45 L75 50 L80 55 L20 55 L25 50 L25 45 L30 40 L30 35 L35 30 L35 25 L40 20 L40 15 L45 15 Z" fill="#222" />
+                <rect x="45" y="25" width="10" height="30" fill="#fff" />
+                <path d="M45 25 L50 20 L55 25 Z" fill="#222" />
+              </svg>
+
+              {/* Arched Main Title */}
+              <svg viewBox="0 0 1000 130" style={{ width: '100%', maxWidth: '800px', height: '110px', overflow: 'visible', margin: '0 auto', display: 'block' }}>
+                <defs>
+                  <path id="curve-title" d="M 50 100 Q 500 0 950 100" />
+                </defs>
+                <text style={{ fontFamily: '"Times New Roman", serif', fontSize: '44px', fontWeight: 800, fill: '#000', letterSpacing: '2px' }}>
+                  <textPath href="#curve-title" startOffset="50%" textAnchor="middle">
+                    {hostelName.toUpperCase()}
+                  </textPath>
+                </text>
+              </svg>
+
+              <div className="subtitle">( LADIES HOSTEL )</div>
+              <div className="address-text">{address}</div>
+
+              <div className="ornament-line">
+                <div className="ornament-diamond"></div>
               </div>
             </div>
 
-            {/* Billed To Section */}
-            <div className="receipt-billed-to" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px' }}>
-              <div>
-                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', margin: 0 }}>Received From</h3>
-                <div className="receipt-student-name" style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{primaryStudent?.name || 'Unknown Student'}</div>
-                <table className="receipt-student-details" style={{ width: '100%', maxWidth: '520px', borderCollapse: 'collapse', color: '#475569', fontSize: '14px', lineHeight: 1.6 }}>
+            {/* Center Text Title */}
+            <div className="receipt-title-text">FEES RECEIPT</div>
+
+            {/* Split Meta Row (Left & Right, Center Empty) */}
+            <div className="receipt-meta-split">
+              <div className="receipt-meta-col">
+                <div className="receipt-meta-line">
+                  <span className="label">Receipt No:</span>
+                  <span className="value">{receiptNo}</span>
+                </div>
+                <div className="receipt-meta-line">
+                  <span className="label">Invoice No:</span>
+                  <span className="value value--regular">{invoiceNo}</span>
+                </div>
+              </div>
+              
+              <div className="receipt-meta-col">
+                <div className="receipt-meta-line">
+                  <span className="label">Date :</span>
+                  <span className="value">{receiptDate}</span>
+                </div>
+                <div className="receipt-sub-line right-align">
+                  <Phone size={14} className="text-gray-700" />
+                  <span>{phone}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* NEW: Side-by-Side Layout (Student Left, Payment Right) */}
+            <div className="receipt-side-by-side">
+              
+              {/* Left Column: Student Details */}
+              <div className="receipt-col-half">
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', margin: 0 }}>Received From</h3>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#000', marginBottom: '10px' }}>{primaryStudent?.name || 'Unknown Student'}</div>
+                <table className="receipt-student-details">
                   <thead>
                     <tr>
-                      <th style={{ padding: '8px 16px 8px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', textAlign: 'left', textTransform: 'uppercase' }}>Field</th>
-                      <th style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', textAlign: 'left', textTransform: 'uppercase' }}>Details</th>
+                      <th style={{ width: '40%' }}>Field</th>
+                      <th style={{ width: '60%' }}>Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Registration No</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</td></tr>
-                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Room No</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{primaryStudent?.roomNo || 'N/A'}</td></tr>
-                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment Mode</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentMode || 'N/A'}</td></tr>
-                    {paymentMethod && <tr><td style={{ padding: '7px 16px 7px 0' }}>Gateway Method</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentMethod.toUpperCase()}</td></tr>}
-                    {razorpayPaymentId && <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment ID</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{razorpayPaymentId}</td></tr>}
-                    {refNo && <tr><td style={{ padding: '7px 16px 7px 0' }}>Transaction Ref</td><td className="receipt-breakable" style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{refNo}</td></tr>}
-                    <tr><td style={{ padding: '7px 16px 7px 0' }}>Payment Status</td><td style={{ padding: '7px 0', fontWeight: 600, color: '#1e293b' }}>{paymentStatus?.toUpperCase() || 'PAID'}</td></tr>
+                    <tr><td>Registration No</td><td>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</td></tr>
+                    <tr><td>Room No</td><td>{primaryStudent?.roomNo || 'N/A'}</td></tr>
                   </tbody>
                 </table>
               </div>
+
+              {/* Right Column: Payment Details */}
+              <div className="receipt-col-half">
+                <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', margin: 0 }}>Payment Details</h3>
+                <div style={{ height: '24px', marginBottom: '10px' }}></div> {/* Spacer to align tables */}
+                <table className="receipt-payment-details">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40%' }}>Field</th>
+                      <th style={{ width: '60%' }}>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Payment Mode</td><td>{displayPaymentMode}</td></tr>
+                    <tr><td>Gateway Method</td><td>{displayGatewayMethod}</td></tr>
+                    <tr><td>Payment ID</td><td>{displayPaymentId}</td></tr>
+                    <tr><td>Transaction Ref</td><td>{displayRefNo}</td></tr>
+                    <tr><td>Payment Status</td><td style={{ color: '#16a34a' }}>{displayPaymentStatus}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
             </div>
 
             {/* Fee Breakup Table */}
             <div className="receipt-fee-block" style={{ marginBottom: '40px' }}>
               <div className="receipt-fee-scroll" role="region" aria-label="Fee breakup table, scroll horizontally to see all columns" tabIndex={0}>
-              <table className="receipt-fee-table" aria-label="Fee breakup" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0' }}>
+              <table className="receipt-fee-table" aria-label="Fee breakup" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
                 <thead>
-                  <tr className="print-exact" style={{ background: '#f8fafc' }}>
-                    <th style={{ border: '1px solid #e2e8f0', padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>Description</th>
-                    <th style={{ border: '1px solid #e2e8f0', padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>Category</th>
-                    <th style={{ border: '1px solid #e2e8f0', padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#334155', textTransform: 'uppercase' }}>Amount</th>
+                  <tr className="print-exact" style={{ background: '#f5f5f5' }}>
+                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Description</th>
+                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Category</th>
+                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {feesList.map((f: any) => (
                     <tr key={f.id}>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '14px', color: '#1e293b', fontWeight: 500 }}>
+                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
                         <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
                           {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
                         </div>
@@ -487,26 +708,26 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                               }
                             }
                             return (
-                              <div key={idx} style={{ fontSize: '12px', color: '#64748b', fontWeight: 400, marginTop: idx > 0 ? '2px' : '0' }}>
+                              <div key={idx} style={{ fontSize: '12px', color: '#555', fontWeight: 400, marginTop: idx > 0 ? '2px' : '0' }}>
                                 {trimmed}{extraText}
                               </div>
                             );
                           })}
                       </td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '13px', color: '#64748b', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
                         {f.transactionType}
                       </td>
-                      <td style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: 600, textAlign: 'right' }}>
+                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
                         ₹{f.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
                   {/* Total Row */}
-                  <tr className="print-exact" style={{ background: '#f8fafc' }}>
-                    <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <tr className="print-exact" style={{ background: '#f5f5f5' }}>
+                    <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
                       Total Amount Paid
                     </td>
-                    <td className="receipt-total-amount" style={{ border: '1px solid #e2e8f0', padding: '16px', fontSize: '18px', color: '#16a34a', fontWeight: 800, textAlign: 'right' }}>
+                    <td className="receipt-total-amount" style={{ border: '1px solid #000', padding: '16px', fontSize: '18px', color: '#000', fontWeight: 800, textAlign: 'right' }}>
                       ₹{totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
@@ -515,20 +736,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               </div>
             </div>
 
-            {/* Signature & Footer Section */}
-            <div className="receipt-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
-              <div style={{ maxWidth: '300px' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.6 }}>
-                  <strong style={{ color: '#15803d' }}>Payment Successful</strong><br />
-                  Thank you for your payment.
-                </div>
-              </div>
-              <div className="receipt-signature" style={{ textAlign: 'center' }}>
-                <div className="receipt-signature-line" style={{ width: '180px', borderBottom: '1px solid #94a3b8', marginBottom: '8px', height: '40px' }}></div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Authorized Signatory</div>
-                {hostelName && <div style={{ fontSize: '11px', color: '#64748b' }}>{hostelName}</div>}
+            {/* Footer Section */}
+            <div className="receipt-footer" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: '50px', borderTop: '1px solid #ccc', paddingTop: '20px' }}>
+              <div style={{ textAlign: 'center', color: '#555', fontSize: '12px', fontStyle: 'italic' }}>
+                <strong style={{ color: '#000', display: 'block', marginBottom: '4px' }}>Payment Successful</strong>
+                This is a computer generated receipt. No signature is required.
               </div>
             </div>
+
           </div>
         </div>
 
