@@ -13,8 +13,6 @@ import {
   BioSearchField,
   BioStatGrid,
   BioTableState,
-  BioStudent,
-  ContactLines,
 } from './components/BioUI';
 import { downloadStamp, exportExcel, formatTime, number } from './utils';
 
@@ -24,6 +22,8 @@ const CurrentlyOutside = () => {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [minHours, setMinHours] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const { data, loading, error, reload } = useApiData(
     () =>
@@ -32,16 +32,33 @@ const CurrentlyOutside = () => {
         limit: LIMIT,
         search: search.trim(),
         minHours: minHours || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       }),
-    [page, search, minHours],
+    [page, search, minHours, fromDate, toDate],
   );
 
   useEffect(() => {
     setPage(1);
-  }, [search, minHours]);
+  }, [search, minHours, fromDate, toDate]);
 
   const rows = data?.data || [];
   const summary = data?.summary;
+
+  const handleFrom = (value: string) => {
+    setFromDate(value);
+    if (value && toDate && value > toDate) setToDate(value);
+  };
+
+  const handleTo = (value: string) => {
+    setToDate(value);
+    if (value && fromDate && value < fromDate) setFromDate(value);
+  };
+
+  const clearDates = () => {
+    setFromDate('');
+    setToDate('');
+  };
 
   const handleExport = () => {
     if (!rows.length) return;
@@ -50,16 +67,12 @@ const CurrentlyOutside = () => {
         {
           name: 'Currently outside',
           rows: rows.map((row) => ({
-            Student: row.student_name,
-            'Register No': row.reg_no,
-            Room: row.room_no || '',
-            Bed: row.bed_no || '',
-            'Out time': row.out_time_formatted,
-            'Time away': row.time_away,
-            'Hours outside': number(row.hours_outside),
+            'Student ID': row.reg_no,
+            'Student Name': row.student_name,
+            'Room No': row.room_no || '',
+            'Last Exit Time': row.out_time_formatted || formatTime(row.out_time),
             Mobile: row.student_mobile || '',
-            'Parent name': row.father_name || '',
-            'Parent mobile': row.father_mobile || '',
+            Status: 'Outside',
           })),
         },
       ],
@@ -104,6 +117,12 @@ const CurrentlyOutside = () => {
         <div className="bio-toolbar">
           <div className="bio-filters">
             <BioSearchField value={search} onChange={setSearch} placeholder="Search outside students..." />
+            <BioField label="From">
+              <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={(event) => handleFrom(event.target.value)} />
+            </BioField>
+            <BioField label="To">
+              <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={(event) => handleTo(event.target.value)} />
+            </BioField>
             <BioField label="Time away">
               <select className="ui-select" value={minHours} onChange={(event) => setMinHours(event.target.value)}>
                 <option value="">Any duration</option>
@@ -113,6 +132,11 @@ const CurrentlyOutside = () => {
                 <option value="12">Over 12 hours</option>
               </select>
             </BioField>
+            {fromDate || toDate ? (
+              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={clearDates}>
+                Clear dates
+              </button>
+            ) : null}
           </div>
           <div className="bio-toolbar-actions">
             <BioRefresh onClick={reload} loading={loading} />
@@ -123,11 +147,12 @@ const CurrentlyOutside = () => {
           <table className="ui-table bio-table">
             <thead>
               <tr>
-                <th>Student</th>
-                <th>Contact</th>
-                <th>Out time</th>
-                <th>Time away</th>
-                <th>Hours outside</th>
+                <th>Student ID</th>
+                <th>Student Name</th>
+                <th>Room No</th>
+                <th>Last Exit Time</th>
+                <th>Mobile</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -135,7 +160,7 @@ const CurrentlyOutside = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={5}
+                colSpan={6}
                 emptyTitle="No students currently outside"
                 emptyText={
                   minHours
@@ -144,26 +169,16 @@ const CurrentlyOutside = () => {
                 }
                 onRetry={reload}
               />
-              {rows.map((row) => {
-                const hours = number(row.hours_outside);
-                return (
-                  <tr key={`${row.reg_no}-${row.out_time}`}>
-                    <td>
-                      <BioStudent name={row.student_name} regNo={row.reg_no} room={row.room_no} bed={row.bed_no} />
-                    </td>
-                    <td>
-                      <ContactLines self={row.student_mobile} parentName={row.father_name} parent={row.father_mobile} />
-                    </td>
-                    <td className="bio-time">{row.out_time_formatted || formatTime(row.out_time)}</td>
-                    <td className="bio-subtle">{row.time_away}</td>
-                    <td>
-                      <span className={`bio-status ${hours >= 4 ? 'is-danger' : hours >= 2 ? 'is-warning' : 'is-neutral'}`}>
-                        {hours.toFixed(1)}h
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {rows.map((row) => (
+                <tr key={`${row.reg_no}-${row.out_time}`}>
+                  <td className="bio-strong">{row.reg_no || '—'}</td>
+                  <td>{row.student_name || 'Unregistered'}</td>
+                  <td>{row.room_no || '—'}</td>
+                  <td className="bio-time">{row.out_time_formatted || formatTime(row.out_time)}</td>
+                  <td>{row.student_mobile || '—'}</td>
+                  <td><span className="bio-status is-warning">Outside</span></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

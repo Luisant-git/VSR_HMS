@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   ArrowDownLeft,
   ArrowUpRight,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
@@ -11,7 +10,6 @@ import {
   Loader2,
   RefreshCw,
   Search,
-  ShieldAlert,
   X,
   XCircle,
 } from 'lucide-react';
@@ -173,25 +171,6 @@ export const BioStudent = ({
         {room ? ` · Room ${room}` : ''}
         {bed ? ` · ${bed}` : ''}
       </div>
-    </div>
-  </div>
-);
-
-export const ContactLines = ({
-  self,
-  parentName,
-  parent,
-}: {
-  self?: string | null;
-  parentName?: string | null;
-  parent?: string | null;
-}) => (
-  <div className="bio-contact">
-    <div>
-      <span className="bio-contact-label">Self</span> {self || '—'}
-    </div>
-    <div>
-      <span className="bio-contact-label">{parentName ? parentName : 'Parent'}</span> {parent || '—'}
     </div>
   </div>
 );
@@ -406,29 +385,4 @@ export const BioField = ({
     <span>{label}</span>
     {children}
   </label>
-);
-
-export const BioSafetyStrip = ({
-  inside,
-  outside,
-  late,
-}: {
-  inside: number;
-  outside: number;
-  late: number;
-}) => (
-  <div className="bio-safety-strip">
-    <div className="bio-safety-item is-inside">
-      <CheckCircle2 size={17} />
-      <span><strong>{inside}</strong> inside</span>
-    </div>
-    <div className="bio-safety-item is-outside">
-      <ArrowUpRight size={17} />
-      <span><strong>{outside}</strong> outside</span>
-    </div>
-    <div className="bio-safety-item is-late">
-      <ShieldAlert size={17} />
-      <span><strong>{late}</strong> late entries</span>
-    </div>
-  </div>
 );

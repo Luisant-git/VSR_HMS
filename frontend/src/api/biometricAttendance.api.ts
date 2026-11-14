@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL;
+﻿const API_URL = import.meta.env.VITE_API_URL;
 
 const getHeaders = () => {
   const token = localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -87,20 +87,6 @@ export interface PunchLogsResponse extends BioEnvelope {
   pagination: BioPagination;
 }
 
-export interface InsideResponse extends BioEnvelope {
-  data: Array<{
-    reg_no: string;
-    student_name: string;
-    room_no: string | null;
-    bed_no: string | null;
-    in_time_formatted: string;
-    student_mobile: string | null;
-    in_time: string;
-  }>;
-  summary: { total: number };
-  pagination: BioPagination;
-}
-
 export interface OutsideRow {
   reg_no: string;
   student_name: string;
@@ -147,170 +133,8 @@ export interface DailyResponse extends BioEnvelope {
   };
   pagination: BioPagination;
   date: string;
-}
-
-export interface AbsenteeRow {
-  check_date: string;
-  reg_no: string;
-  student_name: string;
-  room_no: string | null;
-  bed_no: string | null;
-  student_mobile: string | null;
-  father_name: string | null;
-  father_mobile: string | null;
-  attendance_status: string;
-}
-
-export interface AbsenteeResponse extends BioEnvelope {
-  data: AbsenteeRow[];
-  summary: { totalStudents: number; absent: number; present: number; attendanceRate: number };
-  pagination: BioPagination;
-  date: string;
-}
-
-export interface CurfewRow {
-  violation_date: string;
-  entry_time: string;
-  punch_time: string;
-  reg_no: string;
-  student_name: string;
-  room_no: string | null;
-  mins_late: number;
-  student_mobile: string | null;
-  father_name: string | null;
-  father_mobile: string | null;
-}
-
-export interface CurfewResponse extends BioEnvelope {
-  data: CurfewRow[];
-  summary: {
-    totalViolations: number;
-    students: number;
-    avgMinutesLate: number;
-    maxMinutesLate: number;
-  };
-  pagination: BioPagination;
-  fromDate: string;
-  toDate: string;
-  curfewTime: string;
-}
-
-export interface FrequentCurfewRow {
-  reg_no: string;
-  student_name: string;
-  room_no: string | null;
-  total_late_entries: number;
-  avg_minutes_late: number;
-  father_mobile: string | null;
-  student_mobile?: string | null;
-}
-
-export interface FrequentCurfewResponse extends BioEnvelope {
-  data: FrequentCurfewRow[];
-  summary: { total: number; days: number; minCount: number };
-}
-
-export interface RoomWiseRow {
-  report_date: string;
-  room_no: string;
-  block: string | null;
-  floor: number | null;
-  total_allotted_students: number;
-  present_count: number;
-  absent_count: number;
-  room_status: string;
-  attendance_rate: number;
-}
-
-export interface FloorSummaryRow {
-  floor: string;
-  rooms: number;
-  totalStudents: number;
-  present: number;
-  absent: number;
-  attendanceRate: number;
-}
-
-export interface RoomWiseResponse extends BioEnvelope {
-  data: RoomWiseRow[];
-  summary: {
-    rooms: number;
-    totalStudents: number;
-    present: number;
-    absent: number;
-    fullRooms: number;
-    attendanceRate: number;
-  };
-  floorSummary: FloorSummaryRow[];
-  date: string;
-}
-
-export interface MonthlyRow {
-  reg_no: string;
-  student_name: string;
-  room_no: string | null;
-  days_present: number;
-  total_punches: number;
-  total_in_count: number;
-  total_out_count: number;
-  attendance_percent: number;
-  low_attendance: boolean;
-}
-
-export interface MonthlyResponse extends BioEnvelope {
-  data: MonthlyRow[];
-  summary: {
-    students: number;
-    avgDaysPresent: number;
-    totalPunches: number;
-    lowAttendance: number;
-    rangeDays: number;
-    fromDate: string;
-    toDate: string;
-    lowThreshold: number;
-  };
-  pagination: BioPagination;
-  month: string;
-  fromDate: string;
-  toDate: string;
-}
-
-export interface BioStudent {
-  id: string;
-  reg_no: string;
-  name: string;
-  room_no: string | null;
-  bed_no: string | null;
-  biometric_id: string | null;
-  student_mobile?: string | null;
-  father_name?: string | null;
-  father_mobile?: string | null;
-  status?: string;
-}
-
-export interface StudentPunchRow {
-  punch_date: string;
-  punch_time: string;
-  punch_time_raw: string;
-  direction: 'IN' | 'OUT';
-  method: string | null;
-  device_id: string | null;
-  terminal_name: string | null;
-  synced_at: string | null;
-}
-
-export interface StudentPunchesResponse extends BioEnvelope {
-  student: BioStudent;
-  data: StudentPunchRow[];
-  summary: {
-    totalPunches: number;
-    days: number;
-    inCount: number;
-    outCount: number;
-    firstPunch: string | null;
-    lastPunch: string | null;
-  };
-  pagination: BioPagination;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface BioDevice {
@@ -363,28 +187,9 @@ export const BiometricAttendanceAPI = {
   dashboard: () => get<DashboardResponse>('/biometric-attendance/dashboard'),
   punchLogs: (params: Record<string, unknown>) =>
     get<PunchLogsResponse>('/biometric-attendance/punch-logs', params),
-  currentlyInside: (params: Record<string, unknown>) =>
-    get<InsideResponse>('/biometric-attendance/currently-inside', params),
   currentlyOutside: (params: Record<string, unknown>) =>
     get<OutsideResponse>('/biometric-attendance/currently-outside', params),
   daily: (params: Record<string, unknown>) =>
     get<DailyResponse>('/biometric-attendance/daily', params),
-  absentees: (params: Record<string, unknown>) =>
-    get<AbsenteeResponse>('/biometric-attendance/absentees', params),
-  curfew: (params: Record<string, unknown>) =>
-    get<CurfewResponse>('/biometric-attendance/curfew', params),
-  frequentCurfew: (params: Record<string, unknown>) =>
-    get<FrequentCurfewResponse>('/biometric-attendance/curfew/frequent', params),
-  roomWise: (params: Record<string, unknown>) =>
-    get<RoomWiseResponse>('/biometric-attendance/room-wise', params),
-  monthly: (params: Record<string, unknown>) =>
-    get<MonthlyResponse>('/biometric-attendance/monthly', params),
-  students: (params: Record<string, unknown>) =>
-    get<{ data: BioStudent[]; error: string | null }>('/biometric-attendance/students', params),
-  studentPunches: (identifier: string, params: Record<string, unknown>) =>
-    get<StudentPunchesResponse>(
-      `/biometric-attendance/students/${encodeURIComponent(identifier)}/punches`,
-      params,
-    ),
   devices: () => get<DevicesResponse>('/biometric-attendance/devices'),
 };

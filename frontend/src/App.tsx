@@ -39,14 +39,8 @@ import KitchenStockReport from './pages/KitchenStockReport';
 import BiometricAttendanceLayout from './pages/biometric-attendance/BiometricAttendanceLayout';
 import BioAttendanceDashboard from './pages/biometric-attendance/Dashboard';
 import BioLiveMonitor from './pages/biometric-attendance/LiveMonitor';
-import BioCurrentlyInside from './pages/biometric-attendance/CurrentlyInside';
 import BioCurrentlyOutside from './pages/biometric-attendance/CurrentlyOutside';
 import BioDailyAttendance from './pages/biometric-attendance/DailyAttendance';
-import BioAbsentees from './pages/biometric-attendance/Absentees';
-import BioCurfew from './pages/biometric-attendance/Curfew';
-import BioRoomWise from './pages/biometric-attendance/RoomWise';
-import BioMonthlyAttendance from './pages/biometric-attendance/MonthlyAttendance';
-import BioStudentHistory from './pages/biometric-attendance/StudentHistory';
 import BioDevices from './pages/biometric-attendance/Devices';
 
 const ComingSoon = ({ title }: { title: string }) => (
@@ -94,14 +88,8 @@ function App() {
           <Route path="biometric-attendance" element={<BiometricAttendanceLayout />}>
             <Route index element={<BioAttendanceDashboard />} />
             <Route path="live-monitor" element={<BioLiveMonitor />} />
-            <Route path="inside" element={<BioCurrentlyInside />} />
             <Route path="outside" element={<BioCurrentlyOutside />} />
             <Route path="daily" element={<BioDailyAttendance />} />
-            <Route path="absentees" element={<BioAbsentees />} />
-            <Route path="curfew" element={<BioCurfew />} />
-            <Route path="room-wise" element={<BioRoomWise />} />
-            <Route path="monthly" element={<BioMonthlyAttendance />} />
-            <Route path="student-history" element={<BioStudentHistory />} />
             <Route path="devices" element={<BioDevices />} />
           </Route>
           <Route path="hostellers">

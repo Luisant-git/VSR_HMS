@@ -1,17 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   CalendarCheck,
-  CalendarRange,
-  DoorClosed,
   Fingerprint,
-  History,
   LayoutDashboard,
-  LogIn,
   LogOut,
   Radio,
   Router,
-  ShieldAlert,
-  UserX,
 } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
@@ -21,14 +15,8 @@ import { todayInput } from './utils';
 const TABS = [
   { to: '/biometric-attendance', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/biometric-attendance/live-monitor', label: 'Live Punch Monitor', icon: Radio },
-  { to: '/biometric-attendance/inside', label: 'Currently Inside', icon: LogIn },
   { to: '/biometric-attendance/outside', label: 'Currently Outside', icon: LogOut },
   { to: '/biometric-attendance/daily', label: 'Daily Attendance', icon: CalendarCheck },
-  { to: '/biometric-attendance/absentees', label: 'Absentee Report', icon: UserX },
-  { to: '/biometric-attendance/curfew', label: 'Curfew & Late Entry', icon: ShieldAlert },
-  { to: '/biometric-attendance/room-wise', label: 'Room-wise Attendance', icon: DoorClosed },
-  { to: '/biometric-attendance/monthly', label: 'Monthly Attendance', icon: CalendarRange },
-  { to: '/biometric-attendance/student-history', label: 'Student Punch History', icon: History },
   { to: '/biometric-attendance/devices', label: 'Device & Sync Status', icon: Router },
 ];
 

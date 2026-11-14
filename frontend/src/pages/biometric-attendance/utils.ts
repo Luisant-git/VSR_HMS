@@ -7,25 +7,6 @@ export const todayInput = () => {
   return local.toISOString().slice(0, 10);
 };
 
-export const currentMonthInput = () => todayInput().slice(0, 7);
-
-export const daysBetween = (fromDate: string, toDate: string) => {
-  if (!fromDate || !toDate) return 0;
-  const from = new Date(`${fromDate}T00:00:00`).getTime();
-  const to = new Date(`${toDate}T00:00:00`).getTime();
-  if (Number.isNaN(from) || Number.isNaN(to) || to < from) return 0;
-  return Math.round((to - from) / 86_400_000) + 1;
-};
-
-export const monthBounds = (month: string) => {
-  const safe = /^\d{4}-\d{2}$/.test(month) ? month : currentMonthInput();
-  const end = new Date(Number(safe.slice(0, 4)), Number(safe.slice(5, 7)), 0);
-  return {
-    fromDate: `${safe}-01`,
-    toDate: `${safe}-${String(end.getDate()).padStart(2, '0')}`,
-  };
-};
-
 export const formatDate = (value?: string | null) => (value ? formatDateDMY(value) || value : '—');
 
 export const formatDateTime = (value?: string | null) => {

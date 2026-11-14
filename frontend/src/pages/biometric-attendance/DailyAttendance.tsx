@@ -22,7 +22,8 @@ import { exportExcel, formatDate, number, percent, todayInput } from './utils';
 const LIMIT = 15;
 
 const DailyAttendance = () => {
-  const [date, setDate] = useState(todayInput());
+  const [fromDate, setFromDate] = useState(todayInput());
+  const [toDate, setToDate] = useState(todayInput());
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -33,18 +34,39 @@ const DailyAttendance = () => {
         page,
         limit: LIMIT,
         search: search.trim(),
-        date,
+        fromDate,
+        toDate,
         status: status || undefined,
       }),
-    [page, search, date, status],
+    [page, search, fromDate, toDate, status],
   );
 
   useEffect(() => {
     setPage(1);
-  }, [search, date, status]);
+  }, [search, fromDate, toDate, status]);
 
   const rows = data?.data || [];
   const summary = data?.summary;
+  const rangeLabel =
+    fromDate === toDate || !toDate
+      ? formatDate(fromDate)
+      : `${formatDate(fromDate)} to ${formatDate(toDate)}`;
+
+  const handleFrom = (value: string) => {
+    setFromDate(value);
+    if (value && toDate && value > toDate) setToDate(value);
+  };
+
+  const handleTo = (value: string) => {
+    setToDate(value);
+    if (value && fromDate && value < fromDate) setFromDate(value);
+  };
+
+  const setToday = () => {
+    const today = todayInput();
+    setFromDate(today);
+    setToDate(today);
+  };
 
   const handleExport = () => {
     if (!rows.length) return;
@@ -68,7 +90,7 @@ const DailyAttendance = () => {
           })),
         },
       ],
-      `daily-attendance-${date}.xlsx`,
+      `daily-attendance-${fromDate}-to-${toDate}.xlsx`,
     );
   };
 
@@ -76,7 +98,7 @@ const DailyAttendance = () => {
     <>
       <BioPageHead
         title="Daily attendance register"
-        subtitle={`First IN and last OUT for every hosteller on ${formatDate(date)}`}
+        subtitle={`First IN and last OUT for every hosteller between ${rangeLabel}`}
         actions={
           <>
             <BioRefresh onClick={reload} loading={loading} />
@@ -109,8 +131,11 @@ const DailyAttendance = () => {
         <div className="bio-toolbar">
           <div className="bio-filters">
             <BioSearchField value={search} onChange={setSearch} />
-            <BioField label="Attendance date">
-              <input type="date" className="ui-input ui-input--inline" value={date} onChange={(event) => setDate(event.target.value)} />
+            <BioField label="From">
+              <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={(event) => handleFrom(event.target.value)} />
+            </BioField>
+            <BioField label="To">
+              <input type="date" className="ui-input ui-input--inline" value={toDate} onChange={(event) => handleTo(event.target.value)} />
             </BioField>
             <BioField label="Status">
               <select className="ui-select" value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -119,7 +144,7 @@ const DailyAttendance = () => {
                 <option value="Absent">Absent</option>
               </select>
             </BioField>
-            <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setDate(todayInput())}>
+            <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={setToday}>
               Today
             </button>
           </div>
@@ -132,6 +157,7 @@ const DailyAttendance = () => {
           <table className="ui-table bio-table">
             <thead>
               <tr>
+                <th>Date</th>
                 <th>Student</th>
                 <th>First IN</th>
                 <th>Last OUT</th>
@@ -146,13 +172,14 @@ const DailyAttendance = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={7}
-                emptyTitle="No attendance rows for this date"
-                emptyText="Pick another date, clear the search, or switch the status filter."
+                colSpan={8}
+                emptyTitle="No attendance rows for this date range"
+                emptyText="Pick another date range, clear the search, or switch the status filter."
                 onRetry={reload}
               />
               {rows.map((row) => (
                 <tr key={`${row.reg_no}-${row.attendance_date}`}>
+                  <td className="bio-strong">{formatDate(row.attendance_date)}</td>
                   <td>
                     <BioStudent name={row.student_name} regNo={row.reg_no} room={row.room_no} bed={row.bed_no} />
                   </td>
