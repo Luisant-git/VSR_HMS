@@ -50,6 +50,7 @@ export interface PunchRow {
   punch_date: string;
   punch_time: string;
   time_of_punch: string;
+  user_pin: string;
   direction: 'IN' | 'OUT';
   reg_no: string;
   student_name: string;
@@ -58,6 +59,7 @@ export interface PunchRow {
   student_mobile: string | null;
   verified_by: string | null;
   gate_name: string | null;
+  device_id: string | null;
 }
 
 export interface DashboardResponse extends BioEnvelope {

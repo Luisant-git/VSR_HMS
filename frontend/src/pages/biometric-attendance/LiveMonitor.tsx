@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Clock3, Radio, Users } from 'lucide-react';
+import { Activity, Clock3, LogIn, LogOut, UserCheck } from 'lucide-react';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
 import {
-  BioCardHead,
   BioErrorNotice,
   BioExportButton,
   BioField,
@@ -40,6 +39,12 @@ const LiveMonitor = () => {
       }),
     [page, search, fromDate, toDate, direction],
   );
+  const {
+    data: dashboard,
+    loading: dashboardLoading,
+    error: dashboardError,
+    reload: reloadDashboard,
+  } = useApiData(() => BiometricAttendanceAPI.dashboard(), []);
 
   useEffect(() => {
     setPage(1);
@@ -47,12 +52,19 @@ const LiveMonitor = () => {
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const timer = window.setInterval(reload, 20000);
+    const timer = window.setInterval(() => {
+      reload();
+      reloadDashboard();
+    }, 20000);
     return () => window.clearInterval(timer);
-  }, [autoRefresh, reload]);
+  }, [autoRefresh, reload, reloadDashboard]);
 
   const rows = data?.data || [];
-  const summary = data?.summary;
+  const todayStats = dashboard?.stats;
+  const refreshAll = () => {
+    reload();
+    reloadDashboard();
+  };
 
   const resetRange = () => {
     setFromDate(today);
@@ -69,14 +81,12 @@ const LiveMonitor = () => {
           rows: rows.map((punch) => ({
             Date: formatDate(punch.punch_date),
             Time: punch.time_of_punch || formatTime(punch.punch_time),
-            Direction: punch.direction,
+            'User PIN': punch.user_pin || '',
             Student: punch.student_name,
-            'Register No': punch.reg_no,
             Room: punch.room_no || '',
-            Bed: punch.bed_no || '',
-            Mobile: punch.student_mobile || '',
-            'Verified by': punch.verified_by || '',
-            Device: punch.gate_name || '',
+            Movement: punch.direction,
+            'Verify mode': punch.verified_by || '',
+            'Device ID': punch.device_id || '',
           })),
         },
       ],
@@ -99,21 +109,22 @@ const LiveMonitor = () => {
               />
               Auto-refresh 20s
             </label>
-            <BioRefresh onClick={reload} loading={loading} />
+            <BioRefresh onClick={refreshAll} loading={loading || dashboardLoading} />
             <BioExportButton onClick={handleExport} disabled={!rows.length} />
           </>
         }
       />
 
       {error ? <BioErrorNotice message={error} onRetry={reload} /> : null}
+      {dashboardError ? <BioErrorNotice message={dashboardError} onRetry={reloadDashboard} /> : null}
 
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
           items={[
-            { label: 'Total punches', value: summary?.total ?? '—', sub: 'Matching filters', icon: <Radio size={19} />, tone: 'accent' },
-            { label: 'IN punches', value: summary?.inCount ?? '—', sub: 'Entries recorded', icon: <ArrowDownLeft size={19} />, tone: 'success' },
-            { label: 'OUT punches', value: summary?.outCount ?? '—', sub: 'Exits recorded', icon: <ArrowUpRight size={19} />, tone: 'warning' },
-            { label: 'Students seen', value: summary?.students ?? '—', sub: 'Unique students', icon: <Users size={19} />, tone: 'info' },
+            { label: 'Punches today', value: todayStats?.punchesToday ?? (dashboardLoading ? '…' : '—'), sub: 'Recorded today', icon: <Activity size={19} />, tone: 'accent' },
+            { label: 'Students active today', value: todayStats?.presentToday ?? (dashboardLoading ? '…' : '—'), sub: 'Unique hostellers', icon: <UserCheck size={19} />, tone: 'info' },
+            { label: 'Currently inside hostel', value: todayStats?.inside ?? (dashboardLoading ? '…' : '—'), sub: 'Inside now', icon: <LogIn size={19} />, tone: 'success' },
+            { label: 'Currently outside', value: todayStats?.outside ?? (dashboardLoading ? '…' : '—'), sub: 'Outside now', icon: <LogOut size={19} />, tone: 'warning' },
           ]}
         />
       </div>
@@ -140,7 +151,7 @@ const LiveMonitor = () => {
             </button>
           </div>
           <div className="bio-toolbar-actions">
-            <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={reload} disabled={loading}>
+            <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={refreshAll} disabled={loading || dashboardLoading}>
               <Clock3 size={14} /> Refresh now
             </button>
           </div>
@@ -151,11 +162,12 @@ const LiveMonitor = () => {
             <thead>
               <tr>
                 <th>Date / time</th>
-                <th>Student</th>
-                <th>Direction</th>
-                <th>Room / Bed</th>
-                <th>Verified by</th>
-                <th>Device</th>
+                <th>User PIN</th>
+                <th>Student name</th>
+                <th>Room no.</th>
+                <th>Movement</th>
+                <th>Verify mode</th>
+                <th>Device ID</th>
               </tr>
             </thead>
             <tbody>
@@ -163,7 +175,7 @@ const LiveMonitor = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={6}
+                colSpan={7}
                 emptyTitle="No punches in this range"
                 emptyText="Try a wider date range, clear the search, or switch the direction filter."
                 onRetry={reload}
@@ -172,28 +184,23 @@ const LiveMonitor = () => {
                 <tr key={punch.id}>
                   <td>
                     <div className="bio-cell-stack">
-                      <span className="bio-time">{punch.time_of_punch || formatTime(punch.punch_time)}</span>
-                      <span>{formatDate(punch.punch_date)}</span>
+                      <span className="bio-time">{formatDate(punch.punch_date)}</span>
+                      <span>{punch.time_of_punch || formatTime(punch.punch_time)}</span>
                     </div>
                   </td>
+                  <td className="bio-subtle">{punch.user_pin || '—'}</td>
                   <td>
                     <div className="bio-person">
                       <div className="bio-avatar">{String(punch.student_name || '?').slice(0, 2).toUpperCase()}</div>
                       <div>
                         <div className="bio-person-name">{punch.student_name || 'Unregistered'}</div>
-                        <div className="bio-person-meta">{punch.reg_no || 'No register no.'}</div>
                       </div>
                     </div>
                   </td>
+                  <td className="bio-subtle">{punch.room_no || '—'}</td>
                   <td><DirectionBadge direction={punch.direction} /></td>
-                  <td>
-                    <div className="bio-cell-stack">
-                      <span className="bio-strong">{punch.room_no || '—'}</span>
-                      <span>{punch.bed_no || 'No bed'}</span>
-                    </div>
-                  </td>
                   <td className="bio-subtle">{punch.verified_by || '—'}</td>
-                  <td className="bio-subtle">{punch.gate_name || '—'}</td>
+                  <td className="bio-subtle">{punch.device_id || '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -211,25 +218,6 @@ const LiveMonitor = () => {
         ) : null}
       </div>
 
-      <div className="bio-card">
-        <BioCardHead
-          title="Punch counter"
-          subtitle="All IN and OUT movements in the selected range"
-          icon={<Radio size={17} />}
-          action={
-            <div className="bio-safety-strip">
-              <div className="bio-safety-item is-inside">
-                <ArrowDownLeft size={16} />
-                <span><strong>{summary?.inCount ?? 0}</strong> IN</span>
-              </div>
-              <div className="bio-safety-item is-outside">
-                <ArrowUpRight size={16} />
-                <span><strong>{summary?.outCount ?? 0}</strong> OUT</span>
-              </div>
-            </div>
-          }
-        />
-      </div>
     </>
   );
 };

@@ -276,6 +276,7 @@ export class BiometricAttendanceService {
       `SELECT TO_CHAR(b.punch_time::date, 'YYYY-MM-DD') AS punch_date,
               b.punch_time,
               TO_CHAR(b.punch_time, 'HH12:MI:SS AM') AS time_of_punch,
+              b.user_id AS user_pin,
               CASE WHEN (b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') THEN 'IN' ELSE 'OUT' END AS direction,
               COALESCE(s."regNo", b.user_id) AS reg_no,
               COALESCE(s.name, 'Unregistered') AS student_name,
@@ -283,7 +284,8 @@ export class BiometricAttendanceService {
               s."bedNo" AS bed_no,
               s."mobileNo" AS student_mobile,
               b.verify_type AS verified_by,
-              COALESCE(d.device_name, b.device_id) AS gate_name
+              COALESCE(d.device_name, b.device_id) AS gate_name,
+              b.device_id AS device_id
        FROM public.biometric_attendance_logs b ${joins}
        ${whereSql}
        ORDER BY b.punch_time DESC
