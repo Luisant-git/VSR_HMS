@@ -189,18 +189,16 @@ export const buildOutstandingSummary = (fees: any[]) => {
 
 /**
  * Transaction types that count toward the "Pending Fees" total:
- * Monthly Rent + EB Bill. Mess fees, fines, and advances are intentionally
- * excluded from invoice totals and balances.
- *   Pending Fees = Monthly Rent + EB Bill − Total Paid
- * (Total Paid is represented by COMPLETED rows, which are excluded by the
- * PENDING filter below, so the sum of PENDING Rent/EB already equals
- * "billed − paid" for those categories.)
+ * Monthly Rent + EB Bill + Fine. Mess fees and advances are excluded.
+ *   Pending Fees = Rent + EB Bill + Fine − Total Paid
+ * (Paid charges are COMPLETED rows, so only unpaid Rent/EB/Fine rows are
+ * counted here.)
  */
-const CURRENT_FEE_TYPES = new Set(['RENT', 'EB_BILL']);
+const CURRENT_FEE_TYPES = new Set(['RENT', 'EB_BILL', 'FINE']);
 
-/** A current-cycle pending fee (Rent / EB) that should be counted in
- *  the Pending Fees total. Excludes outstanding invoices, imported/legacy
- *  rows, pre-Nov-2026 settled rows, and non-recurring types (Fine, Advance). */
+/** A current-cycle pending fee (Rent / EB / Fine) counted in Pending Fees.
+ *  Excludes outstanding invoices, imported/legacy rows, pre-Nov-2026 settled
+ *  rows, and non-payable categories such as mess and advance. */
 export const isCurrentCycleFee = (fee: any): boolean =>
   !!fee &&
   fee.status === 'PENDING' &&
@@ -211,11 +209,11 @@ export const isCurrentCycleFee = (fee: any): boolean =>
 
 /**
  * Pending dues for a complete transaction list:
- *   current PENDING dues (Rent + EB only, with Total Paid already netted out
+ *   current PENDING dues (Rent + EB + Fine, with Total Paid already netted out
  *   via COMPLETED rows)
  * + remaining historical outstanding (original - confirmed payments).
  *
- * This implements: Pending Fees = Monthly Rent + EB Bill − Total Paid
+ * This implements: Pending Fees = Rent + EB Bill + Fine − Total Paid
  *                  (+ any separately-tracked historical dues).
  */
 export const calculatePendingDues = (fees: any[]) => {
