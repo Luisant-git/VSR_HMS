@@ -12,7 +12,6 @@ import {
   BioPager,
   BioRefresh,
   BioSearchField,
-  BioSourceNotice,
   BioStatGrid,
   BioStatus,
   BioStudent,
@@ -110,7 +109,6 @@ const Curfew = () => {
         }
       />
 
-      <BioSourceNotice available={violations.data?.available} message={violations.data?.message} loading={violations.loading && !violations.data} />
       {violations.error ? <BioErrorNotice message={violations.error} onRetry={violations.reload} /> : null}
 
       <div style={{ marginTop: 14 }}>

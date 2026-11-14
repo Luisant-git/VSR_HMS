@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Database,
   FileSpreadsheet,
   Inbox,
   Loader2,
@@ -43,32 +42,6 @@ export const BioStatGrid = ({ items }: { items: BioStatItem[] }) => (
     ))}
   </div>
 );
-
-export const BioSourceNotice = ({
-  available,
-  message,
-  loading,
-}: {
-  available?: boolean;
-  message?: string | null;
-  loading?: boolean;
-}) => {
-  if (loading || available !== false) return null;
-  return (
-    <div className="bio-notice bio-notice--warning" role="status">
-      <div className="bio-notice-icon">
-        <Database size={20} />
-      </div>
-      <div>
-        <div className="bio-notice-title">Biometric data source is not connected</div>
-        <div className="bio-notice-text">
-          {message ||
-            'The biometric log tables/views from report.sql are not present in the connected database. This screen will populate automatically once the biometric sync schema is available.'}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export const BioErrorNotice = ({ message, onRetry }: { message: string; onRetry?: () => void }) => (
   <div className="bio-notice bio-notice--danger" role="alert">

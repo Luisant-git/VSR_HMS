@@ -7217,200 +7217,40 @@ textarea.ui-form-control {
     overflow: hidden;
   }
 }
+
 /* ==========================================================================
    BIOMETRIC ATTENDANCE MODULE
-   Scoped design language for /biometric-attendance. The module keeps its own
-   #3650FA accent so it feels like a focused product area inside the HMS shell.
+   Styled with the shared HMS design system so every biometric screen matches
+   the rest of the admin pages (Hostellers, Fees, Gate Logs, ...).
    ========================================================================== */
 .bio-module {
-  --accent: #3650fa;
-  --accent-hover: #2940d6;
-  --accent-strong: #2237b8;
-  --accent-soft: #eef1ff;
-  --accent-border: #d5ddff;
-  --ring: rgba(54, 80, 250, 0.18);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 0;
   padding-bottom: 32px;
 }
 
-/* ---------- Hero ---------- */
-.bio-hero {
-  position: relative;
-  overflow: hidden;
+.bio-header-meta {
   display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 28px;
-  padding: 26px 28px;
-  border-radius: 20px;
-  border: 1px solid #e2e8ff;
-  background:
-    radial-gradient(120% 160% at 100% 0%, rgba(54, 80, 250, 0.14) 0%, rgba(54, 80, 250, 0) 55%),
-    linear-gradient(125deg, #ffffff 0%, #f8faff 52%, #eef2ff 100%);
-  box-shadow: 0 18px 42px -30px rgba(29, 45, 130, 0.55);
-}
-
-.bio-hero::before {
-  content: '';
-  position: absolute;
-  inset: auto -80px -140px auto;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(54, 80, 250, 0.16) 0%, rgba(54, 80, 250, 0) 70%);
-  pointer-events: none;
-}
-
-.bio-hero-main {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  min-width: 0;
-}
-
-.bio-hero-icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  flex: 0 0 auto;
-  border-radius: 16px;
-  color: #fff;
-  background: linear-gradient(140deg, #4c66ff 0%, #3650fa 45%, #2237b8 100%);
-  box-shadow: 0 12px 24px -10px rgba(54, 80, 250, 0.6);
-}
-
-.bio-hero-eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #6b78a3;
-}
-
-.bio-hero-title {
-  margin: 5px 0 6px;
-  font-size: 26px;
-  line-height: 1.15;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #131a33;
-}
-
-.bio-hero-sub {
-  max-width: 680px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #5d6784;
-}
-
-.bio-hero-side {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
-  flex: 0 0 auto;
-}
-
-.bio-live-pill {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 13px;
-  border-radius: 999px;
-  border: 1px solid #d7dfff;
-  background: rgba(255, 255, 255, 0.82);
-  font-size: 12px;
-  font-weight: 700;
-  color: #3b4a7a;
-  white-space: nowrap;
-  backdrop-filter: blur(6px);
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.bio-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #16a34a;
-  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45);
-  animation: bio-pulse 2.2s infinite;
-}
-
-.bio-live-pill.is-warn {
-  border-color: #fde68a;
-  color: #92400e;
-}
-
-.bio-live-pill.is-warn .bio-live-dot {
-  background: #d97706;
-  box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4);
-}
-
-.bio-live-pill.is-error {
-  border-color: #fecaca;
-  color: #b91c1c;
-}
-
-.bio-live-pill.is-error .bio-live-dot {
-  background: #dc2626;
-  animation: none;
-}
-
-@keyframes bio-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
-  70% { box-shadow: 0 0 0 7px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-}
-
-.bio-hero-meta {
-  display: flex;
-  gap: 18px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1px solid #e4e9ff;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(6px);
-}
-
-.bio-hero-meta div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 64px;
-}
-
-.bio-hero-meta span {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8a93ad;
-}
-
-.bio-hero-meta strong {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e2a55;
+.bio-header-date {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Tabs ---------- */
+/* ---------- Section tabs ---------- */
 .bio-tabs {
   display: flex;
-  gap: 5px;
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
-  padding: 7px;
-  border-radius: 15px;
-  border: 1px solid var(--border);
-  background: #fff;
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 20px;
   scrollbar-width: none;
 }
 
@@ -7418,32 +7258,9 @@ textarea.ui-form-control {
   display: none;
 }
 
-.bio-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 13px;
-  border-radius: 10px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #5b6478;
+.bio-tabs .ui-tab {
   white-space: nowrap;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.bio-tab svg {
-  flex: 0 0 auto;
-}
-
-.bio-tab:hover {
-  background: #f3f5ff;
-  color: var(--accent);
-}
-
-.bio-tab.is-active {
-  background: linear-gradient(140deg, #4c66ff 0%, #3650fa 100%);
-  color: #fff;
-  box-shadow: 0 8px 18px -10px rgba(54, 80, 250, 0.85);
+  padding: 9px 14px;
 }
 
 .bio-body {
@@ -7457,20 +7274,20 @@ textarea.ui-form-control {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .bio-page-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  color: #17203c;
+  color: var(--text-heading);
 }
 
 .bio-page-sub {
-  margin-top: 3px;
-  font-size: 12.5px;
+  margin-top: 4px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -7484,39 +7301,29 @@ textarea.ui-form-control {
 /* ---------- Stat cards ---------- */
 .bio-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
-  gap: 13px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 15px;
 }
 
 .bio-stat {
-  position: relative;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 14px;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.bio-stat::after {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--bio-stat-color, var(--accent));
-  opacity: 0.85;
+  min-width: 0;
 }
 
 .bio-stat-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
-  border-radius: 11px;
+  border-radius: 10px;
   background: var(--bio-stat-soft, var(--accent-soft));
   color: var(--bio-stat-color, var(--accent));
 }
@@ -7526,9 +7333,9 @@ textarea.ui-form-control {
 }
 
 .bio-stat-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #78829a;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7537,38 +7344,38 @@ textarea.ui-form-control {
 .bio-stat-value {
   margin-top: 2px;
   font-size: 24px;
-  line-height: 1.1;
-  font-weight: 800;
+  line-height: 1.15;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #17203c;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 
 .bio-stat-sub {
   margin-top: 3px;
-  font-size: 11.5px;
-  color: #98a1b5;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.bio-tone-accent { --bio-stat-color: #3650fa; --bio-stat-soft: #eef1ff; }
-.bio-tone-success { --bio-stat-color: #16a34a; --bio-stat-soft: #dcfce7; }
-.bio-tone-danger { --bio-stat-color: #dc2626; --bio-stat-soft: #fee2e2; }
-.bio-tone-warning { --bio-stat-color: #d97706; --bio-stat-soft: #fef3c7; }
-.bio-tone-info { --bio-stat-color: #0284c7; --bio-stat-soft: #e0f2fe; }
-.bio-tone-purple { --bio-stat-color: #7c3aed; --bio-stat-soft: #f3e8ff; }
-.bio-tone-neutral { --bio-stat-color: #475569; --bio-stat-soft: #f1f5f9; }
+.bio-tone-accent { --bio-stat-color: var(--accent); --bio-stat-soft: var(--accent-soft); }
+.bio-tone-success { --bio-stat-color: var(--success-strong); --bio-stat-soft: var(--success-soft); }
+.bio-tone-danger { --bio-stat-color: var(--danger-strong); --bio-stat-soft: var(--danger-soft); }
+.bio-tone-warning { --bio-stat-color: var(--warning-strong); --bio-stat-soft: var(--warning-soft); }
+.bio-tone-info { --bio-stat-color: var(--info); --bio-stat-soft: var(--info-soft); }
+.bio-tone-purple { --bio-stat-color: var(--purple); --bio-stat-soft: var(--purple-soft); }
+.bio-tone-neutral { --bio-stat-color: #475569; --bio-stat-soft: var(--surface-sunken); }
 
 /* ---------- Cards ---------- */
 .bio-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
 
 .bio-card + .bio-card {
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
 .bio-card-head {
@@ -7577,54 +7384,55 @@ textarea.ui-form-control {
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 15px 18px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  background: var(--surface);
 }
 
 .bio-card-head-main {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 12px;
   min-width: 0;
 }
 
 .bio-card-head-icon {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 9px;
   background: var(--accent-soft);
   color: var(--accent);
 }
 
 .bio-card-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
-  color: #1b2440;
+  color: var(--text-heading);
 }
 
 .bio-card-sub {
-  margin-top: 2px;
-  font-size: 11.5px;
+  margin-top: 3px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
 .bio-card-body {
-  padding: 16px 18px;
+  padding: 22px;
 }
 
 .bio-grid-2 {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
 .bio-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 20px;
 }
 
 /* ---------- Filters / toolbar ---------- */
@@ -7634,15 +7442,15 @@ textarea.ui-form-control {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 14px 18px;
+  padding: 15px 22px;
   border-bottom: 1px solid var(--border);
-  background: #fcfdff;
+  background: var(--surface);
 }
 
 .bio-filters {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -7650,9 +7458,9 @@ textarea.ui-form-control {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
-  color: #6b7488;
+  color: var(--text-muted);
 }
 
 .bio-field > span:first-child {
@@ -7661,18 +7469,19 @@ textarea.ui-form-control {
 
 .bio-field .ui-input,
 .bio-field .ui-select {
-  height: 36px;
+  height: 38px;
   min-width: 140px;
   font-size: 13px;
 }
 
 .bio-search {
+  display: flex;
   min-width: 240px;
-  max-width: 320px;
+  max-width: 340px;
 }
 
 .bio-search input {
-  width: 100%;
+  width: 260px;
 }
 
 .bio-toolbar-actions {
@@ -7686,12 +7495,12 @@ textarea.ui-form-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 11px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  font-size: 12.5px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 13px;
   font-weight: 600;
   color: #475569;
   cursor: pointer;
@@ -7715,8 +7524,7 @@ textarea.ui-form-control {
 
 .bio-table th {
   white-space: nowrap;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
+  font-size: 11.5px;
 }
 
 .bio-table td {
@@ -7724,20 +7532,20 @@ textarea.ui-form-control {
 }
 
 .bio-time {
-  font-weight: 700;
-  color: #17203c;
+  font-weight: 600;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .bio-subtle {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .bio-strong {
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 600;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 
@@ -7753,7 +7561,7 @@ textarea.ui-form-control {
 }
 
 .bio-cell-stack span:last-child {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -7768,26 +7576,33 @@ textarea.ui-form-control {
 .bio-avatar {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: linear-gradient(140deg, #eef1ff 0%, #dfe5ff 100%);
-  color: #3650fa;
-  font-size: 12px;
-  font-weight: 800;
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
+.bio-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
 .bio-person-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-heading);
   line-height: 1.3;
 }
 
 .bio-person-meta {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-muted);
   line-height: 1.35;
 }
@@ -7796,67 +7611,121 @@ textarea.ui-form-control {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 12px;
-  color: #334155;
+  font-size: 12.5px;
+  color: var(--text-main);
   white-space: nowrap;
 }
 
 .bio-contact-label {
-  color: #98a1b5;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   margin-right: 3px;
 }
 
 /* ---------- Badges ---------- */
-.bio-direction {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-}
-
-.bio-direction.is-in {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.bio-direction.is-out {
-  background: #ffedd5;
-  color: #c2410c;
-}
-
+.bio-direction,
 .bio-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
   white-space: nowrap;
-  text-transform: capitalize;
 }
 
-.bio-status.is-success { background: #dcfce7; color: #15803d; }
-.bio-status.is-danger { background: #fee2e2; color: #b91c1c; }
-.bio-status.is-warning { background: #fef3c7; color: #92400e; }
-.bio-status.is-neutral { background: #f1f5f9; color: #475569; }
+.bio-direction {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bio-direction.is-in,
+.bio-status.is-success {
+  background: var(--success-soft);
+  color: var(--success-strong);
+}
+
+.bio-direction.is-out {
+  background: var(--warning-soft);
+  color: var(--warning-strong);
+}
+
+.bio-status.is-danger {
+  background: var(--danger-soft);
+  color: var(--danger-strong);
+}
+
+.bio-status.is-warning {
+  background: var(--warning-soft);
+  color: var(--warning-strong);
+}
+
+.bio-status.is-neutral {
+  background: var(--surface-sunken);
+  color: #475569;
+}
 
 .bio-late {
-  color: #b45309;
-  font-weight: 800;
+  color: var(--warning-strong);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .bio-muted-value {
-  color: #94a3b8;
+  color: var(--text-muted);
+}
+
+/* ---------- Live pill ---------- */
+.bio-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.bio-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: bio-pulse 2.2s infinite;
+}
+
+.bio-live-pill.is-warn {
+  border-color: var(--warning-border);
+  color: var(--warning-strong);
+}
+
+.bio-live-pill.is-warn .bio-live-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4);
+}
+
+.bio-live-pill.is-error {
+  border-color: var(--danger-border);
+  color: var(--danger-strong);
+}
+
+.bio-live-pill.is-error .bio-live-dot {
+  background: var(--danger);
+  animation: none;
+}
+
+@keyframes bio-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
 }
 
 /* ---------- Rate bar ---------- */
@@ -7873,21 +7742,21 @@ textarea.ui-form-control {
 }
 
 .bio-rate-value {
-  font-size: 12px;
-  font-weight: 800;
-  color: #1e293b;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 
 .bio-rate-label {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .bio-rate-track {
   height: 6px;
-  border-radius: 999px;
-  background: #eef2f7;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
   overflow: hidden;
 }
 
@@ -7895,16 +7764,16 @@ textarea.ui-form-control {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #4c66ff, #3650fa);
+  background: var(--accent);
   transition: width 0.35s ease;
 }
 
 .bio-rate.is-mid .bio-rate-fill {
-  background: linear-gradient(90deg, #fbbf24, #d97706);
+  background: #f59e0b;
 }
 
 .bio-rate.is-low .bio-rate-fill {
-  background: linear-gradient(90deg, #fb7185, #dc2626);
+  background: var(--danger);
 }
 
 /* ---------- Safety strip ---------- */
@@ -7919,22 +7788,36 @@ textarea.ui-form-control {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: #fff;
-  font-size: 12.5px;
+  background: var(--surface);
+  font-size: 13px;
   color: #475569;
 }
 
 .bio-safety-item strong {
-  color: #17203c;
+  color: var(--text-heading);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
-.bio-safety-item.is-inside { border-color: #bbf7d0; background: #f6fef9; color: #15803d; }
-.bio-safety-item.is-outside { border-color: #fed7aa; background: #fffaf3; color: #c2410c; }
-.bio-safety-item.is-late { border-color: #fde68a; background: #fffdf3; color: #a16207; }
+.bio-safety-item.is-inside {
+  border-color: var(--success-border);
+  background: #f6fef9;
+  color: var(--success-strong);
+}
+
+.bio-safety-item.is-outside {
+  border-color: var(--warning-border);
+  background: #fffaf3;
+  color: var(--warning-strong);
+}
+
+.bio-safety-item.is-late {
+  border-color: var(--warning-border);
+  background: #fffdf3;
+  color: var(--warning-strong);
+}
 
 /* ---------- Notices ---------- */
 .bio-notice {
@@ -7942,18 +7825,19 @@ textarea.ui-form-control {
   align-items: flex-start;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: 13px;
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
+  margin-bottom: 16px;
 }
 
 .bio-notice--warning {
-  border-color: #fde68a;
-  background: linear-gradient(120deg, #fffdf4 0%, #fff8e1 100%);
+  border-color: var(--warning-border);
+  background: #fffdf4;
 }
 
 .bio-notice--danger {
-  border-color: #fecaca;
+  border-color: var(--danger-border);
   background: #fff7f7;
 }
 
@@ -7963,13 +7847,13 @@ textarea.ui-form-control {
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.7);
-  color: #b45309;
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--warning-strong);
 }
 
 .bio-notice--danger .bio-notice-icon {
-  color: #b91c1c;
+  color: var(--danger-strong);
 }
 
 .bio-notice-copy {
@@ -7984,19 +7868,19 @@ textarea.ui-form-control {
 }
 
 .bio-notice--danger .bio-notice-title {
-  color: #991b1b;
+  color: var(--danger-strong);
 }
 
 .bio-notice-text {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: #7c6a34;
   word-break: break-word;
 }
 
 .bio-notice--danger .bio-notice-text {
-  color: #b91c1c;
+  color: var(--danger-strong);
 }
 
 .bio-table-message {
@@ -8007,7 +7891,7 @@ textarea.ui-form-control {
 }
 
 .bio-table-message--danger {
-  color: #b91c1c;
+  color: var(--danger-strong);
 }
 
 .bio-table-message svg {
@@ -8026,31 +7910,31 @@ textarea.ui-form-control {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 38px 20px;
+  padding: 36px 20px;
   text-align: center;
 }
 
 .bio-empty-icon {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 56px;
+  height: 56px;
   margin-bottom: 10px;
   border-radius: 50%;
-  background: #f1f5fb;
+  background: var(--surface-sunken);
   color: #94a3b8;
 }
 
 .bio-empty-title {
   font-size: 14px;
-  font-weight: 700;
-  color: #334155;
+  font-weight: 600;
+  color: var(--text-heading);
 }
 
 .bio-empty-text {
   margin-top: 4px;
-  max-width: 420px;
-  font-size: 12px;
+  max-width: 440px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-muted);
 }
@@ -8088,25 +7972,25 @@ textarea.ui-form-control {
 .bio-chart-bar {
   width: 12px;
   min-height: 4px;
-  border-radius: 5px 5px 2px 2px;
-  background: linear-gradient(180deg, #6f83ff 0%, #3650fa 100%);
+  border-radius: 4px 4px 2px 2px;
+  background: var(--accent);
   transition: height 0.35s ease;
 }
 
 .bio-chart-bar.is-soft {
-  background: linear-gradient(180deg, #dbe2ff 0%, #c3ceff 100%);
+  background: var(--accent-border);
 }
 
 .bio-chart-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: #98a1b5;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .bio-chart-value {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: #4b5878;
   font-variant-numeric: tabular-nums;
 }
@@ -8140,16 +8024,16 @@ textarea.ui-form-control {
 
 .bio-ring-center strong {
   font-size: 21px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #17203c;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 
 .bio-ring-center span {
   font-size: 10px;
   font-weight: 600;
-  color: #98a1b5;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -8165,7 +8049,7 @@ textarea.ui-form-control {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: #5b6478;
 }
 
@@ -8178,7 +8062,7 @@ textarea.ui-form-control {
 
 .bio-legend strong {
   margin-left: auto;
-  color: #1e293b;
+  color: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 
@@ -8186,13 +8070,13 @@ textarea.ui-form-control {
 .bio-device-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .bio-device-card {
   border: 1px solid var(--border);
-  border-radius: 15px;
-  background: #fff;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   padding: 16px;
   box-shadow: var(--shadow-sm);
 }
@@ -8207,13 +8091,13 @@ textarea.ui-form-control {
 
 .bio-device-name {
   font-size: 14px;
-  font-weight: 800;
-  color: #17203c;
+  font-weight: 600;
+  color: var(--text-heading);
 }
 
 .bio-device-ip {
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
@@ -8234,28 +8118,28 @@ textarea.ui-form-control {
 }
 
 .bio-device-grid-inner span {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #98a1b5;
+  color: var(--text-muted);
 }
 
 .bio-device-grid-inner strong {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-main);
   word-break: break-word;
 }
 
 .bio-device-error {
   margin-top: 11px;
   padding: 9px 11px;
-  border-radius: 9px;
-  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger-border);
   background: #fff7f7;
-  font-size: 11.5px;
-  color: #b91c1c;
+  font-size: 12px;
+  color: var(--danger-strong);
   word-break: break-word;
 }
 
@@ -8273,12 +8157,12 @@ textarea.ui-form-control {
   width: 54px;
   height: 54px;
   flex: 0 0 auto;
-  border-radius: 16px;
-  background: linear-gradient(140deg, #4c66ff 0%, #3650fa 100%);
+  border-radius: var(--radius-lg);
+  background: var(--accent);
   color: #fff;
   font-size: 18px;
-  font-weight: 800;
-  box-shadow: 0 10px 22px -12px rgba(54, 80, 250, 0.8);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(74, 114, 250, 0.25);
 }
 
 .bio-profile-main {
@@ -8287,13 +8171,13 @@ textarea.ui-form-control {
 
 .bio-profile-name {
   font-size: 17px;
-  font-weight: 800;
-  color: #17203c;
+  font-weight: 700;
+  color: var(--text-heading);
 }
 
 .bio-profile-meta {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
 }
 
@@ -8308,13 +8192,13 @@ textarea.ui-form-control {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: #f4f6ff;
-  border: 1px solid #e3e8ff;
-  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  font-size: 11.5px;
   font-weight: 600;
-  color: #40518f;
+  color: var(--accent-hover);
 }
 
 /* ---------- Student picker ---------- */
@@ -8330,10 +8214,10 @@ textarea.ui-form-control {
   z-index: 30;
   max-height: 280px;
   overflow-y: auto;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: #fff;
-  box-shadow: 0 18px 38px -18px rgba(15, 23, 42, 0.28);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 .bio-picker-item {
@@ -8351,7 +8235,7 @@ textarea.ui-form-control {
 }
 
 .bio-picker-item:hover {
-  background: #f6f8ff;
+  background: var(--surface-muted);
 }
 
 .bio-picker-text {
@@ -8361,19 +8245,19 @@ textarea.ui-form-control {
 }
 
 .bio-picker-text strong {
-  font-size: 12.5px;
-  color: #1e293b;
+  font-size: 13px;
+  color: var(--text-heading);
 }
 
 .bio-picker-text span {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-muted);
 }
 
 .bio-picker-empty {
   padding: 16px;
   text-align: center;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text-muted);
 }
 
@@ -8406,65 +8290,15 @@ textarea.ui-form-control {
   .bio-grid-3 {
     grid-template-columns: 1fr;
   }
-
-  .bio-hero {
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .bio-hero-side {
-    align-items: flex-start;
-    width: 100%;
-  }
-
-  .bio-hero-meta {
-    width: 100%;
-  }
 }
 
 @media (max-width: 640px) {
   .bio-module {
-    gap: 14px;
-  }
-
-  .bio-hero {
-    padding: 20px 18px;
-    border-radius: 16px;
-  }
-
-  .bio-hero-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 13px;
-  }
-
-  .bio-hero-title {
-    font-size: 21px;
-  }
-
-  .bio-hero-sub {
-    font-size: 12px;
-  }
-
-  .bio-hero-meta {
-    gap: 10px;
-    justify-content: space-between;
-    padding: 10px 12px;
-  }
-
-  .bio-hero-meta div {
-    min-width: 0;
-    flex: 1 1 0;
+    padding-bottom: 20px;
   }
 
   .bio-tabs {
-    border-radius: 13px;
-    padding: 6px;
-  }
-
-  .bio-tab {
-    padding: 8px 11px;
-    font-size: 12px;
+    margin-bottom: 16px;
   }
 
   .bio-page-head {
@@ -8476,18 +8310,18 @@ textarea.ui-form-control {
   }
 
   .bio-stat-grid {
-    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 10px;
   }
 
   .bio-stat {
     padding: 13px;
-    gap: 9px;
+    gap: 10px;
   }
 
   .bio-stat-icon {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: 9px;
   }
 
@@ -8496,13 +8330,17 @@ textarea.ui-form-control {
   }
 
   .bio-toolbar {
-    padding: 12px;
+    padding: 13px;
   }
 
   .bio-filters,
   .bio-search {
     width: 100%;
     max-width: none;
+  }
+
+  .bio-search input {
+    width: 100%;
   }
 
   .bio-field {
@@ -8525,11 +8363,11 @@ textarea.ui-form-control {
   }
 
   .bio-card-head {
-    padding: 13px;
+    padding: 14px 16px;
   }
 
   .bio-card-body {
-    padding: 13px;
+    padding: 16px;
   }
 
   .bio-safety-strip {

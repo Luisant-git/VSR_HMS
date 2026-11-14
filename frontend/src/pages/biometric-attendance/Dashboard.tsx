@@ -22,7 +22,6 @@ import {
   BioPageHead,
   BioRefresh,
   BioSafetyStrip,
-  BioSourceNotice,
   BioStatGrid,
   BioTableState,
   DirectionBadge,
@@ -92,7 +91,6 @@ const Dashboard = () => {
         }
       />
 
-      <BioSourceNotice available={data?.available} message={data?.message} loading={loading && !data} />
       {error ? <BioErrorNotice message={error} onRetry={reload} /> : null}
 
       {stats ? <BioSafetyStrip inside={stats.inside} outside={stats.outside} late={stats.lateEntries} /> : null}
@@ -163,8 +161,8 @@ const Dashboard = () => {
                   />
                   <defs>
                     <linearGradient id="bioRingGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#4c66ff" />
-                      <stop offset="100%" stopColor="#2237b8" />
+                      <stop offset="0%" stopColor="#4a72fa" />
+                      <stop offset="100%" stopColor="#3b5bdb" />
                     </linearGradient>
                   </defs>
                 </svg>
@@ -175,7 +173,7 @@ const Dashboard = () => {
               </div>
               <div className="bio-ring-copy">
                 <div className="bio-legend">
-                  <i style={{ background: '#3650fa' }} /> Present <strong>{stats?.presentToday ?? 0}</strong>
+                  <i style={{ background: '#4a72fa' }} /> Present <strong>{stats?.presentToday ?? 0}</strong>
                 </div>
                 <div className="bio-legend">
                   <i style={{ background: '#e2e8f0' }} /> Absent <strong>{stats?.absentToday ?? 0}</strong>

@@ -11,7 +11,6 @@ import {
   BioPageHead,
   BioPager,
   BioRefresh,
-  BioSourceNotice,
   BioStatGrid,
   BioTableState,
   DirectionBadge,
@@ -80,7 +79,6 @@ const StudentPunches = ({ student }: { student: BioStudent }) => {
 
   return (
     <>
-      <BioSourceNotice available={data?.available} message={data?.message} loading={loading && !data} />
       {error ? <BioErrorNotice message={error} onRetry={refresh} /> : null}
 
       <div style={{ marginTop: 14 }}>

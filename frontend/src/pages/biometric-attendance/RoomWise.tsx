@@ -13,7 +13,6 @@ import {
   BioRate,
   BioRefresh,
   BioSearchField,
-  BioSourceNotice,
   BioStatGrid,
   BioStatus,
   BioTableState,
@@ -90,7 +89,6 @@ const RoomWise = () => {
         }
       />
 
-      <BioSourceNotice available={data?.available} message={data?.message} loading={loading && !data} />
       {error ? <BioErrorNotice message={error} onRetry={reload} /> : null}
 
       <div style={{ marginTop: 14 }}>
