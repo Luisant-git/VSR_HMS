@@ -3288,7 +3288,9 @@ textarea.ui-form-control {
 
 .fees-table .fees-note {
   font-size: 10.5px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 /* Invoice numbers are long, so let them wrap and show in full instead of
