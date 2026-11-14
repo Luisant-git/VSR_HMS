@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck, Clock3, LogIn, LogOut, UserCheck, UserX } from 'lucide-react';
+import { CalendarCheck, Clock3, LogIn, LogOut, UserCheck } from 'lucide-react';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
 import {
@@ -97,8 +97,8 @@ const DailyAttendance = () => {
   return (
     <>
       <BioPageHead
-        title="Daily attendance register"
-        subtitle={`First IN and last OUT for every hosteller between ${rangeLabel}`}
+        title="Daily Attendance Register"
+        subtitle={`Hostel presence and exit/entry movements for ${rangeLabel}`}
         actions={
           <>
             <BioRefresh onClick={reload} loading={loading} />
@@ -112,25 +112,25 @@ const DailyAttendance = () => {
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
           items={[
-            { label: 'Active students', value: summary?.totalStudents ?? '—', sub: 'On the hostel roll', icon: <UserCheck size={19} />, tone: 'info' },
-            { label: 'Present', value: summary?.present ?? '—', sub: 'At least one IN punch', icon: <LogIn size={19} />, tone: 'success' },
-            { label: 'Absent', value: summary?.absent ?? '—', sub: 'No IN punch recorded', icon: <UserX size={19} />, tone: 'danger' },
+            { label: 'Active hostellers', value: summary?.totalStudents ?? '—', sub: 'On the hostel roll', icon: <UserCheck size={19} />, tone: 'info' },
+            { label: 'In Hostel (Present)', value: summary?.present ?? '—', sub: 'Inside hostel', icon: <LogIn size={19} />, tone: 'success' },
+            { label: 'Currently Outside', value: summary?.absent ?? '—', sub: (summary?.absent || 0) > 0 ? 'Punched OUT (Away)' : 'All hostellers inside', icon: <LogOut size={19} />, tone: (summary?.absent || 0) > 0 ? 'warning' : 'neutral' },
             { label: 'Punches', value: summary?.totalPunches ?? '—', sub: 'IN + OUT movements', icon: <Clock3 size={19} />, tone: 'accent' },
-            { label: 'Attendance rate', value: percent(summary?.attendanceRate), sub: 'Present vs active roll', icon: <CalendarCheck size={19} />, tone: 'purple' },
+            { label: 'Hostel Presence', value: percent(summary?.attendanceRate), sub: 'Inside vs active roll', icon: <CalendarCheck size={19} />, tone: 'purple' },
           ]}
         />
       </div>
 
       <div className="bio-card" style={{ marginTop: 16 }}>
         <BioCardHead
-          title="Register"
-          subtitle="Distinct first IN / last OUT are calculated from biometric punches"
+          title="Hostel Presence & Movement Register"
+          subtitle="Students reside in hostel by default; punching OUT marks exit, punching IN marks return."
           icon={<CalendarCheck size={17} />}
         />
 
         <div className="bio-toolbar">
           <div className="bio-filters">
-            <BioSearchField value={search} onChange={setSearch} />
+            <BioSearchField value={search} onChange={setSearch} placeholder="Search student, reg no. or room..." />
             <BioField label="From">
               <input type="date" className="ui-input ui-input--inline" value={fromDate} onChange={(event) => handleFrom(event.target.value)} />
             </BioField>
@@ -140,8 +140,9 @@ const DailyAttendance = () => {
             <BioField label="Status">
               <select className="ui-select" value={status} onChange={(event) => setStatus(event.target.value)}>
                 <option value="">All students</option>
-                <option value="Present">Present</option>
-                <option value="Absent">Absent</option>
+                <option value="In Hostel">In Hostel (Present)</option>
+                <option value="Outside">Currently Outside</option>
+                <option value="Moved">Movement Recorded Today</option>
               </select>
             </BioField>
             <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={setToday}>
@@ -192,7 +193,7 @@ const DailyAttendance = () => {
                         <LogIn size={13} color="#16a34a" /> {row.first_in_time}
                       </span>
                     ) : (
-                      <span className="bio-muted-value">—</span>
+                      <span className="bio-muted-value">— (In Hostel)</span>
                     )}
                   </td>
                   <td>
@@ -205,7 +206,7 @@ const DailyAttendance = () => {
                     )}
                   </td>
                   <td className="bio-strong">{row.total_punches}</td>
-                  <td><BioStatus status={row.attendance_status} /></td>
+                  <td><BioStatus status={row.attendance_status || 'In Hostel'} /></td>
                 </tr>
               ))}
             </tbody>
@@ -224,9 +225,9 @@ const DailyAttendance = () => {
       </div>
 
       <div className="bio-card">
-        <BioCardHead title="Attendance health" subtitle="Present share of the active hostel roll" icon={<CalendarCheck size={17} />} />
+        <BioCardHead title="Hostel Presence Health" subtitle="Share of active hostellers inside the hostel" icon={<CalendarCheck size={17} />} />
         <div className="bio-card-body">
-          <BioRate value={number(summary?.attendanceRate)} label={`${summary?.present ?? 0} present / ${summary?.totalStudents ?? 0} students`} />
+          <BioRate value={number(summary?.attendanceRate)} label={`${summary?.present ?? 0} inside / ${summary?.totalStudents ?? 0} students`} />
         </div>
       </div>
     </>
