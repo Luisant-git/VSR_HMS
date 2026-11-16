@@ -224,43 +224,31 @@ export interface LateWarningRow {
   student_mobile: string | null;
   father_name?: string | null;
   father_mobile: string | null;
-  // For curfew violations
-  violation_date?: string;
   punch_date?: string;
-  punch_time?: string;
-  return_time?: string;
-  punch_time_formatted?: string;
-  minutes_past_curfew?: number;
-  device_id?: string;
-  violation_type?: string;
-  // For overdue outside
+  violation_date?: string;
   out_time?: string;
-  last_out_time?: string;
   out_time_formatted?: string;
-  hours_outside?: number;
-  exit_device_id?: string;
-  current_location?: string;
-  alert_level?: 'CRITICAL' | 'WARNING' | 'NORMAL';
-  // For missing/absent
+  out_device_id?: string;
+  in_time?: string | null;
+  in_time_formatted?: string | null;
+  return_time?: string | null;
+  punch_time_formatted?: string | null;
+  in_device_id?: string | null;
+  device_id?: string | null;
   status?: string;
-  // For frequent
-  total_late_entries?: number;
-  avg_minutes_late?: number;
-  last_late_punch?: string;
-  last_late_punch_formatted?: string;
+  minutes_late?: number;
+  minutes_past_curfew?: number;
 }
 
 export interface LateWarningsSummary {
   lateReturnsToday: number;
-  criticalOverdue: number;
-  totalOutside: number;
-  missingToday: number;
-  frequentViolators: number;
+  absentNotReturned: number;
+  collegeOutToday: number;
   curfewTime: string;
 }
 
 export interface LateWarningsResponse extends BioEnvelope {
-  tab: 'curfew' | 'overdue' | 'missing' | 'frequent';
+  tab: 'late' | 'absent';
   summary: LateWarningsSummary;
   data: LateWarningRow[];
   pagination: BioPagination;

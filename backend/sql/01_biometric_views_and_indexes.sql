@@ -231,6 +231,54 @@ CREATE VIEW public.view_student_curfew_violations AS
  ORDER BY v.punch_time DESC;
 
 -- ----------------------------------------------------------------------------
+-- 7.1. View: College Out-To-In Movement & Curfew Return Attendance
+-- ----------------------------------------------------------------------------
+DROP VIEW IF EXISTS public.view_student_college_movement_attendance CASCADE;
+CREATE VIEW public.view_student_college_movement_attendance AS
+WITH ranked_punches AS (
+  SELECT 
+    v.user_pin,
+    v.punch_date,
+    v.punch_time,
+    v.movement_direction,
+    v.device_id,
+    LEAD(v.punch_time) OVER (PARTITION BY v.user_pin, v.punch_date ORDER BY v.punch_time) AS in_time,
+    LEAD(v.movement_direction) OVER (PARTITION BY v.user_pin, v.punch_date ORDER BY v.punch_time) AS in_direction,
+    LEAD(v.device_id) OVER (PARTITION BY v.user_pin, v.punch_date ORDER BY v.punch_time) AS in_device_id
+  FROM public.view_student_in_out_logs v
+)
+SELECT 
+  r.punch_date,
+  s.id AS student_id,
+  COALESCE(s."manualRegsiName", s."regNo", r.user_pin::text) AS reg_no,
+  COALESCE(s.name, ('Unregistered (' || r.user_pin || ')')) AS student_name,
+  s."roomNo" AS room_no,
+  s."bedNo" AS bed_no,
+  s."mobileNo" AS student_mobile,
+  s."fatherName" AS father_name,
+  s."fatherMobileNo" AS father_mobile,
+  r.punch_time AS out_time,
+  TO_CHAR(r.punch_time, 'HH12:MI:SS AM') AS out_time_formatted,
+  r.device_id AS out_device_id,
+  r.in_time,
+  TO_CHAR(r.in_time, 'HH12:MI:SS AM') AS in_time_formatted,
+  r.in_device_id,
+  CASE 
+    WHEN r.in_direction = 'IN' AND r.in_time::time > '19:00:00'::time THEN 'LATE_RETURN'
+    WHEN r.in_direction = 'IN' THEN 'ON_TIME'
+    WHEN r.in_time IS NULL AND (r.punch_date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date OR (CURRENT_TIME AT TIME ZONE 'Asia/Kolkata') > '19:00:00'::time) THEN 'ABSENT_NOT_RETURNED'
+    ELSE 'OUT_AT_COLLEGE'
+  END AS status,
+  CASE 
+    WHEN r.in_direction = 'IN' AND r.in_time::time > '19:00:00'::time 
+      THEN ROUND(EXTRACT(EPOCH FROM (r.in_time::time - '19:00:00'::time)) / 60.0, 0)
+    ELSE 0
+  END AS minutes_late
+FROM ranked_punches r
+LEFT JOIN public."Student" s ON (s."biometricId" = r.user_pin::text OR s."regNo" = r.user_pin::text OR s."manualRegsiName" = r.user_pin::text)
+WHERE r.movement_direction = 'OUT';
+
+-- ----------------------------------------------------------------------------
 -- 8. View: Room-Wise Daily Attendance Headcount
 -- ----------------------------------------------------------------------------
 DROP VIEW IF EXISTS public.view_roomwise_daily_attendance CASCADE;

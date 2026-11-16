@@ -29,6 +29,7 @@ const OBJ = {
   daily: 'view_student_daily_attendance_summary',
   curfew: 'view_student_curfew_violations',
   absentee: 'view_student_daily_absentee_report',
+  movementAttendance: 'view_student_college_movement_attendance',
 } as const;
 
 const DEFAULT_LIMIT = 25;
@@ -41,7 +42,7 @@ export interface PageQuery {
 }
 
 export interface LateWarningsQuery extends PageQuery {
-  tab?: 'curfew' | 'overdue' | 'missing' | 'frequent';
+  tab?: 'late' | 'absent' | 'curfew' | 'overdue' | 'missing' | 'frequent';
   date?: string;
   fromDate?: string;
   toDate?: string;
@@ -1074,301 +1075,106 @@ export class BiometricAttendanceService {
 
   async getLateWarnings(query: LateWarningsQuery) {
     const availability = await this.availability();
-    const tab = (query.tab || 'curfew').toLowerCase() as 'curfew' | 'overdue' | 'missing' | 'frequent';
+    const rawTab = (query.tab || 'late').toLowerCase();
+    const tab = rawTab === 'absent' || rawTab === 'overdue' || rawTab === 'missing' ? 'absent' : 'late';
     const page = this.page(query.page);
     const limit = this.limit(query.limit);
     const offset = (page - 1) * limit;
     const search = String(query.search || '').trim();
-    const today = this.today();
 
-    const hasCurfew = availability.tables.has(OBJ.curfew);
-    const hasOutside = availability.tables.has(OBJ.outside);
-    const hasLogs = availability.tables.has(OBJ.logs);
-
-    // Global summary metrics
-    let lateReturnsToday = 0;
-    if (hasCurfew) {
-      const res = await this.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total FROM public.view_student_curfew_violations WHERE violation_date = CURRENT_DATE`,
-      );
-      lateReturnsToday = Number(res.rows[0]?.total) || 0;
-    } else if (hasLogs) {
-      const res = await this.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total FROM public.biometric_attendance_logs
-         WHERE punch_time::date = CURRENT_DATE
-           AND (punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')
-           AND punch_time::time > TIME '19:00:00'`,
-      );
-      lateReturnsToday = Number(res.rows[0]?.total) || 0;
-    }
-
-    let criticalOverdue = 0;
-    let totalOutside = 0;
-    if (hasOutside) {
-      const res = await this.query<{ critical: number; total: number }>(
-        `SELECT 
-           COUNT(*) FILTER (WHERE CURRENT_TIME > TIME '19:00:00' OR hours_outside >= 8.0 OR out_time::date < CURRENT_DATE)::int AS critical,
-           COUNT(*)::int AS total
-         FROM public.view_student_currently_outside`,
-      );
-      criticalOverdue = Number(res.rows[0]?.critical) || 0;
-      totalOutside = Number(res.rows[0]?.total) || 0;
-    }
-
-    let missingToday = 0;
-    if (hasLogs) {
-      const res = await this.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total
-         FROM public."Student" s
-         WHERE s.status = 'In'
-           AND NOT EXISTS (
-             SELECT 1 FROM public.biometric_attendance_logs b
-             WHERE (b.user_id = s."biometricId" OR b.user_id = s."regNo" OR b.user_id = s."manualRegsiName" OR b.student_id = s.id)
-               AND b.punch_time::date = CURRENT_DATE
-           )`,
-      );
-      missingToday = Number(res.rows[0]?.total) || 0;
-    }
-
-    let frequentViolators = 0;
-    if (hasCurfew) {
-      const res = await this.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total FROM (
-           SELECT v.reg_no
-           FROM public.view_student_curfew_violations v
-           WHERE v.violation_date >= CURRENT_DATE - INTERVAL '30 days'
-           GROUP BY v.reg_no
-           HAVING COUNT(*) >= 2
-         ) f`,
-      );
-      frequentViolators = Number(res.rows[0]?.total) || 0;
-    }
+    // Summary metrics directly from college movement attendance view
+    const summaryRes = await this.query<{ late_today: number; absent_count: number; college_out_today: number }>(
+      `SELECT 
+         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE punch_date = (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date AND status = 'LATE_RETURN') AS late_today,
+         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE status = 'ABSENT_NOT_RETURNED') AS absent_count,
+         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE punch_date = (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date AND status = 'OUT_AT_COLLEGE') AS college_out_today`,
+    );
 
     const summary = {
-      lateReturnsToday,
-      criticalOverdue,
-      totalOutside,
-      missingToday,
-      frequentViolators,
-      curfewTime: query.curfewTime || '19:00',
+      lateReturnsToday: Number(summaryRes.rows[0]?.late_today) || 0,
+      absentNotReturned: Number(summaryRes.rows[0]?.absent_count) || 0,
+      collegeOutToday: Number(summaryRes.rows[0]?.college_out_today) || 0,
+      curfewTime: '07:00 PM',
     };
 
-    let total = 0;
-    let rows: any[] = [];
-    let queryError: string | undefined;
+    const params: unknown[] = [];
+    const where: string[] = [];
 
-    if (tab === 'overdue') {
-      if (hasOutside) {
-        const params: unknown[] = [];
-        const where: string[] = [];
-
-        if (search) {
-          params.push(`%${search}%`);
-          const idx = params.length;
-          where.push(`(o.student_name ILIKE $${idx} OR o.reg_no ILIKE $${idx} OR o.room_no ILIKE $${idx})`);
-        }
-
-        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-        const countRes = await this.query<{ total: number }>(
-          `SELECT COUNT(*)::int AS total FROM public.view_student_currently_outside o ${whereSql}`,
-          params,
-        );
-        total = Number(countRes.rows[0]?.total) || 0;
-
-        const dataRes = await this.query<any>(
-          `SELECT 
-             o.student_id,
-             o.reg_no,
-             o.student_name,
-             o.room_no,
-             o.bed_no,
-             o.student_mobile,
-             o.father_name,
-             o.father_mobile,
-             o.out_time,
-             o.last_out_time,
-             o.out_time_formatted,
-             COALESCE(o.hours_outside, 0)::float8 AS hours_outside,
-             o.exit_device_id,
-             o.current_location,
-             CASE 
-               WHEN CURRENT_TIME > TIME '19:00:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 'CRITICAL'
-               WHEN o.hours_outside >= 4.0 THEN 'WARNING'
-               ELSE 'NORMAL'
-             END AS alert_level
-           FROM public.view_student_currently_outside o
-           ${whereSql}
-           ORDER BY 
-             CASE 
-               WHEN CURRENT_TIME > TIME '19:00:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 1
-               WHEN o.hours_outside >= 4.0 THEN 2
-               ELSE 3
-             END ASC,
-             o.hours_outside DESC
-           LIMIT ${limit} OFFSET ${offset}`,
-          params,
-        );
-        rows = dataRes.rows;
-        queryError = countRes.error || dataRes.error;
-      }
-    } else if (tab === 'missing') {
-      const targetDate = query.date || query.fromDate || today;
-      const params: unknown[] = [targetDate];
-      const where: string[] = [
-        `s.status = 'In'`,
-        `NOT EXISTS (
-           SELECT 1 FROM public.biometric_attendance_logs b
-           WHERE (b.user_id = s."biometricId" OR b.user_id = s."regNo" OR b.user_id = s."manualRegsiName" OR b.student_id = s.id)
-             AND b.punch_time::date = $1::date
-         )`,
-      ];
-
-      if (search) {
-        params.push(`%${search}%`);
-        const idx = params.length;
-        where.push(`(s.name ILIKE $${idx} OR s."regNo" ILIKE $${idx} OR s."manualRegsiName" ILIKE $${idx} OR s."roomNo" ILIKE $${idx})`);
-      }
-
-      const whereSql = `WHERE ${where.join(' AND ')}`;
-      const countRes = await this.query<{ total: number }>(
-        `SELECT COUNT(*)::int AS total FROM public."Student" s ${whereSql}`,
-        params,
-      );
-      total = Number(countRes.rows[0]?.total) || 0;
-
-      const dataRes = await this.query<any>(
-        `SELECT 
-           s.id AS student_id,
-           COALESCE(s."manualRegsiName", s."regNo") AS reg_no,
-           s.name AS student_name,
-           s."roomNo" AS room_no,
-           s."bedNo" AS bed_no,
-           s."mobileNo" AS student_mobile,
-           s."fatherName" AS father_name,
-           s."fatherMobileNo" AS father_mobile,
-           'NO_PUNCH_RECORDED' AS status
-         FROM public."Student" s
-         ${whereSql}
-         ORDER BY s."roomNo" ASC, s.name ASC
-         LIMIT ${limit} OFFSET ${offset}`,
-        params,
-      );
-      rows = dataRes.rows;
-      queryError = countRes.error || dataRes.error;
-    } else if (tab === 'frequent') {
-      if (hasCurfew) {
-        const params: unknown[] = [];
-        const where: string[] = [`v.violation_date >= CURRENT_DATE - INTERVAL '30 days'`];
-
-        if (search) {
-          params.push(`%${search}%`);
-          const idx = params.length;
-          where.push(`(v.student_name ILIKE $${idx} OR v.reg_no ILIKE $${idx} OR v.room_no ILIKE $${idx})`);
-        }
-
-        const whereSql = `WHERE ${where.join(' AND ')}`;
-        const countRes = await this.query<{ total: number }>(
-          `SELECT COUNT(*)::int AS total FROM (
-             SELECT v.reg_no
-             FROM public.view_student_curfew_violations v
-             ${whereSql}
-             GROUP BY v.reg_no
-           ) sub`,
-          params,
-        );
-        total = Number(countRes.rows[0]?.total) || 0;
-
-        const dataRes = await this.query<any>(
-          `SELECT 
-             v.reg_no,
-             v.student_id,
-             v.student_name,
-             v.room_no,
-             v.student_mobile,
-             v.father_mobile,
-             COUNT(*)::int AS total_late_entries,
-             ROUND(AVG(v.minutes_past_curfew), 0)::int AS avg_minutes_late,
-             MAX(v.punch_time) AS last_late_punch,
-             TO_CHAR(MAX(v.punch_time), 'YYYY-MM-DD HH12:MI AM') AS last_late_punch_formatted
-           FROM public.view_student_curfew_violations v
-           ${whereSql}
-           GROUP BY v.reg_no, v.student_id, v.student_name, v.room_no, v.student_mobile, v.father_mobile
-           ORDER BY total_late_entries DESC, avg_minutes_late DESC
-           LIMIT ${limit} OFFSET ${offset}`,
-          params,
-        );
-        rows = dataRes.rows;
-        queryError = countRes.error || dataRes.error;
-      }
+    if (tab === 'absent') {
+      where.push(`m.status IN ('ABSENT_NOT_RETURNED', 'OUT_AT_COLLEGE')`);
     } else {
-      // Default: 'curfew' (Curfew Violations / Late Returns)
-      if (hasCurfew) {
-        const params: unknown[] = [];
-        const where: string[] = [];
+      where.push(`m.status = 'LATE_RETURN'`);
+    }
 
-        if (query.date) {
-          params.push(query.date);
-          where.push(`v.violation_date = $${params.length}::date`);
-        } else {
-          if (query.fromDate) {
-            params.push(query.fromDate);
-            where.push(`v.violation_date >= $${params.length}::date`);
-          }
-          if (query.toDate) {
-            params.push(query.toDate);
-            where.push(`v.violation_date <= $${params.length}::date`);
-          }
-        }
-
-        if (search) {
-          params.push(`%${search}%`);
-          const idx = params.length;
-          where.push(`(v.student_name ILIKE $${idx} OR v.reg_no ILIKE $${idx} OR v.room_no ILIKE $${idx})`);
-        }
-
-        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-        const countRes = await this.query<{ total: number }>(
-          `SELECT COUNT(*)::int AS total FROM public.view_student_curfew_violations v ${whereSql}`,
-          params,
-        );
-        total = Number(countRes.rows[0]?.total) || 0;
-
-        const dataRes = await this.query<any>(
-          `SELECT 
-             v.violation_date,
-             v.punch_date,
-             v.punch_time,
-             v.return_time,
-             v.punch_time_formatted,
-             v.student_id,
-             v.reg_no,
-             v.student_name,
-             v.room_no,
-             v.student_mobile,
-             v.father_mobile,
-             v.device_id,
-             v.violation_type,
-             COALESCE(v.minutes_past_curfew, 0)::int AS minutes_past_curfew
-           FROM public.view_student_curfew_violations v
-           ${whereSql}
-           ORDER BY v.punch_time DESC
-           LIMIT ${limit} OFFSET ${offset}`,
-          params,
-        );
-        rows = dataRes.rows;
-        queryError = countRes.error || dataRes.error;
+    if (query.date) {
+      params.push(query.date);
+      where.push(`m.punch_date = $${params.length}::date`);
+    } else {
+      if (query.fromDate) {
+        params.push(query.fromDate);
+        where.push(`m.punch_date >= $${params.length}::date`);
+      }
+      if (query.toDate) {
+        params.push(query.toDate);
+        where.push(`m.punch_date <= $${params.length}::date`);
       }
     }
+
+    if (search) {
+      params.push(`%${search}%`);
+      const idx = params.length;
+      where.push(`(m.student_name ILIKE $${idx} OR m.reg_no ILIKE $${idx} OR m.room_no ILIKE $${idx})`);
+    }
+
+    const whereSql = `WHERE ${where.join(' AND ')}`;
+    const orderBySql = tab === 'absent' ? 'ORDER BY m.punch_date DESC, m.out_time DESC' : 'ORDER BY m.punch_date DESC, m.in_time DESC';
+
+    const countRes = await this.query<{ total: number }>(
+      `SELECT COUNT(*)::int AS total FROM public.view_student_college_movement_attendance m ${whereSql}`,
+      params,
+    );
+    const total = Number(countRes.rows[0]?.total) || 0;
+
+    const dataRes = await this.query<any>(
+      `SELECT 
+         m.punch_date,
+         m.punch_date AS violation_date,
+         m.student_id,
+         m.reg_no,
+         m.student_name,
+         m.room_no,
+         m.bed_no,
+         m.student_mobile,
+         m.father_name,
+         m.father_mobile,
+         m.out_time,
+         m.out_time_formatted,
+         m.out_device_id,
+         m.in_time,
+         m.in_time_formatted,
+         m.in_time AS return_time,
+         m.in_time_formatted AS punch_time_formatted,
+         m.in_device_id,
+         m.in_device_id AS device_id,
+         m.status,
+         m.minutes_late,
+         m.minutes_late AS minutes_past_curfew
+       FROM public.view_student_college_movement_attendance m
+       ${whereSql}
+       ${orderBySql}
+       LIMIT ${limit} OFFSET ${offset}`,
+      params,
+    );
 
     return this.envelope(
       availability,
       {
         tab,
         summary,
-        data: rows,
+        data: dataRes.rows,
         pagination: this.pagination(page, limit, total),
       },
-      queryError,
+      countRes.error || dataRes.error,
     );
   }
 }
