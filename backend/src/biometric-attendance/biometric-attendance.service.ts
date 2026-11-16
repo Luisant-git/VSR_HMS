@@ -205,6 +205,7 @@ export class BiometricAttendanceService {
                 punch_time_formatted AS time_of_punch,
                 user_pin,
                 movement_direction AS direction,
+                student_id,
                 reg_no,
                 student_name,
                 room_no,
@@ -222,6 +223,7 @@ export class BiometricAttendanceService {
 
       const rows = data.rows.map((row) => ({
         ...row,
+        student_id: row.student_id || row.reg_no,
         direction: this.normalizeDirection(row.direction),
         id: `${row.reg_no || 'unknown'}-${row.punch_time}`,
       }));
@@ -246,12 +248,10 @@ export class BiometricAttendanceService {
     if (date) where.push(`b.punch_time::date = ${add(date)}::date`);
     if (options.fromDate) where.push(`b.punch_time::date >= ${add(options.fromDate)}::date`);
     if (options.toDate) where.push(`b.punch_time::date <= ${add(options.toDate)}::date`);
-    if (direction === 'IN') where.push(`(b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')`);
-    if (direction === 'OUT') where.push(`(b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')`);
     if (search) {
       const term = add(`%${search}%`);
       where.push(
-        `(COALESCE(s."regNo", '') ILIKE ${term} OR COALESCE(s.name, '') ILIKE ${term} OR COALESCE(s."roomNo", '') ILIKE ${term} OR COALESCE(d.device_name, b.device_id, '') ILIKE ${term})`,
+        `(COALESCE(s."manualRegsiName", s."regNo", '') ILIKE ${term} OR COALESCE(s.name, '') ILIKE ${term} OR COALESCE(s."roomNo", '') ILIKE ${term} OR COALESCE(d.device_name, b.device_id, '') ILIKE ${term})`,
       );
     }
 
@@ -260,38 +260,60 @@ export class BiometricAttendanceService {
       LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
       LEFT JOIN public.biometric_device_registry d ON d.device_id = b.device_id`;
     const count = await this.query<{ total: number; in_count: number; out_count: number; students: number }>(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
-              COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count,
-              COUNT(DISTINCT b.user_id)::int AS students
-       FROM public.biometric_attendance_logs b ${joins} ${whereSql}`,
+      `WITH numbered AS (
+         SELECT b.*,
+                ROW_NUMBER() OVER (PARTITION BY b.user_id, b.punch_time::date ORDER BY b.punch_time ASC) as seq
+         FROM public.biometric_attendance_logs b
+         ${whereSql}
+       )
+       SELECT COUNT(*)::int AS total,
+              COUNT(*) FILTER (WHERE punch_state_code IN (0, 3) OR (punch_state = 'Check-In' AND punch_state_code != 255) OR (punch_state_code = 255 AND seq % 2 = 0))::int AS in_count,
+              COUNT(*) FILTER (WHERE punch_state_code IN (1, 2) OR punch_state = 'Check-Out' OR (punch_state_code = 255 AND seq % 2 = 1))::int AS out_count,
+              COUNT(DISTINCT user_id)::int AS students
+       FROM numbered`,
       params,
     );
     if (count.error) return { rows: [], total: 0, summary: { total: 0, inCount: 0, outCount: 0, students: 0 }, error: count.error };
 
     const data = await this.query<any>(
-      `SELECT TO_CHAR(b.punch_time::date, 'YYYY-MM-DD') AS punch_date,
-              b.punch_time,
-              TO_CHAR(b.punch_time, 'HH12:MI:SS AM') AS time_of_punch,
-              b.user_id AS user_pin,
-              CASE WHEN (b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') THEN 'IN' ELSE 'OUT' END AS direction,
-              COALESCE(s."regNo", b.user_id) AS reg_no,
+      `WITH numbered AS (
+         SELECT b.*,
+                ROW_NUMBER() OVER (PARTITION BY b.user_id, b.punch_time::date ORDER BY b.punch_time ASC) as seq
+         FROM public.biometric_attendance_logs b
+         ${whereSql}
+       )
+       SELECT TO_CHAR(nb.punch_time::date, 'YYYY-MM-DD') AS punch_date,
+              nb.punch_time,
+              TO_CHAR(nb.punch_time, 'HH12:MI:SS AM') AS time_of_punch,
+              nb.user_id AS user_pin,
+              CASE 
+                WHEN nb.punch_state_code IN (1, 2) OR nb.punch_state = 'Check-Out' THEN 'OUT'
+                WHEN nb.punch_state_code IN (0, 3) OR (nb.punch_state = 'Check-In' AND nb.punch_state_code != 255) THEN 'IN'
+                WHEN nb.seq % 2 = 1 THEN 'OUT'
+                ELSE 'IN'
+              END AS direction,
+              COALESCE(s."manualRegsiName", s."regNo", nb.user_id) AS reg_no,
+              COALESCE(s.id, nb.student_id, nb.user_id) AS student_id,
               COALESCE(s.name, 'Unregistered') AS student_name,
               s."roomNo" AS room_no,
               s."bedNo" AS bed_no,
               s."mobileNo" AS student_mobile,
-              b.verify_type AS verified_by,
-              COALESCE(d.device_name, b.device_id) AS gate_name,
-              b.device_id AS device_id
-       FROM public.biometric_attendance_logs b ${joins}
-       ${whereSql}
-       ORDER BY b.punch_time DESC
+              nb.verify_type AS verified_by,
+              COALESCE(d.device_name, nb.device_id) AS gate_name,
+              nb.device_id AS device_id
+       FROM numbered nb
+       LEFT JOIN public."Student" s ON (s."biometricId" = nb.user_id OR s."regNo" = nb.user_id OR s."manualRegsiName" = nb.user_id)
+       LEFT JOIN public.biometric_device_registry d ON d.device_id = nb.device_id
+       ${direction === 'IN' ? `WHERE (nb.punch_state_code IN (0, 3) OR (nb.punch_state = 'Check-In' AND nb.punch_state_code != 255) OR (nb.punch_state_code = 255 AND nb.seq % 2 = 0))` : ''}
+       ${direction === 'OUT' ? `WHERE (nb.punch_state_code IN (1, 2) OR nb.punch_state = 'Check-Out' OR (nb.punch_state_code = 255 AND nb.seq % 2 = 1))` : ''}
+       ORDER BY nb.punch_time DESC
        LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
 
     const rows = data.rows.map((row) => ({
       ...row,
+      student_id: row.student_id || row.reg_no,
       direction: this.normalizeDirection(row.direction),
       id: `${row.reg_no || 'unknown'}-${row.punch_time}`,
     }));
@@ -351,14 +373,38 @@ export class BiometricAttendanceService {
     const totalStudents = Number(studentCount.rows[0]?.total) || 0;
 
     let movements = { total: 0, inCount: 0, outCount: 0, activeStudents: 0 };
-    if (availability.tables.has(OBJ.logs)) {
+    if (availability.tables.has(OBJ.inOut)) {
       const movement = await this.query<any>(
         `SELECT COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')::int AS in_count,
-                COUNT(*) FILTER (WHERE punch_state_code IN (1, 2) OR punch_state = 'Check-Out')::int AS out_count,
+                COUNT(*) FILTER (WHERE movement_direction ILIKE 'IN%')::int AS in_count,
+                COUNT(*) FILTER (WHERE movement_direction ILIKE 'OUT%')::int AS out_count,
+                COUNT(DISTINCT reg_no)::int AS active_students
+         FROM public.view_student_in_out_logs
+         WHERE punch_date = $1::date`,
+        [date],
+      );
+      const row = movement.rows[0];
+      if (row) {
+        movements = {
+          total: Number(row.total) || 0,
+          inCount: Number(row.in_count) || 0,
+          outCount: Number(row.out_count) || 0,
+          activeStudents: Number(row.active_students) || 0,
+        };
+      }
+    } else if (availability.tables.has(OBJ.logs)) {
+      const movement = await this.query<any>(
+        `WITH numbered AS (
+           SELECT punch_state_code, punch_state, user_id,
+                  ROW_NUMBER() OVER (PARTITION BY user_id, punch_time::date ORDER BY punch_time ASC) as seq
+           FROM public.biometric_attendance_logs
+           WHERE punch_time::date = $1::date
+         )
+         SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE punch_state_code IN (0, 3) OR (punch_state = 'Check-In' AND punch_state_code != 255) OR (punch_state_code = 255 AND seq % 2 = 0))::int AS in_count,
+                COUNT(*) FILTER (WHERE punch_state_code IN (1, 2) OR punch_state = 'Check-Out' OR (punch_state_code = 255 AND seq % 2 = 1))::int AS out_count,
                 COUNT(DISTINCT user_id)::int AS active_students
-         FROM public.biometric_attendance_logs
-         WHERE punch_time::date = $1::date`,
+         FROM numbered`,
         [date],
       );
       const row = movement.rows[0];
@@ -463,6 +509,7 @@ export class BiometricAttendanceService {
           punchesToday: movements.total,
           inToday: movements.inCount,
           outToday: movements.outCount,
+          activeStudentsToday: movements.activeStudents,
           lateEntries,
           attendanceRate: totalStudents ? Math.round((presentToday / totalStudents) * 1000) / 10 : 0,
         },
@@ -538,7 +585,7 @@ export class BiometricAttendanceService {
       params,
     );
     const data = await this.query<any>(
-      `SELECT reg_no, student_name, room_no, bed_no, out_time_formatted,
+      `SELECT reg_no, student_id, student_name, room_no, bed_no, out_time_formatted,
               COALESCE(hours_outside, 0)::float8 AS hours_outside,
               student_mobile, father_name, father_mobile, out_time,
               COALESCE(hours_outside, 0) || ' hrs' AS time_away
@@ -599,36 +646,56 @@ export class BiometricAttendanceService {
     if (status && status.toUpperCase() !== 'ALL') {
       const st = status.toUpperCase();
       if (st === 'OUTSIDE' || st === 'ABSENT') {
-        statusWhere = `AND (lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out')`;
+        statusWhere = `AND lgp.movement_direction = 'OUT'`;
       } else if (st === 'MOVED') {
         statusWhere = `AND COALESCE(dp.total_punches, 0) > 0`;
       } else if (st.includes('HOSTEL') || st === 'PRESENT') {
-        statusWhere = `AND (lgp.user_id IS NULL OR (lgp.punch_state_code NOT IN (1, 2) AND COALESCE(lgp.punch_state, '') != 'Check-Out'))`;
+        statusWhere = `AND (lgp.user_id IS NULL OR lgp.movement_direction = 'IN')`;
       }
     }
 
     const whereSearch = filterClauses.length ? `AND ${filterClauses.join(' AND ')}` : '';
 
     const baseCTE = `
-      WITH day_punches AS (
+      WITH user_punches_numbered AS (
         SELECT 
           b.user_id,
-          MIN(b.punch_time) AS first_punch,
-          MAX(b.punch_time) AS last_punch,
-          MIN(CASE WHEN b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In' THEN b.punch_time END) AS first_in,
-          MAX(CASE WHEN b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out' THEN b.punch_time END) AS last_out,
-          COUNT(*)::int AS total_punches,
-          COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
-          COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count
+          b.punch_time,
+          b.punch_state_code,
+          b.punch_state,
+          ROW_NUMBER() OVER (PARTITION BY b.user_id, b.punch_time::date ORDER BY b.punch_time ASC) as punch_seq,
+          CASE 
+            WHEN b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out' THEN 'OUT'
+            WHEN b.punch_state_code IN (0, 3) OR (b.punch_state = 'Check-In' AND b.punch_state_code != 255) THEN 'IN'
+            WHEN (ROW_NUMBER() OVER (PARTITION BY b.user_id, b.punch_time::date ORDER BY b.punch_time ASC)) % 2 = 1 THEN 'OUT'
+            ELSE 'IN'
+          END AS dir
         FROM public.biometric_attendance_logs b
         WHERE b.punch_time::date BETWEEN CAST($1 AS date) AND CAST($2 AS date)
-        GROUP BY b.user_id
+      ),
+      day_punches AS (
+        SELECT 
+          up.user_id,
+          MIN(up.punch_time) AS first_punch,
+          MAX(up.punch_time) AS last_punch,
+          MIN(CASE WHEN up.dir = 'OUT' THEN up.punch_time END) AS first_out,
+          MAX(CASE WHEN up.dir = 'IN' THEN up.punch_time END) AS last_in,
+          MIN(CASE WHEN up.dir = 'IN' THEN up.punch_time END) AS first_in,
+          MAX(CASE WHEN up.dir = 'OUT' THEN up.punch_time END) AS last_out,
+          COUNT(*)::int AS total_punches,
+          COUNT(*) FILTER (WHERE up.dir = 'OUT')::int AS out_count,
+          COUNT(*) FILTER (WHERE up.dir = 'IN')::int AS in_count
+        FROM user_punches_numbered up
+        GROUP BY up.user_id
       ),
       latest_global_punches AS (
-        SELECT DISTINCT ON (b.user_id) b.user_id, b.punch_state_code, b.punch_state, b.punch_time
-        FROM public.biometric_attendance_logs b
-        WHERE b.punch_time <= (CAST($2 AS date) + INTERVAL '1 day')
-        ORDER BY b.user_id, b.punch_time DESC
+        SELECT DISTINCT ON (v.user_pin) 
+          v.user_pin AS user_id, 
+          v.movement_direction, 
+          v.punch_time
+        FROM public.view_student_in_out_logs v
+        WHERE v.punch_date <= (CAST($2 AS date) + INTERVAL '1 day')
+        ORDER BY v.user_pin, v.punch_time DESC
       )
     `;
 
@@ -636,8 +703,8 @@ export class BiometricAttendanceService {
       ${baseCTE}
       SELECT 
         COUNT(*)::int AS total_rows,
-        COUNT(*) FILTER (WHERE lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out')::int AS outside_count,
-        COUNT(*) FILTER (WHERE lgp.user_id IS NULL OR (lgp.punch_state_code NOT IN (1, 2) AND COALESCE(lgp.punch_state, '') != 'Check-Out'))::int AS inside_count,
+        COUNT(*) FILTER (WHERE lgp.movement_direction = 'OUT')::int AS outside_count,
+        COUNT(*) FILTER (WHERE lgp.user_id IS NULL OR lgp.movement_direction = 'IN')::int AS inside_count,
         COALESCE(SUM(dp.total_punches), 0)::int AS total_punches,
         COUNT(*) FILTER (WHERE COALESCE(dp.total_punches, 0) > 0)::int AS moved_count
       FROM public."Student" s
@@ -670,10 +737,13 @@ export class BiometricAttendanceService {
       ${baseCTE}
       SELECT 
         CAST($1 AS text) AS attendance_date,
-        s."regNo" AS reg_no,
+        COALESCE(s."manualRegsiName", s."regNo") AS reg_no,
+        s.id AS student_id,
         s.name AS student_name,
         s."roomNo" AS room_no,
         s."bedNo" AS bed_no,
+        TO_CHAR(dp.first_out, 'HH12:MI:SS AM') AS first_out_time,
+        TO_CHAR(dp.last_in, 'HH12:MI:SS AM') AS last_in_time,
         TO_CHAR(dp.first_in, 'HH12:MI:SS AM') AS first_in_time,
         TO_CHAR(dp.last_out, 'HH12:MI:SS AM') AS last_out_time,
         COALESCE(dp.total_punches, 0)::int AS total_punches,
@@ -681,7 +751,7 @@ export class BiometricAttendanceService {
         COALESCE(dp.out_count, 0)::int AS out_count,
         ROUND(COALESCE(EXTRACT(EPOCH FROM (dp.last_punch - dp.first_punch)) / 3600, 0)::numeric, 1)::float8 AS span_hours,
         CASE 
-          WHEN lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out' THEN 'Outside'
+          WHEN lgp.movement_direction = 'OUT' THEN 'Outside'
           WHEN COALESCE(dp.total_punches, 0) > 0 THEN 'In Hostel (Returned)'
           ELSE 'In Hostel'
         END AS attendance_status
@@ -694,7 +764,7 @@ export class BiometricAttendanceService {
         ${whereSearch}
         ${statusWhere}
       ORDER BY 
-        CASE WHEN (lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out') THEN 0 ELSE 1 END,
+        CASE WHEN lgp.movement_direction = 'OUT' THEN 0 ELSE 1 END,
         COALESCE(dp.total_punches, 0) DESC,
         s."roomNo" ASC NULLS LAST,
         s.name ASC

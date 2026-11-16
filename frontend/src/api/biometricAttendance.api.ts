@@ -53,6 +53,7 @@ export interface PunchRow {
   user_pin: string;
   direction: 'IN' | 'OUT';
   reg_no: string;
+  student_id?: string;
   student_name: string;
   room_no: string | null;
   bed_no: string | null;
@@ -90,6 +91,7 @@ export interface PunchLogsResponse extends BioEnvelope {
 
 export interface OutsideRow {
   reg_no: string;
+  student_id?: string;
   student_name: string;
   room_no: string | null;
   bed_no: string | null;
@@ -111,9 +113,12 @@ export interface OutsideResponse extends BioEnvelope {
 export interface DailyRow {
   attendance_date: string;
   reg_no: string;
+  student_id?: string;
   student_name: string;
   room_no: string | null;
   bed_no: string | null;
+  first_out_time?: string | null;
+  last_in_time?: string | null;
   first_in_time: string | null;
   last_out_time: string | null;
   total_punches: number;

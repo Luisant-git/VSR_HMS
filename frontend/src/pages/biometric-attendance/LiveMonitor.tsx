@@ -83,6 +83,7 @@ const LiveMonitor = () => {
           rows: rows.map((punch) => ({
             Date: formatDate(punch.punch_date),
             Time: punch.time_of_punch || formatTime(punch.punch_time),
+            'Student ID': punch.reg_no || punch.student_id || '',
             'User PIN': punch.user_pin || '',
             Student: punch.student_name,
             Room: punch.room_no || '',
@@ -173,8 +174,9 @@ const LiveMonitor = () => {
             <thead>
               <tr>
                 <th>Date / time</th>
-                <th>User PIN</th>
+                <th>Student ID</th>
                 <th>Student name</th>
+                <th>User PIN</th>
                 <th>Room no.</th>
                 <th>Movement</th>
                 <th>Verify mode</th>
@@ -186,7 +188,7 @@ const LiveMonitor = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={7}
+                colSpan={8}
                 emptyTitle="No punches in this range"
                 emptyText="Try a wider date range, clear the search, or switch the direction filter."
                 onRetry={reload}
@@ -199,7 +201,7 @@ const LiveMonitor = () => {
                       <span>{punch.time_of_punch || formatTime(punch.punch_time)}</span>
                     </div>
                   </td>
-                  <td className="bio-subtle">{punch.user_pin || '—'}</td>
+                  <td className="bio-strong">{punch.reg_no || punch.student_id || '—'}</td>
                   <td>
                     <div className="bio-person">
                       <div className="bio-avatar">{String(punch.student_name || '?').slice(0, 2).toUpperCase()}</div>
@@ -208,6 +210,7 @@ const LiveMonitor = () => {
                       </div>
                     </div>
                   </td>
+                  <td className="bio-subtle">{punch.user_pin || '—'}</td>
                   <td className="bio-subtle">{punch.room_no || '—'}</td>
                   <td><DirectionBadge direction={punch.direction} /></td>
                   <td className="bio-subtle">{punch.verified_by || '—'}</td>

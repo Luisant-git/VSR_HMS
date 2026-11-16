@@ -76,15 +76,15 @@ const DailyAttendance = () => {
           name: 'Daily attendance',
           rows: rows.map((row) => ({
             Date: formatDate(row.attendance_date),
+            'Student ID': row.reg_no,
             Student: row.student_name,
-            'Register No': row.reg_no,
             Room: row.room_no || '',
             Bed: row.bed_no || '',
-            'First IN': row.first_in_time || '',
-            'Last OUT': row.last_out_time || '',
+            'First OUT (College)': row.first_out_time || row.last_out_time || '',
+            'Last IN (Hostel)': row.last_in_time || (row.in_count > 0 ? row.first_in_time : '') || '',
             Punches: row.total_punches,
-            'IN count': row.in_count,
             'OUT count': row.out_count,
+            'IN count': row.in_count,
             'Span hours': number(row.span_hours),
             Status: row.attendance_status,
           })),
@@ -158,10 +158,11 @@ const DailyAttendance = () => {
           <table className="ui-table bio-table">
             <thead>
               <tr>
+                <th>Student ID</th>
                 <th>Student</th>
                 <th>Room</th>
-                <th>First In</th>
-                <th>Last Out</th>
+                <th>First Out (College)</th>
+                <th>Last In (Hostel)</th>
                 <th>Total Punches</th>
                 <th>Status</th>
               </tr>
@@ -171,13 +172,14 @@ const DailyAttendance = () => {
                 loading={loading && !data}
                 error={error && !data ? error : null}
                 empty={rows.length === 0}
-                colSpan={6}
+                colSpan={7}
                 emptyTitle="No attendance rows for this date range"
                 emptyText="Pick another date range, clear the search, or switch the status filter."
                 onRetry={reload}
               />
               {rows.map((row) => (
                 <tr key={`${row.reg_no}-${row.attendance_date}`}>
+                  <td className="bio-strong">{row.reg_no || '—'}</td>
                   <td>
                     <BioStudent name={row.student_name} regNo={row.reg_no} />
                   </td>
@@ -188,18 +190,18 @@ const DailyAttendance = () => {
                     </div>
                   </td>
                   <td>
-                    {row.first_in_time ? (
+                    {(row.first_out_time || row.last_out_time) ? (
                       <span className="bio-time" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <LogIn size={13} color="#16a34a" /> {row.first_in_time}
+                        <LogOut size={13} color="#ea580c" /> {row.first_out_time || row.last_out_time}
                       </span>
                     ) : (
-                      <span className="bio-muted-value">— (In Hostel)</span>
+                      <span className="bio-muted-value">—</span>
                     )}
                   </td>
                   <td>
-                    {row.last_out_time ? (
+                    {(row.last_in_time || (row.in_count > 0 ? row.first_in_time : null)) ? (
                       <span className="bio-time" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <LogOut size={13} color="#ea580c" /> {row.last_out_time}
+                        <LogIn size={13} color="#16a34a" /> {row.last_in_time || (row.in_count > 0 ? row.first_in_time : null)}
                       </span>
                     ) : (
                       <span className="bio-muted-value">—</span>

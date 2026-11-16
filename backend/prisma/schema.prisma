@@ -562,3 +562,160 @@ model KitchenConsumption {
 
   @@index([batchId])
 }
+
+// ---------------------------------------------------------
+// Biometric Attendance & Device Models
+// ---------------------------------------------------------
+
+model biometric_attendance_logs {
+  id               BigInt    @id @default(autoincrement())
+  device_id        String    @db.VarChar(50)
+  user_id          String    @db.VarChar(50)
+  student_id       String?   @db.VarChar(100)
+  punch_time       DateTime  @db.Timestamp(6)
+  punch_state      String    @db.VarChar(20)
+  punch_state_code Int
+  verify_type      String?   @default("Face") @db.VarChar(20)
+  device_uid       Int
+  synced_at        DateTime? @default(now()) @db.Timestamptz(6)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  raw_data         Json?
+
+  @@unique([device_id, user_id, punch_time, punch_state_code], map: "uq_device_user_punch")
+  @@index([device_id, punch_time], map: "idx_biometric_logs_device_time")
+  @@index([punch_time(sort: Desc)], map: "idx_biometric_logs_punch_time")
+  @@index([synced_at], map: "idx_biometric_logs_synced_at")
+  @@index([user_id, punch_time], map: "idx_biometric_logs_user_time")
+}
+
+model biometric_device_commands {
+  id           Int       @id @default(autoincrement())
+  device_id    String    @db.VarChar(50)
+  command_text String
+  user_id      String?   @db.VarChar(100)
+  user_name    String?   @db.VarChar(200)
+  status       String?   @default("PENDING") @db.VarChar(20)
+  return_code  String?   @db.VarChar(50)
+  created_at   DateTime? @default(now()) @db.Timestamptz(6)
+  executed_at  DateTime? @db.Timestamptz(6)
+  raw_feedback String?
+
+  @@index([device_id, status], map: "idx_dev_cmd_status")
+}
+
+model biometric_device_registry {
+  device_id               String    @id @db.VarChar(50)
+  device_name             String?   @db.VarChar(100)
+  ip_address              String?   @db.VarChar(50)
+  serial_number           String?   @db.VarChar(100)
+  firmware_version        String?   @db.VarChar(100)
+  mac_address             String?   @db.VarChar(50)
+  face_version            String?   @db.VarChar(50)
+  platform                String?   @db.VarChar(50)
+  total_records_on_device Int?      @default(0)
+  is_online               Boolean?  @default(false)
+  last_online_at          DateTime? @db.Timestamptz(6)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model biometric_device_users {
+  id                Int       @id @default(autoincrement())
+  device_id         String    @db.VarChar(50)
+  user_id           String    @db.VarChar(100)
+  name              String?   @db.VarChar(200)
+  card_no           String?   @db.VarChar(50)
+  privilege         Int?      @default(0)
+  password          String?   @db.VarChar(50)
+  raw_payload       String?
+  synced_at         DateTime? @default(now()) @db.Timestamptz(6)
+  face_count        Int?      @default(0)
+  fingerprint_count Int?      @default(0)
+
+  @@unique([device_id, user_id])
+  @@index([synced_at(sort: Desc)], map: "idx_dev_user_sync")
+  @@index([device_id, user_id], map: "idx_dev_user_uid")
+}
+
+model biometric_sync_state {
+  device_id             String    @id @db.VarChar(50)
+  device_ip             String?   @db.VarChar(50)
+  last_synced_timestamp DateTime? @db.Timestamp(6)
+  last_synced_uid       Int?      @default(0)
+  total_synced_records  BigInt?   @default(0)
+  records_in_last_batch Int?      @default(0)
+  last_sync_status      String?   @default("PENDING") @db.VarChar(50)
+  last_sync_time        DateTime? @db.Timestamptz(6)
+  last_successful_sync  DateTime? @db.Timestamptz(6)
+  last_error_message    String?
+  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model biometric_user_templates {
+  id             Int       @id @default(autoincrement())
+  device_id      String    @db.VarChar(50)
+  user_id        String    @db.VarChar(100)
+  template_type  String    @db.VarChar(20)
+  template_index Int?      @default(0)
+  template_size  Int?
+  bio_version    String?   @db.VarChar(50)
+  template_data  String
+  raw_payload    String?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  synced_at      DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([device_id, user_id, template_type, template_index], map: "uq_dev_user_template")
+  @@index([device_id, template_type], map: "idx_bio_tmp_dev")
+  @@index([user_id], map: "idx_bio_tmp_user")
+}
+
+model student_daily_attendance {
+  id               BigInt    @id @default(autoincrement())
+  attendance_date  DateTime  @db.Date
+  student_id       String
+  reg_no           String?
+  student_name     String?
+  room_no          String?
+  first_punch_time DateTime? @db.Timestamp(6)
+  first_punch_type String?   @db.VarChar(20)
+  last_punch_time  DateTime? @db.Timestamp(6)
+  last_punch_type  String?   @db.VarChar(20)
+  first_out_time   DateTime? @db.Timestamp(6)
+  last_in_time     DateTime? @db.Timestamp(6)
+  first_in_time    DateTime? @db.Timestamp(6)
+  last_out_time    DateTime? @db.Timestamp(6)
+  total_punches    Int?      @default(0)
+  total_in_count   Int?      @default(0)
+  total_out_count  Int?      @default(0)
+  current_status   String?   @default("UNKNOWN") @db.VarChar(20)
+  is_late_entry    Boolean?  @default(false)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([student_id, attendance_date], map: "uq_student_daily_att")
+  @@index([attendance_date], map: "idx_student_daily_date")
+  @@index([room_no], map: "idx_student_daily_room")
+  @@index([student_id], map: "idx_student_daily_student")
+}
+
+model student_movement_logs {
+  id               BigInt    @id @default(autoincrement())
+  biometric_log_id BigInt?
+  student_id       String?
+  reg_no           String?
+  student_name     String?
+  room_no          String?
+  device_id        String    @db.VarChar(50)
+  direction        String    @db.VarChar(10)
+  punch_time       DateTime  @db.Timestamp(6)
+  punch_date       DateTime  @db.Date
+  punch_state      String    @db.VarChar(20)
+  verify_type      String?   @default("Face") @db.VarChar(20)
+  device_uid       Int?
+  remarks          String?
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([device_id, reg_no, punch_time, direction], map: "uq_student_movement")
+  @@index([punch_date], map: "idx_student_movement_date")
+  @@index([direction], map: "idx_student_movement_direction")
+  @@index([reg_no], map: "idx_student_movement_reg_no")
+  @@index([student_id], map: "idx_student_movement_student")
+}
