@@ -1082,18 +1082,42 @@ export class BiometricAttendanceService {
     const offset = (page - 1) * limit;
     const search = String(query.search || '').trim();
 
-    // Summary metrics directly from college movement attendance view
-    const summaryRes = await this.query<{ late_today: number; absent_count: number; college_out_today: number }>(
+    // Summary metrics filtered by active date range (or today if none)
+    const sumParams: unknown[] = [];
+    const sumDateWhere: string[] = [];
+    if (query.date) {
+      sumParams.push(query.date);
+      sumDateWhere.push(`punch_date = $${sumParams.length}::date`);
+    } else {
+      if (query.fromDate) {
+        sumParams.push(query.fromDate);
+        sumDateWhere.push(`punch_date >= $${sumParams.length}::date`);
+      }
+      if (query.toDate) {
+        sumParams.push(query.toDate);
+        sumDateWhere.push(`punch_date <= $${sumParams.length}::date`);
+      }
+    }
+    const sumDateSql = sumDateWhere.length ? `WHERE ${sumDateWhere.join(' AND ')}` : '';
+
+    const summaryRes = await this.query<{
+      late_returns: number;
+      absent_count: number;
+      college_out: number;
+    }>(
       `SELECT 
-         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE punch_date = (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date AND status = 'LATE_RETURN') AS late_today,
-         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE status = 'ABSENT_NOT_RETURNED') AS absent_count,
-         (SELECT COUNT(*)::int FROM public.view_student_college_movement_attendance WHERE punch_date = (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date AND status = 'OUT_AT_COLLEGE') AS college_out_today`,
+         COUNT(*) FILTER (WHERE status = 'LATE_RETURN')::int AS late_returns,
+         COUNT(*) FILTER (WHERE status = 'ABSENT_NOT_RETURNED')::int AS absent_count,
+         COUNT(*) FILTER (WHERE status = 'OUT_AT_COLLEGE')::int AS college_out
+       FROM public.view_student_college_movement_attendance
+       ${sumDateSql}`,
+      sumParams,
     );
 
     const summary = {
-      lateReturnsToday: Number(summaryRes.rows[0]?.late_today) || 0,
+      lateReturnsToday: Number(summaryRes.rows[0]?.late_returns) || 0,
       absentNotReturned: Number(summaryRes.rows[0]?.absent_count) || 0,
-      collegeOutToday: Number(summaryRes.rows[0]?.college_out_today) || 0,
+      collegeOutToday: Number(summaryRes.rows[0]?.college_out) || 0,
       curfewTime: '07:00 PM',
     };
 

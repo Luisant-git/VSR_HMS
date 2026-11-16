@@ -132,11 +132,18 @@ const CurrentlyOutside = () => {
                 <option value="12">Over 12 hours</option>
               </select>
             </BioField>
-            {fromDate || toDate ? (
-              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={clearDates}>
-                Clear dates
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={() => {
+                setSearch('');
+                clearDates();
+                setMinHours('');
+              }}
+              title="Reset all filters"
+            >
+              Reset
+            </button>
           </div>
           <div className="bio-toolbar-actions">
             <BioRefresh onClick={reload} loading={loading} />

@@ -5,6 +5,7 @@ import {
   LogOut,
   MessageSquare,
   Phone,
+  RotateCcw,
   UserX,
 } from 'lucide-react';
 import { BiometricAttendanceAPI, type LateWarningRow } from '../../api/biometricAttendance.api';
@@ -13,7 +14,6 @@ import {
   BioCardHead,
   BioErrorNotice,
   BioExportButton,
-  BioField,
   BioPageHead,
   BioPager,
   BioRefresh,
@@ -149,7 +149,7 @@ const BioLateWarnings = () => {
         <BioStatGrid
           items={[
             {
-              label: 'Late Returns Today',
+              label: 'Late Returns',
               value: summary?.lateReturnsToday ?? '0',
               sub: 'Punched IN after 07:00 PM',
               icon: <AlertTriangle size={19} />,
@@ -163,9 +163,9 @@ const BioLateWarnings = () => {
               tone: (summary?.absentNotReturned || 0) > 0 ? 'danger' : 'neutral',
             },
             {
-              label: 'Out at College Today',
-              value: summary?.collegeOutToday ?? '—',
-              sub: 'Punched OUT today (Awaiting evening return)',
+              label: 'Out at College',
+              value: summary?.collegeOutToday ?? '0',
+              sub: 'Punched OUT (Awaiting evening return)',
               icon: <LogOut size={19} />,
               tone: (summary?.collegeOutToday || 0) > 0 ? 'warning' : 'neutral',
             },
@@ -193,73 +193,150 @@ const BioLateWarnings = () => {
                 className={`ui-btn ui-btn-sm ${tab === 'late' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
                 onClick={() => handleTabChange('late')}
               >
-                Late Returns (&gt; 7 PM)
+                Late Returns (&gt; 7 PM) {summary?.lateReturnsToday ? `(${summary.lateReturnsToday})` : ''}
               </button>
               <button
                 type="button"
                 className={`ui-btn ui-btn-sm ${tab === 'absent' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
                 onClick={() => handleTabChange('absent')}
               >
-                Absent / Not Returned {summary?.absentNotReturned ? `(${summary.absentNotReturned})` : ''}
+                Absent / Not Returned {summary?.absentNotReturned ? `(${summary.absentNotReturned})` : summary?.collegeOutToday ? `(${summary.collegeOutToday} Outside)` : ''}
               </button>
             </div>
           }
         />
 
-        {/* Clean, Neat Toolbar */}
-        <div className="bio-toolbar">
-          <div className="bio-filters" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <BioSearchField
-              value={search}
-              onChange={(val) => {
-                setSearch(val);
-                setPage(1);
-              }}
-              placeholder="Search Student, Reg No, Room..."
-            />
-
-            {/* Same-row compact From & To dates */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
-              <BioField label="From">
-                <input
-                  type="date"
-                  className="ui-input ui-input--inline"
-                  style={{ width: 140, padding: '5px 8px', fontSize: 13 }}
-                  value={fromDate}
-                  onChange={(e) => {
-                    setFromDate(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </BioField>
-              <BioField label="To">
-                <input
-                  type="date"
-                  className="ui-input ui-input--inline"
-                  style={{ width: 140, padding: '5px 8px', fontSize: 13 }}
-                  value={toDate}
-                  onChange={(e) => {
-                    setToDate(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </BioField>
+        {/* Clean, Neat Single-Row Responsive Toolbar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            flexWrap: 'wrap',
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--surface)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
+              flex: '1 1 auto',
+            }}
+          >
+            {/* Search Box */}
+            <div style={{ flex: '1 1 200px', maxWidth: 300, minWidth: 180 }}>
+              <BioSearchField
+                value={search}
+                onChange={(val) => {
+                  setSearch(val);
+                  setPage(1);
+                }}
+                placeholder="Search Student, Reg No, Room..."
+              />
             </div>
 
+            {/* Same-Row Compact "From" & "To" Inline Date Inputs */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 38,
+                padding: '0 10px',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>From:</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setPage(1);
+                }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 13,
+                  color: 'inherit',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  width: 125,
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 38,
+                padding: '0 10px',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>To:</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setPage(1);
+                }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 13,
+                  color: 'inherit',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  width: 125,
+                }}
+              />
+            </div>
+
+            {/* Quick Action Buttons in Same Row */}
             <button
               type="button"
-              className="ui-btn ui-btn-secondary ui-btn-sm"
-              onClick={handleReset}
-              title="Reset date filter to Today"
+              className={`ui-btn ui-btn-sm ${fromDate === todayInput() && toDate === todayInput() ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+              style={{ height: 38 }}
+              onClick={() => {
+                const today = todayInput();
+                setFromDate(today);
+                setToDate(today);
+                setPage(1);
+              }}
+              title="Filter records for Today"
             >
-              Reset
+              Today
             </button>
 
             <button
               type="button"
               className="ui-btn ui-btn-secondary ui-btn-sm"
+              style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              onClick={handleReset}
+              title="Reset date to Today and clear search"
+            >
+              <RotateCcw size={13} /> Reset
+            </button>
+
+            <button
+              type="button"
+              className={`ui-btn ui-btn-sm ${!fromDate && !toDate ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+              style={{ height: 38 }}
               onClick={handleShowAll}
-              title="Clear date filter to show all records"
+              title="Show all records without date filter"
             >
               All Dates
             </button>

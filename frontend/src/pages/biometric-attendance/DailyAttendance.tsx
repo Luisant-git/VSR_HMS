@@ -148,6 +148,20 @@ const DailyAttendance = () => {
             <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={setToday}>
               Today
             </button>
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={() => {
+                const today = todayInput();
+                setFromDate(today);
+                setToDate(today);
+                setStatus('');
+                setSearch('');
+              }}
+              title="Reset all filters to default"
+            >
+              Reset
+            </button>
           </div>
           <div className="bio-toolbar-actions">
             <BioRefresh onClick={reload} loading={loading} />

@@ -139,11 +139,18 @@ const DeviceUsers = () => {
                 onChange={(event) => handleTo(event.target.value)}
               />
             </BioField>
-            {fromDate || toDate ? (
-              <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={clearDates}>
-                Clear dates
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={() => {
+                setSearch('');
+                clearDates();
+                setPage(1);
+              }}
+              title="Reset search and filters"
+            >
+              Reset
+            </button>
           </div>
           <div className="bio-toolbar-actions">
             <div className="ui-btn-group" style={{ display: 'inline-flex' }}>
