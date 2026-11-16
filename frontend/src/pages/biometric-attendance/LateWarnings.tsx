@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   AlertTriangle,
-  Calendar,
   Clock,
   LogOut,
   MessageSquare,
@@ -27,13 +26,6 @@ import { downloadStamp, exportExcel, formatDate, formatDateTime, initials, today
 const LIMIT = 20;
 
 type ActiveTab = 'late' | 'absent';
-type DatePreset = 'all' | 'today' | 'yesterday' | 'custom';
-
-const yesterdayDateStr = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().split('T')[0];
-};
 
 const formatLateDuration = (mins?: number | null) => {
   const m = Number(mins) || 0;
@@ -48,20 +40,8 @@ const BioLateWarnings = () => {
   const [tab, setTab] = useState<ActiveTab>('late');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [datePreset, setDatePreset] = useState<DatePreset>('all');
-  const [date, setDate] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-
-  // Compute effective query date
-  const effectiveDate =
-    datePreset === 'today'
-      ? todayInput()
-      : datePreset === 'yesterday'
-        ? yesterdayDateStr()
-        : datePreset === 'custom'
-          ? date
-          : undefined;
+  const [fromDate, setFromDate] = useState(todayInput());
+  const [toDate, setToDate] = useState(todayInput());
 
   const { data, loading, error, reload } = useApiData(
     () =>
@@ -71,11 +51,10 @@ const BioLateWarnings = () => {
         limit: LIMIT,
         search,
         curfewTime: '19:00',
-        date: effectiveDate,
-        fromDate: datePreset === 'custom' && fromDate ? fromDate : undefined,
-        toDate: datePreset === 'custom' && toDate ? toDate : undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       }),
-    [tab, page, search, datePreset, effectiveDate, fromDate, toDate],
+    [tab, page, search, fromDate, toDate],
   );
 
   const summary = data?.summary;
@@ -86,14 +65,18 @@ const BioLateWarnings = () => {
     setPage(1);
   };
 
-  const handlePresetChange = (preset: DatePreset) => {
-    setDatePreset(preset);
+  const handleReset = () => {
+    setSearch('');
+    setFromDate(todayInput());
+    setToDate(todayInput());
     setPage(1);
-    if (preset !== 'custom') {
-      setDate('');
-      setFromDate('');
-      setToDate('');
-    }
+  };
+
+  const handleShowAll = () => {
+    setSearch('');
+    setFromDate('');
+    setToDate('');
+    setPage(1);
   };
 
   const handleExport = () => {
@@ -235,83 +218,51 @@ const BioLateWarnings = () => {
               placeholder="Search Student, Reg No, Room..."
             />
 
-            {/* Quick Date Presets */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <div className="ui-btn-group">
-                <button
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${datePreset === 'all' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                  onClick={() => handlePresetChange('all')}
-                >
-                  All Dates
-                </button>
-                <button
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${datePreset === 'today' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                  onClick={() => handlePresetChange('today')}
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${datePreset === 'yesterday' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                  onClick={() => handlePresetChange('yesterday')}
-                >
-                  Yesterday (15/11)
-                </button>
-                <button
-                  type="button"
-                  className={`ui-btn ui-btn-sm ${datePreset === 'custom' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                  onClick={() => handlePresetChange('custom')}
-                >
-                  <Calendar size={13} /> Custom
-                </button>
-              </div>
-
-              {datePreset === 'custom' ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <BioField label="From">
-                    <input
-                      type="date"
-                      className="ui-input ui-input--inline"
-                      value={fromDate}
-                      onChange={(e) => {
-                        setFromDate(e.target.value);
-                        setPage(1);
-                      }}
-                    />
-                  </BioField>
-                  <BioField label="To">
-                    <input
-                      type="date"
-                      className="ui-input ui-input--inline"
-                      value={toDate}
-                      onChange={(e) => {
-                        setToDate(e.target.value);
-                        setPage(1);
-                      }}
-                    />
-                  </BioField>
-                </div>
-              ) : null}
+            {/* Same-row compact From & To dates */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'nowrap' }}>
+              <BioField label="From">
+                <input
+                  type="date"
+                  className="ui-input ui-input--inline"
+                  style={{ width: 140, padding: '5px 8px', fontSize: 13 }}
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </BioField>
+              <BioField label="To">
+                <input
+                  type="date"
+                  className="ui-input ui-input--inline"
+                  style={{ width: 140, padding: '5px 8px', fontSize: 13 }}
+                  value={toDate}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </BioField>
             </div>
 
-            {search || datePreset !== 'all' ? (
-              <button
-                type="button"
-                className="ui-btn ui-btn-secondary ui-btn-sm"
-                onClick={() => {
-                  setSearch('');
-                  setDatePreset('all');
-                  setDate('');
-                  setFromDate('');
-                  setToDate('');
-                  setPage(1);
-                }}
-              >
-                Reset
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={handleReset}
+              title="Reset date filter to Today"
+            >
+              Reset
+            </button>
+
+            <button
+              type="button"
+              className="ui-btn ui-btn-secondary ui-btn-sm"
+              onClick={handleShowAll}
+              title="Clear date filter to show all records"
+            >
+              All Dates
+            </button>
           </div>
         </div>
 
