@@ -207,7 +207,12 @@ export class FeesService {
   private validatedPaymentDate(value?: string) {
     if (!value) return undefined;
     const date = new Date(value);
-    if (Number.isNaN(date.getTime()) || date > new Date()) {
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Payment date must be valid and cannot be in the future.');
+    }
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    if (date > endOfToday) {
       throw new BadRequestException('Payment date must be valid and cannot be in the future.');
     }
     return date;
@@ -232,7 +237,7 @@ export class FeesService {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (asOfDate > today) {
+    if (asOfDate.getTime() > today.getTime()) {
       throw new BadRequestException('Payment date cannot be in the future.');
     }
 
@@ -328,7 +333,12 @@ export class FeesService {
     }
     if (dto.paidDate) {
       const paidDate = new Date(dto.paidDate);
-      if (Number.isNaN(paidDate.getTime()) || paidDate > new Date()) {
+      if (Number.isNaN(paidDate.getTime())) {
+        throw new BadRequestException('Payment date must be valid and cannot be in the future.');
+      }
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (paidDate > endOfToday) {
         throw new BadRequestException('Payment date must be valid and cannot be in the future.');
       }
     }

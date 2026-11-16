@@ -8,8 +8,10 @@ import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { buildOutstandingSummary, calculatePendingDues, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
+import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -46,6 +48,12 @@ const StudentProfile = () => {
   const outstandingAllocations = outstandingSummary.allocations;
 
   const displayFees = useMemo(() => {
+    const billingCycle = student?.billingCycle || 'PREPAID';
+    const { previousMonthStr } = getBillingMonths();
+    const isPostpaidPayableNowFee = (fee: any) =>
+      billingCycle === 'POSTPAID' &&
+      fee?.status === 'PENDING' &&
+      isPostpaidPayableFee(fee, previousMonthStr);
     const pendingGroup: any = {
       isGrouped: true,
       id: 'pending-group',
@@ -56,6 +64,23 @@ const StudentProfile = () => {
       displayBalance: 0,
       displayStatus: 'Unpaid',
       invoiceFee: null,
+      rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+      feesList: [] as any[]
+    };
+    // POSTPAID colleges bill the previous month. Current-month fees are still
+    // listed for reference but must not be payable, so they get a separate
+    // "Not Due" row with no Pay Now action.
+    const notDueGroup: any = {
+      isGrouped: true,
+      id: 'not-due-group',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      totalAmount: 0,
+      displayPaid: 0,
+      displayBalance: 0,
+      displayStatus: 'Not Due',
+      invoiceFee: null,
+      invoiceNumber: '—',
       rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
       feesList: [] as any[]
     };
@@ -87,8 +112,10 @@ const StudentProfile = () => {
     fees.forEach(f => {
       if (isMessFee(f)) return;
 
-      // Pre-November fees are settled prior to the fresh billing cycle and should not be displayed in active fee transactions
-      if (isPreviousSettledFee(f)) return;
+      // Pre-November fees are settled prior to the fresh billing cycle and should not be displayed in active fee transactions.
+      // Exception: for POSTPAID colleges, pending previous-month dues are the
+      // current payable cycle and must remain visible.
+      if (isPreviousSettledFee(f) && !isPostpaidPayableNowFee(f)) return;
 
       const type = (f.transactionType || '').toUpperCase();
       // Outstanding amounts stay in the Outstanding Balance column only; they
@@ -105,7 +132,22 @@ const StudentProfile = () => {
         // Original outstanding invoices are handled separately (shown as an
         // unpaid row only while no payment exists). Do not fold them into the
         // current-month pending row.
-        if (isOutstandingInvoice(f) || isImportedInvoice(f)) return;
+        if (isOutstandingInvoice(f) || (isImportedInvoice(f) && !isPostpaidPayableNowFee(f))) return;
+
+        if (billingCycle === 'POSTPAID') {
+          // Current/future-month fees are not due yet for postpaid colleges.
+          // Fines (e.g. late-fine accumulation on overdue dues) remain payable.
+          if (!isPostpaidPayableFee(f, previousMonthStr)) {
+            notDueGroup.totalAmount += Number(f.amount) || 0;
+            notDueGroup[category] += Number(f.amount) || 0;
+            notDueGroup.feesList.push(f);
+            if (new Date(f.createdAt) < new Date(notDueGroup.createdAt)) {
+              notDueGroup.createdAt = f.createdAt;
+            }
+            return;
+          }
+        }
+
         pendingGroup.totalAmount += Number(f.amount) || 0;
         pendingGroup[category] += Number(f.amount) || 0;
         pendingGroup.feesList.push(f);
@@ -216,6 +258,11 @@ const StudentProfile = () => {
       result.push(pendingGroup);
     }
 
+    // Show upcoming POSTPAID charges without making them payable.
+    if (notDueGroup.totalAmount > 0.005) {
+      result.push(notDueGroup);
+    }
+
     // Outstanding receipts read in payment order (smallest first) so the
     // running balance steps down from the original amount to the remainder.
     // Everything else stays newest-first.
@@ -240,7 +287,7 @@ const StudentProfile = () => {
     });
 
     return result;
-  }, [fees, outstandingSummary]);
+  }, [fees, outstandingSummary, student?.billingCycle]);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -296,6 +343,7 @@ const StudentProfile = () => {
           college: data.college?.name
             ? `${data.college.name}${data.educationalQua ? ` (${data.educationalQua})` : ''}`
             : (data.educationalQua || 'N/A'),
+          billingCycle: data.college?.billingCycle || 'PREPAID',
           fatherName: data.fatherName,
           fatherMobileNo: data.fatherMobileNo,
           motherName: data.motherName,
@@ -1076,9 +1124,11 @@ const StudentProfile = () => {
                 </div>
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Pending Dues</div>
-                  <div className="sp-stat-value">₹{calculatePendingDues(fees).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-value">₹{calculatePendingDues(fees, student?.billingCycle).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
               </div>
+
+              <FeeGenerationNotice billingCycle={student?.billingCycle} compact />
 
               {displayFees.length === 0 ? (
                 <div className="sp-empty">
@@ -1153,7 +1203,7 @@ const StudentProfile = () => {
                             </td>
 
                             <td>
-                              <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-success' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                              <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-success' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : fee.displayStatus === 'Not Due' ? 'ui-badge-blue' : 'ui-badge-danger'}`}>
                                 {fee.displayStatus}
                               </span>
                             </td>
@@ -1162,6 +1212,10 @@ const StudentProfile = () => {
                                 <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} className="ui-btn ui-btn-primary ui-btn-sm">
                                   <Wallet size={14} /> Pay Now
                                 </button>
+                              ) : fee.displayStatus === 'Not Due' ? (
+                                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+                                  Not due yet
+                                </span>
                               ) : (
                                 <button onClick={() => setSelectedReceipt({ ...fee, student: { name: student.name, regNo: student.id, roomNo: student.room } })} className="ui-btn ui-btn-secondary ui-btn-sm">
                                   <FileText size={14} color="#64748b" /> View Receipt

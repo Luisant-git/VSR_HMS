@@ -34,7 +34,7 @@ export class CollegesService {
   }
 
   async create(createCollegeDto: CreateCollegeDto) {
-    const { rentFine, messFine, ebFine, dueDate, ...collegeData } = createCollegeDto as any;
+    const { rentFine, messFine, ebFine, dueDate, billingCycle, ...collegeData } = createCollegeDto as any;
     collegeData.name = await this.resolveUniqueName(collegeData.name);
 
     // Convert YYYY-MM-DD string to ISO DateTime if present
@@ -45,6 +45,7 @@ export class CollegesService {
         data: {
           ...collegeData,
           ...(formattedDueDate && { dueDate: formattedDueDate }),
+          ...(billingCycle && { billingCycle }),
           fineMaster: (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) ? {
             create: { 
               rentFine: rentFine || 0,
@@ -120,7 +121,7 @@ export class CollegesService {
   }
 
   async update(id: string, updateCollegeDto: UpdateCollegeDto) {
-    const { rentFine, messFine, ebFine, dueDate, ...collegeData } = updateCollegeDto as any;
+    const { rentFine, messFine, ebFine, dueDate, billingCycle, ...collegeData } = updateCollegeDto as any;
 
     if (collegeData.name !== undefined) {
       collegeData.name = await this.resolveUniqueName(collegeData.name, id);
@@ -134,11 +135,20 @@ export class CollegesService {
       formattedDueDate = new Date(dueDate).toISOString();
     }
 
+    // If billingCycle is explicitly null, we clear it (reset to default). If undefined, we leave it.
+    let formattedBillingCycle: any = undefined;
+    if (billingCycle === null) {
+      formattedBillingCycle = null;
+    } else if (billingCycle) {
+      formattedBillingCycle = billingCycle;
+    }
+
     return this.prisma.college.update({
       where: { id },
       data: {
         ...collegeData,
         ...(formattedDueDate !== undefined && { dueDate: formattedDueDate }),
+        ...(formattedBillingCycle !== undefined && { billingCycle: formattedBillingCycle }),
         fineMaster: (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) ? {
           upsert: {
             create: { rentFine: rentFine || 0, messFine: messFine || 0, ebFine: ebFine || 0 },

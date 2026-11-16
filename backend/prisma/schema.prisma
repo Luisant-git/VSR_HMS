@@ -167,6 +167,9 @@ model FeeTransaction {
   // It is never recalculated, so adding a payment cannot renumber older rows.
   invoiceNumber String?
 
+  // Billing month this fee represents (format: YYYY-MM). Null for legacy records.
+  billingMonth String?
+
   dueDate  DateTime?
   paidDate DateTime?
 
@@ -176,6 +179,7 @@ model FeeTransaction {
   @@index([invoiceNumber])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
+  @@index([studentId, billingMonth, transactionType])
 }
 
 model RazorpayOrder {
@@ -297,11 +301,12 @@ model FineMaster {
 // College Master
 // ---------------------------------------------------------
 model College {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  shortName String?
-  address   String?
-  dueDate   DateTime?
+  id          String    @id @default(uuid())
+  name        String    @unique
+  shortName   String?
+  address     String?
+  dueDate     DateTime?
+  billingCycle String   @default("PREPAID") // "PREPAID" or "POSTPAID"
 
   students   Student[]
   fineMaster FineMaster?

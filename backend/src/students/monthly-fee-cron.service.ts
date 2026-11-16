@@ -13,23 +13,81 @@ export class MonthlyFeeCronService {
     this.logger.log('Running monthly fee generation cron job...');
 
     const today = new Date();
-    const currentMonthYear = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1;
 
-    // Find all active students with their assigned room and transactions
+    const currentBillingMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+
+    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const previousBillingMonth = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+
+    const currentMonthYear = today.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const prevDate = new Date(prevYear, prevMonth - 1, 1);
+    const previousMonthYear = prevDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    const colleges = await this.prisma.college.findMany({
+      include: { fineMaster: true },
+    });
+
+    const collegeBillingCycle = new Map<string, string>();
+    for (const college of colleges) {
+      collegeBillingCycle.set(college.id, college.billingCycle || 'PREPAID');
+    }
+
     const students = await this.prisma.student.findMany({
       where: {
-        status: { not: 'Vacated' }
+        status: { not: 'Vacated' },
       },
       include: {
         room: true,
+        college: true,
         transactions: {
-          orderBy: { createdAt: 'desc' }
-        }
-      }
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     for (const student of students) {
       try {
+        const collegeId = student.collegeId;
+        const billingCycle = collegeId ? (collegeBillingCycle.get(collegeId) || 'PREPAID') : 'PREPAID';
+
+        // Determine billing month based on college's billing cycle
+        // PREPAID: generate fees for current month (e.g., Nov 1 -> November fees)
+        // POSTPAID: generate fees for previous month (e.g., Nov 1 -> October fees)
+        let billingMonth: string;
+        let descriptionMonthYear: string;
+        let dueDate: Date | undefined;
+
+        if (billingCycle === 'POSTPAID') {
+          billingMonth = previousBillingMonth;
+          descriptionMonthYear = previousMonthYear;
+        } else {
+          billingMonth = currentBillingMonth;
+          descriptionMonthYear = currentMonthYear;
+        }
+
+        // Set due date based on college's due date and billing cycle
+        // PREPAID: due date in the billing month (e.g., November fees due Nov 5)
+        // POSTPAID: due date in the invoice generation month (e.g., Nov fees generated Dec 1, due Dec 5)
+        if (student.college?.dueDate) {
+          const collegeDueDate = new Date(student.college.dueDate);
+          const dueDay = collegeDueDate.getDate();
+
+          if (billingCycle === 'POSTPAID') {
+            // For POSTPAID, due date is in the current (generation) month
+            dueDate = new Date(currentYear, currentMonth - 1, dueDay);
+          } else {
+            // For PREPAID, due date is in the billing month
+            dueDate = new Date(
+              billingCycle === 'POSTPAID' ? prevYear : currentYear,
+              billingCycle === 'POSTPAID' ? prevMonth - 1 : currentMonth - 1,
+              dueDay,
+            );
+          }
+        }
+
         // Priority for Room Rent:
         // 1. Student's specific custom rent override (if set and > 0)
         // 2. Room Master's monthly rent for the student's assigned room (if set and > 0)
@@ -49,12 +107,12 @@ export class MonthlyFeeCronService {
 
         const transactionsToCreate = [];
 
-        // Avoid creating duplicate invoices if the cron runs more than once in the same month
+        // Avoid creating duplicate invoices using billingMonth + studentId + transactionType
         const alreadyHasRentThisMonth = student.transactions.some(
-          t => t.transactionType === 'RENT' && t.description?.includes(currentMonthYear)
+          t => t.transactionType === 'RENT' && t.billingMonth === billingMonth
         );
         const alreadyHasMessThisMonth = student.transactions.some(
-          t => t.transactionType === 'MESS' && t.description?.includes(currentMonthYear)
+          t => t.transactionType === 'MESS' && t.billingMonth === billingMonth
         );
 
         if (!alreadyHasRentThisMonth && rentAmount > 0) {
@@ -63,7 +121,9 @@ export class MonthlyFeeCronService {
             transactionType: 'RENT',
             amount: rentAmount,
             status: 'PENDING',
-            description: `Room Rent for ${currentMonthYear}`,
+            description: `Room Rent for ${descriptionMonthYear}`,
+            billingMonth,
+            dueDate,
           });
         }
 
@@ -73,15 +133,19 @@ export class MonthlyFeeCronService {
             transactionType: 'MESS',
             amount: messAmount,
             status: 'PENDING',
-            description: `Mess Fee for ${currentMonthYear}`,
+            description: `Mess Fee for ${descriptionMonthYear}`,
+            billingMonth,
+            dueDate,
           });
         }
 
         if (transactionsToCreate.length > 0) {
           await this.prisma.feeTransaction.createMany({
-            data: transactionsToCreate
+            data: transactionsToCreate,
           });
-          this.logger.log(`Generated monthly fees for student ${student.regNo}: Rent ₹${rentAmount}, Mess ₹${messAmount}`);
+          this.logger.log(
+            `Generated monthly fees for student ${student.regNo} (${billingCycle}): Rent ₹${rentAmount}, Mess ₹${messAmount}, Billing Month ${billingMonth}`,
+          );
         }
       } catch (error: any) {
         this.logger.error(`Failed to generate monthly fees for student ${student.regNo}: ${error.message}`);

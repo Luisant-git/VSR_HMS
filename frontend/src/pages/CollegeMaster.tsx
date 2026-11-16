@@ -48,11 +48,18 @@ const CollegeMaster = () => {
   const [isCollegeModalOpen, setIsCollegeModalOpen] = useState(false);
   const [editingCollegeId, setEditingCollegeId] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    shortName: string;
+    address: string;
+    dueDate: string;
+    billingCycle: 'PREPAID' | 'POSTPAID';
+  }>({
     name: '',
     shortName: '',
     address: '',
-    dueDate: ''
+    dueDate: '',
+    billingCycle: 'PREPAID'
   });
 
   // Fine Modal State
@@ -168,7 +175,8 @@ const CollegeMaster = () => {
       name: college.name,
       shortName: college.shortName || '',
       address: college.address || '',
-      dueDate: college.dueDate ? college.dueDate.split('T')[0] : ''
+      dueDate: college.dueDate ? college.dueDate.split('T')[0] : '',
+      billingCycle: college.billingCycle || 'PREPAID'
     });
     setIsCollegeModalOpen(true);
   };
@@ -197,7 +205,7 @@ const CollegeMaster = () => {
 
   const openNewCollegeModal = () => {
     setEditingCollegeId(null);
-    setFormData({ name: '', shortName: '', address: '', dueDate: '' });
+    setFormData({ name: '', shortName: '', address: '', dueDate: '', billingCycle: 'PREPAID' });
     setIsCollegeModalOpen(true);
   };
 
@@ -268,6 +276,7 @@ const CollegeMaster = () => {
               <th className="cm-sno">S.No</th>
               <th>College Name</th>
               <th>Short Name</th>
+              <th>Billing Cycle</th>
               <th>Due Date</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Actions</th>
@@ -300,6 +309,23 @@ const CollegeMaster = () => {
                     ) : (
                       <span className="ui-cell-muted">-</span>
                     )}
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      backgroundColor: c.billingCycle === 'POSTPAID' ? '#fef3c7' : '#dcfce7',
+                      color: c.billingCycle === 'POSTPAID' ? '#b45309' : '#15803d',
+                      border: '1px solid ' + (c.billingCycle === 'POSTPAID' ? '#fcd34d' : '#86efac'),
+                    }}>
+                      {c.billingCycle || 'PREPAID'}
+                    </span>
                   </td>
                   <td>
                     <span className="cm-date-text">
@@ -434,6 +460,19 @@ const CollegeMaster = () => {
                   <div className="ui-form-group">
                     <label className="ui-form-label">Short Name / Code</label>
                     <input type="text" value={formData.shortName} onChange={e => setFormData({...formData, shortName: e.target.value})} placeholder="e.g. SRM IST" className="ui-form-control" />
+                  </div>
+                  <div className="ui-form-group">
+                    <label className="ui-form-label">Billing Cycle <span className="cm-req">*</span></label>
+                    <Select
+                      options={[
+                        { value: 'PREPAID', label: 'Prepaid' },
+                        { value: 'POSTPAID', label: 'Postpaid' },
+                      ]}
+                      value={{ value: formData.billingCycle, label: formData.billingCycle === 'PREPAID' ? 'Prepaid' : 'Postpaid' }}
+                      onChange={(val: any) => setFormData({...formData, billingCycle: val.value})}
+                      styles={collegeSelectStyles}
+                      isSearchable={false}
+                    />
                   </div>
                   <div className="ui-form-group">
                     <label className="ui-form-label">Due Date <span className="cm-req">*</span></label>

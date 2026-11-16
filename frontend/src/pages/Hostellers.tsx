@@ -133,7 +133,7 @@ const Hostellers = () => {
           .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
         const outstandingRemaining = roundMoney(Math.max(0, outstandingOriginal - outstandingPaid));
         const currentPending = transactions
-          .filter(isCurrentCycleFee)
+          .filter((fee: any) => isCurrentCycleFee(fee, h.college?.billingCycle))
           .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
         // Original outstanding invoices are netted by confirmed payments; they
         // are never added again at full value.

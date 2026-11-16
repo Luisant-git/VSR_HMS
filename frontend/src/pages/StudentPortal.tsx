@@ -11,6 +11,7 @@ import {
   STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
 } from '../utils/studentPortalPayment';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { ReceiptModal } from '../components/ReceiptModal';
 import PortalTopBar from '../components/PortalTopBar';
 import PortalFooter from '../components/PortalFooter';
@@ -176,9 +177,14 @@ export default function StudentPortal() {
         // Only open the payment modal when there is an actual balance. Fully
         // settled outstanding invoices remain PENDING on purpose (their
         // original amounts are preserved), so net them with confirmed payments.
-        const pendingDues = calculatePendingDues(data.transactions || []);
+        const pendingDues = calculatePendingDues(
+          data.transactions || [],
+          data.college?.billingCycle,
+        );
         if (pendingDues > 0.005 && openPaymentModal && !paymentNeedsCheck) {
-          const currentFees = (data.transactions || []).filter(isCurrentCycleFee);
+          const currentFees = (data.transactions || []).filter((fee: any) =>
+            isCurrentCycleFee(fee, data.college?.billingCycle),
+          );
           const historicalOutstanding = buildOutstandingSummary(
             data.transactions || [],
           );
@@ -361,7 +367,9 @@ export default function StudentPortal() {
   // edited, so they must not be added at full value.
   const transactions = student?.transactions || [];
   const outstandingSummary = buildOutstandingSummary(transactions);
-  const currentPendingFees = transactions.filter(isCurrentCycleFee);
+  const currentPendingFees = transactions.filter((fee: any) =>
+    isCurrentCycleFee(fee, student?.college?.billingCycle),
+  );
   const currentPendingAmount = currentPendingFees.reduce(
     (sum: number, fee: any) => sum + (Number(fee.amount) || 0),
     0,
@@ -612,6 +620,7 @@ export default function StudentPortal() {
           </div>
 
           {/* Pending Fees */}
+          <FeeGenerationNotice billingCycle={student.college?.billingCycle} compact />
           <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#1e293b', marginBottom: '16px' }}>Pending Fees</h3>
           {paymentStatusNotice && (
             <div

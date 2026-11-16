@@ -9,6 +9,7 @@ import {
   STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
 } from '../utils/studentPortalPayment';
 import { formatDateDMY } from '../utils/date';
+import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
 
 interface RazorpayCheckoutResponse {
   razorpay_order_id: string;
@@ -157,6 +158,21 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     ? [...selectableCurrentItems, dateFineItem]
     : selectableCurrentItems;
 
+  // POSTPAID colleges bill the previous month. Hide current/future-month fees,
+  // but keep fines and legacy fees with no billing month so existing students
+  // remain payable while the next invoice cycle is generated.
+  const collegeCycle = primaryStudent?.college?.billingCycle || 'PREPAID';
+  const { previousMonthStr: postpaidPreviousMonthStr } = getBillingMonths();
+  const filteredPayableItems = collegeCycle === 'POSTPAID'
+    ? payableCurrentItems.filter((f: any) => isPostpaidPayableFee(f, postpaidPreviousMonthStr))
+    : payableCurrentItems;
+
+  const hasUpcomingMonthItems = collegeCycle === 'POSTPAID' &&
+    payableCurrentItems.some((f: any) => {
+      if (String(f?.transactionType || '').toUpperCase().includes('FINE')) return false;
+      return !isPostpaidPayableFee(f, postpaidPreviousMonthStr);
+    });
+
   // Original outstanding invoice amounts minus payments already confirmed by
   // the backend. Invoices are never mutated, so this is the only safe way to
   // show the true remaining balance.
@@ -184,13 +200,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const [outstandingAmountInput, setOutstandingAmountInput] = useState('');
   const [feeStates, setFeeStates] = useState<Record<string, { selected: boolean }>>(() => {
     const initialState: Record<string, { selected: boolean }> = {};
-    payableCurrentItems.forEach((f: any) => {
+    filteredPayableItems.forEach((f: any) => {
       initialState[f.id] = { selected: !hasOutstandingItems };
     });
     return initialState;
   });
 
-  const activeItemsToPay = payableCurrentItems.filter(f => feeStates[f.id]?.selected !== false);
+  const activeItemsToPay = filteredPayableItems.filter(f => feeStates[f.id]?.selected !== false);
 
   useEffect(() => {
     if (!allowPaymentDate || !primaryStudent?.id) return;
@@ -312,6 +328,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       toast.error('Unable to identify the student for this payment.');
       return;
     }
+
+    // activeItemsToPay is already limited to the previous billing month for
+    // POSTPAID colleges, so nothing more to check here.
 
     setIsSubmitting(true);
     try {
@@ -622,7 +641,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const selectAll = () => setFeeStates(prev => {
     const next = { ...prev };
-    payableCurrentItems.forEach((item) => {
+    filteredPayableItems.forEach((item) => {
       next[item.id] = { selected: true };
     });
     return next;
@@ -630,7 +649,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const selectRentOnly = () => setFeeStates(prev => {
     const next = { ...prev };
-    payableCurrentItems.forEach(f => {
+    filteredPayableItems.forEach(f => {
       next[f.id] = { selected: (f.transactionType || '').toUpperCase().includes('RENT') };
     });
     return next;
@@ -656,9 +675,19 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   if (itemsToPay.length === 0) return null;
 
+  // POSTPAID colleges bill the previous month. If upcoming (current-month)
+  // fees were passed in, they are not payable — tell the user clearly.
+  const upcomingMonthBanner = hasUpcomingMonthItems ? (
+    <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e', padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>
+      Upcoming month fees are not generated yet for this college (POSTPAID). Please pay the previous month\u2019s dues.
+    </div>
+  ) : null;
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
       <div style={{ background: '#ffffff', padding: '0', borderRadius: '16px', width: '520px', maxWidth: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+
+        {upcomingMonthBanner}
 
         {paymentSuccessData ? (
           <div style={{ padding: '50px 30px', textAlign: 'center' }}>
@@ -751,7 +780,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
               {/* Fees List */}
               <div style={{ marginBottom: '24px' }}>
-                {payableCurrentItems.length > 0 && (
+                {filteredPayableItems.length > 0 && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Fees to Pay</label>
@@ -765,10 +794,10 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                     </div>
 
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                      {payableCurrentItems.map((f, index) => {
+                      {filteredPayableItems.map((f, index) => {
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
-                        const isLast = index === selectableCurrentItems.length - 1;
+                        const isLast = index === filteredPayableItems.length - 1;
                         const calculatedAmount = f.amount * currentMultiplier;
 
                         return (
@@ -803,8 +832,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
                 {/* OUTSTANDING item: one consolidated previous balance */}
                 {outstandingBalance > 0 && (
-                  <div style={{ marginTop: selectableCurrentItems.length > 0 ? '12px' : '0' }}>
-                    {selectableCurrentItems.length === 0 && (
+                  <div style={{ marginTop: filteredPayableItems.length > 0 ? '12px' : '0' }}>
+                    {filteredPayableItems.length === 0 && (
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Outstanding</label>
                     )}
                     <div style={{ border: '1px solid #fde68a', borderRadius: '8px', overflow: 'hidden', background: '#fffbeb' }}>

@@ -340,6 +340,7 @@ const FineMaster = () => {
               <th className="fm-sno">S.No</th>
               <th>College Name</th>
               <th>Short Name</th>
+              <th>Billing Cycle</th>
               <th>Due Date</th>
               <th>Configured Rule</th>
               <th>Fine (Rent/Mess/EB)</th>
@@ -372,6 +373,23 @@ const FineMaster = () => {
                     ) : (
                       <span className="ui-cell-muted">-</span>
                     )}
+                  </td>
+                  <td>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      backgroundColor: c.billingCycle === 'POSTPAID' ? '#fef3c7' : '#dcfce7',
+                      color: c.billingCycle === 'POSTPAID' ? '#b45309' : '#15803d',
+                      border: '1px solid ' + (c.billingCycle === 'POSTPAID' ? '#fcd34d' : '#86efac'),
+                    }}>
+                      {c.billingCycle || 'PREPAID'}
+                    </span>
                   </td>
                   <td>
                     <span className="fm-date-text">

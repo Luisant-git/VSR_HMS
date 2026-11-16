@@ -8,6 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
 import { parseFeeImportFile, type FeeImportRow } from '../utils/feeImport';
@@ -23,6 +24,7 @@ import {
   roundMoney,
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
+import { getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
@@ -115,6 +117,26 @@ const Fees = () => {
     return [{ value: 'ALL', label: '-- All Colleges --' }, ...Array.from(colleges).map(c => ({ value: c, label: c }))];
   }, [fees]);
 
+  // Which billing cycle to explain in the generation notice. When a specific
+  // student or college is selected we can show one schedule; otherwise we show
+  // both PREPAID and POSTPAID.
+  const selectedBillingCycle = useMemo(() => {
+    if (selectedStudent.value !== 'ALL') {
+      const fee = fees.find(
+        f => (f.student?.manualRegsiName || f.student?.regNo) === selectedStudent.value,
+      );
+      return fee?.student?.college?.billingCycle || null;
+    }
+    if (collegeFilter.value !== 'ALL') {
+      const fee = fees.find(f => {
+        const c = typeof f.student?.college === 'string' ? f.student.college : f.student?.college?.name;
+        return c === collegeFilter.value;
+      });
+      return fee?.student?.college?.billingCycle || null;
+    }
+    return null;
+  }, [fees, selectedStudent, collegeFilter]);
+
   const roomOptions = useMemo(() => {
     const roomNumbers = new Set<string>(rooms);
     fees.forEach(fee => {
@@ -143,6 +165,15 @@ const Fees = () => {
     if (feeIdParam && fees.length > 0 && !feeToCollect) {
       const fee = fees.find(f => f.id === feeIdParam);
       if (fee && fee.status === 'PENDING') {
+        // POSTPAID colleges bill the previous month. Hide current-month
+        // (upcoming) fees and late fines. Legacy fees with no billing month
+        // are kept so existing students do not vanish from the page.
+        const { previousMonthStr } = getBillingMonths();
+        const collegeCycle = fee.student?.college?.billingCycle || 'PREPAID';
+        if (collegeCycle === 'POSTPAID' && !isPostpaidPayableFee(fee, previousMonthStr)) {
+          toast.error('This fee is not part of the previous billing month for this college (POSTPAID).');
+          return;
+        }
         setFeeToCollect(fee);
         setActiveFeeId(`pending-${fee.student?.regNo || 'unknown'}`);
       }
@@ -180,10 +211,22 @@ const Fees = () => {
   const filteredFees = fees.filter(fee => {
     // Hide all previous paid receipts and invoices prior to November 1, 2026.
     // Fresh invoicing and fee collection starts from tomorrow (Nov 1, 2026).
-    if (isPreviousSettledFee(fee)) return false;
+    // Exception: for POSTPAID colleges, pending previous-month dues are the
+    // current payable cycle and must remain visible.
+    const { previousMonthStr } = getBillingMonths();
+    const collegeCycleForFilter = fee.student?.college?.billingCycle || 'PREPAID';
+    const isPostpaidPayableNow =
+      collegeCycleForFilter === 'POSTPAID' &&
+      fee.status === 'PENDING' &&
+      isPostpaidPayableFee(fee, previousMonthStr);
+    if (isPreviousSettledFee(fee) && !isPostpaidPayableNow) return false;
 
     let match = true;
-    if (filter === 'UNPAID') match = fee.status === 'PENDING' && !isImportedInvoice(fee);
+    if (filter === 'UNPAID') {
+      match =
+        fee.status === 'PENDING' &&
+        (!isImportedInvoice(fee) || isPostpaidPayableNow);
+    }
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
 
@@ -283,7 +326,14 @@ const Fees = () => {
 
   const displayFees = useMemo(() => {
     const pendingByStudent = new Map();
+    const notDueByStudent = new Map();
     const paidByBatch = new Map();
+
+    // POSTPAID colleges bill the previous month (e.g. on 1 Nov they are billed
+    // for October). Current-month (upcoming) fees and late fines are not
+    // payable yet, but the student is still listed as "Not Due" so they do not
+    // vanish from the page until the next invoice cycle is generated.
+    const { previousMonthStr } = getBillingMonths();
 
     filteredFees.forEach(f => {
       if (isMessFee(f)) return;
@@ -307,7 +357,44 @@ const Fees = () => {
       if (f.status === 'PENDING') {
         // Original outstanding invoices are handled separately (shown as an
         // unpaid row only while no payment exists).
-        if (isOutstandingInvoice(f) || isImportedInvoice(f)) return;
+        const collegeCycle = f.student?.college?.billingCycle || 'PREPAID';
+        const isPostpaidPayableNow =
+          collegeCycle === 'POSTPAID' && isPostpaidPayableFee(f, previousMonthStr);
+        if (isOutstandingInvoice(f) || (isImportedInvoice(f) && !isPostpaidPayableNow)) return;
+        // POSTPAID colleges bill the previous month. Only previous-month fees
+        // are payable. Current/future-month fees (including legacy rows with
+        // no billing month) are shown as "Not Due" without a Pay Now action.
+        // Fines (e.g. late-fine accumulation on overdue dues) remain payable.
+        if (collegeCycle === 'POSTPAID') {
+          if (!isPostpaidPayableFee(f, previousMonthStr)) {
+            if (!notDueByStudent.has(studentId)) {
+              notDueByStudent.set(studentId, {
+                isGrouped: true,
+                id: `not-due-${studentId}`,
+                student: f.student,
+                status: 'PENDING',
+                createdAt: f.createdAt,
+                paymentMode: '-',
+                totalAmount: 0,
+                outstanding: 0,
+                displayPaid: 0,
+                displayBalance: 0,
+                displayStatus: 'Not Due',
+                invoiceFee: null,
+                rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+                feesList: []
+              });
+            }
+            const notDueGroup = notDueByStudent.get(studentId);
+            notDueGroup.totalAmount += Number(f.amount) || 0;
+            notDueGroup[category] += Number(f.amount) || 0;
+            notDueGroup.feesList.push(f);
+            if (new Date(f.createdAt) < new Date(notDueGroup.createdAt)) {
+              notDueGroup.createdAt = f.createdAt;
+            }
+            return;
+          }
+        }
         if (!pendingByStudent.has(studentId)) {
           pendingByStudent.set(studentId, {
             isGrouped: true,
@@ -387,6 +474,15 @@ const Fees = () => {
       group.pendingDue = pendingDue;
       if (pendingDue > 0.005) result.push(group);
     });
+
+    // POSTPAID students who only have upcoming (current-month) charges are
+    // still listed, but as "Not Due" and without a Pay Now action.
+    if (filter === 'ALL') {
+      notDueByStudent.forEach((group) => {
+        if ((group.totalAmount || 0) <= 0.005) return;
+        result.push(group);
+      });
+    }
 
     // If a student has an outstanding balance, show that as an Unpaid row with Pay Now
     outstandingTotals.forEach((totals, studentKey) => {
@@ -508,15 +604,22 @@ const Fees = () => {
   // Sum pending invoice transactions directly so every eligible share (including
   // October 2026 EB bills) is counted once, independent of display grouping.
   const totalInvoiced = useMemo(() => {
+    const { previousMonthStr } = getBillingMonths();
     return roundMoney(
       filteredFees
-        .filter(f =>
-          f.status === 'PENDING' &&
-          !isOutstandingInvoice(f) &&
-          !isImportedInvoice(f) &&
-          !isPreviousSettledFee(f) &&
-          !isMessFee(f),
-        )
+        .filter(f => {
+          if (f.status !== 'PENDING') return false;
+          const collegeCycle = f.student?.college?.billingCycle || 'PREPAID';
+          const isPostpaidPayableNow =
+            collegeCycle === 'POSTPAID' && isPostpaidPayableFee(f, previousMonthStr);
+          if (isOutstandingInvoice(f) || (isImportedInvoice(f) && !isPostpaidPayableNow)) return false;
+          if ((isPreviousSettledFee(f) && !isPostpaidPayableNow) || isMessFee(f)) return false;
+          // Keep the card in sync with the table for POSTPAID colleges.
+          if (collegeCycle === 'POSTPAID' && !isPostpaidPayableFee(f, previousMonthStr)) {
+            return false;
+          }
+          return true;
+        })
         .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
     );
   }, [filteredFees]);
@@ -582,6 +685,9 @@ const Fees = () => {
   };
 
   const getExportFeeType = (fee: any) => {
+    if (fee.displayStatus === 'Not Due') {
+      return 'Not Due';
+    }
     if (fee.displayStatus === 'Paid' || fee.displayStatus === 'Partial') {
       return 'Receipt';
     }
@@ -806,13 +912,17 @@ const Fees = () => {
       });
     });
 
+    const { previousMonthStr } = getBillingMonths();
     freshFees.forEach((fee: any) => {
       if (!fee?.studentId || !updatedIds.has(String(fee.studentId))) return;
       if (fee.status !== 'PENDING') return;
+      const collegeCycle = fee.student?.college?.billingCycle || 'PREPAID';
+      const isPostpaidPayableNow =
+        collegeCycle === 'POSTPAID' && isPostpaidPayableFee(fee, previousMonthStr);
       if (
         isOutstandingInvoice(fee) ||
-        isImportedInvoice(fee) ||
-        isPreviousSettledFee(fee) ||
+        (isImportedInvoice(fee) && !isPostpaidPayableNow) ||
+        (isPreviousSettledFee(fee) && !isPostpaidPayableNow) ||
         isMessFee(fee)
       ) {
         return;
@@ -933,6 +1043,8 @@ const Fees = () => {
         </div>
       </div>
 
+      <FeeGenerationNotice billingCycle={selectedBillingCycle} />
+
       <div className="ui-toolbar">
         <div className="ui-toolbar-group">
           <span className="ui-toolbar-label">Show</span>
@@ -1029,6 +1141,7 @@ const Fees = () => {
               <col className="fees-col-invoice" />
               <col className="fees-col-person" />
               <col className="fees-col-room" />
+              <col className="fees-col-billing" />
               <col className="fees-col-date" />
               <col className="fees-col-advance" />
               <col className="fees-col-rent" />
@@ -1046,6 +1159,7 @@ const Fees = () => {
                 <th>Invoice No</th>
                 <th>Student Name &amp; Reg. No</th>
                 <th>Room</th>
+                <th>Billing Month</th>
                 <th>Payment Date</th>
                 <th className="num">Advance</th>
                 <th className="num">Rent</th>
@@ -1061,14 +1175,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading ? (
-                <LoadingRow colSpan={13} />
+                <LoadingRow colSpan={14} />
               ) : error ? (
                 <tr>
-                  <td colSpan={13} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -1096,6 +1210,23 @@ const Fees = () => {
                       <td>
                         <span className="ui-badge ui-badge-blue" title={`Room ${fee.student?.roomNo || 'N/A'}`}>
                           Room {fee.student?.roomNo || 'N/A'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          backgroundColor: '#e0f2fe',
+                          color: '#0369a1',
+                          border: '1px solid #bae6fd',
+                        }}>
+                          {fee.billingMonth || resolveFeeBillingMonth(fee.feesList?.[0]) || '—'}
                         </span>
                       </td>
                       <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
@@ -1144,9 +1275,16 @@ const Fees = () => {
                       <td className="num">
                         <div>₹{fee.fine.toLocaleString('en-IN')}</div>
                         {(() => {
-                          const fineFee = fee.feesList?.find(
-                            (item: any) => (item.transactionType || '').toUpperCase() === 'FINE',
-                          );
+                          if (Number(fee.fine) <= 0) return null;
+                          const fineFee =
+                            fee.feesList?.find(
+                              (item: any) =>
+                                (item.transactionType || '').toUpperCase() === 'FINE' &&
+                                Number(item.amount || 0) > 0,
+                            ) ||
+                            fee.feesList?.find(
+                              (item: any) => (item.transactionType || '').toUpperCase() === 'FINE',
+                            );
                           const overdueDays = fineFee?.description?.match(/(\d+)\s+days?\s+overdue/i)?.[1];
                           return overdueDays
                             ? <div className="fees-note fees-note--danger">{overdueDays} day{Number(overdueDays) === 1 ? '' : 's'} overdue</div>
@@ -1183,7 +1321,7 @@ const Fees = () => {
                         {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
                       </td>
                       <td className="fees-status">
-                        <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-green' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-red'}`}>
+                        <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-green' : fee.displayStatus === 'Not Due' ? 'ui-badge-blue' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-red'}`}>
                           {fee.displayStatus}
                         </span>
                       </td>
@@ -1195,6 +1333,10 @@ const Fees = () => {
                           >
                             <Wallet size={14} /> Pay Now
                           </button>
+                        ) : fee.displayStatus === 'Not Due' ? (
+                          <span className="fees-note" title="This month's fees are billed in the next postpaid cycle">
+                            Not due yet
+                          </span>
                         ) : (
                           <button
                             onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}

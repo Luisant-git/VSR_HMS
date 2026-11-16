@@ -11,6 +11,8 @@
  * Hostellers, Dashboard, Clearance and the Student Portal always agree.
  */
 
+import { getBillingMonths, isPostpaidPayableFee } from './billingCycle';
+
 export const OUTSTANDING_PAYMENT_TYPE = 'OUTSTANDING_PAYMENT';
 
 export const roundMoney = (value: number) =>
@@ -198,14 +200,38 @@ const CURRENT_FEE_TYPES = new Set(['RENT', 'EB_BILL', 'FINE']);
 
 /** A current-cycle pending fee (Rent / EB / Fine) counted in Pending Fees.
  *  Excludes outstanding invoices, imported/legacy rows, pre-Nov-2026 settled
- *  rows, and non-payable categories such as mess and advance. */
-export const isCurrentCycleFee = (fee: any): boolean =>
-  !!fee &&
-  fee.status === 'PENDING' &&
-  CURRENT_FEE_TYPES.has(String(fee.transactionType || '').toUpperCase()) &&
-  !isOutstandingInvoice(fee) &&
-  !isImportedInvoice(fee) &&
-  !isPreviousSettledFee(fee);
+ *  rows, and non-payable categories such as mess and advance.
+ *
+ *  POSTPAID colleges bill the previous month, so current-month fees are not
+ *  payable yet and must not be counted as pending dues. Fines on overdue dues
+ *  remain payable. Pass the billing cycle when the fee rows themselves do not
+ *  include `fee.student.college`. */
+export const isCurrentCycleFee = (fee: any, billingCycle?: string): boolean => {
+  if (
+    !fee ||
+    fee.status !== 'PENDING' ||
+    !CURRENT_FEE_TYPES.has(String(fee.transactionType || '').toUpperCase()) ||
+    isOutstandingInvoice(fee)
+  ) {
+    return false;
+  }
+
+  const cycle = billingCycle || fee?.student?.college?.billingCycle || 'PREPAID';
+  if (cycle === 'POSTPAID') {
+    const { previousMonthStr } = getBillingMonths();
+    const payableNow = isPostpaidPayableFee(fee, previousMonthStr);
+    if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {
+      return payableNow;
+    }
+    return payableNow;
+  }
+
+  if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {
+    return false;
+  }
+
+  return true;
+};
 
 /**
  * Pending dues for a complete transaction list:
@@ -216,11 +242,11 @@ export const isCurrentCycleFee = (fee: any): boolean =>
  * This implements: Pending Fees = Rent + EB Bill + Fine − Total Paid
  *                  (+ any separately-tracked historical dues).
  */
-export const calculatePendingDues = (fees: any[]) => {
+export const calculatePendingDues = (fees: any[], billingCycle?: string) => {
   let pending = 0;
 
   fees.forEach(fee => {
-    if (isCurrentCycleFee(fee)) {
+    if (isCurrentCycleFee(fee, billingCycle)) {
       pending += Number(fee.amount) || 0;
     }
   });

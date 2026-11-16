@@ -5,6 +5,7 @@ import { Download, X, Printer, Phone } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getSystemSettings } from '../api/settings.api';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
+import { resolveFeeBillingMonth } from '../utils/billingCycle';
 
 interface ReceiptModalProps {
   fee: any;
@@ -649,6 +650,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   <tbody>
                     <tr><td>Registration No</td><td>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</td></tr>
                     <tr><td>Room No</td><td>{primaryStudent?.roomNo || 'N/A'}</td></tr>
+                    <tr><td>Billing Month</td><td>{resolveFeeBillingMonth(firstFee) || '-'}</td></tr>
+                    <tr><td>Due Date</td><td>{firstFee?.dueDate ? new Date(firstFee.dueDate).toLocaleDateString('en-GB') : '—'}</td></tr>
                   </tbody>
                 </table>
               </div>

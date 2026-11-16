@@ -5,6 +5,7 @@ export interface CreateCollegeDto {
   shortName?: string;
   address?: string;
   dueDate?: string;
+  billingCycle?: 'PREPAID' | 'POSTPAID';
   finePerDay?: number;
 }
 

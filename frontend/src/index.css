@@ -2068,6 +2068,8 @@ textarea:focus {
 
 .ui-table-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .ui-table {
@@ -3156,7 +3158,7 @@ textarea.ui-form-control {
 .fees-table {
   table-layout: fixed;
   width: 100%;
-  min-width: 100%;
+  min-width: 1200px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -3222,6 +3224,8 @@ textarea.ui-form-control {
   padding: 6px 7px !important;
   box-sizing: border-box;
   vertical-align: middle;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .fees-table th {
