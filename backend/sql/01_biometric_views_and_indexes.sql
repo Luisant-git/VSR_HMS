@@ -40,11 +40,13 @@ CREATE OR REPLACE VIEW public.view_student_in_out_logs AS
     s."roomNo" AS room_no,
     s."bedNo" AS bed_no,
     s."mobileNo" AS student_mobile,
+    s."fatherName" AS father_name,
     s."fatherMobileNo" AS father_mobile,
     b.device_id,
     COALESCE(d.device_name, b.device_id::text) AS device_name,
     b.device_uid,
-    b.synced_at
+    b.synced_at,
+    b.user_id AS user_pin
    FROM public.biometric_attendance_logs b
      LEFT JOIN public."Student" s ON s."regNo" = b.user_id::text OR s."manualRegsiName" = b.user_id::text OR s."biometricId" = b.user_id::text
      LEFT JOIN public.biometric_device_registry d ON b.device_id::text = d.device_id::text
@@ -52,6 +54,8 @@ CREATE OR REPLACE VIEW public.view_student_in_out_logs AS
 
 -- ----------------------------------------------------------------------------
 -- 3. View: Students Currently INSIDE the Hostel
+-- In a hostel, students reside inside by default. Students are inside unless
+-- their latest punch is an exit (OUT) without a subsequent return (IN).
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE VIEW public.view_student_currently_inside AS
  WITH latest_punches AS (
@@ -71,13 +75,21 @@ CREATE OR REPLACE VIEW public.view_student_currently_inside AS
     s."mobileNo" AS student_mobile,
     lp.punch_time AS in_time,
     lp.punch_time AS last_in_time,
-    to_char(lp.punch_time, 'YYYY-MM-DD HH12:MI:SS AM'::text) AS in_time_formatted,
+    CASE
+      WHEN lp.punch_time IS NOT NULL THEN to_char(lp.punch_time, 'YYYY-MM-DD HH12:MI:SS AM'::text)
+      ELSE 'Resident in Hostel'::text
+    END AS in_time_formatted,
     lp.device_id AS entry_device_id,
     'INSIDE'::text AS current_location
-   FROM latest_punches lp
-     JOIN public."Student" s ON s."regNo" = lp.user_id::text OR s."manualRegsiName" = lp.user_id::text OR s."biometricId" = lp.user_id::text
-  WHERE (lp.punch_state_code = ANY (ARRAY[0, 3, 255]) OR lp.punch_state::text = 'Check-In'::text)
-  ORDER BY lp.punch_time DESC;
+   FROM public."Student" s
+     LEFT JOIN latest_punches lp ON s."regNo" = lp.user_id::text OR s."manualRegsiName" = lp.user_id::text OR s."biometricId" = lp.user_id::text
+  WHERE s.status = 'In'::text
+    AND (
+      lp.user_id IS NULL
+      OR lp.punch_state_code = ANY (ARRAY[0, 3, 255])
+      OR lp.punch_state::text = 'Check-In'::text
+    )
+  ORDER BY lp.punch_time DESC NULLS LAST, s."roomNo" ASC NULLS LAST, s.name ASC;
 
 -- ----------------------------------------------------------------------------
 -- 4. View: Students Currently OUTSIDE the Hostel
@@ -98,6 +110,7 @@ CREATE OR REPLACE VIEW public.view_student_currently_outside AS
     s."roomNo" AS room_no,
     s."bedNo" AS bed_no,
     s."mobileNo" AS student_mobile,
+    s."fatherName" AS father_name,
     s."fatherMobileNo" AS father_mobile,
     lp.punch_time AS out_time,
     lp.punch_time AS last_out_time,
@@ -121,6 +134,7 @@ CREATE OR REPLACE VIEW public.view_student_daily_attendance_summary AS
     s."roomNo" AS room_no,
     s."bedNo" AS bed_no,
     s."mobileNo" AS student_mobile,
+    s."fatherName" AS father_name,
     s."fatherMobileNo" AS father_mobile,
     min(b.punch_time) AS first_punch_time,
     to_char(min(b.punch_time), 'HH12:MI:SS AM'::text) AS first_punch_formatted,

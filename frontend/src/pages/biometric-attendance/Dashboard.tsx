@@ -2,12 +2,12 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   ArrowUpRight,
+  Clock3,
   LogIn,
   LogOut,
   Percent,
   Router,
   UserCheck,
-  UserX,
 } from 'lucide-react';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
@@ -35,15 +35,14 @@ const Dashboard = () => {
           name: 'Overview',
           rows: [
             { Metric: 'Total active students', Value: stats.totalStudents },
-            { Metric: 'Present today', Value: stats.presentToday },
-            { Metric: 'Absent today', Value: stats.absentToday },
-            { Metric: 'Currently inside', Value: stats.inside },
-            { Metric: 'Currently outside', Value: stats.outside },
+            { Metric: 'In hostel now (Present)', Value: stats.inside },
+            { Metric: 'Currently outside (Away)', Value: stats.outside },
+            { Metric: 'Hostel Presence rate', Value: percent(stats.attendanceRate) },
+            { Metric: 'Students moved today', Value: stats.activeStudentsToday ?? 0 },
             { Metric: 'Punches today', Value: stats.punchesToday },
-            { Metric: 'IN punches', Value: stats.inToday },
-            { Metric: 'OUT punches', Value: stats.outToday },
+            { Metric: 'IN punches today', Value: stats.inToday },
+            { Metric: 'OUT punches today', Value: stats.outToday },
             { Metric: 'Late entries', Value: stats.lateEntries },
-            { Metric: 'Attendance rate', Value: percent(stats.attendanceRate) },
           ],
         },
         {
@@ -84,39 +83,39 @@ const Dashboard = () => {
         <BioStatGrid
           items={[
             {
-              label: 'Present today',
-              value: stats?.presentToday ?? '—',
-              sub: `${percent(stats?.attendanceRate)} attendance`,
-              icon: <UserCheck size={19} />,
+              label: 'In Hostel (Present)',
+              value: stats?.inside ?? stats?.presentToday ?? '—',
+              sub: `Inside hostel (${percent(stats?.attendanceRate)})`,
+              icon: <LogIn size={19} />,
               tone: 'success',
             },
             {
-              label: 'Absent today',
-              value: stats?.absentToday ?? '—',
-              sub: 'Awaiting first punch',
-              icon: <UserX size={19} />,
-              tone: 'danger',
+              label: 'Currently Outside',
+              value: stats?.outside ?? '—',
+              sub: (stats?.outside || 0) > 0 ? 'Punched OUT (Awaiting return)' : 'All hostellers inside',
+              icon: <LogOut size={19} />,
+              tone: (stats?.outside || 0) > 0 ? 'warning' : 'neutral',
             },
             {
-              label: 'Currently inside',
-              value: stats?.inside ?? '—',
-              sub: 'Inside hostel now',
-              icon: <LogIn size={19} />,
+              label: 'Movement Today',
+              value: stats?.activeStudentsToday ?? ((stats?.inToday ?? 0) + (stats?.outToday ?? 0)),
+              sub: `${stats?.outToday ?? 0} OUT · ${stats?.inToday ?? 0} IN`,
+              icon: <Activity size={19} />,
               tone: 'accent',
             },
             {
-              label: 'Currently outside',
-              value: stats?.outside ?? '—',
-              sub: 'Marked OUT',
-              icon: <LogOut size={19} />,
-              tone: 'warning',
+              label: 'Total Hostellers',
+              value: stats?.totalStudents ?? '—',
+              sub: 'Active hostel roll',
+              icon: <UserCheck size={19} />,
+              tone: 'info',
             },
             {
-              label: 'Punches today',
+              label: 'Punches Today',
               value: stats?.punchesToday ?? '—',
               sub: `${stats?.inToday ?? 0} IN · ${stats?.outToday ?? 0} OUT`,
-              icon: <Activity size={19} />,
-              tone: 'info',
+              icon: <Clock3 size={19} />,
+              tone: 'purple',
             },
           ]}
         />
@@ -125,8 +124,8 @@ const Dashboard = () => {
       <div className="bio-grid-2" style={{ marginTop: 16 }}>
         <div className="bio-card">
           <BioCardHead
-            title="Attendance rate"
-            subtitle="Share of active hostellers who punched in today"
+            title="Hostel Presence Rate"
+            subtitle="Share of active hostellers currently inside the hostel"
             icon={<Percent size={17} />}
           />
           <div className="bio-card-body">
@@ -146,25 +145,25 @@ const Dashboard = () => {
                   />
                   <defs>
                     <linearGradient id="bioRingGradient" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#4a72fa" />
-                      <stop offset="100%" stopColor="#3b5bdb" />
+                      <stop offset="0%" stopColor="#16a34a" />
+                      <stop offset="100%" stopColor="#15803d" />
                     </linearGradient>
                   </defs>
                 </svg>
                 <div className="bio-ring-center">
                   <strong>{percent(stats?.attendanceRate)}</strong>
-                  <span>Today</span>
+                  <span>Inside</span>
                 </div>
               </div>
               <div className="bio-ring-copy">
                 <div className="bio-legend">
-                  <i style={{ background: '#4a72fa' }} /> Present <strong>{stats?.presentToday ?? 0}</strong>
+                  <i style={{ background: '#16a34a' }} /> Inside Hostel <strong>{stats?.inside ?? 0}</strong>
                 </div>
                 <div className="bio-legend">
-                  <i style={{ background: '#e2e8f0' }} /> Absent <strong>{stats?.absentToday ?? 0}</strong>
+                  <i style={{ background: '#ea580c' }} /> Outside <strong>{stats?.outside ?? 0}</strong>
                 </div>
                 <div className="bio-legend">
-                  <i style={{ background: '#c7d2fe' }} /> Total <strong>{stats?.totalStudents ?? 0}</strong>
+                  <i style={{ background: '#c7d2fe' }} /> Total Roll <strong>{stats?.totalStudents ?? 0}</strong>
                 </div>
                 <div className="bio-legend">
                   <i style={{ background: '#f59e0b' }} /> Late <strong>{stats?.lateEntries ?? 0}</strong>

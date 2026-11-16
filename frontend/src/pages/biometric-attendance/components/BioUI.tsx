@@ -141,12 +141,12 @@ export const BioStatus = ({ status }: { status?: string | null }) => {
   const text = String(status || 'Unknown');
   const lower = text.toLowerCase();
   const tone =
-    lower.includes('present') || lower.includes('inside') || lower.includes('online') || lower.includes('success')
+    lower.includes('present') || lower.includes('inside') || lower.includes('in hostel') || lower.includes('in_hostel') || lower.includes('online') || lower.includes('success')
       ? 'is-success'
-      : lower.includes('absent') || lower.includes('error') || lower.includes('offline') || lower.includes('fail')
-        ? 'is-danger'
-        : lower.includes('late') || lower.includes('warning') || lower.includes('pending')
-          ? 'is-warning'
+      : lower.includes('outside') || lower.includes('out') || lower.includes('late') || lower.includes('warning') || lower.includes('pending')
+        ? 'is-warning'
+        : lower.includes('absent') || lower.includes('error') || lower.includes('offline') || lower.includes('fail')
+          ? 'is-danger'
           : 'is-neutral';
   return <span className={`bio-status ${tone}`}>{text.replace(/_/g, ' ')}</span>;
 };

@@ -184,7 +184,7 @@ export class BiometricAttendanceService {
       if (search) {
         const term = add(`%${search}%`);
         where.push(
-          `(COALESCE(reg_no, '') ILIKE ${term} OR COALESCE(student_name, '') ILIKE ${term} OR COALESCE(room_no, '') ILIKE ${term} OR COALESCE(device_name, '') ILIKE ${term})`,
+          `(COALESCE(reg_no, '') ILIKE ${term} OR COALESCE(student_name, '') ILIKE ${term} OR COALESCE(room_no, '') ILIKE ${term} OR COALESCE(device_name, '') ILIKE ${term} OR COALESCE(user_pin, '') ILIKE ${term} OR COALESCE(device_id, '') ILIKE ${term})`,
         );
       }
 
@@ -203,6 +203,7 @@ export class BiometricAttendanceService {
         `SELECT punch_date::text AS punch_date,
                 punch_time,
                 punch_time_formatted AS time_of_punch,
+                user_pin,
                 movement_direction AS direction,
                 reg_no,
                 student_name,
@@ -210,7 +211,8 @@ export class BiometricAttendanceService {
                 bed_no,
                 student_mobile,
                 verify_type AS verified_by,
-                device_name AS gate_name
+                device_name AS gate_name,
+                device_id
          FROM public.view_student_in_out_logs
          ${whereSql}
          ORDER BY punch_time DESC
@@ -389,12 +391,15 @@ export class BiometricAttendanceService {
       }
     }
 
-    const insideCount = availability.tables.has(OBJ.inside)
-      ? Number((await this.query<{ total: number }>(`SELECT COUNT(*)::int AS total FROM public.view_student_currently_inside`)).rows[0]?.total) || 0
-      : 0;
     const outsideCount = availability.tables.has(OBJ.outside)
       ? Number((await this.query<{ total: number }>(`SELECT COUNT(*)::int AS total FROM public.view_student_currently_outside`)).rows[0]?.total) || 0
       : 0;
+
+    // In a hostel, active students reside inside by default.
+    // They are inside unless their latest movement is an exit (OUT) without return.
+    const insideCount = availability.tables.has(OBJ.inside)
+      ? Number((await this.query<{ total: number }>(`SELECT COUNT(*)::int AS total FROM public.view_student_currently_inside`)).rows[0]?.total) || Math.max(0, totalStudents - outsideCount)
+      : Math.max(0, totalStudents - outsideCount);
 
     let lateEntries = 0;
     if (availability.tables.has(OBJ.curfew)) {
@@ -422,8 +427,9 @@ export class BiometricAttendanceService {
     }
 
     const recent = await this.fetchPunches({ date, page: 1, limit: 12 });
-    const presentToday = Math.min(totalStudents, movements.activeStudents);
-    const absentToday = Math.max(0, totalStudents - presentToday);
+    const presentToday = insideCount;
+    const absentToday = outsideCount;
+    const attendanceRate = totalStudents ? Math.round((insideCount / totalStudents) * 1000) / 10 : 0;
 
     let weeklyTrend: Array<{ date: string; present: number; punches: number }> = [];
     if (availability.tables.has(OBJ.logs)) {
@@ -579,145 +585,135 @@ export class BiometricAttendanceService {
     );
     const totalStudents = Number(studentCount.rows[0]?.total) || 0;
 
-    let rows: any[] = [];
-    let total = 0;
-    let summary = {
-      totalStudents,
-      present: 0,
-      absent: totalStudents,
-      totalPunches: 0,
-      attendanceRate: 0,
-    };
-    let error: string | undefined;
+    const params: unknown[] = [fromDate, toDate];
+    const filterClauses: string[] = [];
 
-    if (availability.tables.has(OBJ.daily)) {
-      const params: unknown[] = [fromDate, toDate];
-      const where: string[] = [`attendance_date BETWEEN $1::date AND $2::date`];
-      if (search) {
-        params.push(`%${search}%`);
-        where.push(`(COALESCE(reg_no, '') ILIKE $${params.length} OR COALESCE(student_name, '') ILIKE $${params.length} OR COALESCE(room_no, '') ILIKE $${params.length})`);
-      }
-      if (status && status.toUpperCase() !== 'ALL') {
-        params.push(status);
-        where.push(`attendance_status ILIKE $${params.length}`);
-      }
-      const whereSql = `WHERE ${where.join(' AND ')}`;
-      const aggregate = await this.query<any>(
-        `SELECT COUNT(*)::int AS total_rows,
-                COUNT(DISTINCT reg_no) FILTER (WHERE attendance_status NOT ILIKE '%absent%')::int AS present_students,
-                COUNT(*) FILTER (WHERE attendance_status ILIKE '%absent%')::int AS absent_rows,
-                COALESCE(SUM(total_punches), 0)::int AS total_punches
-         FROM public.view_student_daily_attendance_summary ${whereSql}`,
-        params,
+    if (search) {
+      params.push(`%${search}%`);
+      filterClauses.push(
+        `(COALESCE(s."regNo", '') ILIKE $${params.length} OR COALESCE(s.name, '') ILIKE $${params.length} OR COALESCE(s."roomNo", '') ILIKE $${params.length} OR COALESCE(s."manualRegsiName", '') ILIKE $${params.length} OR COALESCE(s."biometricId", '') ILIKE $${params.length})`,
       );
-      const aggregateRow = aggregate.rows[0] || {};
-      const present = Math.min(totalStudents, Number(aggregateRow.present_students) || 0);
-      summary = {
-        totalStudents,
-        present,
-        absent: Math.max(0, totalStudents - present),
-        totalPunches: Number(aggregateRow.total_punches) || 0,
-        attendanceRate: totalStudents ? Math.round((present / totalStudents) * 1000) / 10 : 0,
-      };
-      const data = await this.query<any>(
-        `SELECT attendance_date::text AS attendance_date,
-                reg_no, student_name, room_no, bed_no,
-                first_punch_formatted AS first_in_time,
-                last_punch_formatted AS last_out_time,
-                total_punches::int AS total_punches,
-                total_in_punches::int AS in_count,
-                total_out_punches::int AS out_count,
-                COALESCE(span_hours, 0)::float8 AS span_hours,
-                attendance_status
-         FROM public.view_student_daily_attendance_summary
-         ${whereSql}
-         ORDER BY attendance_date ASC, room_no ASC NULLS LAST, student_name ASC
-         LIMIT ${limit} OFFSET ${offset}`,
-        params,
-      );
-      rows = data.rows;
-      total = Number(aggregateRow.total_rows) || 0;
-      error = data.error || aggregate.error;
-    } else if (availability.tables.has(OBJ.logs)) {
-      const params: unknown[] = [fromDate, toDate];
-      const where: string[] = [`b.punch_time::date BETWEEN $1::date AND $2::date`];
-      if (search) {
-        params.push(`%${search}%`);
-        where.push(`(COALESCE(s."regNo", b.user_id) ILIKE $${params.length} OR COALESCE(s.name, '') ILIKE $${params.length} OR COALESCE(s."roomNo", '') ILIKE $${params.length})`);
-      }
-      const whereSql = `WHERE ${where.join(' AND ')}`;
-      const aggregate = await this.query<any>(
-        `SELECT COUNT(DISTINCT b.user_id)::int AS present,
-                COUNT(*)::int AS total_punches,
-                COUNT(DISTINCT (COALESCE(s."regNo", b.user_id), b.punch_time::date))::int AS total_rows
-         FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
-         ${whereSql}`,
-        params,
-      );
-      const aggregateRow = aggregate.rows[0] || {};
-      const present = Math.min(totalStudents, Number(aggregateRow.present) || 0);
-      summary = {
-        totalStudents,
-        present,
-        absent: Math.max(0, totalStudents - present),
-        totalPunches: Number(aggregateRow.total_punches) || 0,
-        attendanceRate: totalStudents ? Math.round((present / totalStudents) * 1000) / 10 : 0,
-      };
-
-      const dataParams = [...params];
-      let statusSql = '';
-      if (status && status.toUpperCase() !== 'ALL') {
-        dataParams.push(status);
-        statusSql = ` AND (CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') > 0 THEN 'Present' ELSE 'Absent' END) ILIKE $${dataParams.length}`;
-      }
-      const data = await this.query<any>(
-        `SELECT TO_CHAR(b.punch_time::date, 'YYYY-MM-DD') AS attendance_date,
-                COALESCE(s."regNo", b.user_id) AS reg_no,
-                COALESCE(s.name, 'Unregistered') AS student_name,
-                s."roomNo" AS room_no,
-                s."bedNo" AS bed_no,
-                TO_CHAR(MIN(b.punch_time) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In'), 'HH12:MI:SS AM') AS first_in_time,
-                TO_CHAR(MAX(b.punch_time) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out'), 'HH12:MI:SS AM') AS last_out_time,
-                COUNT(*)::int AS total_punches,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
-                COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count,
-                ROUND(COALESCE(EXTRACT(EPOCH FROM (MAX(b.punch_time) - MIN(b.punch_time))) / 3600, 0)::numeric, 1)::float8 AS span_hours,
-                CASE WHEN COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In') > 0 THEN 'Present' ELSE 'Absent' END AS attendance_status
-         FROM public.biometric_attendance_logs b
-         LEFT JOIN public."Student" s ON (s."biometricId" = b.user_id OR s."regNo" = b.user_id OR s."manualRegsiName" = b.user_id)
-         ${whereSql}
-         GROUP BY s.id, s."regNo", b.user_id, s.name, s."roomNo", s."bedNo", b.punch_time::date
-         HAVING TRUE ${statusSql}
-         ORDER BY b.punch_time::date ASC, s."roomNo" ASC NULLS LAST, s.name ASC
-         LIMIT ${limit} OFFSET ${offset}`,
-        dataParams,
-      );
-      rows = data.rows;
-      total = Number(aggregateRow.total_rows) || 0;
-      error = data.error || aggregate.error;
-    } else {
-      return this.envelope(availability, {
-        data: [],
-        summary,
-        pagination: this.pagination(page, limit, 0),
-        date: fromDate,
-        fromDate,
-        toDate,
-      });
     }
+
+    let statusWhere = '';
+    if (status && status.toUpperCase() !== 'ALL') {
+      const st = status.toUpperCase();
+      if (st === 'OUTSIDE' || st === 'ABSENT') {
+        statusWhere = `AND (lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out')`;
+      } else if (st === 'MOVED') {
+        statusWhere = `AND COALESCE(dp.total_punches, 0) > 0`;
+      } else if (st.includes('HOSTEL') || st === 'PRESENT') {
+        statusWhere = `AND (lgp.user_id IS NULL OR (lgp.punch_state_code NOT IN (1, 2) AND COALESCE(lgp.punch_state, '') != 'Check-Out'))`;
+      }
+    }
+
+    const whereSearch = filterClauses.length ? `AND ${filterClauses.join(' AND ')}` : '';
+
+    const baseCTE = `
+      WITH day_punches AS (
+        SELECT 
+          b.user_id,
+          MIN(b.punch_time) AS first_punch,
+          MAX(b.punch_time) AS last_punch,
+          MIN(CASE WHEN b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In' THEN b.punch_time END) AS first_in,
+          MAX(CASE WHEN b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out' THEN b.punch_time END) AS last_out,
+          COUNT(*)::int AS total_punches,
+          COUNT(*) FILTER (WHERE b.punch_state_code IN (0, 3, 255) OR b.punch_state = 'Check-In')::int AS in_count,
+          COUNT(*) FILTER (WHERE b.punch_state_code IN (1, 2) OR b.punch_state = 'Check-Out')::int AS out_count
+        FROM public.biometric_attendance_logs b
+        WHERE b.punch_time::date BETWEEN CAST($1 AS date) AND CAST($2 AS date)
+        GROUP BY b.user_id
+      ),
+      latest_global_punches AS (
+        SELECT DISTINCT ON (b.user_id) b.user_id, b.punch_state_code, b.punch_state, b.punch_time
+        FROM public.biometric_attendance_logs b
+        WHERE b.punch_time <= (CAST($2 AS date) + INTERVAL '1 day')
+        ORDER BY b.user_id, b.punch_time DESC
+      )
+    `;
+
+    const aggSql = `
+      ${baseCTE}
+      SELECT 
+        COUNT(*)::int AS total_rows,
+        COUNT(*) FILTER (WHERE lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out')::int AS outside_count,
+        COUNT(*) FILTER (WHERE lgp.user_id IS NULL OR (lgp.punch_state_code NOT IN (1, 2) AND COALESCE(lgp.punch_state, '') != 'Check-Out'))::int AS inside_count,
+        COALESCE(SUM(dp.total_punches), 0)::int AS total_punches,
+        COUNT(*) FILTER (WHERE COALESCE(dp.total_punches, 0) > 0)::int AS moved_count
+      FROM public."Student" s
+      LEFT JOIN day_punches dp 
+        ON (s."regNo" = dp.user_id OR s."manualRegsiName" = dp.user_id OR s."biometricId" = dp.user_id)
+      LEFT JOIN latest_global_punches lgp 
+        ON (s."regNo" = lgp.user_id OR s."manualRegsiName" = lgp.user_id OR s."biometricId" = lgp.user_id)
+      WHERE s.status = 'In'
+        ${whereSearch}
+        ${statusWhere}
+    `;
+
+    const aggregate = await this.query<any>(aggSql, params);
+    const aggRow = aggregate.rows[0] || {};
+    const outsideCount = Number(aggRow.outside_count) || 0;
+    const insideCount = Number(aggRow.inside_count) || Math.max(0, totalStudents - outsideCount);
+    const totalPunches = Number(aggRow.total_punches) || 0;
+    const totalRows = Number(aggRow.total_rows) || 0;
+
+    const summary = {
+      totalStudents,
+      present: insideCount, // Inside hostel = Present
+      absent: outsideCount, // Currently outside = Absent / Away
+      totalPunches,
+      attendanceRate: totalStudents ? Math.round((insideCount / totalStudents) * 1000) / 10 : 0,
+      movedToday: Number(aggRow.moved_count) || 0,
+    };
+
+    const dataSql = `
+      ${baseCTE}
+      SELECT 
+        CAST($1 AS text) AS attendance_date,
+        s."regNo" AS reg_no,
+        s.name AS student_name,
+        s."roomNo" AS room_no,
+        s."bedNo" AS bed_no,
+        TO_CHAR(dp.first_in, 'HH12:MI:SS AM') AS first_in_time,
+        TO_CHAR(dp.last_out, 'HH12:MI:SS AM') AS last_out_time,
+        COALESCE(dp.total_punches, 0)::int AS total_punches,
+        COALESCE(dp.in_count, 0)::int AS in_count,
+        COALESCE(dp.out_count, 0)::int AS out_count,
+        ROUND(COALESCE(EXTRACT(EPOCH FROM (dp.last_punch - dp.first_punch)) / 3600, 0)::numeric, 1)::float8 AS span_hours,
+        CASE 
+          WHEN lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out' THEN 'Outside'
+          WHEN COALESCE(dp.total_punches, 0) > 0 THEN 'In Hostel (Returned)'
+          ELSE 'In Hostel'
+        END AS attendance_status
+      FROM public."Student" s
+      LEFT JOIN day_punches dp 
+        ON (s."regNo" = dp.user_id OR s."manualRegsiName" = dp.user_id OR s."biometricId" = dp.user_id)
+      LEFT JOIN latest_global_punches lgp 
+        ON (s."regNo" = lgp.user_id OR s."manualRegsiName" = lgp.user_id OR s."biometricId" = lgp.user_id)
+      WHERE s.status = 'In'
+        ${whereSearch}
+        ${statusWhere}
+      ORDER BY 
+        CASE WHEN (lgp.punch_state_code IN (1, 2) OR lgp.punch_state = 'Check-Out') THEN 0 ELSE 1 END,
+        COALESCE(dp.total_punches, 0) DESC,
+        s."roomNo" ASC NULLS LAST,
+        s.name ASC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const data = await this.query<any>(dataSql, params);
 
     return this.envelope(
       availability,
       {
-        data: rows,
+        data: data.rows,
         summary,
-        pagination: this.pagination(page, limit, total),
+        pagination: this.pagination(page, limit, totalRows),
         date: fromDate,
         fromDate,
         toDate,
       },
-      error,
+      data.error || aggregate.error,
     );
   }
 

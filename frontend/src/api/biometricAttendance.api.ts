@@ -73,6 +73,7 @@ export interface DashboardResponse extends BioEnvelope {
     punchesToday: number;
     inToday: number;
     outToday: number;
+    activeStudentsToday?: number;
     lateEntries: number;
     attendanceRate: number;
   };

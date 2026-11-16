@@ -25,12 +25,14 @@
 SELECT 
     punch_time_formatted AS time_of_punch,
     movement_direction   AS direction,
+    user_pin,
     reg_no,
     student_name,
     room_no,
     bed_no,
     verify_type          AS verified_by,
     device_name          AS gate_name,
+    device_id,
     student_mobile
 FROM public.view_student_in_out_logs
 WHERE punch_date = CURRENT_DATE
@@ -42,11 +44,13 @@ ORDER BY punch_time DESC;
 SELECT 
     punch_time_formatted AS time_of_punch,
     movement_direction   AS direction,
+    user_pin,
     reg_no,
     student_name,
     room_no,
     verify_type          AS verified_by,
-    device_name          AS gate_name
+    device_name          AS gate_name,
+    device_id
 FROM public.view_student_in_out_logs
 WHERE punch_date = '2026-11-13'
 ORDER BY punch_time DESC;

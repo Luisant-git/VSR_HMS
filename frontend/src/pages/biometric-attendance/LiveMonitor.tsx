@@ -25,7 +25,7 @@ const LiveMonitor = () => {
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
   const [direction, setDirection] = useState('');
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState<number>(5);
 
   const { data, loading, error, reload } = useApiData(
     () =>
@@ -51,13 +51,15 @@ const LiveMonitor = () => {
   }, [search, fromDate, toDate, direction]);
 
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (refreshInterval <= 0) return;
     const timer = window.setInterval(() => {
+      // Pause automatic polling if the browser tab is hidden/minimized
+      if (typeof document !== 'undefined' && document.hidden) return;
       reload();
       reloadDashboard();
-    }, 20000);
+    }, refreshInterval * 1000);
     return () => window.clearInterval(timer);
-  }, [autoRefresh, reload, reloadDashboard]);
+  }, [refreshInterval, reload, reloadDashboard]);
 
   const rows = data?.data || [];
   const todayStats = dashboard?.stats;
@@ -100,18 +102,27 @@ const LiveMonitor = () => {
         title="Live punch monitor"
         subtitle="Every biometric IN / OUT movement, newest first"
         actions={
-          <>
-            <label className="bio-check">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={(event) => setAutoRefresh(event.target.checked)}
-              />
-              Auto-refresh 20s
-            </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-muted, #64748b)', fontWeight: 500 }}>
+                Auto-refresh:
+              </span>
+              <select
+                className="ui-input ui-input--inline"
+                style={{ padding: '3px 8px', fontSize: 13, height: 32, borderRadius: 6 }}
+                value={refreshInterval}
+                onChange={(event) => setRefreshInterval(Number(event.target.value))}
+              >
+                <option value={5}>Every 5s (Live)</option>
+                <option value={10}>Every 10s</option>
+                <option value={20}>Every 20s</option>
+                <option value={30}>Every 30s</option>
+                <option value={0}>Off (Manual)</option>
+              </select>
+            </div>
             <BioRefresh onClick={refreshAll} loading={loading || dashboardLoading} />
             <BioExportButton onClick={handleExport} disabled={!rows.length} />
-          </>
+          </div>
         }
       />
 
@@ -122,9 +133,9 @@ const LiveMonitor = () => {
         <BioStatGrid
           items={[
             { label: 'Punches today', value: todayStats?.punchesToday ?? (dashboardLoading ? '…' : '—'), sub: 'Recorded today', icon: <Activity size={19} />, tone: 'accent' },
-            { label: 'Students active today', value: todayStats?.presentToday ?? (dashboardLoading ? '…' : '—'), sub: 'Unique hostellers', icon: <UserCheck size={19} />, tone: 'info' },
-            { label: 'Currently inside hostel', value: todayStats?.inside ?? (dashboardLoading ? '…' : '—'), sub: 'Inside now', icon: <LogIn size={19} />, tone: 'success' },
-            { label: 'Currently outside', value: todayStats?.outside ?? (dashboardLoading ? '…' : '—'), sub: 'Outside now', icon: <LogOut size={19} />, tone: 'warning' },
+            { label: 'Students active today', value: todayStats?.activeStudentsToday ?? (dashboardLoading ? '…' : '—'), sub: 'Movement recorded', icon: <UserCheck size={19} />, tone: 'info' },
+            { label: 'Currently inside hostel', value: todayStats?.inside ?? (dashboardLoading ? '…' : '—'), sub: 'Inside hostel', icon: <LogIn size={19} />, tone: 'success' },
+            { label: 'Currently outside', value: todayStats?.outside ?? (dashboardLoading ? '…' : '—'), sub: (todayStats?.outside || 0) > 0 ? 'Outside hostel' : 'None outside', icon: <LogOut size={19} />, tone: (todayStats?.outside || 0) > 0 ? 'warning' : 'neutral' },
           ]}
         />
       </div>
