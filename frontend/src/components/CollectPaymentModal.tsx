@@ -8,8 +8,7 @@ import {
   STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
   STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
 } from '../utils/studentPortalPayment';
-import { formatDateDMY } from '../utils/date';
-import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
+import { getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
 
 interface RazorpayCheckoutResponse {
   razorpay_order_id: string;
@@ -101,6 +100,40 @@ const isLateFine = (fee: any) =>
   String(fee?.transactionType || '').toUpperCase() === 'FINE' &&
   /late fine accumulation/i.test(String(fee?.description || ''));
 
+type FineParentType = 'RENT' | 'MESS' | 'EB';
+
+const isFineFee = (fee: any) =>
+  String(fee?.transactionType || '').toUpperCase() === 'FINE';
+
+/**
+ * New fine rows include the fee type in the description, e.g.
+ * "Late fine accumulation - Rent for 7 days overdue (₹10/day)".
+ * Returns the parent fee type so the fine can be grouped under it.
+ */
+const getFineParentType = (fee: any): FineParentType | null => {
+  if (!isFineFee(fee)) return null;
+  const match = String(fee?.description || '').match(
+    /late fine accumulation\s*-\s*(rent|mess|eb)\b/i,
+  );
+  if (!match) return null;
+  const key = match[1].toLowerCase();
+  return key === 'rent' ? 'RENT' : key === 'mess' ? 'MESS' : 'EB';
+};
+
+const getFeeParentType = (fee: any): FineParentType | null => {
+  const type = String(fee?.transactionType || '').toUpperCase();
+  if (type.includes('RENT') || type.includes('ADVANCE')) return 'RENT';
+  if (type.includes('MESS')) return 'MESS';
+  if (type.includes('EB') || type.includes('ELECTRIC')) return 'EB';
+  return null;
+};
+
+const getFeeLabel = (fee: any) => {
+  const fineParent = getFineParentType(fee);
+  if (fineParent) return `${fineParent === 'EB' ? 'EB' : fineParent} FINE`;
+  return fee?.transactionType || 'FEE';
+};
+
 export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   fee,
   fees,
@@ -135,43 +168,52 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   // invoices are consolidated into a single OUTSTANDING item.
   const outstandingItems = itemsToPay.filter(isOutstandingFee);
   const lateFineItems = itemsToPay.filter(isLateFine);
-  const currentItems = itemsToPay.filter(
-    (f: any) => !isOutstandingFee(f) && !(allowPaymentDate && isLateFine(f)),
-  );
+  // Stored late-fine rows are real dues, so they must be listed alongside
+  // rent/EB. (The old date-based fine *estimate* was removed, so there is no
+  // longer a duplicate to hide here.)
+  const currentItems = itemsToPay.filter((f: any) => !isOutstandingFee(f));
   const selectableCurrentItems = isStudentMode
     ? currentItems.filter((f: any) => !(f.transactionType || '').toUpperCase().startsWith('MESS'))
     : currentItems;
-  const dateFineItem =
-    allowPaymentDate && fineQuote.amount > 0
-      ? {
-          id: 'date-fine-preview',
-          studentId: primaryStudent?.id,
-          student: primaryStudent,
-          transactionType: 'FINE',
-          amount: fineQuote.amount,
-          status: 'PENDING',
-          description: `Late fine accumulation for ${fineQuote.daysOverdue} days overdue (₹${fineQuote.dailyFine}/day)`,
-          isDateFinePreview: true,
-        }
-      : null;
-  const payableCurrentItems = dateFineItem
-    ? [...selectableCurrentItems, dateFineItem]
-    : selectableCurrentItems;
+  // Only actual fee rows passed from the Fees page are payable here. The
+  // date-based late-fine estimate is informational and is not added as an
+  // extra line, so the modal total always matches the table row.
+  const payableCurrentItems = selectableCurrentItems;
 
-  // POSTPAID colleges bill the previous month. Hide current/future-month fees,
-  // but keep fines and legacy fees with no billing month so existing students
-  // remain payable while the next invoice cycle is generated.
-  const collegeCycle = primaryStudent?.college?.billingCycle || 'PREPAID';
-  const { previousMonthStr: postpaidPreviousMonthStr } = getBillingMonths();
-  const filteredPayableItems = collegeCycle === 'POSTPAID'
-    ? payableCurrentItems.filter((f: any) => isPostpaidPayableFee(f, postpaidPreviousMonthStr))
-    : payableCurrentItems;
+  // POSTPAID colleges bill the postpaid month (previous month). PREPAID
+  // colleges pay current-month rent but receive previous-month EB and fine.
+  // Keep only fees payable in the current cycle; leave the rest out of payment.
+  const collegeCycle = (primaryStudent?.college?.billingCycle || 'PREPAID').toUpperCase();
+  const billingMonths = getBillingMonths();
+  const currentBillingMonth = billingMonths.currentMonthStr;
+  const previousBillingMonth = billingMonths.previousMonthStr;
+  const isPayableInCycle = (f: any) => {
+    const feeMonth = resolveFeeBillingMonth(f);
+    if (!feeMonth) return true;
+    const type = String(f?.transactionType || '').toUpperCase();
+    const isRentLike = type.includes('RENT') || type.includes('ADVANCE');
+    const isEb = type.includes('EB') || type.includes('ELECTRIC');
+    const isFine = type.includes('FINE');
 
-  const hasUpcomingMonthItems = collegeCycle === 'POSTPAID' &&
-    payableCurrentItems.some((f: any) => {
-      if (String(f?.transactionType || '').toUpperCase().includes('FINE')) return false;
-      return !isPostpaidPayableFee(f, postpaidPreviousMonthStr);
-    });
+    if (collegeCycle === 'POSTPAID') {
+      if (isFine) return isPostpaidPayableFee(f, previousBillingMonth);
+      if (isRentLike || isEb) {
+        return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
+      }
+      return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
+    }
+
+    // PREPAID pays current-month rent in advance; EB and fines from the
+    // previous month are collected in the current cycle.
+    if (isRentLike) return feeMonth === currentBillingMonth;
+    if (isEb || isFine) return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
+    return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
+  };
+  const filteredPayableItems = payableCurrentItems.filter(isPayableInCycle);
+
+  const hasUpcomingMonthItems = payableCurrentItems.some(
+    (f: any) => !isPayableInCycle(f),
+  );
 
   // Original outstanding invoice amounts minus payments already confirmed by
   // the backend. Invoices are never mutated, so this is the only safe way to
@@ -206,7 +248,47 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     return initialState;
   });
 
-  const activeItemsToPay = filteredPayableItems.filter(f => feeStates[f.id]?.selected !== false);
+  const isItemSelected = (f: any) => feeStates[f.id]?.selected !== false;
+
+  // Each typed fine belongs to its parent fee. A fine is only shown while its
+  // parent is selected, so unchecking Rent hides the Rent fine but keeps EB.
+  const linkedParentOfFine = (fine: any) => {
+    const type = getFineParentType(fine);
+    if (!type) return null;
+    return (
+      filteredPayableItems.find(
+        (f: any) => !isFineFee(f) && getFeeParentType(f) === type,
+      ) || null
+    );
+  };
+
+  const displayItems = filteredPayableItems.filter((f: any) => {
+    if (!isFineFee(f)) return true;
+    const parent = linkedParentOfFine(f);
+    if (!parent) return true; // orphan fine stays payable
+    return isItemSelected(parent);
+  });
+
+  const orderedDisplayItems: any[] = [];
+  const placedFineIds = new Set<string>();
+  displayItems
+    .filter((f: any) => !isFineFee(f))
+    .forEach((parent: any) => {
+      orderedDisplayItems.push(parent);
+      const parentType = getFeeParentType(parent);
+      if (!parentType) return;
+      displayItems
+        .filter((f: any) => isFineFee(f) && getFineParentType(f) === parentType)
+        .forEach((fine: any) => {
+          orderedDisplayItems.push(fine);
+          placedFineIds.add(fine.id);
+        });
+    });
+  displayItems.forEach((f: any) => {
+    if (isFineFee(f) && !placedFineIds.has(f.id)) orderedDisplayItems.push(f);
+  });
+
+  const activeItemsToPay = displayItems.filter((f: any) => isItemSelected(f));
 
   useEffect(() => {
     if (!allowPaymentDate || !primaryStudent?.id) return;
@@ -623,11 +705,30 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     }
   };
 
-  const monthSourceDesc = selectableCurrentItems[0]?.description || itemsToPay[0]?.description || '';
-  const currentMonthStr = itemsToPay.length > 0 ? getMonthNames(1, monthSourceDesc) : '';
-  const coveredPeriodStr = itemsToPay.length > 0 ? getMonthNames(months, monthSourceDesc) : '';
+  // The month shown in the modal must match the payable cycle:
+  //   PREPAID  -> current month
+  //   POSTPAID -> previous month
+  const payableMonthStr =
+    collegeCycle === 'POSTPAID' ? previousBillingMonth : currentBillingMonth;
+  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formatCyclePeriod = (startMonth: string, count: number) => {
+    const match = String(startMonth || '').match(/^(\d{4})-(\d{2})$/);
+    const now = new Date();
+    const year = match ? Number(match[1]) : now.getFullYear();
+    const monthIndex = match ? Number(match[2]) - 1 : now.getMonth();
+    if (count <= 1) return `${monthNamesShort[monthIndex]} ${year}`;
+    const endIndex = (monthIndex + count - 1) % 12;
+    const endYear = year + Math.floor((monthIndex + count - 1) / 12);
+    return `${monthNamesShort[monthIndex]} - ${monthNamesShort[endIndex]} ${endYear}`;
+  };
+
+  const currentMonthStr = itemsToPay.length > 0 ? formatCyclePeriod(payableMonthStr, 1) : '';
+  const coveredPeriodStr = itemsToPay.length > 0 ? formatCyclePeriod(payableMonthStr, months) : '';
 
   const selectedTypes = activeItemsToPay.map(f => {
+    const fineParent = getFineParentType(f);
+    if (fineParent) return `${fineParent === 'EB' ? 'EB' : fineParent} Fine`;
+
     const t = (f.transactionType || '').toUpperCase();
     if (t.includes('RENT')) return 'Rent';
     if (t.includes('MESS')) return 'Mess';
@@ -639,18 +740,47 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const uniqueTypes = Array.from(new Set(selectedTypes));
   const summaryText = uniqueTypes.length > 0 ? `Selected: ${uniqueTypes.join(' + ')}` : 'No fees selected';
 
-  const selectAll = () => setFeeStates(prev => {
-    const next = { ...prev };
+  const toggleFee = (f: any) => {
+    const nextSelected = !isItemSelected(f);
+    setFeeStates(prev => {
+      const next: Record<string, { selected: boolean }> = {
+        ...prev,
+        [f.id]: { selected: nextSelected },
+      };
+
+      // Selecting/unselecting a parent fee also selects/unselects its fine.
+      if (!isFineFee(f)) {
+        const parentType = getFeeParentType(f);
+        if (parentType) {
+          filteredPayableItems
+            .filter(
+              (item: any) =>
+                isFineFee(item) && getFineParentType(item) === parentType,
+            )
+            .forEach((fine: any) => {
+              next[fine.id] = { selected: nextSelected };
+            });
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const selectAll = () => setFeeStates(() => {
+    const next: Record<string, { selected: boolean }> = {};
     filteredPayableItems.forEach((item) => {
       next[item.id] = { selected: true };
     });
     return next;
   });
 
-  const selectRentOnly = () => setFeeStates(prev => {
-    const next = { ...prev };
-    filteredPayableItems.forEach(f => {
-      next[f.id] = { selected: (f.transactionType || '').toUpperCase().includes('RENT') };
+  const selectRentOnly = () => setFeeStates(() => {
+    const next: Record<string, { selected: boolean }> = {};
+    filteredPayableItems.forEach((f) => {
+      const isRent =
+        getFeeParentType(f) === 'RENT' || getFineParentType(f) === 'RENT';
+      next[f.id] = { selected: isRent };
     });
     return next;
   });
@@ -675,11 +805,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   if (itemsToPay.length === 0) return null;
 
-  // POSTPAID colleges bill the previous month. If upcoming (current-month)
-  // fees were passed in, they are not payable — tell the user clearly.
+  // If the student also has fees from another billing month, they are not
+  // collectable in this cycle. Explain which month is payable.
   const upcomingMonthBanner = hasUpcomingMonthItems ? (
     <div style={{ background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e', padding: '10px 16px', fontSize: '13px', fontWeight: 600 }}>
-      Upcoming month fees are not generated yet for this college (POSTPAID). Please pay the previous month\u2019s dues.
+      Only {currentMonthStr} dues are payable now. Fees from other months are not included in this payment.
     </div>
   ) : null;
 
@@ -712,7 +842,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                 <div style={{ fontSize: '14px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span>Room: {primaryStudent?.roomNo || 'N/A'}</span>
                   <span style={{ color: '#cbd5e1' }}>•</span>
-                  <span>Current: {currentMonthStr}</span>
+                  <span>
+                    {collegeCycle === 'POSTPAID' ? 'Payable' : 'Current'}: {currentMonthStr}
+                  </span>
                 </div>
               </div>
               <button
@@ -738,7 +870,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                       style={{ width: '100%', padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', outline: 'none', fontSize: '15px', fontWeight: 500, color: '#1e293b', appearance: 'none', cursor: 'pointer', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                     >
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                        <option key={m} value={m}>{m} Month{m > 1 ? 's' : ''} ({getMonthNames(m, monthSourceDesc)})</option>
+                        <option key={m} value={m}>{m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(payableMonthStr, m)})</option>
                       ))}
                     </select>
                     <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }}>
@@ -769,12 +901,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                     <div style={{ marginTop: '8px', fontSize: '13px', color: '#64748b' }}>Checking fine for selected date…</div>
                   ) : fineQuoteError ? (
                     <div role="alert" style={{ marginTop: '8px', fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
-                  ) : (
-                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569' }}>
-                      Late fine on {formatDateDMY(paymentDate)}: <strong>₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                      {fineQuote.daysOverdue > 0 ? ` (${fineQuote.daysOverdue} overdue day${fineQuote.daysOverdue === 1 ? '' : 's'})` : ' (no overdue fine)'}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -794,26 +921,27 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                     </div>
 
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                      {filteredPayableItems.map((f, index) => {
+                      {orderedDisplayItems.map((f, index) => {
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
-                        const isLast = index === filteredPayableItems.length - 1;
+                        const isLast = index === orderedDisplayItems.length - 1;
                         const calculatedAmount = f.amount * currentMultiplier;
+                        const fineParent = getFineParentType(f);
 
                         return (
-                          <div key={f.id} onClick={() => setFeeStates(prev => ({ ...prev, [f.id]: { selected: !state.selected } }))} style={{ display: 'flex', padding: '12px 16px', borderBottom: isLast ? 'none' : '1px solid #e2e8f0', background: state.selected ? '#ffffff' : '#f8fafc', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'flex-start' }}>
+                          <div key={f.id} onClick={() => toggleFee(f)} style={{ display: 'flex', padding: '12px 16px', paddingLeft: fineParent ? '40px' : '16px', borderBottom: isLast ? 'none' : '1px solid #e2e8f0', background: state.selected ? '#ffffff' : '#f8fafc', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'flex-start' }}>
                             <div style={{ marginRight: '12px', marginTop: '2px' }}>
                               <input
                                 type="checkbox"
                                 checked={state.selected}
-                                onChange={(e) => { e.stopPropagation(); setFeeStates(prev => ({ ...prev, [f.id]: { selected: e.target.checked } }))}}
+                                onChange={(e) => { e.stopPropagation(); toggleFee(f); }}
                                 style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
                               />
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                 <span style={{ fontWeight: 600, color: state.selected ? '#0f172a' : '#64748b', fontSize: '14px' }}>
-                                  {f.transactionType} {state.selected ? '' : <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Unchecked)</span>}
+                                  {getFeeLabel(f)} {state.selected ? '' : <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Unchecked)</span>}
                                 </span>
                                 <span style={{ fontWeight: 700, color: state.selected ? '#0f172a' : '#94a3b8', fontSize: '14px', textDecoration: state.selected ? 'none' : 'line-through' }}>
                                   ₹{calculatedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}

@@ -2,6 +2,47 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 
+type FineKey = 'rent' | 'mess' | 'eb';
+
+/**
+ * Fine rows created by this service carry the fee type in their description,
+ * e.g. "Late fine accumulation - Rent for 7 days overdue (₹10/day)".
+ * The UI uses the "- Rent|- Mess|- EB" tag to show each fine next to its
+ * parent fee, so keep the format stable.
+ */
+const FINE_TAG_RE = /late fine accumulation\s*-\s*(rent|mess|eb)\b/i;
+
+const isLateFine = (transaction: any) =>
+  String(transaction?.transactionType || '').toUpperCase() === 'FINE' &&
+  /late fine accumulation/i.test(String(transaction?.description || ''));
+
+const fineKeyFromDescription = (description?: string | null): FineKey | null => {
+  const match = String(description || '').match(FINE_TAG_RE);
+  return match ? (match[1].toLowerCase() as FineKey) : null;
+};
+
+const startOfDay = (value: Date | string) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const daysOverdue = (dueDate: Date | string, today: Date) => {
+  const due = startOfDay(dueDate);
+  if (today < due) return 0;
+  return Math.floor((today.getTime() - due.getTime()) / 86_400_000) + 1;
+};
+
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
+interface FineInfo {
+  key: FineKey;
+  label: string;
+  rate: number;
+  days: number;
+  amount: number;
+}
+
 @Injectable()
 export class FineCronService {
   private readonly logger = new Logger(FineCronService.name);
@@ -15,128 +56,224 @@ export class FineCronService {
     today.setHours(0, 0, 0, 0);
 
     const colleges = await this.prisma.college.findMany({
-      include: { fineMaster: true }
+      include: { fineMaster: true },
     });
 
     for (const college of colleges) {
-      const rentFine = college.fineMaster?.rentFine || 0;
-      const messFine = college.fineMaster?.messFine || 0;
-      const ebFine = college.fineMaster?.ebFine || 0;
+      const rates: Record<FineKey, number> = {
+        rent: Number(college.fineMaster?.rentFine) || 0,
+        mess: Number(college.fineMaster?.messFine) || 0,
+        eb: Number(college.fineMaster?.ebFine) || 0,
+      };
 
-      if (!rentFine && !messFine && !ebFine) {
+      if (!rates.rent && !rates.mess && !rates.eb) {
         continue;
       }
 
-        const students = await this.prisma.student.findMany({
-          where: {
-            collegeId: college.id,
-            status: { not: 'Vacated' },
-            feeStatus: { not: 'Paid' } 
+      const students = await this.prisma.student.findMany({
+        where: {
+          collegeId: college.id,
+          status: { not: 'Vacated' },
+          feeStatus: { not: 'Paid' },
+        },
+        include: {
+          transactions: {
+            where: {
+              OR: [
+                { status: 'PENDING' },
+                { status: 'COMPLETED', transactionType: 'FINE' },
+              ],
+            },
           },
-          include: {
-            transactions: {
-              where: {
-                OR: [
-                  { status: 'PENDING' },
-                  { status: 'COMPLETED', transactionType: 'FINE' },
-                ],
-              },
-            }
-          }
+        },
+      });
+
+      for (const student of students) {
+        try {
+          await this.applyStudentFines(student, rates, today);
+        } catch (error: any) {
+          this.logger.error(
+            `Failed to update fines for student ${student.regNo}: ${error.message}`,
+          );
+        }
+      }
+    }
+
+    this.logger.log('Daily fine calculation completed.');
+  }
+
+  private async applyStudentFines(student: any, rates: Record<FineKey, number>, today: Date) {
+    const transactions = student.transactions || [];
+    const pending = transactions.filter((t: any) => t.status === 'PENDING');
+    const completedLateFines = transactions.filter(
+      (t: any) => t.status === 'COMPLETED' && isLateFine(t),
+    );
+
+    const configs: Array<{
+      key: FineKey;
+      label: string;
+      rate: number;
+      matches: (type: string) => boolean;
+    }> = [
+      {
+        key: 'rent',
+        label: 'Rent',
+        rate: rates.rent,
+        matches: (type) => type === 'RENT' || type === 'ADVANCE',
+      },
+      { key: 'mess', label: 'Mess', rate: rates.mess, matches: (type) => type === 'MESS' },
+      { key: 'eb', label: 'EB', rate: rates.eb, matches: (type) => type === 'EB_BILL' },
+    ];
+
+    // Work out how much fine each fee type currently owes on its own.
+    const expected = new Map<FineKey, FineInfo>();
+    for (const config of configs) {
+      if (config.rate <= 0) continue;
+
+      const overdue = pending.filter(
+        (t: any) =>
+          config.matches(String(t.transactionType || '').toUpperCase()) &&
+          t.dueDate &&
+          startOfDay(t.dueDate) <= today,
+      );
+      if (overdue.length === 0) continue;
+
+      const days = Math.max(...overdue.map((t: any) => daysOverdue(t.dueDate, today)));
+      if (days <= 0) continue;
+
+      expected.set(config.key, {
+        key: config.key,
+        label: config.label,
+        rate: config.rate,
+        days,
+        amount: roundMoney(days * config.rate),
+      });
+    }
+
+    if (expected.size === 0) return;
+
+    const pendingLate = pending.filter(isLateFine);
+    const legacyPending = pendingLate.filter(
+      (t: any) => !fineKeyFromDescription(t.description),
+    );
+
+    // Older builds stored a single aggregate fine row. Convert it to one row
+    // per fee type, preserving the total already accumulated.
+    if (legacyPending.length > 0) {
+      const hasTypedRows = pendingLate.some((t: any) => fineKeyFromDescription(t.description));
+
+      if (hasTypedRows) {
+        await this.prisma.feeTransaction.deleteMany({
+          where: { id: { in: legacyPending.map((t: any) => t.id) } },
+        });
+      } else {
+        const legacyTotal = roundMoney(
+          legacyPending.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+        );
+        await this.prisma.feeTransaction.deleteMany({
+          where: { id: { in: legacyPending.map((t: any) => t.id) } },
         });
 
-        for (const student of students) {
-          const pendingTransactions = student.transactions.filter(t => t.status === 'PENDING');
+        if (legacyTotal > 0) {
+          const entries = Array.from(expected.entries());
 
-          // Determine which fee types are overdue based on each fee's individual dueDate.
-          const hasPendingRent = pendingTransactions.some(
-            t => (t.transactionType === 'RENT' || t.transactionType === 'ADVANCE') &&
-              t.dueDate && new Date(t.dueDate).setHours(0, 0, 0, 0) <= today.getTime()
-          );
-          const hasPendingMess = pendingTransactions.some(
-            t => t.transactionType === 'MESS' &&
-              t.dueDate && new Date(t.dueDate).setHours(0, 0, 0, 0) <= today.getTime()
-          );
-          const hasPendingEb = pendingTransactions.some(
-            t => t.transactionType === 'EB_BILL' &&
-              t.dueDate && new Date(t.dueDate).setHours(0, 0, 0, 0) <= today.getTime()
-          );
+          if (entries.length === 1) {
+            const [key, info] = entries[0];
+            const created = await this.prisma.feeTransaction.create({
+              data: this.fineData(student.id, key, info, Math.max(legacyTotal, info.amount)),
+            });
+            pendingLate.push(created);
+          } else {
+            const totalExpected = roundMoney(
+              entries.reduce((sum, [, info]) => sum + info.amount, 0),
+            );
+            let allocated = 0;
 
-          if (!hasPendingRent && !hasPendingMess && !hasPendingEb) {
-            continue;
-          }
-
-          const dailyFine = (hasPendingRent ? rentFine : 0) + (hasPendingMess ? messFine : 0) + (hasPendingEb ? ebFine : 0);
-
-          if (dailyFine <= 0) continue;
-
-          // Calculate max days overdue across all overdue pending fees.
-          let maxDaysOverdue = 0;
-          for (const tx of pendingTransactions) {
-            if (tx.transactionType === 'RENT' || tx.transactionType === 'MESS' || tx.transactionType === 'EB_BILL' || tx.transactionType === 'ADVANCE') {
-              if (tx.dueDate) {
-                const due = new Date(tx.dueDate);
-                due.setHours(0, 0, 0, 0);
-                if (today >= due) {
-                  const timeDiff = today.getTime() - due.getTime();
-                  const days = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1;
-                  maxDaysOverdue = Math.max(maxDaysOverdue, days);
-                }
+            for (let index = 0; index < entries.length; index++) {
+              const [key, info] = entries[index];
+              const isLast = index === entries.length - 1;
+              const share = isLast
+                ? roundMoney(legacyTotal - allocated)
+                : roundMoney((legacyTotal * info.amount) / (totalExpected || 1));
+              allocated = roundMoney(allocated + share);
+              if (share > 0) {
+                await this.createTypedFine(student.id, key, info, share, pendingLate);
               }
-            }
-          }
-
-          if (maxDaysOverdue === 0) continue;
-
-          const expectedTotalFine = maxDaysOverdue * dailyFine;
-          const pendingFines = pendingTransactions.filter(t => t.transactionType === 'FINE');
-          const existingPendingFinesTotal = pendingFines.reduce((sum, t) => sum + t.amount, 0);
-          const paidFineTotal = student.transactions
-            .filter(t =>
-              t.status === 'COMPLETED' &&
-              t.transactionType === 'FINE' &&
-              /late fine accumulation/i.test(String(t.description || '')),
-            )
-            .reduce((sum, t) => sum + t.amount, 0);
-          const fineStillDue = Math.max(0, expectedTotalFine - paidFineTotal);
-
-          if (fineStillDue > existingPendingFinesTotal) {
-            const difference = fineStillDue - existingPendingFinesTotal;
-            const description = `Late fine accumulation for ${maxDaysOverdue} days overdue (₹${dailyFine}/day)`;
-            
-            if (pendingFines.length > 0) {
-              // Consolidate into the first pending fine record
-              const primaryFine = pendingFines[0];
-              const newAmount = primaryFine.amount + difference;
-              
-              await this.prisma.feeTransaction.update({
-                where: { id: primaryFine.id },
-                data: { amount: newAmount, description: description }
-              });
-
-              // Remove any duplicate pending fine rows to keep UI clean
-              if (pendingFines.length > 1) {
-                for (let i = 1; i < pendingFines.length; i++) {
-                  await this.prisma.feeTransaction.delete({ where: { id: pendingFines[i].id } });
-                }
-              }
-              this.logger.log(`Consolidated fine to ₹${newAmount} for student ${student.regNo}`);
-            } else {
-              // No pending fines, create a fresh one
-              await this.prisma.feeTransaction.create({
-                data: {
-                  studentId: student.id,
-                  transactionType: 'FINE',
-                  amount: difference,
-                  status: 'PENDING',
-                  description: description
-                }
-              });
-              this.logger.log(`Added catch-up fine of ₹${difference} to student ${student.regNo}`);
             }
           }
         }
       }
-    this.logger.log('Daily fine calculation completed.');
+    }
+
+    // Re-read pending late fines after any legacy migration.
+    const typedPending = pendingLate.filter((t: any) => fineKeyFromDescription(t.description));
+
+    for (const [key, info] of expected.entries()) {
+      const rowsForType = typedPending.filter(
+        (t: any) => fineKeyFromDescription(t.description) === key,
+      );
+      const paidForType = roundMoney(
+        completedLateFines
+          .filter((t: any) => fineKeyFromDescription(t.description) === key)
+          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+      );
+      const existingPending = roundMoney(
+        rowsForType.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+      );
+      const stillDue = roundMoney(Math.max(0, info.amount - paidForType));
+
+      if (stillDue <= existingPending + 0.005) continue;
+
+      const difference = roundMoney(stillDue - existingPending);
+      const description = this.fineDescription(info);
+
+      if (rowsForType.length > 0) {
+        const primary = rowsForType[0];
+        const newAmount = roundMoney((Number(primary.amount) || 0) + difference);
+        await this.prisma.feeTransaction.update({
+          where: { id: primary.id },
+          data: { amount: newAmount, description },
+        });
+        for (let i = 1; i < rowsForType.length; i++) {
+          await this.prisma.feeTransaction.delete({ where: { id: rowsForType[i].id } });
+        }
+        this.logger.log(
+          `Consolidated ${info.label} fine to ₹${newAmount} for student ${student.regNo}`,
+        );
+      } else {
+        await this.createTypedFine(student.id, key, info, difference, typedPending);
+        this.logger.log(
+          `Added ${info.label} fine of ₹${difference} to student ${student.regNo}`,
+        );
+      }
+    }
+  }
+
+  private async createTypedFine(
+    studentId: string,
+    key: FineKey,
+    info: FineInfo,
+    amount: number,
+    sink: any[],
+  ) {
+    const created = await this.prisma.feeTransaction.create({
+      data: this.fineData(studentId, key, info, amount),
+    });
+    sink.push(created);
+    return created;
+  }
+
+  private fineData(studentId: string, key: FineKey, info: FineInfo, amount: number) {
+    return {
+      studentId,
+      transactionType: 'FINE',
+      amount: roundMoney(amount),
+      status: 'PENDING',
+      description: this.fineDescription({ ...info, key }),
+    };
+  }
+
+  private fineDescription(info: FineInfo) {
+    return `Late fine accumulation - ${info.label} for ${info.days} days overdue (₹${info.rate}/day)`;
   }
 }
