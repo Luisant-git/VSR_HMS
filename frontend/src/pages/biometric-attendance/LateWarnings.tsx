@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertOctagon,
   AlertTriangle,
+  Calendar,
   Clock,
   ClockAlert,
   History,
@@ -34,15 +35,48 @@ import { downloadStamp, exportExcel, formatDate, formatDateTime, initials, today
 const LIMIT = 20;
 
 type ActiveTab = 'curfew' | 'overdue' | 'missing' | 'frequent';
+type DatePreset = 'today' | 'yesterday' | 'all' | 'custom';
+
+const yesterdayDateStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
+
+const formatLateDuration = (mins?: number | null) => {
+  if (mins === undefined || mins === null) return '—';
+  if (mins < 60) return `+${mins}m late`;
+  const hrs = Math.floor(mins / 60);
+  const remaining = mins % 60;
+  return `+${hrs}h ${remaining > 0 ? `${remaining}m ` : ''}late`;
+};
 
 const BioLateWarnings = () => {
   const [tab, setTab] = useState<ActiveTab>('curfew');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [date, setDate] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+
+  // Automatically default to card view on small mobile screens
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setViewMode('card');
+    }
+  }, []);
+
+  // Compute effective query date
+  const effectiveDate =
+    datePreset === 'today'
+      ? todayInput()
+      : datePreset === 'yesterday'
+        ? yesterdayDateStr()
+        : datePreset === 'custom'
+          ? date
+          : undefined;
 
   const { data, loading, error, reload } = useApiData(
     () =>
@@ -51,11 +85,12 @@ const BioLateWarnings = () => {
         page,
         limit: LIMIT,
         search,
-        date: date || undefined,
-        fromDate: fromDate || undefined,
-        toDate: toDate || undefined,
+        curfewTime: '19:00',
+        date: effectiveDate,
+        fromDate: datePreset === 'custom' && fromDate ? fromDate : undefined,
+        toDate: datePreset === 'custom' && toDate ? toDate : undefined,
       }),
-    [tab, page, search, date, fromDate, toDate],
+    [tab, page, search, datePreset, effectiveDate, fromDate, toDate],
   );
 
   const summary = data?.summary;
@@ -66,30 +101,39 @@ const BioLateWarnings = () => {
     setPage(1);
   };
 
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    setPage(1);
+    if (preset !== 'custom') {
+      setDate('');
+      setFromDate('');
+      setToDate('');
+    }
+  };
+
   const handleExport = () => {
     if (!rows.length) return;
     let exportRows: Record<string, unknown>[] = [];
     let sheetName = 'Late Records';
 
     if (tab === 'curfew') {
-      sheetName = 'Curfew Violations';
+      sheetName = 'Curfew Violations (After 7 PM)';
       exportRows = rows.map((r) => ({
-        'Student ID': r.student_id || '',
-        'Reg No': r.reg_no,
+        'Student ID': r.reg_no,
         'Student Name': r.student_name,
         Room: r.room_no || '',
         'Violation Date': r.violation_date ? formatDate(r.violation_date) : '',
         'Punch Time': r.punch_time_formatted || (r.punch_time ? formatDateTime(r.punch_time) : ''),
-        'Minutes Late': r.minutes_past_curfew ?? '',
+        'Minutes Late (Past 7 PM)': r.minutes_past_curfew ?? '',
+        'Formatted Delay': formatLateDuration(r.minutes_past_curfew),
         'Student Mobile': r.student_mobile || '',
         'Father Mobile': r.father_mobile || '',
         Device: r.device_id || '',
       }));
     } else if (tab === 'overdue') {
-      sheetName = 'Overdue Outside';
+      sheetName = 'Overdue Outside (Past 7 PM)';
       exportRows = rows.map((r) => ({
-        'Student ID': r.student_id || '',
-        'Reg No': r.reg_no,
+        'Student ID': r.reg_no,
         'Student Name': r.student_name,
         Room: r.room_no || '',
         'Out Time': r.out_time_formatted || (r.out_time ? formatDateTime(r.out_time) : ''),
@@ -103,8 +147,7 @@ const BioLateWarnings = () => {
     } else if (tab === 'missing') {
       sheetName = 'Missing Hostellers';
       exportRows = rows.map((r) => ({
-        'Student ID': r.student_id || '',
-        'Reg No': r.reg_no,
+        'Student ID': r.reg_no,
         'Student Name': r.student_name,
         Room: r.room_no || '',
         Bed: r.bed_no || '',
@@ -116,8 +159,7 @@ const BioLateWarnings = () => {
     } else {
       sheetName = 'Frequent Late Comers';
       exportRows = rows.map((r) => ({
-        'Student ID': r.student_id || '',
-        'Reg No': r.reg_no,
+        'Student ID': r.reg_no,
         'Student Name': r.student_name,
         Room: r.room_no || '',
         'Total Late Entries (30d)': r.total_late_entries ?? '',
@@ -143,14 +185,14 @@ const BioLateWarnings = () => {
     <>
       <BioPageHead
         title="Late Return & Missing Warnings"
-        subtitle="Automatic real-time alerts for curfew violations, overdue hostellers outside, and students missing from roll call"
+        subtitle="Automatic real-time alerts for hostellers returning after 07:00 PM curfew, overdue outside, and students missing from roll call"
         actions={
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span
               className="bio-status is-warning"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600, padding: '4px 10px' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, padding: '4px 10px' }}
             >
-              <Clock size={13} /> Curfew Cutoff: {summary?.curfewTime || '08:30'} PM
+              <Clock size={13} /> Curfew Cutoff: 07:00 PM
             </span>
             <BioRefresh onClick={reload} loading={loading} />
             <BioExportButton onClick={handleExport} disabled={!rows.length} />
@@ -166,14 +208,14 @@ const BioLateWarnings = () => {
             {
               label: 'Late Returns (Today)',
               value: summary?.lateReturnsToday ?? '0',
-              sub: 'Punched IN after 08:30 PM',
+              sub: 'Punched IN after 07:00 PM',
               icon: <AlertTriangle size={19} />,
               tone: (summary?.lateReturnsToday || 0) > 0 ? 'danger' : 'neutral',
             },
             {
               label: 'Critical Overdue (Now)',
               value: summary?.criticalOverdue ?? '0',
-              sub: 'Outside past curfew / >8h',
+              sub: 'Outside past 07:00 PM / >8h',
               icon: <ClockAlert size={19} />,
               tone: (summary?.criticalOverdue || 0) > 0 ? 'danger' : 'neutral',
             },
@@ -206,18 +248,18 @@ const BioLateWarnings = () => {
         <BioCardHead
           title={
             tab === 'curfew'
-              ? 'Late Return Punches (Curfew Violations)'
+              ? 'Late Return Punches (Curfew Violations > 07:00 PM)'
               : tab === 'overdue'
-                ? 'Critical Overdue / Outside Past Curfew'
+                ? 'Critical Overdue / Outside Past 07:00 PM'
                 : tab === 'missing'
                   ? 'Missing / Absent Today (No Punch Recorded)'
                   : 'Frequent Curfew Violators (Last 30 Days)'
           }
           subtitle={
             tab === 'curfew'
-              ? 'Hostellers who checked in after the 08:30 PM curfew cutoff'
+              ? 'Hostellers who checked in after 07:00 PM evening curfew'
               : tab === 'overdue'
-                ? 'Hostellers currently outside who have not returned past curfew or for excessive hours'
+                ? 'Hostellers currently outside who have not returned past 07:00 PM or for excessive hours'
                 : tab === 'missing'
                   ? 'Active hostellers with 0 biometric movement recorded today (Night roll check)'
                   : 'Hostellers with repeated late entries requiring disciplinary review'
@@ -234,7 +276,7 @@ const BioLateWarnings = () => {
             )
           }
           action={
-            <div className="ui-btn-group" style={{ display: 'inline-flex' }}>
+            <div className="ui-btn-group" style={{ display: 'inline-flex', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className={`ui-btn ui-btn-sm ${tab === 'curfew' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
@@ -267,9 +309,9 @@ const BioLateWarnings = () => {
           }
         />
 
-        {/* Toolbar with Search, Date filter, View switcher */}
+        {/* Toolbar with Search, Date Quick Filters, View Switcher */}
         <div className="bio-toolbar">
-          <div className="bio-toolbar-filters">
+          <div className="bio-filters" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <BioSearchField
               value={search}
               onChange={(val) => {
@@ -279,36 +321,72 @@ const BioLateWarnings = () => {
               placeholder="Search Student, Reg No, Room..."
             />
 
+            {/* Quick Date Presets */}
             {tab === 'curfew' ? (
-              <>
-                <BioField label="From Date">
-                  <input
-                    type="date"
-                    className="ui-form-control"
-                    value={fromDate}
-                    onChange={(e) => {
-                      setFromDate(e.target.value);
-                      setPage(1);
-                    }}
-                  />
-                </BioField>
-                <BioField label="To Date">
-                  <input
-                    type="date"
-                    className="ui-form-control"
-                    value={toDate}
-                    onChange={(e) => {
-                      setToDate(e.target.value);
-                      setPage(1);
-                    }}
-                  />
-                </BioField>
-              </>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <div className="ui-btn-group">
+                  <button
+                    type="button"
+                    className={`ui-btn ui-btn-sm ${datePreset === 'all' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                    onClick={() => handlePresetChange('all')}
+                  >
+                    All Dates
+                  </button>
+                  <button
+                    type="button"
+                    className={`ui-btn ui-btn-sm ${datePreset === 'today' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                    onClick={() => handlePresetChange('today')}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    className={`ui-btn ui-btn-sm ${datePreset === 'yesterday' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                    onClick={() => handlePresetChange('yesterday')}
+                  >
+                    Yesterday (15/11)
+                  </button>
+                  <button
+                    type="button"
+                    className={`ui-btn ui-btn-sm ${datePreset === 'custom' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                    onClick={() => handlePresetChange('custom')}
+                  >
+                    <Calendar size={13} /> Custom
+                  </button>
+                </div>
+
+                {datePreset === 'custom' ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <BioField label="From">
+                      <input
+                        type="date"
+                        className="ui-input ui-input--inline"
+                        value={fromDate}
+                        onChange={(e) => {
+                          setFromDate(e.target.value);
+                          setPage(1);
+                        }}
+                      />
+                    </BioField>
+                    <BioField label="To">
+                      <input
+                        type="date"
+                        className="ui-input ui-input--inline"
+                        value={toDate}
+                        onChange={(e) => {
+                          setToDate(e.target.value);
+                          setPage(1);
+                        }}
+                      />
+                    </BioField>
+                  </div>
+                ) : null}
+              </div>
             ) : tab === 'missing' ? (
               <BioField label="Roll Call Date">
                 <input
                   type="date"
-                  className="ui-form-control"
+                  className="ui-input ui-input--inline"
                   value={date}
                   placeholder={todayInput()}
                   onChange={(e) => {
@@ -319,20 +397,20 @@ const BioLateWarnings = () => {
               </BioField>
             ) : null}
 
-            {search || fromDate || toDate || date ? (
+            {search || datePreset !== 'all' || date ? (
               <button
                 type="button"
                 className="ui-btn ui-btn-secondary ui-btn-sm"
-                style={{ alignSelf: 'flex-end', height: 36 }}
                 onClick={() => {
                   setSearch('');
+                  setDatePreset('all');
                   setDate('');
                   setFromDate('');
                   setToDate('');
                   setPage(1);
                 }}
               >
-                Reset filters
+                Reset
               </button>
             ) : null}
           </div>
@@ -351,7 +429,7 @@ const BioLateWarnings = () => {
                 type="button"
                 className={`ui-btn ui-btn-sm ${viewMode === 'card' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
                 onClick={() => setViewMode('card')}
-                title="Card grid view"
+                title="Card grid view (Mobile optimized)"
               >
                 <LayoutGrid size={14} /> Cards
               </button>
@@ -376,7 +454,7 @@ const BioLateWarnings = () => {
                   title="No records found"
                   text={
                     tab === 'curfew'
-                      ? 'No late entries found for the selected dates. Great hostel discipline!'
+                      ? 'No late entries found after 07:00 PM for the selected date. Great hostel discipline!'
                       : tab === 'overdue'
                         ? 'No hostellers currently overdue outside. All students accounted for.'
                         : tab === 'missing'
@@ -397,9 +475,11 @@ const BioLateWarnings = () => {
                     >
                       <div className="bio-user-card-head">
                         <div className="bio-user-card-person">
-                          <span className="bio-avatar">{initials(row.student_name)}</span>
-                          <div>
-                            <div className="bio-strong" style={{ fontSize: 14 }}>
+                          <span className="bio-avatar" style={{ flexShrink: 0 }}>
+                            {initials(row.student_name)}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="bio-strong" style={{ fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {row.student_name}
                             </div>
                             <div className="bio-subtle bio-mono" style={{ fontSize: 12 }}>
@@ -409,22 +489,22 @@ const BioLateWarnings = () => {
                         </div>
                         <div>
                           {tab === 'curfew' ? (
-                            <span className="bio-status is-danger" style={{ fontSize: 11, padding: '3px 8px' }}>
-                              +{row.minutes_past_curfew ?? 0}m Late
+                            <span className="bio-status is-danger" style={{ fontSize: 11, padding: '3px 8px', fontWeight: 700 }}>
+                              {formatLateDuration(row.minutes_past_curfew)}
                             </span>
                           ) : tab === 'overdue' ? (
                             <span
                               className={`bio-status ${row.alert_level === 'CRITICAL' ? 'is-danger' : 'is-warning'}`}
-                              style={{ fontSize: 11, padding: '3px 8px' }}
+                              style={{ fontSize: 11, padding: '3px 8px', fontWeight: 700 }}
                             >
                               {row.alert_level === 'CRITICAL' ? 'CRITICAL OVERDUE' : `${row.hours_outside}h Away`}
                             </span>
                           ) : tab === 'missing' ? (
-                            <span className="bio-status is-warning" style={{ fontSize: 11, padding: '3px 8px' }}>
+                            <span className="bio-status is-warning" style={{ fontSize: 11, padding: '3px 8px', fontWeight: 600 }}>
                               No Punch Today
                             </span>
                           ) : (
-                            <span className="bio-status is-danger" style={{ fontSize: 11, padding: '3px 8px' }}>
+                            <span className="bio-status is-danger" style={{ fontSize: 11, padding: '3px 8px', fontWeight: 700 }}>
                               {row.total_late_entries} Late entries
                             </span>
                           )}
@@ -478,7 +558,7 @@ const BioLateWarnings = () => {
                             <div className="bio-user-card-field">
                               <span className="bio-user-card-label">Avg Minutes Late</span>
                               <span className="bio-user-card-value" style={{ color: '#dc2626' }}>
-                                {row.avg_minutes_late ?? 0} mins
+                                {formatLateDuration(row.avg_minutes_late)}
                               </span>
                             </div>
                             <div className="bio-user-card-field">
@@ -512,19 +592,19 @@ const BioLateWarnings = () => {
                               href={`tel:${fPhone}`}
                               className="ui-btn ui-btn-sm ui-btn-secondary"
                               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, flex: 1, justifyContent: 'center' }}
-                              title={`Call Father: ${fPhone}`}
+                              title={`Call Parent: ${fPhone}`}
                             >
                               <Phone size={13} /> Call Parent
                             </a>
                             <a
-                              href={`https://wa.me/91${fPhone}?text=Hello,%20this%20is%20from%20the%20Hostel%20Office%20regarding%20${encodeURIComponent(row.student_name)}.`}
+                              href={`https://wa.me/91${fPhone}?text=Hello,%20this%20is%20from%20the%20Hostel%20Office%20regarding%20${encodeURIComponent(row.student_name)}%20(Room%20${encodeURIComponent(row.room_no || '')}).`}
                               target="_blank"
                               rel="noreferrer"
                               className="ui-btn ui-btn-sm ui-btn-secondary"
                               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16a34a' }}
                               title={`WhatsApp Parent: ${fPhone}`}
                             >
-                              <MessageSquare size={13} />
+                              <MessageSquare size={13} /> WhatsApp
                             </a>
                           </>
                         ) : sPhone ? (
@@ -550,7 +630,7 @@ const BioLateWarnings = () => {
           </div>
         ) : (
           <div className="bio-table-wrap">
-            <table className="ui-table bio-table">
+            <table className="ui-table bio-table" style={{ minWidth: 980 }}>
               <thead>
                 <tr>
                   <th>Student ID</th>
@@ -560,8 +640,8 @@ const BioLateWarnings = () => {
                     <>
                       <th>Date</th>
                       <th>Return Punch</th>
-                      <th>Minutes Late</th>
-                      <th>Curfew Status</th>
+                      <th>Delay Past 7 PM</th>
+                      <th>Status</th>
                       <th>Device ID</th>
                       <th>Parent Mobile</th>
                       <th>Actions</th>
@@ -604,7 +684,7 @@ const BioLateWarnings = () => {
                   emptyTitle="No records found"
                   emptyText={
                     tab === 'curfew'
-                      ? 'No curfew violations recorded for the selected dates.'
+                      ? 'No late entries found after 07:00 PM for the selected date.'
                       : tab === 'overdue'
                         ? 'No hostellers currently overdue outside.'
                         : tab === 'missing'
@@ -618,16 +698,20 @@ const BioLateWarnings = () => {
                   const fPhone = cleanPhone(row.father_mobile);
                   return (
                     <tr key={`${row.reg_no}-${row.punch_time || row.out_time || idx}`}>
-                      <td className="bio-strong bio-mono">{row.reg_no}</td>
-                      <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          <span className="bio-avatar" style={{ width: 26, height: 26, fontSize: 11 }}>
+                      <td className="bio-strong bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                        {row.reg_no}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                          <span className="bio-avatar" style={{ width: 26, height: 26, fontSize: 11, flexShrink: 0 }}>
                             {initials(row.student_name)}
                           </span>
-                          <span className="bio-strong">{row.student_name}</span>
+                          <span className="bio-strong" style={{ whiteSpace: 'nowrap' }}>
+                            {row.student_name}
+                          </span>
                         </div>
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         {row.room_no ? (
                           <span className="bio-strong">
                             {row.room_no} {row.bed_no ? <span className="bio-subtle">({row.bed_no})</span> : null}
@@ -639,50 +723,56 @@ const BioLateWarnings = () => {
 
                       {tab === 'curfew' ? (
                         <>
-                          <td>{row.violation_date ? formatDate(row.violation_date) : '—'}</td>
-                          <td className="bio-time" style={{ color: '#dc2626', fontWeight: 600 }}>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {row.violation_date ? formatDate(row.violation_date) : '—'}
+                          </td>
+                          <td className="bio-time" style={{ color: '#dc2626', fontWeight: 600, whiteSpace: 'nowrap' }}>
                             {row.punch_time_formatted || (row.punch_time ? formatDateTime(row.punch_time) : '—')}
                           </td>
-                          <td>
-                            <span className="bio-status is-danger" style={{ fontWeight: 600 }}>
-                              +{row.minutes_past_curfew ?? 0} mins
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <span className="bio-status is-danger" style={{ fontWeight: 700 }}>
+                              {formatLateDuration(row.minutes_past_curfew)}
                             </span>
                           </td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <span className="bio-status is-danger" style={{ fontSize: 11 }}>
                               LATE ENTRY
                             </span>
                           </td>
-                          <td className="bio-mono bio-subtle">{row.device_id || '—'}</td>
-                          <td className="bio-mono">{row.father_mobile || '—'}</td>
-                          <td>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <td className="bio-mono bio-subtle" style={{ whiteSpace: 'nowrap' }}>
+                            {row.device_id || '—'}
+                          </td>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.father_mobile || '—'}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                               {fPhone ? (
                                 <>
                                   <a
                                     href={`tel:${fPhone}`}
                                     className="ui-btn ui-btn-sm ui-btn-secondary"
-                                    style={{ padding: '3px 8px', fontSize: 11 }}
+                                    style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                     title={`Call Father: ${fPhone}`}
                                   >
                                     <Phone size={12} /> Call
                                   </a>
                                   <a
-                                    href={`https://wa.me/91${fPhone}?text=Hello,%20Hostel%20Office%20alert:%20${encodeURIComponent(row.student_name)}%20returned%20late%20after%20curfew%20at%20${encodeURIComponent(row.punch_time_formatted || '')}.`}
+                                    href={`https://wa.me/91${fPhone}?text=Hello,%20Hostel%20Office%20alert:%20${encodeURIComponent(row.student_name)}%20returned%20late%20after%207%20PM%20curfew%20at%20${encodeURIComponent(row.punch_time_formatted || '')}%20(${formatLateDuration(row.minutes_past_curfew)}).`}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="ui-btn ui-btn-sm ui-btn-secondary"
-                                    style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a' }}
+                                    style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                     title="WhatsApp Parent"
                                   >
-                                    <MessageSquare size={12} />
+                                    <MessageSquare size={12} /> WhatsApp
                                   </a>
                                 </>
                               ) : sPhone ? (
                                 <a
                                   href={`tel:${sPhone}`}
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title={`Call Student: ${sPhone}`}
                                 >
                                   <Phone size={12} /> Call
@@ -695,10 +785,10 @@ const BioLateWarnings = () => {
                         </>
                       ) : tab === 'overdue' ? (
                         <>
-                          <td className="bio-time">
+                          <td className="bio-time" style={{ whiteSpace: 'nowrap' }}>
                             {row.out_time_formatted || (row.out_time ? formatDateTime(row.out_time) : '—')}
                           </td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <span
                               className="bio-strong"
                               style={{ color: (row.hours_outside || 0) >= 8 ? '#dc2626' : '#ea580c' }}
@@ -706,24 +796,28 @@ const BioLateWarnings = () => {
                               {row.hours_outside ?? 0} hrs
                             </span>
                           </td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <span
                               className={`bio-status ${row.alert_level === 'CRITICAL' ? 'is-danger' : 'is-warning'}`}
-                              style={{ fontWeight: 600, fontSize: 11 }}
+                              style={{ fontWeight: 700, fontSize: 11 }}
                             >
                               {row.alert_level === 'CRITICAL' ? 'CRITICAL OVERDUE' : 'AWAY'}
                             </span>
                           </td>
-                          <td className="bio-mono">{row.student_mobile || '—'}</td>
-                          <td className="bio-mono">{row.father_mobile || '—'}</td>
-                          <td>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.student_mobile || '—'}
+                          </td>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.father_mobile || '—'}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                               {fPhone ? (
                                 <>
                                   <a
                                     href={`tel:${fPhone}`}
                                     className="ui-btn ui-btn-sm ui-btn-secondary"
-                                    style={{ padding: '3px 8px', fontSize: 11 }}
+                                    style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                     title={`Call Parent: ${fPhone}`}
                                   >
                                     <Phone size={12} /> Parent
@@ -733,10 +827,10 @@ const BioLateWarnings = () => {
                                     target="_blank"
                                     rel="noreferrer"
                                     className="ui-btn ui-btn-sm ui-btn-secondary"
-                                    style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a' }}
+                                    style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                     title="WhatsApp Parent"
                                   >
-                                    <MessageSquare size={12} />
+                                    <MessageSquare size={12} /> WhatsApp
                                   </a>
                                 </>
                               ) : null}
@@ -744,7 +838,7 @@ const BioLateWarnings = () => {
                                 <a
                                   href={`tel:${sPhone}`}
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title={`Call Student: ${sPhone}`}
                                 >
                                   <Phone size={12} /> Student
@@ -755,22 +849,26 @@ const BioLateWarnings = () => {
                         </>
                       ) : tab === 'missing' ? (
                         <>
-                          <td>{row.bed_no || '—'}</td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{row.bed_no || '—'}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <span className="bio-status is-warning" style={{ fontWeight: 600, fontSize: 11 }}>
                               No Punch Recorded
                             </span>
                           </td>
-                          <td>{row.father_name || '—'}</td>
-                          <td className="bio-mono">{row.student_mobile || '—'}</td>
-                          <td className="bio-mono">{row.father_mobile || '—'}</td>
-                          <td>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <td style={{ whiteSpace: 'nowrap' }}>{row.father_name || '—'}</td>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.student_mobile || '—'}
+                          </td>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.father_mobile || '—'}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                               {fPhone ? (
                                 <a
                                   href={`tel:${fPhone}`}
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title={`Call Parent: ${fPhone}`}
                                 >
                                   <Phone size={12} /> Parent
@@ -780,7 +878,7 @@ const BioLateWarnings = () => {
                                 <a
                                   href={`tel:${sPhone}`}
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title={`Call Student: ${sPhone}`}
                                 >
                                   <Phone size={12} /> Student
@@ -791,27 +889,29 @@ const BioLateWarnings = () => {
                         </>
                       ) : (
                         <>
-                          <td>
-                            <span className="bio-status is-danger" style={{ fontWeight: 600 }}>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <span className="bio-status is-danger" style={{ fontWeight: 700 }}>
                               {row.total_late_entries} Late Entries
                             </span>
                           </td>
-                          <td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             <span className="bio-strong" style={{ color: '#dc2626' }}>
-                              +{row.avg_minutes_late ?? 0} mins
+                              {formatLateDuration(row.avg_minutes_late)}
                             </span>
                           </td>
-                          <td className="bio-time">
+                          <td className="bio-time" style={{ whiteSpace: 'nowrap' }}>
                             {row.last_late_punch_formatted || (row.last_late_punch ? formatDateTime(row.last_late_punch) : '—')}
                           </td>
-                          <td className="bio-mono">{row.father_mobile || '—'}</td>
-                          <td>
+                          <td className="bio-mono" style={{ whiteSpace: 'nowrap' }}>
+                            {row.father_mobile || '—'}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             {fPhone ? (
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
                                 <a
                                   href={`tel:${fPhone}`}
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  style={{ padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title={`Call Parent: ${fPhone}`}
                                 >
                                   <Phone size={12} /> Call Parent
@@ -821,10 +921,10 @@ const BioLateWarnings = () => {
                                   target="_blank"
                                   rel="noreferrer"
                                   className="ui-btn ui-btn-sm ui-btn-secondary"
-                                  style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a' }}
+                                  style={{ padding: '3px 8px', fontSize: 11, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                   title="WhatsApp Parent"
                                 >
-                                  <MessageSquare size={12} />
+                                  <MessageSquare size={12} /> WhatsApp
                                 </a>
                               </div>
                             ) : (

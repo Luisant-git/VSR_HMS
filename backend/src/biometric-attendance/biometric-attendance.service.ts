@@ -475,7 +475,7 @@ export class BiometricAttendanceService {
              FROM public.biometric_attendance_logs
              WHERE punch_time::date = $1::date
                AND (punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')
-               AND punch_time::time > TIME '20:30:00'`,
+               AND punch_time::time > TIME '19:00:00'`,
             [date],
           )
         ).rows[0]?.total,
@@ -1097,7 +1097,7 @@ export class BiometricAttendanceService {
         `SELECT COUNT(*)::int AS total FROM public.biometric_attendance_logs
          WHERE punch_time::date = CURRENT_DATE
            AND (punch_state_code IN (0, 3, 255) OR punch_state = 'Check-In')
-           AND punch_time::time > TIME '20:30:00'`,
+           AND punch_time::time > TIME '19:00:00'`,
       );
       lateReturnsToday = Number(res.rows[0]?.total) || 0;
     }
@@ -1107,7 +1107,7 @@ export class BiometricAttendanceService {
     if (hasOutside) {
       const res = await this.query<{ critical: number; total: number }>(
         `SELECT 
-           COUNT(*) FILTER (WHERE CURRENT_TIME > TIME '20:30:00' OR hours_outside >= 8.0 OR out_time::date < CURRENT_DATE)::int AS critical,
+           COUNT(*) FILTER (WHERE CURRENT_TIME > TIME '19:00:00' OR hours_outside >= 8.0 OR out_time::date < CURRENT_DATE)::int AS critical,
            COUNT(*)::int AS total
          FROM public.view_student_currently_outside`,
       );
@@ -1150,7 +1150,7 @@ export class BiometricAttendanceService {
       totalOutside,
       missingToday,
       frequentViolators,
-      curfewTime: query.curfewTime || '20:30',
+      curfewTime: query.curfewTime || '19:00',
     };
 
     let total = 0;
@@ -1192,7 +1192,7 @@ export class BiometricAttendanceService {
              o.exit_device_id,
              o.current_location,
              CASE 
-               WHEN CURRENT_TIME > TIME '20:30:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 'CRITICAL'
+               WHEN CURRENT_TIME > TIME '19:00:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 'CRITICAL'
                WHEN o.hours_outside >= 4.0 THEN 'WARNING'
                ELSE 'NORMAL'
              END AS alert_level
@@ -1200,7 +1200,7 @@ export class BiometricAttendanceService {
            ${whereSql}
            ORDER BY 
              CASE 
-               WHEN CURRENT_TIME > TIME '20:30:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 1
+               WHEN CURRENT_TIME > TIME '19:00:00' OR o.hours_outside >= 8.0 OR o.out_time::date < CURRENT_DATE THEN 1
                WHEN o.hours_outside >= 4.0 THEN 2
                ELSE 3
              END ASC,

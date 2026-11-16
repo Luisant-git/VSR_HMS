@@ -223,11 +223,11 @@ CREATE VIEW public.view_student_curfew_violations AS
     s."fatherMobileNo" AS father_mobile,
     v.device_id,
     'LATE_ENTRY'::text AS violation_type,
-    round(EXTRACT(epoch FROM v.punch_time::time without time zone - '20:30:00'::time without time zone) / 60.0, 0) AS minutes_past_curfew
+    round(EXTRACT(epoch FROM v.punch_time::time without time zone - '19:00:00'::time without time zone) / 60.0, 0) AS minutes_past_curfew
  FROM public.view_student_in_out_logs v
  LEFT JOIN public."Student" s ON s."regNo" = v.user_pin::text OR s."manualRegsiName" = v.user_pin::text OR s."biometricId" = v.user_pin::text
  WHERE v.movement_direction = 'IN' 
-   AND v.punch_time::time without time zone > '20:30:00'::time without time zone
+   AND v.punch_time::time without time zone > '19:00:00'::time without time zone
  ORDER BY v.punch_time DESC;
 
 -- ----------------------------------------------------------------------------
