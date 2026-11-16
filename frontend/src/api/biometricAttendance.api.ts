@@ -215,6 +215,57 @@ export interface HealthResponse {
   message: string;
 }
 
+export interface LateWarningRow {
+  student_id: string | null;
+  reg_no: string;
+  student_name: string;
+  room_no: string | null;
+  bed_no?: string | null;
+  student_mobile: string | null;
+  father_name?: string | null;
+  father_mobile: string | null;
+  // For curfew violations
+  violation_date?: string;
+  punch_date?: string;
+  punch_time?: string;
+  return_time?: string;
+  punch_time_formatted?: string;
+  minutes_past_curfew?: number;
+  device_id?: string;
+  violation_type?: string;
+  // For overdue outside
+  out_time?: string;
+  last_out_time?: string;
+  out_time_formatted?: string;
+  hours_outside?: number;
+  exit_device_id?: string;
+  current_location?: string;
+  alert_level?: 'CRITICAL' | 'WARNING' | 'NORMAL';
+  // For missing/absent
+  status?: string;
+  // For frequent
+  total_late_entries?: number;
+  avg_minutes_late?: number;
+  last_late_punch?: string;
+  last_late_punch_formatted?: string;
+}
+
+export interface LateWarningsSummary {
+  lateReturnsToday: number;
+  criticalOverdue: number;
+  totalOutside: number;
+  missingToday: number;
+  frequentViolators: number;
+  curfewTime: string;
+}
+
+export interface LateWarningsResponse extends BioEnvelope {
+  tab: 'curfew' | 'overdue' | 'missing' | 'frequent';
+  summary: LateWarningsSummary;
+  data: LateWarningRow[];
+  pagination: BioPagination;
+}
+
 export const BiometricAttendanceAPI = {
   health: () => get<HealthResponse>('/biometric-attendance/health'),
   dashboard: () => get<DashboardResponse>('/biometric-attendance/dashboard'),
@@ -227,4 +278,6 @@ export const BiometricAttendanceAPI = {
   deviceUsers: (params: Record<string, unknown>) =>
     get<DeviceUsersResponse>('/biometric-attendance/device-users', params),
   devices: () => get<DevicesResponse>('/biometric-attendance/devices'),
+  lateWarnings: (params: Record<string, unknown>) =>
+    get<LateWarningsResponse>('/biometric-attendance/late-warnings', params),
 };

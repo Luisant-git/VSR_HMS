@@ -165,9 +165,15 @@ const Dashboard = () => {
                 <div className="bio-legend">
                   <i style={{ background: '#c7d2fe' }} /> Total Roll <strong>{stats?.totalStudents ?? 0}</strong>
                 </div>
-                <div className="bio-legend">
+                <Link
+                  to="/biometric-attendance/late-warnings"
+                  className="bio-legend"
+                  style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+                  title="View Late Return & Missing Warnings"
+                >
                   <i style={{ background: '#f59e0b' }} /> Late <strong>{stats?.lateEntries ?? 0}</strong>
-                </div>
+                  <ArrowUpRight size={13} style={{ marginLeft: 4, opacity: 0.7 }} />
+                </Link>
               </div>
             </div>
           </div>

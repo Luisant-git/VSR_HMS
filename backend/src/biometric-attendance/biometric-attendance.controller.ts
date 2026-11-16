@@ -99,4 +99,27 @@ export class BiometricAttendanceController {
   devices() {
     return this.biometric.getDevices();
   }
+
+  @Get('late-warnings')
+  lateWarnings(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('tab') tab?: string,
+    @Query('date') date?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('curfewTime') curfewTime?: string,
+  ) {
+    return this.biometric.getLateWarnings({
+      page: numberOrUndefined(page),
+      limit: numberOrUndefined(limit),
+      search,
+      tab: (tab as any) || 'curfew',
+      date,
+      fromDate,
+      toDate,
+      curfewTime,
+    });
+  }
 }

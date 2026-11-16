@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
+  AlertTriangle,
   CalendarCheck,
   Fingerprint,
   LayoutDashboard,
@@ -17,6 +18,7 @@ const TABS = [
   { to: '/biometric-attendance', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/biometric-attendance/live-monitor', label: 'Live Punch Monitor', icon: Radio },
   { to: '/biometric-attendance/outside', label: 'Currently Outside', icon: LogOut },
+  { to: '/biometric-attendance/late-warnings', label: 'Late Return & Missing', icon: AlertTriangle },
   { to: '/biometric-attendance/daily', label: 'Daily Attendance', icon: CalendarCheck },
   { to: '/biometric-attendance/device-users', label: 'Device Enrolled Users', icon: Users },
   { to: '/biometric-attendance/devices', label: 'Device & Sync Status', icon: Router },

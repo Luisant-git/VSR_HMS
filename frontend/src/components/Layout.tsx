@@ -74,6 +74,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Attendance Dashboard', to: '/biometric-attendance', perm: ['biometric_attendance'], end: true },
       { label: 'Live Punch Monitor', to: '/biometric-attendance/live-monitor', perm: ['biometric_attendance'] },
       { label: 'Currently Outside', to: '/biometric-attendance/outside', perm: ['biometric_attendance'] },
+      { label: 'Late Return & Missing', to: '/biometric-attendance/late-warnings', perm: ['biometric_attendance'] },
       { label: 'Daily Attendance', to: '/biometric-attendance/daily', perm: ['biometric_attendance'] },
       { label: 'Device Enrolled Users', to: '/biometric-attendance/device-users', perm: ['biometric_attendance'] },
       { label: 'Device & Sync Status', to: '/biometric-attendance/devices', perm: ['biometric_attendance'] },
