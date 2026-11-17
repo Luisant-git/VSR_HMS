@@ -207,7 +207,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     : currentItems;
 
   const fineQuoteReady =
-    allowPaymentDate &&
     !loadingFineQuote &&
     !fineQuoteError &&
     fineQuote.asOfDate === paymentDate;
@@ -229,6 +228,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       getFineParentType(fee) === null &&
       /late fine accumulation/i.test(String(fee?.description || '')),
   );
+
+  const hasFineItems =
+    typedFineItems.length > 0 || legacyLateFineItems.length > 0;
 
   // Older databases keep one combined fine row. The preview splits it into
   // one row per fee type on first open, so show those rows (each with its own
@@ -421,7 +423,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const activeItemsToPay = displayItems.filter((f: any) => isItemSelected(f));
 
   useEffect(() => {
-    if (!allowPaymentDate || !primaryStudent?.id) return;
+    if (!primaryStudent?.id) return;
 
     let active = true;
     setLoadingFineQuote(true);
@@ -455,7 +457,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     return () => {
       active = false;
     };
-  }, [allowPaymentDate, primaryStudent?.id, paymentDate]);
+  }, [primaryStudent?.id, paymentDate]);
 
   const getMultiplier = (type: string) => {
     const t = (type || '').toUpperCase().trim();
@@ -903,10 +905,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   */
 
   const outstandingInvalid = outstandingSelected && outstandingInputTrimmed !== '' && outstandingError !== null;
+  // The fine quote is fetched for every student, including the portal. Block
+  // submission while it is loading; a failed quote only blocks payment when
+  // there is actually a fine to recalculate (otherwise stored amounts are safe).
+  const fineQuoteBlocked =
+    loadingFineQuote || (fineQuoteError !== null && hasFineItems);
   const canSubmit =
     !isSubmitting &&
     !onlineConfirmationPending &&
-    (!allowPaymentDate || (!loadingFineQuote && !fineQuoteError)) &&
+    !fineQuoteBlocked &&
     !outstandingInvalid &&
     (activeItemsToPay.length > 0 || hasOutstandingPayment);
 
@@ -990,26 +997,30 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                 </div>
               )}
 
-              {allowPaymentDate && (
+              {(allowPaymentDate || hasFineItems) && (
                 <div style={{ marginBottom: '20px' }}>
-                  <label htmlFor="fee-payment-date" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Payment / receipt date
-                  </label>
-                  <input
-                    id="fee-payment-date"
-                    type="date"
-                    value={paymentDate}
-                    max={getTodayInput()}
-                    onChange={(event) => setPaymentDate(event.target.value)}
-                    disabled={isSubmitting}
-                    style={{ width: '100%', padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', fontSize: '15px' }}
-                  />
+                  {allowPaymentDate && (
+                    <>
+                      <label htmlFor="fee-payment-date" style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Payment / receipt date
+                      </label>
+                      <input
+                        id="fee-payment-date"
+                        type="date"
+                        value={paymentDate}
+                        max={getTodayInput()}
+                        onChange={(event) => setPaymentDate(event.target.value)}
+                        disabled={isSubmitting}
+                        style={{ width: '100%', padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', fontSize: '15px' }}
+                      />
+                    </>
+                  )}
                   {loadingFineQuote ? (
-                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#64748b' }}>Checking fine for selected date…</div>
+                    <div style={{ marginTop: allowPaymentDate ? '8px' : 0, fontSize: '13px', color: '#64748b' }}>Checking late fine…</div>
                   ) : fineQuoteError ? (
-                    <div role="alert" style={{ marginTop: '8px', fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
+                    <div role="alert" style={{ marginTop: allowPaymentDate ? '8px' : 0, fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
                   ) : fineQuoteReady ? (
-                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569' }}>
+                    <div style={{ marginTop: allowPaymentDate ? '8px' : 0, fontSize: '13px', color: '#475569' }}>
                       Late fine on {formatDateDMY(paymentDate)}:{' '}
                       <strong>₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
                       {fineQuote.fines.length > 0 ? (
