@@ -1030,49 +1030,6 @@ const Fees = () => {
         </div>
       </div>
 
-      <div className="ui-card fees-reconciliation">
-        <div className="fees-reconciliation-head">
-          <div>
-            <div className="fees-reconciliation-title">Invoice reconciliation</div>
-            <div className="fees-reconciliation-formula">
-              Total Invoiced = Collected + Pending Unpaid + Not Due + Partial Balance + Unreconciled
-            </div>
-          </div>
-          <span className={`ui-badge ${reconciliation.isReconciled ? 'ui-badge-success' : 'ui-badge-danger'}`}>
-            {reconciliation.isReconciled ? 'Reconciled' : 'Needs attention'}
-          </span>
-        </div>
-        <div className="fees-reconciliation-grid">
-          <div className="fees-reconciliation-cell">
-            <div className="fees-reconciliation-label">Collected</div>
-            <div className="fees-reconciliation-value is-success">{formatMoney(reconciliation.totalCollected)}</div>
-          </div>
-          <div className="fees-reconciliation-cell">
-            <div className="fees-reconciliation-label">Pending Unpaid</div>
-            <div className="fees-reconciliation-value is-danger">{formatMoney(reconciliation.pendingUnpaid)}</div>
-          </div>
-          <div className="fees-reconciliation-cell">
-            <div className="fees-reconciliation-label">Not Due</div>
-            <div className="fees-reconciliation-value is-warning">{formatMoney(reconciliation.notDue)}</div>
-          </div>
-          <div className="fees-reconciliation-cell">
-            <div className="fees-reconciliation-label">Partial Balance</div>
-            <div className="fees-reconciliation-value">{formatMoney(reconciliation.partialBalance)}</div>
-          </div>
-          <div className="fees-reconciliation-cell">
-            <div className="fees-reconciliation-label">Unreconciled</div>
-            <div className={`fees-reconciliation-value ${reconciliation.isReconciled ? 'is-muted' : 'is-danger'}`}>
-              {formatMoney(reconciliation.unreconciled)}
-            </div>
-          </div>
-        </div>
-        <div className="fees-reconciliation-note">
-          Outstanding dues and their receipts are always netted together. Mess fees are managed
-          separately and are not part of this ledger. If a row cannot be categorised, its amount is
-          shown as Unreconciled instead of forcing the totals to match.
-        </div>
-      </div>
-
       <FeeGenerationNotice billingCycle={selectedBillingCycle} />
 
       <div className="ui-toolbar">
