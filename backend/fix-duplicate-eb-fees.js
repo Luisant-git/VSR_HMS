@@ -90,24 +90,24 @@ async function main() {
 
   for (const sheetFee of sheetRows) {
     const reference = referenceFrom(sheetFee.description);
-    if (!reference) continue;
 
     const matches = monthlyRows.filter(
       fee =>
         cents(fee.amount) === cents(sheetFee.amount) &&
-        referenceFrom(fee.description) === reference,
+        (!reference || referenceFrom(fee.description) === reference),
     );
 
     if (matches.length === 1) {
       const sheetMatches = sheetRows.filter(
         fee =>
           cents(fee.amount) === cents(matches[0].amount) &&
-          referenceFrom(fee.description) === referenceFrom(matches[0].description),
+          (!referenceFrom(fee.description) ||
+            referenceFrom(fee.description) === referenceFrom(matches[0].description)),
       );
       if (sheetMatches.length === 1) {
         duplicateIds.add(sheetFee.id);
         duplicateGroups.push({
-          reason: 'EB sheet-adjustment row duplicates a period-specific bill with the same amount and reference',
+          reason: `EB sheet-adjustment row duplicates the unique period-specific bill with the same amount${reference ? ' and reference' : ''}`,
           keep: matches[0],
           remove: sheetFee,
         });
