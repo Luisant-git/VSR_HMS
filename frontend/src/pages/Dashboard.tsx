@@ -4,6 +4,7 @@ import { FeesAPI } from '../api/fees.api';
 import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
+import { BiometricAttendanceAPI } from '../api/biometricAttendance.api';
 import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingBlock } from '../components/LoadingSpinner';
@@ -19,15 +20,48 @@ const Dashboard = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [missingLogs, setMissingLogs] = useState<any[]>([]);
   const [outpasses, setOutpasses] = useState<any[]>([]);
+  const [currentlyOut, setCurrentlyOut] = useState<number | null>(null);
+  const [currentlyOutError, setCurrentlyOutError] = useState<string | null>(null);
+  const [lateReturnsToday, setLateReturnsToday] = useState<number | null>(null);
+  const [lateReturnsError, setLateReturnsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const now = new Date();
+    const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
+      .toISOString()
+      .slice(0, 10);
     Promise.allSettled([
       RoomAPI.findAll().then(setDbRooms).catch(console.error),
       FeesAPI.findAll().then(setFees).catch(console.error),
       StudentAPI.findAll({ limit: 1000 }).then(res => setStudents(res.data || [])).catch(console.error),
       gateLogApi.getMissing().then(res => setMissingLogs(Array.isArray(res) ? res : (res.data || []))).catch(console.error),
       OutpassAPI.findAll().then(res => setOutpasses(res.data)).catch(console.error),
+      BiometricAttendanceAPI.currentlyOutside({ page: 1, limit: 1 })
+        .then(res => {
+          setCurrentlyOut(res.summary.total);
+          setCurrentlyOutError(null);
+        })
+        .catch(error => {
+          console.error('Failed to load biometric outside count:', error);
+          setCurrentlyOutError('Biometric outside count unavailable');
+        }),
+      BiometricAttendanceAPI.lateWarnings({
+        tab: 'late',
+        page: 1,
+        limit: 1,
+        curfewTime: '19:00',
+        fromDate: today,
+        toDate: today,
+      })
+        .then(res => {
+          setLateReturnsToday(res.summary.lateReturnsToday);
+          setLateReturnsError(null);
+        })
+        .catch(error => {
+          console.error('Failed to load biometric late-return count:', error);
+          setLateReturnsError('Biometric late-return count unavailable');
+        }),
     ]).then(() => setLoading(false));
   }, []);
 
@@ -81,10 +115,7 @@ const Dashboard = () => {
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
-  const currentlyOut = activeStudents.filter((s: any) => s.status === 'Out').length;
-
-  const safeMissingLogs = Array.isArray(missingLogs) ? missingLogs : ((missingLogs as any).data || []);
-  const activeLateWarnings = safeMissingLogs.filter((log: any) => !log.inTime).length;
+  const dashboardMissingLogs = Array.isArray(missingLogs) ? missingLogs : ((missingLogs as any).data || []);
 
   const safeOutpasses = Array.isArray(outpasses) ? outpasses : ((outpasses as any).data || []);
   const activeOutpassesCount = safeOutpasses.filter((op: any) => op.status === 'Approved' || op.status === 'Pending' || op.status === 'Active Out').length;
@@ -146,7 +177,9 @@ const Dashboard = () => {
             Currently Out
             <LogOut size={18} />
           </div>
-          <div className="value">{currentlyOut}</div>
+          <div className="value" title={currentlyOutError || 'Based on biometric movement records'}>
+            {currentlyOut ?? '—'}
+          </div>
         </div>
 
         <div className="metric-card metric-card-yellow" style={{ cursor: 'pointer' }} onClick={() => navigate('/late-warnings')}>
@@ -154,7 +187,9 @@ const Dashboard = () => {
             Late Return Warning
             <AlertTriangle size={18} />
           </div>
-          <div className="value">{activeLateWarnings}</div>
+          <div className="value" title={lateReturnsError || 'Late biometric returns today'}>
+            {lateReturnsToday ?? '—'}
+          </div>
         </div>
 
         <div className="metric-card metric-card-purple metric-card-pending-fees" style={{ cursor: 'pointer' }} onClick={() => navigate('/fees')}>
@@ -189,7 +224,7 @@ const Dashboard = () => {
         </div>
         <div className="ui-card-body">
           <div className="dash-warn-grid">
-            {safeMissingLogs.filter((log: any) => !log.inTime).slice(0, 5).map((log: any, idx: number) => (
+            {dashboardMissingLogs.filter((log: any) => !log.inTime).slice(0, 5).map((log: any, idx: number) => (
               <div key={idx} className="dash-warn">
                 <div className="dash-warn-head">
                   <div>
@@ -214,7 +249,7 @@ const Dashboard = () => {
                 </button>
               </div>
             ))}
-            {safeMissingLogs.filter((log: any) => !log.inTime).length === 0 && (
+            {dashboardMissingLogs.filter((log: any) => !log.inTime).length === 0 && (
               <div className="ui-empty dash-warn-empty">No late returns</div>
             )}
           </div>
