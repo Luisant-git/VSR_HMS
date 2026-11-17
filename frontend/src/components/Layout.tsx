@@ -116,6 +116,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: <Shapes size={18} />,
     children: [
       { label: 'College Master', to: '/colleges', perm: ['colleges'] },
+      { label: 'Fine Master', to: '/settings/fine-master', perm: ['fine_master'] },
     ],
   },
   {
@@ -124,7 +125,6 @@ const NAV_SECTIONS: NavSection[] = [
     icon: <Settings2 size={18} />,
     children: [
       { label: 'System Settings', to: '/settings/system-settings', perm: ['system_settings'] },
-      { label: 'Fine Master', to: '/settings/fine-master', perm: ['fine_master'] },
       { label: 'Mess Deduction Master', to: '/settings/mess-deduction', perm: ['mess_deduction'] },
       { label: 'User Management', to: '/settings/user-management', perm: ['user_management'], hideForRole: 'DEVELOPER' },
       { label: 'Menu Permission', to: '/settings/menu-permission', perm: ['menu_permission'], hideForRole: 'DEVELOPER' },

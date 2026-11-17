@@ -118,7 +118,6 @@ const MenuPermission = () => {
   const isDeveloperRole = selectedRole === 'DEVELOPER';
 
   const settingsModules = [
-    { id: 'fine_master', label: 'Fine Master' },
     { id: 'mess_deduction', label: 'Mess Deduction Master' },
     { id: 'system_settings', label: 'System Settings' },
   ];
@@ -193,9 +192,9 @@ const MenuPermission = () => {
                               { name: 'Rooms', keys: ['hostel_blocks', 'rooms_master', 'eb_bills'] },
                               { name: 'Staff', keys: ['staff_master', 'staff_attendance', 'staff_salary'] },
                               { name: 'Canteen', keys: ['canteen_master', 'canteen_products', 'canteen_categories', 'canteen_units', 'canteen_suppliers', 'canteen_payment_modes', 'canteen_purchase_entry', 'canteen_purchase_reports', 'canteen_supplier_payments', 'kitchen_construction', 'stock_report'] },
-                              { name: 'College Master', keys: ['colleges'] },
+                              { name: 'Master', keys: ['colleges', 'fine_master'] },
                               // User Management / Menu Permission belong to the Developer role only
-                              { name: 'Settings', keys: ['fine_master', 'mess_deduction', 'system_settings'] },
+                              { name: 'Settings', keys: ['mess_deduction', 'system_settings'] },
                               ...(isDevRole ? [{ name: 'Developer', keys: ['user_management', 'menu_permission'] }] : [])
                             ];
 
@@ -418,13 +417,17 @@ const MenuPermission = () => {
                 {/* Master */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={['colleges'].every(id => editData[id])} onChange={() => toggleGroup(['colleges'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                    <input type="checkbox" checked={['colleges', 'fine_master'].every(id => editData[id])} onChange={() => toggleGroup(['colleges', 'fine_master'])} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                     <span style={{ fontSize: '16px', fontWeight: 500, color: '#0f172a' }}>Master</span>
                   </label>
                   <div style={{ marginLeft: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                       <input type="checkbox" checked={editData['colleges'] || false} onChange={() => togglePermission('colleges')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
                       <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>College Master</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={editData['fine_master'] || false} onChange={() => togglePermission('fine_master')} style={{ width: '16px', height: '16px', accentColor: '#0066ff', cursor: 'pointer', margin: 0, marginRight: '8px' }} />
+                      <span style={{ fontWeight: 500, color: '#334155', fontSize: '15px' }}>Fine Master</span>
                     </label>
                   </div>
                 </div>
