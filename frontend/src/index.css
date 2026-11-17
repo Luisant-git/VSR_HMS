@@ -3030,6 +3030,82 @@ textarea.ui-form-control {
   margin-bottom: 12px;
 }
 
+.fees-reconciliation {
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.fees-reconciliation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.fees-reconciliation-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.fees-reconciliation-formula {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.fees-reconciliation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.fees-reconciliation-cell {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.fees-reconciliation-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fees-reconciliation-value {
+  margin-top: 2px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.fees-reconciliation-value.is-success {
+  color: var(--success);
+}
+
+.fees-reconciliation-value.is-danger {
+  color: var(--danger);
+}
+
+.fees-reconciliation-value.is-warning {
+  color: var(--warning);
+}
+
+.fees-reconciliation-value.is-muted {
+  color: var(--text-muted);
+}
+
+.fees-reconciliation-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .fees-search {
   width: 240px;
 }

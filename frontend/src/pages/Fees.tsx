@@ -25,10 +25,17 @@ import {
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { formatBillingMonth, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
+import { buildFeeReconciliation } from '../utils/feeReconciliation';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
 const formatPaymentMode = (mode?: string) => (mode || '').split(/[/(]/)[0].trim();
+
+const formatMoney = (value: number) =>
+  `${value < 0 ? '−' : ''}₹${Math.abs(value).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 const Fees = () => {
   const navigate = useNavigate();
@@ -606,54 +613,17 @@ const Fees = () => {
     return result;
   }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
 
-  // Sum eligible invoiced charges directly so pending and paid fees are both
-  // counted once, independent of display grouping.
-  const totalInvoiced = useMemo(() => {
-    const { previousMonthStr, currentMonthStr } = getBillingMonths();
-    return roundMoney(
-      filteredFees
-        .filter(f => {
-          if (!['PENDING', 'COMPLETED'].includes(f.status) || isMessFee(f) || isOutstandingPayment(f)) return false;
-          const collegeCycle = (f.student?.college?.billingCycle || 'PREPAID').toUpperCase();
-          const feeMonth = resolveFeeBillingMonth(f);
-          const feeType = String(f.transactionType || '').toUpperCase();
-          const isCycleRelevantPending =
-            !feeMonth ||
-            (collegeCycle === 'POSTPAID'
-              ? (feeType.includes('FINE')
-                  ? isPostpaidPayableFee(f, previousMonthStr)
-                  : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
-              : (feeType.includes('RENT') || feeType.includes('ADVANCE')
-                  ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
-                  : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
-                    ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
-                    : feeMonth === currentMonthStr || feeMonth === previousMonthStr));
+  // Single ledger for all three cards and the reconciliation breakdown. It is
+  // built from transactions (not grouped display rows) so every invoice amount
+  // is categorised exactly once.
+  const reconciliation = useMemo(
+    () => buildFeeReconciliation({ allFees: fees, filteredFees }),
+    [fees, filteredFees],
+  );
 
-          if (isOutstandingInvoice(f) || (isImportedInvoice(f) && !isCycleRelevantPending)) return false;
-          if (isPreviousSettledFee(f) && !isCycleRelevantPending) return false;
-          return isCycleRelevantPending;
-        })
-        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-    );
-  }, [filteredFees]);
-
-  // Card 2: Total Fees Collected for the fresh cycle (collections starting from tomorrow)
-  const totalCollected = useMemo(() => {
-    return roundMoney(
-      displayFees
-        .filter(f => f.displayStatus === 'Paid')
-        .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
-    );
-  }, [displayFees]);
-
-  // Card 3: Pending Unpaid Fees (unpaid outstanding balance + fresh November dues)
-  const pendingFeesAmt = useMemo(() => {
-    return roundMoney(
-      displayFees
-        .filter(f => f.displayStatus === 'Unpaid')
-        .reduce((sum, f) => sum + (Number(f.displayBalance) || Number(f.totalAmount) || 0), 0)
-    );
-  }, [displayFees]);
+  const totalInvoiced = reconciliation.totalInvoiced;
+  const totalCollected = reconciliation.totalCollected;
+  const pendingFeesAmt = reconciliation.pendingUnpaid;
 
   const modalOutstandingPaid = useMemo(() => {
     const first = feesToCollect[0] || feeToCollect;
@@ -1033,7 +1003,8 @@ const Fees = () => {
           </div>
           <div>
             <div className="ui-stat-label">Total Invoiced</div>
-            <div className="ui-stat-value">₹{totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-value">{formatMoney(totalInvoiced)}</div>
+            <div className="ui-stat-sub">All in-scope invoices, paid and unpaid</div>
           </div>
         </div>
         <div className="ui-card ui-stat">
@@ -1042,7 +1013,8 @@ const Fees = () => {
           </div>
           <div>
             <div className="ui-stat-label">Total Fees Collected</div>
-            <div className="ui-stat-value">₹{totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-value">{formatMoney(totalCollected)}</div>
+            <div className="ui-stat-sub">Full payments + outstanding receipts</div>
           </div>
         </div>
         <div className="ui-card ui-stat">
@@ -1051,8 +1023,52 @@ const Fees = () => {
           </div>
           <div>
             <div className="ui-stat-label">Pending Unpaid Fees</div>
-            <div className="ui-stat-value">₹{pendingFeesAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            <div className="ui-stat-value">{formatMoney(pendingFeesAmt)}</div>
+            <div className="ui-stat-sub">Remaining balance payable now</div>
           </div>
+        </div>
+      </div>
+
+      <div className="ui-card fees-reconciliation">
+        <div className="fees-reconciliation-head">
+          <div>
+            <div className="fees-reconciliation-title">Invoice reconciliation</div>
+            <div className="fees-reconciliation-formula">
+              Total Invoiced = Collected + Pending Unpaid + Not Due + Partial Balance + Unreconciled
+            </div>
+          </div>
+          <span className={`ui-badge ${reconciliation.isReconciled ? 'ui-badge-success' : 'ui-badge-danger'}`}>
+            {reconciliation.isReconciled ? 'Reconciled' : 'Needs attention'}
+          </span>
+        </div>
+        <div className="fees-reconciliation-grid">
+          <div className="fees-reconciliation-cell">
+            <div className="fees-reconciliation-label">Collected</div>
+            <div className="fees-reconciliation-value is-success">{formatMoney(reconciliation.totalCollected)}</div>
+          </div>
+          <div className="fees-reconciliation-cell">
+            <div className="fees-reconciliation-label">Pending Unpaid</div>
+            <div className="fees-reconciliation-value is-danger">{formatMoney(reconciliation.pendingUnpaid)}</div>
+          </div>
+          <div className="fees-reconciliation-cell">
+            <div className="fees-reconciliation-label">Not Due</div>
+            <div className="fees-reconciliation-value is-warning">{formatMoney(reconciliation.notDue)}</div>
+          </div>
+          <div className="fees-reconciliation-cell">
+            <div className="fees-reconciliation-label">Partial Balance</div>
+            <div className="fees-reconciliation-value">{formatMoney(reconciliation.partialBalance)}</div>
+          </div>
+          <div className="fees-reconciliation-cell">
+            <div className="fees-reconciliation-label">Unreconciled</div>
+            <div className={`fees-reconciliation-value ${reconciliation.isReconciled ? 'is-muted' : 'is-danger'}`}>
+              {formatMoney(reconciliation.unreconciled)}
+            </div>
+          </div>
+        </div>
+        <div className="fees-reconciliation-note">
+          Outstanding dues and their receipts are always netted together. Mess fees are managed
+          separately and are not part of this ledger. If a row cannot be categorised, its amount is
+          shown as Unreconciled instead of forcing the totals to match.
         </div>
       </div>
 

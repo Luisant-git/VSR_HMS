@@ -371,7 +371,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   // amount must not mark current invoices as paid.
   const hasOutstandingItems = outstandingItems.length > 0 && outstandingBalance > 0;
   const [outstandingSelected, setOutstandingSelected] = useState<boolean>(hasOutstandingItems);
-  const [outstandingAmountInput, setOutstandingAmountInput] = useState('');
+  const [outstandingAmountInput, setOutstandingAmountInput] = useState(() =>
+    isStudentMode && hasOutstandingItems ? String(outstandingBalance) : '',
+  );
   const [feeStates, setFeeStates] = useState<Record<string, { selected: boolean }>>(() => {
     const initialState: Record<string, { selected: boolean }> = {};
     filteredPayableItems.forEach((f: any) => {
