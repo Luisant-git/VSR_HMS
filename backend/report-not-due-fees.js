@@ -88,20 +88,37 @@ const categoryOf = fee => {
   return 'other';
 };
 
-const isCycleRelevant = (fee, category, billingCycle, currentMonth, previousMonth) => {
+const isFreshCycleApplicable = (fee, currentMonth, previousMonth) => {
+  const category = categoryOf(fee);
+  const billingCycle =
+    String(fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
   const feeMonth = resolveFeeBillingMonth(fee);
-  if (!feeMonth) return true;
+
+  const cycleRelevant =
+    !feeMonth ||
+    (billingCycle === 'POSTPAID' && category === 'fine'
+      ? true
+      : feeMonth === currentMonth || feeMonth === previousMonth);
+
+  if (isImportedInvoice(fee) && !cycleRelevant) return false;
+  if (isPreviousSettledFee(fee) && !cycleRelevant) return false;
+  return true;
+};
+
+const isFeePayableNow = (fee, currentMonth, previousMonth) => {
+  const category = categoryOf(fee);
+  const feeMonth = resolveFeeBillingMonth(fee);
+  const billingCycle =
+    String(fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
 
   if (billingCycle === 'POSTPAID') {
     if (category === 'fine') return true;
-    return feeMonth === previousMonth || feeMonth === currentMonth;
+    return !feeMonth || feeMonth === previousMonth || feeMonth === currentMonth;
   }
 
+  if (!feeMonth) return true;
   if (category === 'rent' || category === 'advance') return feeMonth === currentMonth;
-  if (category === 'eb' || category === 'fine') {
-    return feeMonth === previousMonth || feeMonth === currentMonth;
-  }
-  return feeMonth === currentMonth || feeMonth === previousMonth;
+  return feeMonth === previousMonth || feeMonth === currentMonth;
 };
 
 const studentKeyOf = fee =>
@@ -136,45 +153,21 @@ async function main() {
     orderBy: { createdAt: 'desc' },
   });
 
-  const notDueByStudent = new Map();
-  const payableStudents = new Set();
+  const notDueRows = [];
 
   for (const fee of rows) {
     if (isMessFee(fee)) continue;
+    if (isOutstandingInvoice(fee)) continue;
+    if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) continue;
+    if (isFeePayableNow(fee, currentMonthStr, previousMonthStr)) continue;
 
-    const category = categoryOf(fee);
-    const billingCycle =
-      String(fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
-    const relevant = isCycleRelevant(
-      fee,
-      category,
-      billingCycle,
-      currentMonthStr,
-      previousMonthStr,
-    );
-
-    if (isOutstandingInvoice(fee) || (isImportedInvoice(fee) && !relevant)) continue;
-    if (isPreviousSettledFee(fee) && !relevant) continue;
-
-    const studentKey = studentKeyOf(fee);
-    if (relevant) {
-      payableStudents.add(studentKey);
-      continue;
-    }
-
-    if (!notDueByStudent.has(studentKey)) {
-      notDueByStudent.set(studentKey, {
-        student: fee.student,
-        studentId: fee.studentId,
-        total: 0,
-        fees: [],
-      });
-    }
-
-    const group = notDueByStudent.get(studentKey);
-    const amount = Number(fee.amount) || 0;
-    group.total += amount;
-    group.fees.push({
+    const amount = roundMoney(fee.amount);
+    if (amount === 0) continue;
+    notDueRows.push({
+      studentKey: studentKeyOf(fee),
+      studentName: fee.student?.name || 'Unknown',
+      college: fee.student?.college?.name || 'Unknown',
+      billingCycle: fee.student?.college?.billingCycle || 'PREPAID',
       id: fee.id,
       type: fee.transactionType,
       amount,
@@ -183,42 +176,43 @@ async function main() {
     });
   }
 
-  const report = [...notDueByStudent.entries()]
-    .filter(([studentKey, group]) => !payableStudents.has(studentKey) && group.total > 0.005)
-    .map(([studentKey, group]) => ({
-      studentKey,
-      studentName: group.student?.name || 'Unknown',
-      college: group.student?.college?.name || 'Unknown',
-      billingCycle: group.student?.college?.billingCycle || 'PREPAID',
-      total: roundMoney(group.total),
-      fees: group.fees,
-    }))
+  const total = roundMoney(notDueRows.reduce((sum, fee) => sum + fee.amount, 0));
+  const perStudent = new Map();
+  for (const fee of notDueRows) {
+    if (!perStudent.has(fee.studentKey)) {
+      perStudent.set(fee.studentKey, {
+        studentKey: fee.studentKey,
+        studentName: fee.studentName,
+        college: fee.college,
+        billingCycle: fee.billingCycle,
+        total: 0,
+      });
+    }
+    perStudent.get(fee.studentKey).total += fee.amount;
+  }
+  const studentRows = [...perStudent.values()]
+    .map(row => ({ ...row, total: roundMoney(row.total) }))
     .sort((a, b) => a.studentName.localeCompare(b.studentName));
 
-  const total = roundMoney(report.reduce((sum, student) => sum + student.total, 0));
-  const detailRows = report.flatMap(student =>
-    student.fees.map(fee => ({
-      student: student.studentName,
-      studentKey: student.studentKey,
-      college: student.college,
-      billingCycle: student.billingCycle,
-      type: fee.type,
-      amount: roundMoney(fee.amount),
-      billingMonth: fee.billingMonth,
-      description: fee.description,
-      feeId: fee.id,
-    })),
-  );
-
   console.log(`Billing months: previous=${previousMonthStr}, current=${currentMonthStr}`);
-  console.log(`Students with a visible "Not Due" row: ${report.length}`);
-  console.log(`Visible "Not Due" total: ₹${total.toFixed(2)}`);
+  console.log(`Pending invoices counted as "Not Due": ${notDueRows.length}`);
+  console.log(`"Not Due" total: ₹${total.toFixed(2)}`);
   console.log('Per-student totals:');
-  console.table(report.map(({ studentKey, studentName, college, billingCycle, total: amount }) => ({
+  console.table(studentRows.map(({ studentKey, studentName, college, billingCycle, total: amount }) => ({
     studentKey, studentName, college, billingCycle, total: `₹${amount.toFixed(2)}`,
   })));
-  console.log('Fee details included in those rows:');
-  console.table(detailRows);
+  console.log('Pending fee details counted as "Not Due":');
+  console.table(notDueRows.map(fee => ({
+    student: fee.studentName,
+    studentKey: fee.studentKey,
+    college: fee.college,
+    billingCycle: fee.billingCycle,
+    type: fee.type,
+    amount: `₹${fee.amount.toFixed(2)}`,
+    billingMonth: fee.billingMonth,
+    description: fee.description,
+    feeId: fee.id,
+  })));
 }
 
 main()
