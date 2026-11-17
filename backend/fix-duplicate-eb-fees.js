@@ -42,7 +42,6 @@ async function main() {
       name: true,
       transactions: {
         where: {
-          status: 'PENDING',
           transactionType: { in: ['EB_BILL', 'FINE'] },
         },
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
@@ -68,7 +67,13 @@ async function main() {
   }
   const student = students[0];
 
-  const pendingEbBills = student.transactions.filter(
+  const relevantFees = student.transactions.filter(
+    fee =>
+      fee.transactionType === 'EB_BILL' ||
+      fee.transactionType === 'FINE',
+  );
+  const pendingFees = relevantFees.filter(fee => fee.status === 'PENDING');
+  const pendingEbBills = pendingFees.filter(
     fee => fee.transactionType === 'EB_BILL',
   );
   const sheetRows = pendingEbBills.filter(fee =>
@@ -118,36 +123,44 @@ async function main() {
     }
   }
 
-  const ebFineRows = student.transactions.filter(
+  const ebFineRows = pendingFees.filter(
     fee =>
       fee.transactionType === 'FINE' &&
       /^late fine accumulation\s*-\s*eb\b/i.test(String(fee.description || '')),
   );
-  const fineGroups = new Map();
-  for (const fee of ebFineRows) {
-    const key = `${cents(fee.amount)}|${String(fee.description || '').trim().toLowerCase()}`;
-    if (!fineGroups.has(key)) fineGroups.set(key, []);
-    fineGroups.get(key).push(fee);
-  }
-
-  for (const fees of fineGroups.values()) {
-    if (fees.length < 2) continue;
-    const [keep, ...duplicates] = fees;
+  if (ebFineRows.length > 1) {
+    const [keep, ...duplicates] = [...ebFineRows].sort(
+      (left, right) =>
+        cents(right.amount) - cents(left.amount) ||
+        new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime() ||
+        left.id.localeCompare(right.id),
+    );
     for (const fee of duplicates) duplicateIds.add(fee.id);
     duplicateGroups.push({
-      reason: 'identical pending EB fine (same amount and description)',
+      reason: 'multiple pending late-fine rows tagged EB; the portal calculates one EB fine per student',
       keep,
       remove: duplicates,
     });
   }
 
+  console.log(`Student: ${student.name} (${student.regNo})`);
+  console.log(`Mode: ${APPLY_CHANGES ? 'APPLY' : 'DRY RUN — no database changes'}`);
+  console.log('EB bills and typed late-fine records:');
+  if (relevantFees.length === 0) {
+    console.log('  No EB bill or late-fine transaction records found.');
+  } else {
+    for (const fee of relevantFees) {
+      console.log(`  ${JSON.stringify(displayFee(fee))}`);
+    }
+  }
+
   if (duplicateGroups.length === 0) {
-    console.log(`No unambiguous duplicate pending EB bill or EB fine found for ${TARGET_REG_NO}.`);
+    console.log(
+      '\nNo duplicate matched the automatic repair rules. No database rows were changed.',
+    );
     return;
   }
 
-  console.log(`Student: ${student.name} (${student.regNo})`);
-  console.log(`Mode: ${APPLY_CHANGES ? 'APPLY' : 'DRY RUN — no database changes'}`);
   console.log('Duplicate groups:');
   for (const group of duplicateGroups) {
     console.log(`\n- ${group.reason}`);
