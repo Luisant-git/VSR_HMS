@@ -98,7 +98,6 @@ export class FeesService {
 
   async findAll() {
     const rows = await this.prisma.feeTransaction.findMany({
-      orderBy: { createdAt: 'desc' },
       include: {
         student: {
           select: {
@@ -106,8 +105,6 @@ export class FeesService {
             name: true,
             regNo: true,
             manualRegsiName: true,
-            mobileNo: true,
-            emailId: true,
             roomNo: true,
             college: {
               select: {

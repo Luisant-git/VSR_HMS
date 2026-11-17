@@ -227,7 +227,7 @@ const Fees = () => {
     { value: 'UNPAID', label: 'Unpaid' }
   ];
 
-  const filteredFees = fees.filter(fee => {
+  const filteredFees = useMemo(() => fees.filter(fee => {
     // Hide old settled receipts/invoices. Cycle-relevant pending dues for both
     // PREPAID and POSTPAID must remain visible even when generated earlier.
     const { previousMonthStr, currentMonthStr } = getBillingMonths();
@@ -278,7 +278,7 @@ const Fees = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = match && (
-        formatInvoiceNumber(fee, fees).toLowerCase().includes(q) ||
+        formatInvoiceNumber(fee).toLowerCase().includes(q) ||
         fee.transactionType.toLowerCase().includes(q) ||
         (fee.student?.name || '').toLowerCase().includes(q) ||
         (fee.student?.manualRegsiName || fee.student?.regNo || '').toLowerCase().includes(q) ||
@@ -287,7 +287,16 @@ const Fees = () => {
       );
     }
     return match;
-  });
+  }), [
+    fees,
+    filter,
+    selectedStudent,
+    collegeFilter,
+    roomFilter,
+    fromDate,
+    toDate,
+    searchQuery,
+  ]);
 
 
   // Per-student original outstanding, confirmed payments and remaining balance.
@@ -547,7 +556,7 @@ const Fees = () => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matches = (
-          (firstInvoice ? formatInvoiceNumber(firstInvoice, fees).toLowerCase().includes(q) : false) ||
+          (firstInvoice ? formatInvoiceNumber(firstInvoice).toLowerCase().includes(q) : false) ||
           (studentObj?.name || '').toLowerCase().includes(q) ||
           (studentObj?.manualRegsiName || studentObj?.regNo || '').toLowerCase().includes(q) ||
           (studentObj?.roomNo || '').toLowerCase().includes(q)
