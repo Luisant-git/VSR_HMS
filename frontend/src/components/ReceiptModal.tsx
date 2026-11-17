@@ -300,7 +300,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           .vintage-header {
             text-align: center;
             color: #000;
-            margin-bottom: 25px;
+            margin-bottom: 14px;
           }
           .vintage-header .top-text {
             font-family: "Georgia", serif;
@@ -308,12 +308,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             font-style: italic;
             font-weight: 600;
             letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
           }
           .vintage-header .temple-icon {
             width: 40px;
             height: auto;
-            margin: 0 auto 12px;
+            margin: 0 auto 6px;
             display: block;
           }
           
@@ -322,13 +322,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             font-size: 22px;
             font-weight: 700;
             letter-spacing: 1.5px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
           }
           .vintage-header .address-text {
             font-family: "Arial", sans-serif;
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             letter-spacing: 0.5px;
             line-height: 1.4;
             padding: 0 20px;
@@ -338,7 +338,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 15px auto;
+            margin: 8px auto;
             max-width: 550px;
           }
           .vintage-header .ornament-line::before,
@@ -363,8 +363,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             font-weight: 800;
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin-top: 25px;
-            margin-bottom: 25px;
+            margin-top: 14px;
+            margin-bottom: 14px;
           }
           
           /* Metadata Split Layout */
@@ -557,7 +557,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             .receipt-billed-to { flex-direction: column; margin-bottom: 22px !important; }
             .receipt-fee-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
             .receipt-fee-table { display: table !important; width: 100% !important; min-width: 520px !important; table-layout: auto; }
-            .receipt-fee-table th, .receipt-fee-table td { padding: 9px 8px !important; font-size: 12px !important; vertical-align: top; }
+            .receipt-fee-table th, .receipt-fee-table td { padding: 6px !important; font-size: 12px !important; vertical-align: top; }
             .action-bar { position: relative; z-index: 2; flex: 0 0 auto; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 12px !important; gap: 8px !important; }
             .action-bar button { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; justify-content: center; padding: 10px 8px !important; font-size: 12px !important; white-space: nowrap; }
             .action-bar button:last-child { grid-column: 1 / -1; }
@@ -586,7 +586,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               </svg>
 
               {/* Arched Main Title */}
-              <svg viewBox="0 0 1000 130" style={{ width: '100%', maxWidth: '800px', height: '110px', overflow: 'visible', margin: '0 auto', display: 'block' }}>
+              <svg viewBox="0 0 1000 130" style={{ width: '100%', maxWidth: '800px', height: '82px', overflow: 'visible', margin: '0 auto', display: 'block' }}>
                 <defs>
                   <path id="curve-title" d="M 50 100 Q 500 0 950 100" />
                 </defs>
@@ -680,20 +680,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             </div>
 
             {/* Fee Breakup Table */}
-            <div className="receipt-fee-block" style={{ marginBottom: '40px' }}>
+            <div className="receipt-fee-block" style={{ marginBottom: '20px' }}>
               <div className="receipt-fee-scroll" role="region" aria-label="Fee breakup table, scroll horizontally to see all columns" tabIndex={0}>
               <table className="receipt-fee-table" aria-label="Fee breakup" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
                 <thead>
                   <tr className="print-exact" style={{ background: '#f5f5f5' }}>
-                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Description</th>
-                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Category</th>
-                    <th style={{ border: '1px solid #000', padding: '12px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Amount</th>
+                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Description</th>
+                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Category</th>
+                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {feesList.map((f: any) => (
                     <tr key={f.id}>
-                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
+                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
                         <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
                           {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
                         </div>
@@ -717,20 +717,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                             );
                           })}
                       </td>
-                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
+                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
                         {f.transactionType}
                       </td>
-                      <td style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
                         ₹{f.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
                   {/* Total Row */}
                   <tr className="print-exact" style={{ background: '#f5f5f5' }}>
-                    <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '16px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
                       Total Amount Paid
                     </td>
-                    <td className="receipt-total-amount" style={{ border: '1px solid #000', padding: '16px', fontSize: '18px', color: '#000', fontWeight: 800, textAlign: 'right' }}>
+                    <td className="receipt-total-amount" style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '18px', color: '#000', fontWeight: 800, textAlign: 'right' }}>
                       ₹{totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
