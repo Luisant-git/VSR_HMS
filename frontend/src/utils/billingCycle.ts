@@ -117,12 +117,14 @@ export const resolveFeeBillingMonth = (fee: any): string | null => {
  * True when a PENDING fee is payable for a POSTPAID college.
  *
  * POSTPAID colleges bill the previous month, so only fees that resolve to the
- * previous billing month can be collected. Current/future-month fees are not
- * payable yet. Fines (e.g. late-fine accumulation on overdue dues) are payable
- * when raised, even for postpaid colleges.
+ * previous billing month can be collected. Current-month fee labels are also
+ * accepted for legacy invoices, matching the Fees page. Future-month fees are
+ * not payable yet. Fines are payable when raised.
  */
 export const isPostpaidPayableFee = (fee: any, previousMonthStr: string): boolean => {
   const type = String(fee?.transactionType || '').toUpperCase();
   if (type.includes('FINE')) return true;
-  return resolveFeeBillingMonth(fee) === previousMonthStr;
+  const { currentMonthStr } = getBillingMonths();
+  const feeMonth = resolveFeeBillingMonth(fee);
+  return !feeMonth || feeMonth === previousMonthStr || feeMonth === currentMonthStr;
 };

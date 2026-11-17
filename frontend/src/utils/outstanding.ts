@@ -219,11 +219,7 @@ export const isCurrentCycleFee = (fee: any, billingCycle?: string): boolean => {
   const cycle = billingCycle || fee?.student?.college?.billingCycle || 'PREPAID';
   if (cycle === 'POSTPAID') {
     const { previousMonthStr } = getBillingMonths();
-    const payableNow = isPostpaidPayableFee(fee, previousMonthStr);
-    if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {
-      return payableNow;
-    }
-    return payableNow;
+    return isPostpaidPayableFee(fee, previousMonthStr);
   }
 
   if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {

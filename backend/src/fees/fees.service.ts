@@ -99,11 +99,25 @@ export class FeesService {
   async findAll() {
     const rows = await this.prisma.feeTransaction.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { 
+      include: {
         student: {
-          include: { college: true }
-        }
-      }
+          select: {
+            id: true,
+            name: true,
+            regNo: true,
+            manualRegsiName: true,
+            mobileNo: true,
+            emailId: true,
+            roomNo: true,
+            college: {
+              select: {
+                name: true,
+                billingCycle: true,
+              },
+            },
+          },
+        },
+      },
     });
     return this.ensureInvoiceNumbers(rows);
   }
@@ -162,18 +176,53 @@ export class FeesService {
       groups.get(key)!.push(row);
     }
 
+    const groupsByPeriod = new Map<string, T[][]>();
     for (const group of groups.values()) {
       const first = group[0] as any;
       const date = new Date(first.paidDate || first.createdAt || Date.now());
-      const invoiceNumber = await this.allocateInvoiceNumber(this.prisma, date);
+      const period = this.invoicePeriod(date);
+      if (!groupsByPeriod.has(period)) groupsByPeriod.set(period, []);
+      groupsByPeriod.get(period)!.push(group);
+    }
 
-      await this.prisma.feeTransaction.updateMany({
-        where: { id: { in: group.map(row => row.id) } },
-        data: { invoiceNumber },
+    const reservedPeriods = await Promise.all(
+      Array.from(groupsByPeriod, async ([period, periodGroups]) => {
+        const counter = await this.prisma.invoiceCounter.upsert({
+          where: { period },
+          create: { period, value: periodGroups.length },
+          update: { value: { increment: periodGroups.length } },
+        });
+        return {
+          periodGroups,
+          firstSerial: counter.value - periodGroups.length + 1,
+        };
+      }),
+    );
+
+    for (const { periodGroups, firstSerial } of reservedPeriods) {
+      const numberedGroups = periodGroups.map((group, index) => {
+        const first = group[0] as any;
+        const date = new Date(first.paidDate || first.createdAt || Date.now());
+        return {
+          group,
+          invoiceNumber: this.formatInvoiceNumber(date, firstSerial + index),
+        };
       });
-      group.forEach(row => {
-        (row as any).invoiceNumber = invoiceNumber;
-      });
+
+      for (let offset = 0; offset < numberedGroups.length; offset += 25) {
+        const batch = numberedGroups.slice(offset, offset + 25);
+        await Promise.all(
+          batch.map(async ({ group, invoiceNumber }) => {
+            await this.prisma.feeTransaction.updateMany({
+              where: { id: { in: group.map(row => row.id) } },
+              data: { invoiceNumber },
+            });
+            group.forEach(row => {
+              (row as any).invoiceNumber = invoiceNumber;
+            });
+          }),
+        );
+      }
     }
 
     return rows;
