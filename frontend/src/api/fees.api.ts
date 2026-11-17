@@ -24,6 +24,16 @@ export const FeesAPI = {
         amount: number;
         currentAmount: number;
       }>;
+      pendingFines: Array<{
+        id: string;
+        studentId: string;
+        amount: number;
+        description: string | null;
+        status: string;
+        billingMonth: string | null;
+        dueDate: string | null;
+        createdAt: string;
+      }>;
     }>;
   },
 

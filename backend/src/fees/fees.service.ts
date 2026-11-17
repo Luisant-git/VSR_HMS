@@ -74,6 +74,12 @@ const IMPORT_CATEGORY_META: Record<
 
 @Injectable()
 export class FeesService {
+  /**
+   * Guards the one-time split of aggregate (legacy) fine rows so two preview
+   * requests for the same student cannot create duplicate typed rows.
+   */
+  private readonly legacyFineSplitInFlight = new Set<string>();
+
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateFeeDto) {
@@ -384,6 +390,35 @@ export class FeesService {
       });
     }
 
+    // Older deployments stored a single combined fine row (no fee-type tag).
+    // Split it the first time this student's fine preview is requested, so the
+    // Pay Now modal can show a separate Rent/EB fine checkbox immediately
+    // instead of waiting for the nightly cron migration.
+    await this.splitLegacyPendingFines(studentId, pending, fines);
+
+    const pendingFineRows = await this.prisma.feeTransaction.findMany({
+      where: {
+        studentId,
+        status: 'PENDING',
+        transactionType: 'FINE',
+        description: {
+          startsWith: 'Late fine accumulation -',
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        id: true,
+        studentId: true,
+        amount: true,
+        description: true,
+        status: true,
+        billingMonth: true,
+        dueDate: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
     // Legacy databases may have no Fine Master rates and no typed fine rows.
     // Fall back to the rate stored in the pending fine description and the
     // college due date (the previous behaviour).
@@ -417,6 +452,7 @@ export class FeesService {
             Math.max(0, daysFor(today) * legacyRate - alreadyPaid),
           ),
           fines: [],
+          pendingFines: pendingFineRows,
         };
       }
     }
@@ -445,7 +481,104 @@ export class FeesService {
         Math.max(0, typedCurrentAmount - legacyPaid),
       ),
       fines,
+      pendingFines: pendingFineRows,
     };
+  }
+
+  /**
+   * Converts legacy aggregate late-fine rows ("Late fine accumulation for N
+   * days overdue") into one row per fee type, preserving the accumulated
+   * total. Mirrors the nightly cron migration, but runs on demand so the
+   * payment modal can show separate fine checkboxes right away.
+   */
+  private async splitLegacyPendingFines(
+    studentId: string,
+    pending: any[],
+    fines: Array<{
+      key: FineKey;
+      label: string;
+      rate: number;
+      currentDaysOverdue: number;
+      currentAmount: number;
+    }>,
+  ) {
+    const pendingLateFines = pending.filter(
+      (item) =>
+        String(item.transactionType || '').toUpperCase() === 'FINE' &&
+        LATE_FINE_RE.test(String(item.description || '')),
+    );
+    const legacyRows = pendingLateFines.filter(
+      (item) => !fineKeyFromDescription(item.description),
+    );
+    if (legacyRows.length === 0) return;
+    // Typed rows already exist -> nothing to migrate.
+    if (
+      pendingLateFines.some((item) => fineKeyFromDescription(item.description))
+    ) {
+      return;
+    }
+    if (this.legacyFineSplitInFlight.has(studentId)) return;
+
+    const entries = fines.filter(
+      (entry) => entry.rate > 0 && entry.currentDaysOverdue > 0,
+    );
+    if (entries.length === 0) return;
+
+    const legacyTotal = roundMoney(
+      legacyRows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+    );
+    if (legacyTotal <= 0) return;
+
+    this.legacyFineSplitInFlight.add(studentId);
+    try {
+      const grossTotal = roundMoney(
+        entries.reduce(
+          (sum, entry) => sum + entry.rate * entry.currentDaysOverdue,
+          0,
+        ),
+      );
+      let allocated = 0;
+      let created = 0;
+
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index];
+        const isLast = index === entries.length - 1;
+        const share = isLast
+          ? roundMoney(legacyTotal - allocated)
+          : roundMoney(
+              (legacyTotal * (entry.rate * entry.currentDaysOverdue)) /
+                (grossTotal || 1),
+            );
+        allocated = roundMoney(allocated + share);
+        if (share <= 0) continue;
+
+        // Store at least today's per-type amount (what the nightly cron would
+        // set), so the Fees table and the Pay Now quote show the same fine.
+        const amount = roundMoney(
+          Math.max(share, Number(entry.currentAmount) || 0),
+        );
+        if (amount <= 0) continue;
+
+        await this.prisma.feeTransaction.create({
+          data: {
+            studentId,
+            transactionType: 'FINE',
+            amount,
+            status: 'PENDING',
+            description: `Late fine accumulation - ${entry.label} for ${entry.currentDaysOverdue} days overdue (₹${entry.rate}/day)`,
+          },
+        });
+        created += 1;
+      }
+
+      if (created > 0) {
+        await this.prisma.feeTransaction.deleteMany({
+          where: { id: { in: legacyRows.map((item) => item.id) } },
+        });
+      }
+    } finally {
+      this.legacyFineSplitInFlight.delete(studentId);
+    }
   }
 
   private startOfDay(value: Date) {

@@ -163,6 +163,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       amount: number;
       currentAmount: number;
     }>;
+    pendingFines: Array<{
+      id: string;
+      studentId: string;
+      amount: number;
+      description: string | null;
+      status: string;
+      billingMonth: string | null;
+      dueDate: string | null;
+      createdAt: string;
+    }>;
   }>({
     amount: 0,
     currentAmount: 0,
@@ -170,6 +180,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     dailyFine: 0,
     asOfDate: null,
     fines: [],
+    pendingFines: [],
   });
   const [fineQuoteError, setFineQuoteError] = useState<string | null>(null);
   const [loadingFineQuote, setLoadingFineQuote] = useState(false);
@@ -212,6 +223,43 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     (fee: any) => isFineFee(fee) && getFineParentType(fee) !== null,
   );
 
+  const legacyLateFineItems = selectableCurrentItems.filter(
+    (fee: any) =>
+      isFineFee(fee) &&
+      getFineParentType(fee) === null &&
+      /late fine accumulation/i.test(String(fee?.description || '')),
+  );
+
+  // Older databases keep one combined fine row. The preview splits it into
+  // one row per fee type on first open, so show those rows (each with its own
+  // checkbox) instead of the stale combined row.
+  const shouldUseSplitFineRows =
+    typedFineItems.length === 0 &&
+    legacyLateFineItems.length > 0 &&
+    fineQuote.pendingFines.length > 0;
+
+  const legacyLateFineIds = new Set(
+    legacyLateFineItems.map((fee: any) => fee.id),
+  );
+
+  const displayCurrentItems = shouldUseSplitFineRows
+    ? [
+        ...selectableCurrentItems.filter(
+          (fee: any) => !legacyLateFineIds.has(fee.id),
+        ),
+        ...fineQuote.pendingFines.map((row) => ({
+          ...legacyLateFineItems[0],
+          id: row.id,
+          amount: Number(row.amount) || 0,
+          description: row.description,
+          status: 'PENDING',
+          billingMonth: row.billingMonth ?? legacyLateFineItems[0].billingMonth,
+          dueDate: row.dueDate ?? legacyLateFineItems[0].dueDate,
+          fineMigrated: true,
+        })),
+      ]
+    : selectableCurrentItems;
+
   /**
    * Returns the date-based amount for a stored FINE row.
    * Typed rows use their own fee type; older untagged rows use the total, or
@@ -250,7 +298,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     };
   };
 
-  const payableCurrentItems = selectableCurrentItems.map((f: any) => {
+  const payableCurrentItems = displayCurrentItems.map((f: any) => {
     if (!isFineFee(f)) return f;
     const quote = fineQuoteFor(f);
     if (!quote) return f;
@@ -388,6 +436,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
             dailyFine: Number(quote.dailyFine) || 0,
             asOfDate: quote.asOfDate || paymentDate,
             fines: Array.isArray(quote.fines) ? quote.fines : [],
+            pendingFines: Array.isArray(quote.pendingFines) ? quote.pendingFines : [],
           });
         }
       })
@@ -1032,7 +1081,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                                     {f.fineQuote.daysOverdue > 0
                                       ? `${f.fineQuote.daysOverdue} overdue day${f.fineQuote.daysOverdue === 1 ? '' : 's'}`
                                       : 'no fine'}
-                                    {Number(f.originalAmount) !== Number(f.amount) && (
+                                    {!f.fineMigrated && Number(f.originalAmount) !== Number(f.amount) && (
                                       <> (was ₹{Number(f.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</>
                                     )}
                                   </span>
