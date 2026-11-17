@@ -328,12 +328,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     const isFine = type.includes('FINE');
 
     if (collegeCycle === 'POSTPAID') {
-      if (isFine) return isPostpaidPayableFee(f, previousBillingMonth);
-      if (isRentLike || isEb) {
-        return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
-      }
-      return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
-    }
+  return isPostpaidPayableFee(f, previousBillingMonth);
+}
 
     // PREPAID pays current-month rent in advance; EB and fines from the
     // previous month are collected in the current cycle.
