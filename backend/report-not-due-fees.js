@@ -154,8 +154,13 @@ async function main() {
   });
 
   const notDueRows = [];
+  let excludedAdvanceTotal = 0;
 
   for (const fee of rows) {
+    if (String(fee.transactionType || '').toUpperCase() === 'ADVANCE') {
+      excludedAdvanceTotal = roundMoney(excludedAdvanceTotal + fee.amount);
+      continue;
+    }
     if (isMessFee(fee)) continue;
     if (isOutstandingInvoice(fee)) continue;
     if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) continue;
@@ -197,6 +202,7 @@ async function main() {
   console.log(`Billing months: previous=${previousMonthStr}, current=${currentMonthStr}`);
   console.log(`Pending invoices counted as "Not Due": ${notDueRows.length}`);
   console.log(`"Not Due" total: ₹${total.toFixed(2)}`);
+  console.log(`Already-paid advance amount excluded: ₹${excludedAdvanceTotal.toFixed(2)}`);
   console.log('Per-student totals:');
   console.table(studentRows.map(({ studentKey, studentName, college, billingCycle, total: amount }) => ({
     studentKey, studentName, college, billingCycle, total: `₹${amount.toFixed(2)}`,

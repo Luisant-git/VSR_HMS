@@ -364,6 +364,7 @@ const Fees = () => {
       const studentId = getStudentKey(f);
 
       const type = (f.transactionType || '').toUpperCase();
+      if (f.status === 'PENDING' && type === 'ADVANCE') return;
       // Previous outstanding dues are shown in the Total Amount / Balance
       // columns only. They must never be counted under Rent / Mess / EB /
       // Fine / Advance, otherwise the same money appears twice in the row.

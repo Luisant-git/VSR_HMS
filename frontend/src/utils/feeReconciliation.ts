@@ -168,13 +168,20 @@ export const buildFeeReconciliation = ({
   filteredFees.forEach(fee => {
     if (!fee) return;
     if (isMessFee(fee)) return;
+    // Advance deposits are already paid and are not fee-cycle dues.
+    if (
+      fee.status === 'PENDING' &&
+      String(fee.transactionType || '').toUpperCase() === 'ADVANCE'
+    ) {
+      return;
+    }
     // Both outstanding invoices and outstanding receipts belong to the
     // historical ledger below; counting them here would duplicate the money.
     if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) return;
+    if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) return;
 
     const amount = roundMoney(Number(fee.amount) || 0);
     if (!Number.isFinite(amount) || amount === 0) return;
-    if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) return;
 
     // A PARTIAL row has no linked receipt in the current data model, so we
     // cannot know how much was collected. Keep the invoice amount visible and
