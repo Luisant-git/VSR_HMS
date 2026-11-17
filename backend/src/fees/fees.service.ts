@@ -18,6 +18,19 @@ const OUTSTANDING_PAYMENT_TYPE = 'OUTSTANDING_PAYMENT';
 const OUTSTANDING_PREFIX = 'Outstanding';
 const MONEY_EPSILON = 0.001;
 
+type FineKey = 'rent' | 'mess' | 'eb';
+
+const LATE_FINE_RE = /late fine accumulation/i;
+const LATE_FINE_TAG_RE = /late fine accumulation\s*-\s*(rent|mess|eb)\b/i;
+
+/** Reads the fee type tag from "Late fine accumulation - Rent ..." rows. */
+const fineKeyFromDescription = (
+  description?: string | null,
+): FineKey | null => {
+  const match = String(description || '').match(LATE_FINE_TAG_RE);
+  return match ? (match[1].toLowerCase() as FineKey) : null;
+};
+
 const isOutstandingDescription = (fee: any) =>
   /^\s*outstanding\b/i.test(String(fee?.description || ''));
 
@@ -250,38 +263,11 @@ export class FeesService {
     });
     if (!student) throw new NotFoundException('Student not found.');
 
-    const dueDate = student.college?.dueDate
-      ? new Date(student.college.dueDate)
+    const collegeDueDate = student.college?.dueDate
+      ? this.startOfDay(new Date(student.college.dueDate))
       : null;
     const pending = student.transactions || [];
-    const hasPendingRent = pending.some(
-      (item) => item.transactionType === 'RENT' || item.transactionType === 'ADVANCE',
-    );
-    const hasPendingMess = pending.some((item) => item.transactionType === 'MESS');
-    const hasPendingEb = pending.some((item) => item.transactionType === 'EB_BILL');
     const fineMaster = student.college?.fineMaster;
-    let dailyFine =
-      (hasPendingRent ? Number(fineMaster?.rentFine) || 0 : 0) +
-      (hasPendingMess ? Number(fineMaster?.messFine) || 0 : 0) +
-      (hasPendingEb ? Number(fineMaster?.ebFine) || 0 : 0);
-
-    const pendingLateFines = pending.filter(
-      (item) =>
-        item.transactionType === 'FINE' &&
-        /late fine accumulation/i.test(String(item.description || '')),
-    );
-    if (dailyFine <= 0) {
-      const rateMatch = pendingLateFines[0]?.description?.match(/₹([\d,.]+)\/day/i);
-      dailyFine = rateMatch ? Number(rateMatch[1].replace(/,/g, '')) || 0 : 0;
-    }
-
-    const daysFor = (date: Date) => {
-      if (!dueDate || dailyFine <= 0) return 0;
-      const dueDay = new Date(dueDate);
-      dueDay.setHours(0, 0, 0, 0);
-      if (date < dueDay) return 0;
-      return Math.floor((date.getTime() - dueDay.getTime()) / 86_400_000) + 1;
-    };
 
     const completedFines = await this.prisma.feeTransaction.findMany({
       where: {
@@ -290,21 +276,182 @@ export class FeesService {
         transactionType: 'FINE',
         description: { startsWith: 'Late fine accumulation', mode: 'insensitive' },
       },
-      select: { amount: true },
+      select: { amount: true, description: true },
     });
-    const alreadyPaid = roundMoney(
-      completedFines.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+
+    // Track how much fine was already paid, separately per fee type, so a
+    // backdated receipt only reduces the fine types that are still pending.
+    const paidByType: Record<FineKey, number> = { rent: 0, mess: 0, eb: 0 };
+    let legacyPaid = 0;
+    completedFines.forEach((item) => {
+      const amount = Number(item.amount) || 0;
+      const key = fineKeyFromDescription(item.description);
+      if (key) paidByType[key] += amount;
+      else legacyPaid += amount;
+    });
+
+    const pendingLateFines = pending.filter(
+      (item) =>
+        String(item.transactionType || '').toUpperCase() === 'FINE' &&
+        LATE_FINE_RE.test(String(item.description || '')),
     );
-    const amountFor = (date: Date) =>
-      roundMoney(Math.max(0, daysFor(date) * dailyFine - alreadyPaid));
+
+    const configs: Array<{
+      key: FineKey;
+      label: string;
+      rate: number;
+      types: string[];
+    }> = [
+      {
+        key: 'rent',
+        label: 'Rent',
+        rate: Number(fineMaster?.rentFine) || 0,
+        types: ['RENT', 'ADVANCE'],
+      },
+      { key: 'mess', label: 'Mess', rate: Number(fineMaster?.messFine) || 0, types: ['MESS'] },
+      { key: 'eb', label: 'EB', rate: Number(fineMaster?.ebFine) || 0, types: ['EB_BILL'] },
+    ];
+
+    const fines: Array<{
+      key: FineKey;
+      label: string;
+      rate: number;
+      dueDate: string;
+      daysOverdue: number;
+      currentDaysOverdue: number;
+      amount: number;
+      currentAmount: number;
+    }> = [];
+
+    for (const config of configs) {
+      const pendingParents = pending.filter((item) =>
+        config.types.includes(
+          String(item.transactionType || '').toUpperCase(),
+        ),
+      );
+      const typedFine = pendingLateFines.find(
+        (item) => fineKeyFromDescription(item.description) === config.key,
+      );
+
+      // Only charge a fee type when it is actually due (or a fine for it is
+      // already pending), otherwise every configured rate would apply to
+      // every student.
+      if (pendingParents.length === 0 && !typedFine) continue;
+
+      let rate = config.rate;
+
+      // Older rows may predate Fine Master. Fall back to the rate stored in
+      // the fine description ("... (₹10/day)").
+      if (rate <= 0) {
+        const rateMatch = typedFine?.description?.match(/₹([\d,.]+)\/day/i);
+        rate = rateMatch ? Number(rateMatch[1].replace(/,/g, '')) || 0 : 0;
+      }
+      if (rate <= 0) continue;
+
+      // Each fee type accrues from its own due date. If the pending parent fee
+      // has no due date, fall back to the college due date.
+      const parentDueDates = pendingParents
+        .filter((item) => item.dueDate)
+        .map((item) => this.startOfDay(new Date(item.dueDate as Date)));
+
+      const dueDate =
+        parentDueDates.length > 0
+          ? parentDueDates.reduce((oldest, current) =>
+              current.getTime() < oldest.getTime() ? current : oldest,
+            )
+          : collegeDueDate;
+      if (!dueDate) continue;
+
+      const daysFor = (date: Date) => {
+        if (date.getTime() < dueDate.getTime()) return 0;
+        return (
+          Math.floor((date.getTime() - dueDate.getTime()) / 86_400_000) + 1
+        );
+      };
+      const paid = roundMoney(paidByType[config.key]);
+      const amountFor = (date: Date) =>
+        roundMoney(Math.max(0, daysFor(date) * rate - paid));
+
+      fines.push({
+        key: config.key,
+        label: config.label,
+        rate: roundMoney(rate),
+        dueDate: `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`,
+        daysOverdue: daysFor(asOfDate),
+        currentDaysOverdue: daysFor(today),
+        amount: amountFor(asOfDate),
+        currentAmount: amountFor(today),
+      });
+    }
+
+    // Legacy databases may have no Fine Master rates and no typed fine rows.
+    // Fall back to the rate stored in the pending fine description and the
+    // college due date (the previous behaviour).
+    if (fines.length === 0) {
+      const legacyRateMatch = pendingLateFines[0]?.description?.match(
+        /₹([\d,.]+)\/day/i,
+      );
+      const legacyRate = legacyRateMatch
+        ? Number(legacyRateMatch[1].replace(/,/g, '')) || 0
+        : 0;
+      if (legacyRate > 0 && collegeDueDate) {
+        const alreadyPaid = roundMoney(
+          paidByType.rent + paidByType.mess + paidByType.eb + legacyPaid,
+        );
+        const daysFor = (date: Date) => {
+          if (date.getTime() < collegeDueDate.getTime()) return 0;
+          return (
+            Math.floor(
+              (date.getTime() - collegeDueDate.getTime()) / 86_400_000,
+            ) + 1
+          );
+        };
+        return {
+          asOfDate: asOfDateValue,
+          daysOverdue: daysFor(asOfDate),
+          dailyFine: roundMoney(legacyRate),
+          amount: roundMoney(
+            Math.max(0, daysFor(asOfDate) * legacyRate - alreadyPaid),
+          ),
+          currentAmount: roundMoney(
+            Math.max(0, daysFor(today) * legacyRate - alreadyPaid),
+          ),
+          fines: [],
+        };
+      }
+    }
+
+    // Aggregate fields kept for existing callers. Per-type amounts are
+    // returned in `fines`; legacy (untagged) paid fines are deducted from the
+    // total so the same money is not counted twice.
+    const typedAmount = roundMoney(
+      fines.reduce((sum, entry) => sum + entry.amount, 0),
+    );
+    const typedCurrentAmount = roundMoney(
+      fines.reduce((sum, entry) => sum + entry.currentAmount, 0),
+    );
 
     return {
       asOfDate: asOfDateValue,
-      daysOverdue: daysFor(asOfDate),
-      dailyFine: roundMoney(dailyFine),
-      amount: amountFor(asOfDate),
-      currentAmount: amountFor(today),
+      daysOverdue: fines.reduce(
+        (max, entry) => Math.max(max, entry.daysOverdue),
+        0,
+      ),
+      dailyFine: roundMoney(
+        fines.reduce((sum, entry) => sum + entry.rate, 0),
+      ),
+      amount: roundMoney(Math.max(0, typedAmount - legacyPaid)),
+      currentAmount: roundMoney(
+        Math.max(0, typedCurrentAmount - legacyPaid),
+      ),
+      fines,
     };
+  }
+
+  private startOfDay(value: Date) {
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
+    return date;
   }
 
   /**

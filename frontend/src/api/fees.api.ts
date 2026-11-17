@@ -14,6 +14,16 @@ export const FeesAPI = {
       dailyFine: number;
       amount: number;
       currentAmount: number;
+      fines: Array<{
+        key: 'rent' | 'mess' | 'eb';
+        label: string;
+        rate: number;
+        dueDate: string;
+        daysOverdue: number;
+        currentDaysOverdue: number;
+        amount: number;
+        currentAmount: number;
+      }>;
     }>;
   },
 

@@ -96,9 +96,11 @@ const getTodayInput = () => {
   return local.toISOString().slice(0, 10);
 };
 
-const isLateFine = (fee: any) =>
-  String(fee?.transactionType || '').toUpperCase() === 'FINE' &&
-  /late fine accumulation/i.test(String(fee?.description || ''));
+const formatDateDMY = (value: string) => {
+  const [year, month, day] = String(value || '').split('-').map(Number);
+  if (!year || !month || !day) return value;
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+};
 
 type FineParentType = 'RENT' | 'MESS' | 'EB';
 
@@ -145,11 +147,29 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 }) => {
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [paymentDate, setPaymentDate] = useState(getTodayInput);
-  const [fineQuote, setFineQuote] = useState({
+  const [fineQuote, setFineQuote] = useState<{
+    amount: number;
+    currentAmount: number;
+    daysOverdue: number;
+    dailyFine: number;
+    asOfDate: string | null;
+    fines: Array<{
+      key: 'rent' | 'mess' | 'eb';
+      label: string;
+      rate: number;
+      dueDate: string;
+      daysOverdue: number;
+      currentDaysOverdue: number;
+      amount: number;
+      currentAmount: number;
+    }>;
+  }>({
     amount: 0,
     currentAmount: 0,
     daysOverdue: 0,
     dailyFine: 0,
+    asOfDate: null,
+    fines: [],
   });
   const [fineQuoteError, setFineQuoteError] = useState<string | null>(null);
   const [loadingFineQuote, setLoadingFineQuote] = useState(false);
@@ -167,18 +187,80 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   // Current-month invoices stay exactly as before. Previous outstanding
   // invoices are consolidated into a single OUTSTANDING item.
   const outstandingItems = itemsToPay.filter(isOutstandingFee);
-  const lateFineItems = itemsToPay.filter(isLateFine);
-  // Stored late-fine rows are real dues, so they must be listed alongside
-  // rent/EB. (The old date-based fine *estimate* was removed, so there is no
-  // longer a duplicate to hide here.)
+  // Stored late-fine rows are real dues, so they stay in the list. Their
+  // amount is replaced with the fine calculated for the selected receipt
+  // date, per fee type (Rent / Mess / EB).
   const currentItems = itemsToPay.filter((f: any) => !isOutstandingFee(f));
   const selectableCurrentItems = isStudentMode
     ? currentItems.filter((f: any) => !(f.transactionType || '').toUpperCase().startsWith('MESS'))
     : currentItems;
-  // Only actual fee rows passed from the Fees page are payable here. The
-  // date-based late-fine estimate is informational and is not added as an
-  // extra line, so the modal total always matches the table row.
-  const payableCurrentItems = selectableCurrentItems;
+
+  const fineQuoteReady =
+    allowPaymentDate &&
+    !loadingFineQuote &&
+    !fineQuoteError &&
+    fineQuote.asOfDate === paymentDate;
+
+  const fineQuoteEntryFor = (fee: any) => {
+    const parentType = getFineParentType(fee);
+    const key =
+      parentType === 'RENT' ? 'rent' : parentType === 'MESS' ? 'mess' : parentType === 'EB' ? 'eb' : null;
+    return key ? (fineQuote.fines.find((item) => item.key === key) ?? null) : null;
+  };
+
+  const typedFineItems = selectableCurrentItems.filter(
+    (fee: any) => isFineFee(fee) && getFineParentType(fee) !== null,
+  );
+
+  /**
+   * Returns the date-based amount for a stored FINE row.
+   * Typed rows use their own fee type; older untagged rows use the total, or
+   * the remaining total when typed fine rows also exist.
+   */
+  const fineQuoteFor = (fee: any) => {
+    if (!fineQuoteReady) return null;
+
+    const entry = fineQuoteEntryFor(fee);
+    if (entry) {
+      return {
+        amount: entry.amount,
+        daysOverdue: entry.daysOverdue,
+        currentAmount: entry.currentAmount,
+      };
+    }
+    if (getFineParentType(fee) !== null) {
+      // A typed fine without its own quote basis keeps the stored amount.
+      return null;
+    }
+
+    // Untagged legacy fine row: it represents the combined fine.
+    const typedAmount = roundMoney(
+      typedFineItems.reduce((sum: number, item: any) => {
+        const itemEntry = fineQuoteEntryFor(item);
+        return sum + (itemEntry ? itemEntry.amount : 0);
+      }, 0),
+    );
+    return {
+      amount:
+        typedFineItems.length > 0
+          ? roundMoney(Math.max(0, fineQuote.amount - typedAmount))
+          : fineQuote.amount,
+      daysOverdue: fineQuote.daysOverdue,
+      currentAmount: fineQuote.currentAmount,
+    };
+  };
+
+  const payableCurrentItems = selectableCurrentItems.map((f: any) => {
+    if (!isFineFee(f)) return f;
+    const quote = fineQuoteFor(f);
+    if (!quote) return f;
+    return {
+      ...f,
+      amount: quote.amount,
+      originalAmount: Number(f.amount) || 0,
+      fineQuote: quote,
+    };
+  });
 
   // POSTPAID colleges bill the postpaid month (previous month). PREPAID
   // colleges pay current-month rent but receive previous-month EB and fine.
@@ -304,6 +386,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
             currentAmount: Number(quote.currentAmount) || 0,
             daysOverdue: Number(quote.daysOverdue) || 0,
             dailyFine: Number(quote.dailyFine) || 0,
+            asOfDate: quote.asOfDate || paymentDate,
+            fines: Array.isArray(quote.fines) ? quote.fines : [],
           });
         }
       })
@@ -312,6 +396,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           setFineQuoteError(
             error instanceof Error ? error.message : 'Unable to calculate fine for this date.',
           );
+          setFineQuote((prev) => ({ ...prev, asOfDate: null }));
         }
       })
       .finally(() => {
@@ -463,42 +548,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           }
         }
 
-        if (f.isDateFinePreview) {
-          const created = await FeesAPI.create({
-            studentId: f.studentId,
-            transactionType: 'FINE',
-            amount: f.amount,
-            status: 'COMPLETED',
-            paymentMode,
-            paidDate: selectedPaidDate,
-            description: finalDesc,
-          });
-          return { ...created, student: created.student || f.student };
-        } else {
-          const updated = await FeesAPI.update(f.id, {
-            status: 'COMPLETED',
-            paymentMode,
-            paidDate: selectedPaidDate,
-            amount: f.amount * currentMultiplier,
-            description: finalDesc
-          });
-          return { ...updated, student: updated.student || f.student };
-        }
+        const updated = await FeesAPI.update(f.id, {
+          status: 'COMPLETED',
+          paymentMode,
+          paidDate: selectedPaidDate,
+          amount: f.amount * currentMultiplier,
+          description: finalDesc,
+        });
+        return { ...updated, student: updated.student || f.student };
       }));
-
-      const selectedDateFine = activeItemsToPay.some((item: any) => item.isDateFinePreview);
-      if (selectedDateFine && lateFineItems.length > 0) {
-        const remainingAccruedFine = roundMoney(
-          Math.max(0, fineQuote.currentAmount - fineQuote.amount),
-        );
-        await Promise.all(
-          lateFineItems.map((item: any, index: number) =>
-            FeesAPI.update(item.id, {
-              amount: index === 0 ? remainingAccruedFine : 0,
-            }),
-          ),
-        );
-      }
 
       // Apply the outstanding payment through the dedicated backend endpoint.
       // The backend re-validates the amount against the live balance inside a
@@ -901,6 +959,24 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                     <div style={{ marginTop: '8px', fontSize: '13px', color: '#64748b' }}>Checking fine for selected date…</div>
                   ) : fineQuoteError ? (
                     <div role="alert" style={{ marginTop: '8px', fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
+                  ) : fineQuoteReady ? (
+                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569' }}>
+                      Late fine on {formatDateDMY(paymentDate)}:{' '}
+                      <strong>₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                      {fineQuote.fines.length > 0 ? (
+                        <span>
+                          {' '}
+                          ({fineQuote.fines
+                            .map(
+                              (entry) =>
+                                `${entry.label} ₹${entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+                            )
+                            .join(', ')})
+                        </span>
+                      ) : (
+                        <span> — no overdue fine</span>
+                      )}
+                    </div>
                   ) : null}
                 </div>
               )}
@@ -949,6 +1025,18 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                               </div>
                               <div style={{ color: '#64748b', fontSize: '13px' }}>
                                 {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
+                                {f.fineQuote && (
+                                  <span style={{ color: '#b45309', fontWeight: 600 }}>
+                                    {' '}
+                                    · As of {formatDateDMY(paymentDate)}:{' '}
+                                    {f.fineQuote.daysOverdue > 0
+                                      ? `${f.fineQuote.daysOverdue} overdue day${f.fineQuote.daysOverdue === 1 ? '' : 's'}`
+                                      : 'no fine'}
+                                    {Number(f.originalAmount) !== Number(f.amount) && (
+                                      <> (was ₹{Number(f.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</>
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
