@@ -172,7 +172,7 @@ const Dashboard = () => {
           <div className="value">{vacantBeds} / {totalBeds}</div>
         </div>
 
-        <div className="metric-card metric-card-orange" style={{ cursor: 'pointer' }} onClick={() => navigate('/gate-logs')}>
+        <div className="metric-card metric-card-orange" style={{ cursor: 'pointer' }} onClick={() => navigate('/biometric-attendance/outside')}>
           <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             Currently Out
             <LogOut size={18} />
