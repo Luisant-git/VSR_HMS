@@ -705,7 +705,7 @@ export class BiometricAttendanceService {
           v.movement_direction, 
           v.punch_time
         FROM public.view_student_in_out_logs v
-        WHERE v.punch_date <= (CAST($2 AS date) + INTERVAL '1 day')
+        WHERE v.punch_date BETWEEN CAST($1 AS date) AND CAST($2 AS date)
         ORDER BY v.user_pin, v.punch_time DESC
       )
     `;
