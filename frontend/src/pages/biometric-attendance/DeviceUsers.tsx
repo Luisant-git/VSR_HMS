@@ -24,6 +24,7 @@ const DeviceUsers = () => {
   const [search, setSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'vacated' | 'unmatched'>('active');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
   const [exporting, setExporting] = useState(false);
 
@@ -35,13 +36,14 @@ const DeviceUsers = () => {
         search: search.trim(),
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
       }),
-    [page, search, fromDate, toDate],
+    [page, search, fromDate, toDate, statusFilter],
   );
 
   useEffect(() => {
     setPage(1);
-  }, [search, fromDate, toDate]);
+  }, [search, fromDate, toDate, statusFilter]);
 
   const handleFrom = (value: string) => {
     setFromDate(value);
@@ -73,6 +75,7 @@ const DeviceUsers = () => {
           search: search.trim(),
           fromDate: fromDate || undefined,
           toDate: toDate || undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
         });
         if (full?.data?.length) {
           exportRows = full.data;
@@ -89,8 +92,9 @@ const DeviceUsers = () => {
               'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
               'Reg No': row.reg_no || '',
               'Room No': row.room_no || '',
-              'Face Biometric': row.face_enrolled ? 'Yes' : '',
-              Fingerprints: row.fingerprint_enrolled ? 'Yes' : '',
+              'Student Status': row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
+              'Face Biometric': row.face_enrolled ? 'Yes' : 'No',
+              Fingerprints: row.fingerprint_enrolled ? 'Yes' : 'No',
               'Card No': row.card_no || '',
               'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
             })),
@@ -110,8 +114,9 @@ const DeviceUsers = () => {
               'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
               'Reg No': row.reg_no || '',
               'Room No': row.room_no || '',
-              'Face Biometric': row.face_enrolled ? 'Yes' : '',
-              Fingerprints: row.fingerprint_enrolled ? 'Yes' : '',
+              'Student Status': row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
+              'Face Biometric': row.face_enrolled ? 'Yes' : 'No',
+              Fingerprints: row.fingerprint_enrolled ? 'Yes' : 'No',
               'Card No': row.card_no || '',
               'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
             })),
@@ -140,11 +145,50 @@ const DeviceUsers = () => {
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
           items={[
-            { label: 'Enrolled users', value: summary?.totalUsers ?? '—', sub: 'Distinct device + PIN pairs', icon: <Users size={19} />, tone: 'accent' },
-            { label: 'Matched', value: summary?.matched ?? '—', sub: 'Linked to a student record', icon: <UserCheck size={19} />, tone: 'success' },
-            { label: 'Not matched', value: summary?.unmatched ?? '—', sub: 'Need register number mapping', icon: <UserX size={19} />, tone: 'warning' },
-            { label: 'Face biometric', value: summary?.faceEnrolled ?? '—', sub: 'Enrolled face biometrics', icon: <ScanFace size={19} />, tone: 'info' },
-            { label: 'Fingerprints', value: summary?.fingerprintEnrolled ?? '—', sub: 'Enrolled fingerprints', icon: <Fingerprint size={19} />, tone: 'purple' },
+            {
+              label: 'Active students',
+              value:
+                summary?.activeMatched !== undefined && summary?.totalActiveStudents !== undefined
+                  ? `${summary.activeMatched} / ${summary.totalActiveStudents}`
+                  : (summary?.totalUsers ?? '—'),
+              sub: 'Active hostel students on machine',
+              icon: <Users size={19} />,
+              tone: 'accent',
+            },
+            {
+              label: 'Total matched',
+              value: summary?.matched ?? '—',
+              sub: `${summary?.activeMatched ?? 0} active + ${summary?.vacatedMatched ?? 0} vacated`,
+              icon: <UserCheck size={19} />,
+              tone: 'success',
+            },
+            {
+              label: 'Not matched',
+              value: summary?.unmatched ?? '—',
+              sub: 'Device PINs needing registration',
+              icon: <UserX size={19} />,
+              tone: 'warning',
+            },
+            {
+              label: 'Face biometric',
+              value:
+                statusFilter === 'active'
+                  ? (summary?.activeFaceEnrolled ?? summary?.faceEnrolled ?? '—')
+                  : (summary?.faceEnrolled ?? '—'),
+              sub: statusFilter === 'active' ? 'Active students with face' : 'Enrolled face biometrics',
+              icon: <ScanFace size={19} />,
+              tone: 'info',
+            },
+            {
+              label: 'Fingerprints',
+              value:
+                statusFilter === 'active'
+                  ? (summary?.activeFingerprintEnrolled ?? summary?.fingerprintEnrolled ?? '—')
+                  : (summary?.fingerprintEnrolled ?? '—'),
+              sub: statusFilter === 'active' ? 'Active students with fingerprints' : 'Enrolled fingerprints',
+              icon: <Fingerprint size={19} />,
+              tone: 'purple',
+            },
           ]}
         />
       </div>
@@ -152,16 +196,47 @@ const DeviceUsers = () => {
       <div className="bio-card" style={{ marginTop: 16 }}>
         <BioCardHead
           title="Enrolled users"
-          subtitle="Every PIN registered on a terminal or observed in logs, with student mapping and enrollment signals"
+          subtitle="Deduplicated list of enrolled students and device PINs with biometrics and registration signals"
           icon={<Users size={17} />}
         />
 
         <div className="bio-toolbar">
-          <div className="bio-filters">
+          <div className="bio-filters" style={{ flexWrap: 'wrap', gap: 10 }}>
+            <div className="ui-btn-group" style={{ display: 'inline-flex' }}>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'active' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => setStatusFilter('active')}
+              >
+                Active Students {summary?.activeMatched !== undefined ? `(${summary.activeMatched})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'all' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => setStatusFilter('all')}
+              >
+                All {summary?.totalUsers !== undefined && statusFilter === 'all' ? `(${summary.totalUsers})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'vacated' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => setStatusFilter('vacated')}
+              >
+                Vacated {summary?.vacatedMatched !== undefined ? `(${summary.vacatedMatched})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'unmatched' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => setStatusFilter('unmatched')}
+              >
+                Unmatched PINs {summary?.unmatched !== undefined ? `(${summary.unmatched})` : ''}
+              </button>
+            </div>
+
             <BioSearchField
               value={search}
               onChange={setSearch}
-              placeholder="Search PIN, device, student, reg no. or room..."
+              placeholder="Search PIN, machine ID, student, reg no. or room..."
             />
             <BioField label="From">
               <input
@@ -185,6 +260,7 @@ const DeviceUsers = () => {
               onClick={() => {
                 setSearch('');
                 clearDates();
+                setStatusFilter('active');
                 setPage(1);
               }}
               title="Reset search and filters"
@@ -254,9 +330,20 @@ const DeviceUsers = () => {
                           ) : null}
                         </div>
                       </div>
-                      <span className={`bio-status ${row.matched ? 'is-success' : 'is-warning'}`}>
-                        {row.matched ? 'Matched' : 'Not matched'}
-                      </span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {row.student_status === 'In' ? (
+                          <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
+                            Active
+                          </span>
+                        ) : row.student_status === 'Vacated' ? (
+                          <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
+                            Vacated
+                          </span>
+                        ) : null}
+                        <span className={`bio-status ${row.matched ? 'is-success' : 'is-warning'}`}>
+                          {row.matched ? 'Matched' : 'Not matched'}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="bio-user-card-body">
@@ -344,6 +431,7 @@ const DeviceUsers = () => {
                   <th>Matched Student in DB</th>
                   <th>Reg No</th>
                   <th>Room No</th>
+                  <th>Status</th>
                   <th>Face Biometric</th>
                   <th>Fingerprints</th>
                   <th>Card No</th>
@@ -355,7 +443,7 @@ const DeviceUsers = () => {
                   loading={loading && !data}
                   error={error && !data ? error : null}
                   empty={rows.length === 0}
-                  colSpan={10}
+                  colSpan={11}
                   emptyTitle="No enrolled users found"
                   emptyText="No biometric PINs have been recorded yet. Run a device sync or clear the search."
                   onRetry={reload}
@@ -387,6 +475,21 @@ const DeviceUsers = () => {
                         </span>
                       ) : (
                         '—'
+                      )}
+                    </td>
+                    <td>
+                      {row.student_status === 'In' ? (
+                        <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
+                          Active
+                        </span>
+                      ) : row.student_status === 'Vacated' ? (
+                        <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
+                          Vacated
+                        </span>
+                      ) : (
+                        <span className="bio-status is-neutral" style={{ fontSize: 11, padding: '2px 8px' }}>
+                          Unlinked
+                        </span>
                       )}
                     </td>
                     <td>

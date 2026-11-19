@@ -148,10 +148,12 @@ export interface DeviceUserRow {
   device_user_id: string;
   name_on_device: string | null;
   matched: boolean;
+  student_id: string | null;
   student_name: string | null;
   reg_no: string | null;
   room_no: string | null;
   bed_no: string | null;
+  student_status?: string | null;
   face_enrolled: boolean;
   fingerprint_enrolled: boolean;
   card_no: string | null;
@@ -163,9 +165,14 @@ export interface DeviceUsersResponse extends BioEnvelope {
   summary: {
     totalUsers: number;
     matched: number;
+    activeMatched?: number;
+    vacatedMatched?: number;
+    totalActiveStudents?: number;
     unmatched: number;
     faceEnrolled: number;
     fingerprintEnrolled: number;
+    activeFaceEnrolled?: number;
+    activeFingerprintEnrolled?: number;
   };
   pagination: BioPagination;
 }
