@@ -10,6 +10,7 @@ import { EbBillsAPI } from '../api/eb-bill.api';
 import { toast } from 'react-toastify';
 
 const currentMonthStr = new Date().toISOString().slice(0, 7);
+const DEFAULT_TARIFF = '8.12';
 const formatBillingCycle = (cycle: string) => {
   const match = /^(\d{4})-(\d{2})$/.exec(cycle);
   if (!match) return cycle;
@@ -27,6 +28,10 @@ const sanitizeNumber = (v: string) => {
   if (parts.length > 2) s = parts[0] + '.' + parts.slice(1).join('');
   return s;
 };
+
+// Per-head EB share is shown in whole rupees everywhere (preview, table, export).
+const roundRupees = (value: any) => Math.round(Number(value) || 0);
+const formatRupees = (value: any) => `₹${roundRupees(value).toLocaleString('en-IN')}`;
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -64,7 +69,7 @@ const EbBills = () => {
   const [normalPrev, setNormalPrev] = useState('0');
   const [normalCurr, setNormalCurr] = useState('0');
   const [hasAcMeter, setHasAcMeter] = useState(false);
-  const [tariff, setTariff] = useState('8.5');
+  const [tariff, setTariff] = useState(DEFAULT_TARIFF);
   const [billingCycle, setBillingCycle] = useState(currentMonthStr);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
@@ -142,7 +147,7 @@ const EbBills = () => {
   const normalUnits = normalCurrN >= normalPrevN ? normalCurrN - normalPrevN : 0;
   const unitsConsumed = acUnits + normalUnits;
   const totalCost = unitsConsumed * rate;
-  const splitPerStudent = studentCount > 0 ? totalCost / studentCount : 0;
+  const splitPerStudent = studentCount > 0 ? roundRupees(totalCost / studentCount) : 0;
 
   const existingBill = roomBills.find((b) => b.billingCycle === billingCycle) || null;
   const isDuplicate = mode === 'create' && !!existingBill;
@@ -158,7 +163,7 @@ const EbBills = () => {
   };
 
   const resetReadings = () => {
-    setAcPrev('0'); setAcCurr('0'); setNormalPrev('0'); setNormalCurr('0'); setHasAcMeter(false); setTariff('8.5');
+    setAcPrev('0'); setAcCurr('0'); setNormalPrev('0'); setNormalCurr('0'); setHasAcMeter(false); setTariff(DEFAULT_TARIFF);
   };
 
   const loadForEdit = (bill: any) => {
@@ -275,7 +280,7 @@ const EbBills = () => {
           'Current Reading': formatReadings(readings.current),
           Units: Number(bill.unitsConsumed || 0).toFixed(1),
           'Total bill': `₹${Number(bill.totalAmount || 0).toFixed(2)}`,
-          'Per head share': `₹${Number(bill.perStudentShare || 0).toFixed(2)}`,
+          'Per head share': formatRupees(bill.perStudentShare),
         };
       });
 
@@ -412,7 +417,7 @@ const EbBills = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #e2e8f0', fontSize: '14px' }}>
                 <span style={{ color: '#0f172a', fontWeight: 600 }}>Split Per Student ({studentCount}):</span>
-                <span style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>₹{splitPerStudent.toFixed(2)}</span>
+                <span style={{ fontWeight: 700, color: 'var(--sidebar-active)' }}>{formatRupees(splitPerStudent)}</span>
               </div>
             </div>
 
@@ -516,7 +521,7 @@ const EbBills = () => {
                         ))}
                         <td style={{ padding: '8px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{(bill.unitsConsumed || 0).toFixed(1)}</td>
                         <td style={{ padding: '8px 6px', fontWeight: 700, color: '#ef4444', whiteSpace: 'nowrap' }}>₹{(bill.totalAmount || 0).toFixed(2)}</td>
-                        <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--sidebar-active)', whiteSpace: 'nowrap' }}>₹{(bill.perStudentShare || 0).toFixed(2)}</td>
+                        <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--sidebar-active)', whiteSpace: 'nowrap' }}>{formatRupees(bill.perStudentShare)}</td>
                         <td style={{ padding: '8px 6px', textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                             <button onClick={() => loadForEdit(bill)} title="Edit" style={{ padding: '5px 6px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>

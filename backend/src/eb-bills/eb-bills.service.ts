@@ -7,6 +7,11 @@ import { UpdateEbBillDto } from './dto/update-eb-bill.dto';
 export class EbBillsService {
   constructor(private prisma: PrismaService) { }
 
+  // Per-head EB share is billed in whole rupees, not fractional amounts.
+  private roundPerHead(amount: number) {
+    return Math.round(Number(amount) || 0);
+  }
+
   // Normalize incoming readings into AC + Normal + computed units.
   private resolveReadings(data: any, existing?: any) {
     const hasAc = data.hasAcMeter !== undefined ? !!data.hasAcMeter : (existing?.hasAcMeter ?? false);
@@ -76,7 +81,7 @@ export class EbBillsService {
 
     const totalAmount = r.unitsConsumed * data.tariffRate;
     const studentCount = room.students.length;
-    const perStudentShare = studentCount > 0 ? totalAmount / studentCount : 0;
+    const perStudentShare = studentCount > 0 ? this.roundPerHead(totalAmount / studentCount) : 0;
 
     return this.prisma.$transaction(async (prisma) => {
       const ebBill = await prisma.ebBill.create({
@@ -151,7 +156,7 @@ export class EbBillsService {
     }
 
     const studentCount = room.students.length;
-    const perStudentShare = studentCount > 0 ? totalAmount / studentCount : 0;
+    const perStudentShare = studentCount > 0 ? this.roundPerHead(totalAmount / studentCount) : 0;
 
     return this.prisma.$transaction(async (prisma) => {
       const updated = await prisma.ebBill.update({
