@@ -336,6 +336,15 @@ model HostelSettings {
 }
 
 // ---------------------------------------------------------
+// Electricity Tariff Rate Master (singleton)
+// ---------------------------------------------------------
+model EbTariffMaster {
+  id        String   @id @default("GLOBAL")
+  rate      Float    @default(12)
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
 // Canteen & Inventory Master Models
 // ---------------------------------------------------------
 

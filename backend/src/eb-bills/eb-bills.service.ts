@@ -12,6 +12,18 @@ export class EbBillsService {
     return Math.round(Number(amount) || 0);
   }
 
+  // The tariff master is the single source of truth. The fallback keeps older
+  // clients and tests working when no master row exists yet.
+  private async resolveTariffRate(fallback?: number) {
+    const master = await (this.prisma as any).ebTariffMaster
+      ?.findUnique?.({ where: { id: 'GLOBAL' } });
+    const masterRate = Number(master?.rate);
+    if (Number.isFinite(masterRate) && masterRate >= 0) return masterRate;
+
+    const fallbackRate = Number(fallback);
+    return Number.isFinite(fallbackRate) && fallbackRate >= 0 ? fallbackRate : 8.12;
+  }
+
   // Normalize incoming readings into AC + Normal + computed units.
   private resolveReadings(data: any, existing?: any) {
     const hasAc = data.hasAcMeter !== undefined ? !!data.hasAcMeter : (existing?.hasAcMeter ?? false);
@@ -79,7 +91,8 @@ export class EbBillsService {
       );
     }
 
-    const totalAmount = r.unitsConsumed * data.tariffRate;
+    const tariffRate = await this.resolveTariffRate(data.tariffRate);
+    const totalAmount = r.unitsConsumed * tariffRate;
     const studentCount = room.students.length;
     const perStudentShare = studentCount > 0 ? this.roundPerHead(totalAmount / studentCount) : 0;
 
@@ -96,7 +109,7 @@ export class EbBillsService {
           prevReading: r.prevReading,
           currReading: r.currReading,
           unitsConsumed: r.unitsConsumed,
-          tariffRate: data.tariffRate,
+          tariffRate,
           totalAmount,
           perStudentShare,
         },
@@ -130,7 +143,7 @@ export class EbBillsService {
     const roomNo = existing.roomNo;
     const oldCycle = existing.billingCycle;
     const billingCycle = data.billingCycle ?? existing.billingCycle;
-    const tariffRate = data.tariffRate ?? existing.tariffRate;
+    const tariffRate = await this.resolveTariffRate(data.tariffRate ?? existing.tariffRate);
 
     const r = this.resolveReadings(data, existing);
 
@@ -323,7 +336,7 @@ export class EbBillsService {
   async findByRoom(roomNo: string) {
     return this.prisma.ebBill.findMany({
       where: { roomNo },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { billingCycle: 'desc' }
     });
   }
 

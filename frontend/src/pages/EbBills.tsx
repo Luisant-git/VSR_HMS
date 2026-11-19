@@ -1,16 +1,36 @@
 ﻿import { useState, useEffect } from 'react';
 
-import { Calculator, History, X, FileSpreadsheet, Pencil, /* Trash2, */ AlertTriangle, RotateCcw, SquarePen, Wind } from 'lucide-react';
+import { Calculator, History, X, FileSpreadsheet, Pencil, /* Trash2, */ AlertTriangle, RotateCcw, Save, SquarePen, Wind } from 'lucide-react';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
 import { EbBillsAPI } from '../api/eb-bill.api';
+import { EbTariffAPI } from '../api/eb-tariff.api';
 import { toast } from 'react-toastify';
 
 const currentMonthStr = new Date().toISOString().slice(0, 7);
-const DEFAULT_TARIFF = '8.12';
+const FALLBACK_TARIFF = '8.12';
+
+// Display order for the block-wise billing history.
+const BLOCK_ORDER = ['A', 'B', 'C', 'CD', 'D', 'E', 'Dorm', 'Dormitory', 'W'];
+const normalizeBlock = (value: any) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const upper = raw.toUpperCase().replace(/^BLOCK\s+/, '').trim();
+  if (upper.startsWith('DORM')) return 'Dorm';
+  if (upper.startsWith('CD')) return 'CD';
+  const match = upper.match(/^([A-EW])/);
+  return match ? match[1] : 'Other';
+};
+const getRoomBlock = (bill: any) =>
+  normalizeBlock(bill?.room?.block || bill?.roomNo || '') || 'Other';
+const blockRank = (block: string) => {
+  const index = BLOCK_ORDER.indexOf(block);
+  return index === -1 ? BLOCK_ORDER.length : index;
+};
+
 const formatBillingCycle = (cycle: string) => {
   const match = /^(\d{4})-(\d{2})$/.exec(cycle);
   if (!match) return cycle;
@@ -69,7 +89,9 @@ const EbBills = () => {
   const [normalPrev, setNormalPrev] = useState('0');
   const [normalCurr, setNormalCurr] = useState('0');
   const [hasAcMeter, setHasAcMeter] = useState(false);
-  const [tariff, setTariff] = useState(DEFAULT_TARIFF);
+  const [tariff, setTariff] = useState(FALLBACK_TARIFF);
+  const [tariffDraft, setTariffDraft] = useState(FALLBACK_TARIFF);
+  const [tariffSaving, setTariffSaving] = useState(false);
   const [billingCycle, setBillingCycle] = useState(currentMonthStr);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
@@ -93,13 +115,73 @@ const EbBills = () => {
   const limit = 10;
 
   useEffect(() => { fetchRooms(); }, []);
+  useEffect(() => { fetchTariff(); }, []);
   useEffect(() => { fetchBillingCycles(); }, []);
   useEffect(() => { fetchBillingHistory(); }, [page, searchTerm, selectedBillingCycle]);
   useEffect(() => { fetchRoomBills(); }, [selectedRoom]);
 
+  // Carry the last billed readings forward into the next cycle, separately for
+  // AC and Normal. This never runs while editing or after the current cycle has
+  // already been billed, so it cannot overwrite readings the user just saved.
+  useEffect(() => {
+    if (mode === 'edit' || !selectedRoom || !billingCycle || roomBills.length === 0) return;
+    if (roomBills.some((bill) => bill.billingCycle === billingCycle)) return;
+
+    const previous = [...roomBills]
+      .filter((bill) => String(bill.billingCycle || '') < billingCycle)
+      .sort((a, b) => String(b.billingCycle || '').localeCompare(String(a.billingCycle || '')))[0];
+    if (!previous) return;
+
+    const nPrev = previous.normalPrevReading ?? previous.prevReading ?? 0;
+    const nCurr = previous.normalCurrReading ?? previous.currReading ?? 0;
+    setNormalPrev(String(nPrev));
+    setNormalCurr(String(nCurr));
+
+    if (previous.hasAcMeter || Number(previous.acCurrReading) > 0) {
+      setHasAcMeter(true);
+      setAcPrev(String(previous.acPrevReading ?? 0));
+      setAcCurr(String(previous.acCurrReading ?? 0));
+    } else {
+      setHasAcMeter(false);
+      setAcPrev('0');
+      setAcCurr('0');
+    }
+  }, [selectedRoom, billingCycle, roomBills, mode]);
+
   const fetchRooms = async () => {
     try { const data = await RoomAPI.findAll(); setRooms(data); }
     catch { setError('Failed to load rooms'); }
+  };
+
+  const fetchTariff = async () => {
+    try {
+      const data = await EbTariffAPI.get();
+      const saved = String(data.rate ?? FALLBACK_TARIFF);
+      setTariff(saved);
+      setTariffDraft(saved);
+    } catch {
+      // Keep the fallback rate if the master cannot be reached.
+    }
+  };
+
+  const saveTariff = async () => {
+    const parsed = Number(tariffDraft);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast.error('Enter a valid tariff rate');
+      return;
+    }
+    try {
+      setTariffSaving(true);
+      const data = await EbTariffAPI.update(parsed);
+      const saved = String(data.rate ?? parsed);
+      setTariff(saved);
+      setTariffDraft(saved);
+      toast.success('Electricity tariff rate saved');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save tariff rate');
+    } finally {
+      setTariffSaving(false);
+    }
   };
 
   const fetchRoomBills = async () => {
@@ -146,7 +228,9 @@ const EbBills = () => {
   const acUnits = acCurrN >= acPrevN ? acCurrN - acPrevN : 0;
   const normalUnits = normalCurrN >= normalPrevN ? normalCurrN - normalPrevN : 0;
   const unitsConsumed = acUnits + normalUnits;
-  const totalCost = unitsConsumed * rate;
+  const acCost = acUnits * rate;
+  const normalCost = normalUnits * rate;
+  const totalCost = acCost + normalCost;
   const splitPerStudent = studentCount > 0 ? roundRupees(totalCost / studentCount) : 0;
 
   const existingBill = roomBills.find((b) => b.billingCycle === billingCycle) || null;
@@ -157,13 +241,21 @@ const EbBills = () => {
     return { value: room, label: `Room ${room.id} (${activeCount} hosteller${activeCount === 1 ? '' : 's'})` };
   });
 
+  const sortedHistory = [...billingHistory].sort((a, b) => {
+    const blockDiff = blockRank(getRoomBlock(a)) - blockRank(getRoomBlock(b));
+    if (blockDiff !== 0) return blockDiff;
+    const roomDiff = String(a.roomNo || '').localeCompare(String(b.roomNo || ''), undefined, { numeric: true });
+    if (roomDiff !== 0) return roomDiff;
+    return String(b.billingCycle || '').localeCompare(String(a.billingCycle || ''));
+  });
+
   const selectStyles = {
     control: (base: any, state: any) => ({ ...base, padding: '4px', borderRadius: '8px', borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1', boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none', '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#94a3b8' }, fontSize: '13px' }),
     option: (base: any, state: any) => ({ ...base, fontSize: '13px', backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white', color: state.isSelected ? 'white' : '#334155', cursor: 'pointer' }),
   };
 
   const resetReadings = () => {
-    setAcPrev('0'); setAcCurr('0'); setNormalPrev('0'); setNormalCurr('0'); setHasAcMeter(false); setTariff(DEFAULT_TARIFF);
+    setAcPrev('0'); setAcCurr('0'); setNormalPrev('0'); setNormalCurr('0'); setHasAcMeter(false);
   };
 
   const loadForEdit = (bill: any) => {
@@ -172,7 +264,6 @@ const EbBills = () => {
     const opt = roomOptions.find((o) => o.value.id === bill.roomNo) || null;
     setSelectedRoom(opt);
     setBillingCycle(bill.billingCycle);
-    setTariff(String(bill.tariffRate));
     setHasAcMeter(!!bill.hasAcMeter);
     // For legacy rows (no normal* fields), map prev/curr into the Normal meter.
     setAcPrev(String(bill.acPrevReading ?? 0));
@@ -239,20 +330,40 @@ const EbBills = () => {
       .catch((e: any) => toast.error(e.message || 'Failed to delete EB bill'));
   }; */
 
-  const getBillReadings = (bill: any) => {
+  const getMeterValues = (bill: any) => {
     const acPrev = Number(bill.acPrevReading || 0);
     const acCurr = Number(bill.acCurrReading || 0);
-    const normalPrev = Number(bill.normalPrevReading || bill.prevReading || 0);
-    const normalCurr = Number(bill.normalCurrReading || bill.currReading || 0);
+    const normalPrev = Number(bill.normalPrevReading ?? bill.prevReading ?? 0);
+    const normalCurr = Number(bill.normalCurrReading ?? bill.currReading ?? 0);
     const hasAc = !!bill.hasAcMeter || acPrev > 0 || acCurr > 0;
+    const acUnits = hasAc && acCurr >= acPrev ? acCurr - acPrev : 0;
+    const normalUnits = normalCurr >= normalPrev ? normalCurr - normalPrev : 0;
+    const units = acUnits + normalUnits;
+    const billRate = Number(bill.tariffRate || 0);
 
     return {
-      previous: hasAc
-        ? [{ label: 'AC', value: acPrev }, { label: 'Normal', value: normalPrev }]
-        : [{ label: '', value: normalPrev }],
-      current: hasAc
-        ? [{ label: 'AC', value: acCurr }, { label: 'Normal', value: normalCurr }]
-        : [{ label: '', value: normalCurr }],
+      acPrev,
+      acCurr,
+      normalPrev,
+      normalCurr,
+      hasAc,
+      acUnits,
+      normalUnits,
+      units,
+      acAmount: acUnits * billRate,
+      normalAmount: normalUnits * billRate,
+    };
+  };
+
+  const getBillReadings = (bill: any) => {
+    const meter = getMeterValues(bill);
+    return {
+      previous: meter.hasAc
+        ? [{ label: 'AC', value: meter.acPrev }, { label: 'Normal', value: meter.normalPrev }]
+        : [{ label: '', value: meter.normalPrev }],
+      current: meter.hasAc
+        ? [{ label: 'AC', value: meter.acCurr }, { label: 'Normal', value: meter.normalCurr }]
+        : [{ label: '', value: meter.normalCurr }],
     };
   };
 
@@ -267,20 +378,38 @@ const EbBills = () => {
       const all = Array.isArray(res) ? res : (res.data || []);
       if (all.length === 0) { toast.info('No EB bills to export'); return; }
 
-      const columns = ['Room', 'Cycle', 'Previous Reading', 'Current Reading', 'Units', 'Total bill', 'Per head share'];
-      const rows: Array<Record<(typeof columns)[number], string>> = all.map((bill: any) => {
-        const readings = getBillReadings(bill);
-        const formatReadings = (values: Array<{ label: string; value: number }>) =>
-          values.map(({ label, value }) => `${label ? `${label}: ` : ''}${value.toFixed(1)}`).join('; ');
+      const columns = [
+        'Room', 'Block', 'Cycle',
+        'AC Prev', 'AC Curr', 'AC Units', 'AC Amount',
+        'Normal Prev', 'Normal Curr', 'Normal Units', 'Normal Amount',
+        'Units', 'Total bill', 'Per head share',
+      ];
 
+      const sortedForExport = [...all].sort((a, b) => {
+        const blockDiff = blockRank(getRoomBlock(a)) - blockRank(getRoomBlock(b));
+        if (blockDiff !== 0) return blockDiff;
+        const roomDiff = String(a.roomNo || '').localeCompare(String(b.roomNo || ''), undefined, { numeric: true });
+        if (roomDiff !== 0) return roomDiff;
+        return String(b.billingCycle || '').localeCompare(String(a.billingCycle || ''));
+      });
+
+      const rows: Array<Record<string, any>> = sortedForExport.map((bill: any) => {
+        const meter = getMeterValues(bill);
         return {
           Room: bill.roomNo,
+          Block: getRoomBlock(bill),
           Cycle: bill.billingCycle,
-          'Previous Reading': formatReadings(readings.previous),
-          'Current Reading': formatReadings(readings.current),
-          Units: Number(bill.unitsConsumed || 0).toFixed(1),
-          'Total bill': `₹${Number(bill.totalAmount || 0).toFixed(2)}`,
-          'Per head share': formatRupees(bill.perStudentShare),
+          'AC Prev': meter.hasAc ? Number(meter.acPrev.toFixed(1)) : '',
+          'AC Curr': meter.hasAc ? Number(meter.acCurr.toFixed(1)) : '',
+          'AC Units': meter.hasAc ? Number(meter.acUnits.toFixed(1)) : '',
+          'AC Amount': meter.hasAc ? Number(meter.acAmount.toFixed(2)) : '',
+          'Normal Prev': Number(meter.normalPrev.toFixed(1)),
+          'Normal Curr': Number(meter.normalCurr.toFixed(1)),
+          'Normal Units': Number(meter.normalUnits.toFixed(1)),
+          'Normal Amount': Number(meter.normalAmount.toFixed(2)),
+          Units: Number(meter.units.toFixed(1)),
+          'Total bill': Number(Number(bill.totalAmount || 0).toFixed(2)),
+          'Per head share': roundRupees(bill.perStudentShare),
         };
       });
 
@@ -292,11 +421,12 @@ const EbBills = () => {
       const reportTitle = reportCycle
         ? `EB Bills - ${formatBillingCycle(reportCycle)}`
         : 'EB Bills - All Billing Cycles';
+
       const worksheet = XLSX.utils.aoa_to_sheet([
         [reportTitle],
         [],
         columns,
-        ...rows.map((row) => columns.map((column) => row[column as keyof typeof row])),
+        ...rows.map((row) => columns.map((column) => row[column])),
       ]);
       XLSX.utils.book_append_sheet(wb, worksheet, 'EB Bills');
 
@@ -388,25 +518,48 @@ const EbBills = () => {
               </div>
             </div>
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={labelStyle}>Electricity Tariff Rate (₹ per Unit)</label>
-              <input type="text" inputMode="decimal" value={tariff} onChange={(e) => setTariff(sanitizeNumber(e.target.value))} style={inputStyle} />
+            <div style={{ marginBottom: '16px', padding: '10px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0, color: '#92400e' }}>Electricity Tariff Rate Master (₹ per Unit)</label>
+                <span style={{ fontSize: '10px', color: tariffDraft !== tariff ? '#dc2626' : '#b45309', whiteSpace: 'nowrap' }}>
+                  {tariffDraft !== tariff ? 'Unsaved changes - click Save' : 'Applies to all new bills'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" inputMode="decimal" value={tariffDraft} onChange={(e) => setTariffDraft(sanitizeNumber(e.target.value))} style={inputStyle} />
+                <button
+                  onClick={saveTariff}
+                  disabled={tariffSaving}
+                  title="Save tariff rate to master"
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 12px', borderRadius: '8px', border: 'none', background: tariffSaving ? '#94a3b8' : '#b45309', color: 'white', fontSize: '12px', fontWeight: 600, cursor: tariffSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  <Save size={14} /> {tariffSaving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
             </div>
 
             <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
               <h4 style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Live Calculation Preview:</h4>
               {hasAcMeter && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
-                  <span style={{ color: '#2563eb' }}>AC Units:</span>
-                  <span style={{ fontWeight: 600, color: '#334155' }}>{acUnits.toFixed(1)}</span>
-                </div>
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
+                    <span style={{ color: '#2563eb', fontWeight: 600 }}>AC Units:</span>
+                    <span style={{ fontWeight: 600, color: '#334155' }}>{acUnits.toFixed(1)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                    <span style={{ color: '#2563eb' }}>AC Amount:</span>
+                    <span style={{ fontWeight: 600, color: '#1d4ed8' }}>₹{acCost.toFixed(2)}</span>
+                  </div>
+                </>
               )}
-              {hasAcMeter && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
-                  <span style={{ color: '#64748b' }}>Normal Units:</span>
-                  <span style={{ fontWeight: 600, color: '#334155' }}>{normalUnits.toFixed(1)}</span>
-                </div>
-              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Normal Units:</span>
+                <span style={{ fontWeight: 600, color: '#334155' }}>{normalUnits.toFixed(1)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                <span style={{ color: '#64748b' }}>Normal Amount:</span>
+                <span style={{ fontWeight: 600, color: '#166534' }}>₹{normalCost.toFixed(2)}</span>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '13px' }}>
                 <span style={{ color: '#475569' }}>Total Units:</span>
                 <span style={{ fontWeight: 600, color: '#334155' }}>{unitsConsumed.toFixed(1)}</span>
@@ -502,7 +655,7 @@ const EbBills = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {billingHistory.map((bill) => {
+                  {sortedHistory.map((bill) => {
                     const readings = getBillReadings(bill);
                     return (
                       <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -527,9 +680,6 @@ const EbBills = () => {
                             <button onClick={() => loadForEdit(bill)} title="Edit" style={{ padding: '5px 6px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', color: '#334155', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                               <SquarePen size={14} /> Edit
                             </button>
-                            {/* <button onClick={() => handleDelete(bill)} title="Delete" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px', border: '1px solid #fecaca', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#dc2626' }}>
-                              <Trash2 size={14} />
-                            </button> */}
                           </div>
                         </td>
                       </tr>
