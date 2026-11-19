@@ -163,18 +163,17 @@ export class FineCronService {
       );
       if (parents.length === 0) continue;
 
-      // Use the earliest due date on the pending parent fees. Some legacy
-      // parents have no dueDate at all, so fall back to the college due date,
-      // exactly as the live Pay Now quote does.
+      // The college Fine Master due date is authoritative for every fee type.
+      // Only fall back to a fee-row due date if the college has none configured.
       const parentDueDates = parents
         .filter((t: any) => t.dueDate)
         .map((t: any) => startOfDay(t.dueDate));
-      const dueDate = parentDueDates.length
-        ? parentDueDates.reduce((oldest: Date, current: Date) =>
-            current.getTime() < oldest.getTime() ? current : oldest,
-          )
-        : collegeDueDate
-          ? startOfDay(collegeDueDate)
+      const dueDate = collegeDueDate
+        ? startOfDay(collegeDueDate)
+        : parentDueDates.length
+          ? parentDueDates.reduce((oldest: Date, current: Date) =>
+              current.getTime() < oldest.getTime() ? current : oldest,
+            )
           : null;
       if (!dueDate) continue;
 

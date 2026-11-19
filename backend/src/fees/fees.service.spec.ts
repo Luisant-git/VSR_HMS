@@ -225,6 +225,41 @@ describe('FeesService - outstanding payment ledger', () => {
       expect(quote.daysOverdue).toBe(0);
       expect(quote.amount).toBe(0);
     });
+
+    it('uses the college Fine Master due date for every fee type', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const collegeDueDate = new Date(today);
+      collegeDueDate.setDate(collegeDueDate.getDate() - 4);
+      const legacyFeeDueDate = new Date(today);
+      legacyFeeDueDate.setDate(legacyFeeDueDate.getDate() - 12);
+
+      const prisma = {
+        student: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'student-1',
+            college: {
+              dueDate: collegeDueDate,
+              fineMaster: { rentFine: 25, messFine: 0, ebFine: 5 },
+            },
+            transactions: [
+              { transactionType: 'RENT', status: 'PENDING', dueDate: legacyFeeDueDate },
+              { transactionType: 'EB_BILL', status: 'PENDING', dueDate: legacyFeeDueDate },
+            ],
+          }),
+        },
+        feeTransaction: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+
+      const quote = await new FeesService(prisma as any).previewFine(
+        'student-1',
+        dateInput(today),
+      );
+
+      expect(quote.fines.find((item) => item.key === 'rent')?.daysOverdue).toBe(4);
+      expect(quote.fines.find((item) => item.key === 'eb')?.daysOverdue).toBe(4);
+      expect(quote.amount).toBe(120);
+    });
   });
 
   it('creates one payment record and reduces ₹5,000 to ₹3,000 without touching invoices', async () => {

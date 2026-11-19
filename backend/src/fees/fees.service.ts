@@ -407,18 +407,21 @@ export class FeesService {
       }
       if (rate <= 0) continue;
 
-      // Each fee type accrues from its own due date. If the pending parent fee
-      // has no due date, fall back to the college due date.
+      // The college Fine Master due date is the single source of truth for
+      // every fee type. A dueDate stored on an individual fee row (e.g. an
+      // older EB bill) must not override it, otherwise Rent and EB can show
+      // different overdue day counts for the same student.
       const parentDueDates = pendingParents
         .filter((item) => item.dueDate)
         .map((item) => this.startOfDay(new Date(item.dueDate as Date)));
 
       const dueDate =
-        parentDueDates.length > 0
+        collegeDueDate ??
+        (parentDueDates.length > 0
           ? parentDueDates.reduce((oldest, current) =>
               current.getTime() < oldest.getTime() ? current : oldest,
             )
-          : collegeDueDate;
+          : null);
       if (!dueDate) continue;
 
       // The due date itself is not overdue; counting starts the next day.

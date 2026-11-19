@@ -148,10 +148,14 @@ async function main() {
         continue;
       }
 
+      // Fine Master due date wins for all fee types. A legacy fee-row dueDate
+      // is only used when the college has no due date configured.
       const dueDates = parents.filter(t => t.dueDate).map(t => startOfDay(t.dueDate));
-      const due = dueDates.length > 0
-        ? dueDates.reduce((oldest, current) => (current < oldest ? current : oldest))
-        : college.dueDate ? startOfDay(college.dueDate) : null;
+      const due = college.dueDate
+        ? startOfDay(college.dueDate)
+        : dueDates.length > 0
+          ? dueDates.reduce((oldest, current) => (current < oldest ? current : oldest))
+          : null;
       if (!due) continue;
 
       const days = today <= due ? 0 : Math.floor((today.getTime() - due.getTime()) / 86_400_000);
