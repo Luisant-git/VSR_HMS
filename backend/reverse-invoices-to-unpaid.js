@@ -161,19 +161,23 @@ async function main() {
       throw new Error(`No fee rows found for ${target.number}. Nothing was changed.`);
     }
 
-    const total = group.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    // Only COMPLETED rows are part of this reversal. An invoice can also carry
+    // already-pending sibling rows (e.g. MESS) which must be left untouched.
+    const completed = group.filter(row => row.status === 'COMPLETED');
+    const total = completed.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const alreadyPending = group.filter(row => row.status !== 'COMPLETED');
+
     if (money(total) !== money(target.amount)) {
       throw new Error(
-        `${target.number} totals ${rupees(total)}, expected ${rupees(target.amount)}. Nothing was changed.`,
+        `${target.number} has ${rupees(total)} in COMPLETED rows, expected ${rupees(target.amount)}. Nothing was changed.`,
       );
     }
 
-    const completed = group.filter(row => row.status === 'COMPLETED');
     if (completed.length === 0) {
       throw new Error(`${target.number} has no COMPLETED rows left; it may already be reversed. Nothing was changed.`);
     }
 
-    const gatewayRows = group.filter(row => row.razorpayPaymentId);
+    const gatewayRows = completed.filter(row => row.razorpayPaymentId);
     if (gatewayRows.length > 0 && !ALLOW_RAZORPAY) {
       throw new Error(
         `${target.number} has a Razorpay payment (${gatewayRows.map(row => row.razorpayPaymentId).join(', ')}). ` +
@@ -182,8 +186,9 @@ async function main() {
     }
 
     console.log(
-      `\n${target.number} (${target.label}): ${group.length} row(s), ${rupees(total)}, ` +
-        `${completed.length} COMPLETED, ${group.length - completed.length} already PENDING${gatewayRows.length ? ' [RAZORPAY]' : ''}`,
+      `\n${target.number} (${target.label}): ${completed.length} COMPLETED row(s) totalling ${rupees(total)}` +
+        `${alreadyPending.length ? `; ${alreadyPending.length} already-unpaid row(s) left untouched` : ''}` +
+        `${gatewayRows.length ? ' [RAZORPAY]' : ''}`,
     );
     completed.forEach(row => toReverse.push({ row, target }));
   }
