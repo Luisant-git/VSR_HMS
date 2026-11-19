@@ -48,6 +48,19 @@ function showDatabase(url) {
   }
 }
 
+function printStudents(title, students) {
+  console.log(`\n${title}`);
+  console.table(
+    students.map(student => ({
+      id: student.id,
+      name: student.name,
+      regNo: student.regNo,
+      manualReg: student.manualRegsiName || '—',
+      room: student.roomNo || '—',
+    })),
+  );
+}
+
 function printRows(title, rows) {
   console.log(`\n${title}`);
   console.table(
@@ -76,30 +89,41 @@ async function main() {
   console.log(`Target database: ${showDatabase(url)}  (credentials hidden)`);
   console.log(`Mode: ${APPLY ? 'APPLY - database will be modified' : 'DRY RUN - nothing will be written'}`);
 
-  // 1. Resolve the student. Abort on either zero or multiple matches.
-  const students = await prisma.student.findMany({
+  // 1. Resolve the student. Exact regNo / manualRegsiName wins over a name match,
+  //    since other students can share the same name. Abort if still ambiguous.
+  const selectStudent = {
+    id: true,
+    name: true,
+    regNo: true,
+    manualRegsiName: true,
+    roomNo: true,
+    feeStatus: true,
+  };
+
+  const exactMatches = await prisma.student.findMany({
     where: {
       OR: [
         { regNo: { equals: TARGET.regNo, mode: 'insensitive' } },
         { manualRegsiName: { equals: TARGET.regNo, mode: 'insensitive' } },
-        { name: { contains: TARGET.nameFragment, mode: 'insensitive' } },
       ],
     },
-    select: {
-      id: true,
-      name: true,
-      regNo: true,
-      manualRegsiName: true,
-      roomNo: true,
-      feeStatus: true,
-    },
+    select: selectStudent,
   });
+
+  let students = exactMatches;
+  if (students.length === 0) {
+    students = await prisma.student.findMany({
+      where: { name: { contains: TARGET.nameFragment, mode: 'insensitive' } },
+      select: selectStudent,
+    });
+  }
 
   if (students.length === 0) {
     throw new Error(`Student ${TARGET.regNo} / ${TARGET.nameFragment} was not found. Nothing was changed.`);
   }
   if (students.length > 1) {
-    throw new Error(`Student identifier is ambiguous (${students.length} matches). Nothing was changed.`);
+    printStudents(`Ambiguous student matches (${students.length}):`, students);
+    throw new Error('Student identifier is ambiguous. Nothing was changed.');
   }
 
   const student = students[0];
