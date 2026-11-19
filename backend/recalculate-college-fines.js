@@ -177,7 +177,7 @@ async function main() {
 
   const service = new FineCronService(prisma);
   for (const student of students) {
-    await service.applyStudentFines(student, rates, today);
+    await service.applyStudentFines(student, rates, today, college.dueDate);
   }
 
   console.log(`\nDone. Recalculated fines for ${students.length} students of ${college.name}.`);

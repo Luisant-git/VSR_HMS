@@ -92,7 +92,7 @@ export class FineCronService {
 
       for (const student of students) {
         try {
-          await this.applyStudentFines(student, rates, today);
+          await this.applyStudentFines(student, rates, today, college.dueDate);
         } catch (error: any) {
           this.logger.error(
             `Failed to update fines for student ${student.regNo}: ${error.message}`,
@@ -104,7 +104,12 @@ export class FineCronService {
     this.logger.log('Daily fine calculation completed.');
   }
 
-  private async applyStudentFines(student: any, rates: Record<FineKey, number>, today: Date) {
+  private async applyStudentFines(
+    student: any,
+    rates: Record<FineKey, number>,
+    today: Date,
+    collegeDueDate?: Date | string | null,
+  ) {
     const transactions = student.transactions || [];
     const pending = transactions.filter((t: any) => t.status === 'PENDING');
     const completedLateFines = transactions.filter(
@@ -132,15 +137,27 @@ export class FineCronService {
     for (const config of configs) {
       if (config.rate <= 0) continue;
 
-      const overdue = pending.filter(
-        (t: any) =>
-          config.matches(String(t.transactionType || '').toUpperCase()) &&
-          t.dueDate &&
-          startOfDay(t.dueDate) <= today,
+      const parents = pending.filter((t: any) =>
+        config.matches(String(t.transactionType || '').toUpperCase()),
       );
-      if (overdue.length === 0) continue;
+      if (parents.length === 0) continue;
 
-      const days = Math.max(...overdue.map((t: any) => daysOverdue(t.dueDate, today)));
+      // Use the earliest due date on the pending parent fees. Some legacy
+      // parents have no dueDate at all, so fall back to the college due date,
+      // exactly as the live Pay Now quote does.
+      const parentDueDates = parents
+        .filter((t: any) => t.dueDate)
+        .map((t: any) => startOfDay(t.dueDate));
+      const dueDate = parentDueDates.length
+        ? parentDueDates.reduce((oldest: Date, current: Date) =>
+            current.getTime() < oldest.getTime() ? current : oldest,
+          )
+        : collegeDueDate
+          ? startOfDay(collegeDueDate)
+          : null;
+      if (!dueDate) continue;
+
+      const days = daysOverdue(dueDate, today);
       if (days <= 0) continue;
 
       expected.set(config.key, {
