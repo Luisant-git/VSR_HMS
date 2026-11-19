@@ -70,11 +70,13 @@ export class FineCronService {
         continue;
       }
 
+      // Do not filter on Student.feeStatus here: that field is often stale
+      // while the transaction ledger still has pending fees. The per-type
+      // calculation below only produces a fine when a fee is actually overdue.
       const students = await this.prisma.student.findMany({
         where: {
           collegeId: college.id,
           status: { not: 'Vacated' },
-          feeStatus: { not: 'Paid' },
         },
         include: {
           transactions: {

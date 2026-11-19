@@ -23,6 +23,7 @@
     "mark-october-paid": "node mark-october-paid.js",
     "reverse:invoices": "node reverse-invoices-to-unpaid.js",
     "round:eb-per-head": "node round-eb-per-head.js",
+    "fines:recalculate": "node recalculate-college-fines.js",
     "export:unallocated": "node export-unallocated-students.js",
     "export:no-college": "node export-students-without-college.js",
     "export:block-wise": "node export-block-wise-students.js",
