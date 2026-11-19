@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { CreditCard, Fingerprint, LayoutGrid, List, ScanFace, UserCheck, UserX, Users } from 'lucide-react';
+import { Fingerprint, KeyRound, ScanFace, Sparkles, UserCheck, Users } from 'lucide-react';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
 import {
   BioCardHead,
-  BioEmpty,
   BioExportButton,
   BioField,
   BioPageHead,
@@ -14,8 +13,7 @@ import {
   BioStatGrid,
   BioTableState,
 } from './components/BioUI';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
-import { downloadStamp, exportExcel, formatDateTime, initials } from './utils';
+import { downloadStamp, exportExcel, formatDateTime } from './utils';
 
 const LIMIT = 15;
 
@@ -24,8 +22,9 @@ const DeviceUsers = () => {
   const [search, setSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'all' | 'vacated' | 'unmatched'>('active');
-  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [statusFilter, setStatusFilter] = useState<
+    'active' | 'all' | 'vacated' | 'unmatched' | 'both' | 'face_only' | 'fingerprint_only' | 'pin_only'
+  >('active');
   const [exporting, setExporting] = useState(false);
 
   const { data, loading, error, reload } = useApiData(
@@ -86,16 +85,19 @@ const DeviceUsers = () => {
           {
             name: 'Device enrolled users',
             rows: exportRows.map((row) => ({
-              'Device ID': row.device_id || '',
+              'Student Name': row.student_name || row.name_on_device || 'Unmatched',
+              'Student Reg No': row.reg_no || '',
               'Device PIN / User ID': row.device_user_id,
-              'Name on Device': row.name_on_device || '',
-              'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
-              'Reg No': row.reg_no || '',
-              'Room No': row.room_no || '',
-              'Student Status': row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
-              'Face Biometric': row.face_enrolled ? 'Yes' : 'No',
-              Fingerprints: row.fingerprint_enrolled ? 'Yes' : 'No',
-              'Card No': row.card_no || '',
+              'Room No': row.room_no ? `${row.room_no}${row.bed_no ? ` (${row.bed_no})` : ''}` : '',
+              Status: row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
+              Biometrics:
+                row.face_enrolled && row.fingerprint_enrolled
+                  ? 'Both (Face + Fingerprint)'
+                  : row.face_enrolled
+                    ? 'Face Only'
+                    : row.fingerprint_enrolled
+                      ? 'Fingerprint Only'
+                      : 'Pending Scan',
               'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
             })),
           },
@@ -108,16 +110,19 @@ const DeviceUsers = () => {
           {
             name: 'Device enrolled users',
             rows: rows.map((row) => ({
-              'Device ID': row.device_id || '',
+              'Student Name': row.student_name || row.name_on_device || 'Unmatched',
+              'Student Reg No': row.reg_no || '',
               'Device PIN / User ID': row.device_user_id,
-              'Name on Device': row.name_on_device || '',
-              'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
-              'Reg No': row.reg_no || '',
-              'Room No': row.room_no || '',
-              'Student Status': row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
-              'Face Biometric': row.face_enrolled ? 'Yes' : 'No',
-              Fingerprints: row.fingerprint_enrolled ? 'Yes' : 'No',
-              'Card No': row.card_no || '',
+              'Room No': row.room_no ? `${row.room_no}${row.bed_no ? ` (${row.bed_no})` : ''}` : '',
+              Status: row.student_status === 'In' ? 'Active' : (row.student_status || (row.matched ? 'Active' : 'Unmatched')),
+              Biometrics:
+                row.face_enrolled && row.fingerprint_enrolled
+                  ? 'Both (Face + Fingerprint)'
+                  : row.face_enrolled
+                    ? 'Face Only'
+                    : row.fingerprint_enrolled
+                      ? 'Fingerprint Only'
+                      : 'Pending Scan',
               'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
             })),
           },
@@ -144,6 +149,7 @@ const DeviceUsers = () => {
 
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
+          singleRow
           items={[
             {
               label: 'Active students',
@@ -154,40 +160,75 @@ const DeviceUsers = () => {
               sub: 'Active hostel students on machine',
               icon: <Users size={19} />,
               tone: 'accent',
+              onClick: () => {
+                setStatusFilter('active');
+                setPage(1);
+              },
+              active: statusFilter === 'active',
             },
             {
-              label: 'Total matched',
-              value: summary?.matched ?? '—',
-              sub: `${summary?.activeMatched ?? 0} active + ${summary?.vacatedMatched ?? 0} vacated`,
+              label: 'Biometrics enrolled',
+              value:
+                summary?.activeBothBiometric !== undefined &&
+                summary?.activeFaceOnly !== undefined &&
+                summary?.activeFingerprintOnly !== undefined
+                  ? summary.activeBothBiometric + summary.activeFaceOnly + summary.activeFingerprintOnly
+                  : '—',
+              sub: 'Total with face or fingerprint',
               icon: <UserCheck size={19} />,
               tone: 'success',
+              onClick: () => {
+                setStatusFilter('active');
+                setPage(1);
+              },
             },
             {
-              label: 'Not matched',
-              value: summary?.unmatched ?? '—',
-              sub: 'Device PINs needing registration',
-              icon: <UserX size={19} />,
-              tone: 'warning',
+              label: 'Both Face & Finger',
+              value: summary?.activeBothBiometric ?? '—',
+              sub: 'Enrolled with both biometrics',
+              icon: <Sparkles size={19} />,
+              tone: 'accent',
+              onClick: () => {
+                setStatusFilter('both');
+                setPage(1);
+              },
+              active: statusFilter === 'both',
             },
             {
-              label: 'Face biometric',
-              value:
-                statusFilter === 'active'
-                  ? (summary?.activeFaceEnrolled ?? summary?.faceEnrolled ?? '—')
-                  : (summary?.faceEnrolled ?? '—'),
-              sub: statusFilter === 'active' ? 'Active students with face' : 'Enrolled face biometrics',
+              label: 'Face only',
+              value: summary?.activeFaceOnly ?? '—',
+              sub: 'Active with face only',
               icon: <ScanFace size={19} />,
               tone: 'info',
+              onClick: () => {
+                setStatusFilter('face_only');
+                setPage(1);
+              },
+              active: statusFilter === 'face_only',
             },
             {
-              label: 'Fingerprints',
-              value:
-                statusFilter === 'active'
-                  ? (summary?.activeFingerprintEnrolled ?? summary?.fingerprintEnrolled ?? '—')
-                  : (summary?.fingerprintEnrolled ?? '—'),
-              sub: statusFilter === 'active' ? 'Active students with fingerprints' : 'Enrolled fingerprints',
+              label: 'Fingerprint only',
+              value: summary?.activeFingerprintOnly ?? '—',
+              sub: 'Active with fingerprint only',
               icon: <Fingerprint size={19} />,
               tone: 'purple',
+              onClick: () => {
+                setStatusFilter('fingerprint_only');
+                setPage(1);
+              },
+              active: statusFilter === 'fingerprint_only',
+            },
+            {
+              label: 'Pending scan',
+              value: summary?.activePinOnly ?? '—',
+              sub: 'Awaiting face / finger scan',
+              icon: <KeyRound size={19} />,
+              tone: 'warning',
+              onClick: () => {
+                setStatusFilter('pin_only');
+                setPage(1);
+              },
+              active: statusFilter === 'pin_only',
             },
           ]}
         />
@@ -202,34 +243,86 @@ const DeviceUsers = () => {
 
         <div className="bio-toolbar">
           <div className="bio-filters" style={{ flexWrap: 'wrap', gap: 10 }}>
-            <div className="ui-btn-group" style={{ display: 'inline-flex' }}>
+            <div className="ui-btn-group" style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4 }}>
               <button
                 type="button"
                 className={`ui-btn ui-btn-sm ${statusFilter === 'active' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setStatusFilter('active')}
+                onClick={() => {
+                  setStatusFilter('active');
+                  setPage(1);
+                }}
               >
-                Active Students {summary?.activeMatched !== undefined ? `(${summary.activeMatched})` : ''}
+                All Active {summary?.activeMatched !== undefined ? `(${summary.activeMatched})` : ''}
               </button>
               <button
                 type="button"
-                className={`ui-btn ui-btn-sm ${statusFilter === 'all' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setStatusFilter('all')}
+                className={`ui-btn ui-btn-sm ${statusFilter === 'both' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => {
+                  setStatusFilter('both');
+                  setPage(1);
+                }}
               >
-                All {summary?.totalUsers !== undefined && statusFilter === 'all' ? `(${summary.totalUsers})` : ''}
+                Both Face & Finger {summary?.activeBothBiometric !== undefined ? `(${summary.activeBothBiometric})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'face_only' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => {
+                  setStatusFilter('face_only');
+                  setPage(1);
+                }}
+              >
+                Face Only {summary?.activeFaceOnly !== undefined ? `(${summary.activeFaceOnly})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'fingerprint_only' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => {
+                  setStatusFilter('fingerprint_only');
+                  setPage(1);
+                }}
+              >
+                Fingerprint Only {summary?.activeFingerprintOnly !== undefined ? `(${summary.activeFingerprintOnly})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'pin_only' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => {
+                  setStatusFilter('pin_only');
+                  setPage(1);
+                }}
+              >
+                PIN Only / Awaiting Scan {summary?.activePinOnly !== undefined ? `(${summary.activePinOnly})` : ''}
               </button>
               <button
                 type="button"
                 className={`ui-btn ui-btn-sm ${statusFilter === 'vacated' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setStatusFilter('vacated')}
+                onClick={() => {
+                  setStatusFilter('vacated');
+                  setPage(1);
+                }}
               >
                 Vacated {summary?.vacatedMatched !== undefined ? `(${summary.vacatedMatched})` : ''}
               </button>
               <button
                 type="button"
                 className={`ui-btn ui-btn-sm ${statusFilter === 'unmatched' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setStatusFilter('unmatched')}
+                onClick={() => {
+                  setStatusFilter('unmatched');
+                  setPage(1);
+                }}
               >
                 Unmatched PINs {summary?.unmatched !== undefined ? `(${summary.unmatched})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`ui-btn ui-btn-sm ${statusFilter === 'all' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
+                onClick={() => {
+                  setStatusFilter('all');
+                  setPage(1);
+                }}
+              >
+                All on Machine {summary?.totalUsers !== undefined ? `(${summary.totalUsers})` : ''}
               </button>
             </div>
 
@@ -268,273 +361,114 @@ const DeviceUsers = () => {
               Reset
             </button>
           </div>
-          <div className="bio-toolbar-actions">
-            <div className="ui-btn-group" style={{ display: 'inline-flex' }}>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${viewMode === 'table' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setViewMode('table')}
-                title="Table view"
-              >
-                <List size={14} /> Table
-              </button>
-              <button
-                type="button"
-                className={`ui-btn ui-btn-sm ${viewMode === 'card' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
-                onClick={() => setViewMode('card')}
-                title="Responsive card grid view"
-              >
-                <LayoutGrid size={14} /> Cards
-              </button>
-            </div>
-            <BioRefresh onClick={reload} loading={loading} />
-          </div>
         </div>
 
-        {viewMode === 'card' ? (
-          <div>
-            {loading && !data ? (
-              <div className="ui-table-state" style={{ padding: 40 }}>
-                <LoadingSpinner text="Loading enrolled users..." />
-              </div>
-            ) : error && !data ? (
-              <div style={{ padding: 20 }}>
-                <BioEmpty title="Could not load records" text={error} />
-              </div>
-            ) : rows.length === 0 ? (
-              <div style={{ padding: 20 }}>
-                <BioEmpty
-                  title="No enrolled users found"
-                  text="No biometric PINs match the current filters. Clear the search or date range."
-                />
-              </div>
-            ) : (
-              <div className="bio-users-grid">
-                {rows.map((row) => (
-                  <div className="bio-user-card" key={`${row.device_id || 'device'}-${row.device_user_id}`}>
-                    <div className="bio-user-card-head">
-                      <div className="bio-user-card-person">
-                        <div className="bio-avatar">{initials(row.student_name || row.name_on_device)}</div>
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            className="bio-person-name"
-                            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            title={row.student_name || row.name_on_device || 'Unregistered'}
-                          >
-                            {row.student_name || row.name_on_device || 'Unregistered'}
-                          </div>
-                          {row.name_on_device && row.name_on_device !== row.student_name ? (
-                            <div className="bio-subtle" style={{ fontSize: 11 }}>
-                              Device: {row.name_on_device}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        {row.student_status === 'In' ? (
-                          <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
-                            Active
-                          </span>
-                        ) : row.student_status === 'Vacated' ? (
-                          <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
-                            Vacated
-                          </span>
-                        ) : null}
-                        <span className={`bio-status ${row.matched ? 'is-success' : 'is-warning'}`}>
-                          {row.matched ? 'Matched' : 'Not matched'}
+        <div className="bio-table-wrap">
+          <table className="ui-table bio-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Student Reg No</th>
+                <th>Device PIN / User ID</th>
+                <th>Room</th>
+                <th>Status</th>
+                <th>Biometrics</th>
+                <th>Last Synced</th>
+              </tr>
+            </thead>
+            <tbody>
+              <BioTableState
+                loading={loading}
+                error={error}
+                empty={!loading && rows.length === 0}
+                colSpan={7}
+                emptyTitle="No enrolled users found"
+                emptyText="No biometric PINs match the current filters. Clear the search or date range."
+                onRetry={reload}
+              />
+              {!loading && rows.map((row) => (
+                <tr key={`${row.device_id || 'device'}-${row.device_user_id}`}>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span className="bio-strong">{row.student_name || row.name_on_device || 'Unregistered'}</span>
+                      {row.name_on_device && row.student_name && row.name_on_device !== row.student_name ? (
+                        <span className="bio-subtle" style={{ fontSize: 11 }}>
+                          Device: {row.name_on_device}
                         </span>
-                      </div>
+                      ) : null}
                     </div>
-
-                    <div className="bio-user-card-body">
-                      <div className="bio-user-card-field">
-                        <span className="bio-user-card-label">Device PIN / User ID</span>
-                        <span className="bio-user-card-value">{row.device_user_id}</span>
-                      </div>
-                      <div className="bio-user-card-field">
-                        <span className="bio-user-card-label">Register No</span>
-                        <span className="bio-user-card-value">{row.reg_no || '—'}</span>
-                      </div>
-                      <div className="bio-user-card-field">
-                        <span className="bio-user-card-label">Room / Bed</span>
-                        <span className="bio-user-card-value">
-                          {row.room_no ? `${row.room_no}${row.bed_no ? ` (${row.bed_no})` : ''}` : '—'}
-                        </span>
-                      </div>
-                      <div className="bio-user-card-field">
-                        <span className="bio-user-card-label">Device ID</span>
-                        <span className="bio-user-card-value bio-mono" style={{ fontSize: 12 }} title={row.device_id || '—'}>
-                          {row.device_id || '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingTop: 8,
-                        borderTop: '1px solid var(--border-subtle)',
-                        fontSize: 12,
-                      }}
-                    >
-                      <div className="bio-user-card-badges">
-                        {row.face_enrolled ? (
-                          <span
-                            className="bio-status is-success"
-                            title="Face Biometric Enrolled"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <ScanFace size={13} /> Face
-                          </span>
-                        ) : null}
-                        {row.fingerprint_enrolled ? (
-                          <span
-                            className="bio-status is-info"
-                            title="Fingerprint Enrolled"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <Fingerprint size={13} /> Fingerprint
-                          </span>
-                        ) : null}
-                        {row.card_no ? (
-                          <span
-                            className="bio-status is-neutral"
-                            title="Card Enrolled"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                          >
-                            <CreditCard size={13} /> {row.card_no}
-                          </span>
-                        ) : null}
-                        {!row.face_enrolled && !row.fingerprint_enrolled && !row.card_no ? (
-                          <span className="bio-muted-value">No credentials</span>
-                        ) : null}
-                      </div>
-                      <span className="bio-subtle" title="Last Synced">
-                        {row.last_synced ? formatDateTime(row.last_synced) : '—'}
+                  </td>
+                  <td className="bio-strong">{row.reg_no || <span className="bio-muted-value">—</span>}</td>
+                  <td className="bio-strong bio-mono">{row.device_user_id}</td>
+                  <td>
+                    {row.room_no ? (
+                      <span className="bio-strong">
+                        {row.room_no} {row.bed_no ? <span className="bio-subtle">({row.bed_no})</span> : null}
                       </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="bio-table-wrap">
-            <table className="ui-table bio-table">
-              <thead>
-                <tr>
-                  <th>Device ID</th>
-                  <th>Device PIN / User ID</th>
-                  <th>Name on Device</th>
-                  <th>Matched Student in DB</th>
-                  <th>Reg No</th>
-                  <th>Room No</th>
-                  <th>Status</th>
-                  <th>Face Biometric</th>
-                  <th>Fingerprints</th>
-                  <th>Card No</th>
-                  <th>Last Synced</th>
-                </tr>
-              </thead>
-              <tbody>
-                <BioTableState
-                  loading={loading && !data}
-                  error={error && !data ? error : null}
-                  empty={rows.length === 0}
-                  colSpan={11}
-                  emptyTitle="No enrolled users found"
-                  emptyText="No biometric PINs have been recorded yet. Run a device sync or clear the search."
-                  onRetry={reload}
-                />
-                {rows.map((row) => (
-                  <tr key={`${row.device_id || 'device'}-${row.device_user_id}`}>
-                    <td className="bio-strong bio-mono">{row.device_id || '—'}</td>
-                    <td className="bio-strong">{row.device_user_id}</td>
-                    <td>{row.name_on_device || '—'}</td>
-                    <td>
-                      {row.matched ? (
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
-                            Matched
-                          </span>
-                          <span className="bio-strong">{row.student_name || '—'}</span>
-                        </div>
-                      ) : (
-                        <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
-                          Not matched
-                        </span>
-                      )}
-                    </td>
-                    <td className="bio-strong">{row.reg_no || '—'}</td>
-                    <td>
-                      {row.room_no ? (
-                        <span className="bio-strong">
-                          {row.room_no} {row.bed_no ? <span className="bio-subtle">({row.bed_no})</span> : null}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>
-                      {row.student_status === 'In' ? (
-                        <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
-                          Active
-                        </span>
-                      ) : row.student_status === 'Vacated' ? (
-                        <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
-                          Vacated
-                        </span>
-                      ) : (
-                        <span className="bio-status is-neutral" style={{ fontSize: 11, padding: '2px 8px' }}>
-                          Unlinked
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {row.face_enrolled ? (
+                    ) : (
+                      <span className="bio-muted-value">—</span>
+                    )}
+                  </td>
+                  <td>
+                    {row.student_status === 'In' ? (
+                      <span className="bio-status is-success" style={{ fontSize: 11, padding: '2px 8px' }}>
+                        Active
+                      </span>
+                    ) : row.student_status === 'Vacated' ? (
+                      <span className="bio-status is-warning" style={{ fontSize: 11, padding: '2px 8px' }}>
+                        Vacated
+                      </span>
+                    ) : (
+                      <span className="bio-status is-neutral" style={{ fontSize: 11, padding: '2px 8px' }}>
+                        Unmatched
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {row.face_enrolled && row.fingerprint_enrolled ? (
+                      <div style={{ display: 'inline-flex', gap: 4 }}>
                         <span
                           className="bio-status is-success"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          style={{ fontSize: 11, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                         >
-                          <ScanFace size={13} /> Yes
+                          <ScanFace size={12} /> Face
                         </span>
-                      ) : (
-                        <span className="bio-muted-value">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {row.fingerprint_enrolled ? (
                         <span
                           className="bio-status is-info"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          style={{ fontSize: 11, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                         >
-                          <Fingerprint size={13} /> Yes
+                          <Fingerprint size={12} /> Finger
                         </span>
-                      ) : (
-                        <span className="bio-muted-value">—</span>
-                      )}
-                    </td>
-                    <td>
-                      {row.card_no ? (
-                        <span
-                          className="bio-strong"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                        >
-                          <CreditCard size={13} /> {row.card_no}
-                        </span>
-                      ) : (
-                        <span className="bio-muted-value">—</span>
-                      )}
-                    </td>
-                    <td className="bio-time">{row.last_synced ? formatDateTime(row.last_synced) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                      </div>
+                    ) : row.face_enrolled ? (
+                      <span
+                        className="bio-status is-success"
+                        style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <ScanFace size={13} /> Face
+                      </span>
+                    ) : row.fingerprint_enrolled ? (
+                      <span
+                        className="bio-status is-info"
+                        style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <Fingerprint size={13} /> Fingerprint
+                      </span>
+                    ) : (
+                      <span
+                        className="bio-status is-warning"
+                        style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <KeyRound size={12} /> Pending Scan
+                      </span>
+                    )}
+                  </td>
+                  <td className="bio-time">{row.last_synced ? formatDateTime(row.last_synced) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {data?.pagination ? (
           <BioPager

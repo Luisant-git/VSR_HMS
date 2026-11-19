@@ -24,17 +24,79 @@ export interface BioStatItem {
   sub?: ReactNode;
   icon: ReactNode;
   tone?: StatTone;
+  onClick?: () => void;
+  active?: boolean;
 }
 
-export const BioStatGrid = ({ items }: { items: BioStatItem[] }) => (
-  <div className="bio-stat-grid">
+export const BioStatGrid = ({
+  items,
+  columns,
+  singleRow,
+}: {
+  items: BioStatItem[];
+  columns?: number;
+  singleRow?: boolean;
+}) => (
+  <div
+    className="bio-stat-grid"
+    style={
+      singleRow
+        ? {
+            display: 'grid',
+            gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))`,
+            gap: 10,
+          }
+        : columns
+          ? {
+              display: 'grid',
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+              gap: 12,
+            }
+          : undefined
+    }
+  >
     {items.map((item) => (
-      <div className={`bio-stat bio-tone-${item.tone || 'accent'}`} key={item.label}>
-        <div className="bio-stat-icon">{item.icon}</div>
-        <div className="bio-stat-copy">
-          <div className="bio-stat-label">{item.label}</div>
-          <div className="bio-stat-value">{item.value}</div>
-          {item.sub ? <div className="bio-stat-sub">{item.sub}</div> : null}
+      <div
+        className={`bio-stat bio-tone-${item.tone || 'accent'}${item.active ? ' bio-stat--active' : ''}`}
+        key={item.label}
+        onClick={item.onClick}
+        role={item.onClick ? 'button' : undefined}
+        tabIndex={item.onClick ? 0 : undefined}
+        style={{
+          ...(singleRow ? { padding: '12px 14px', gap: 10 } : {}),
+          ...(item.onClick ? { cursor: 'pointer', transition: 'all 0.15s ease' } : {}),
+          ...(item.active ? { outline: '2px solid var(--primary, #3b82f6)', boxShadow: '0 0 0 3px rgba(59,130,246,0.2)' } : {}),
+        }}
+      >
+        <div
+          className="bio-stat-icon"
+          style={singleRow ? { width: 38, height: 38 } : undefined}
+        >
+          {item.icon}
+        </div>
+        <div className="bio-stat-copy" style={{ minWidth: 0, flex: 1 }}>
+          <div
+            className="bio-stat-label"
+            style={singleRow ? { fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}
+            title={item.label}
+          >
+            {item.label}
+          </div>
+          <div
+            className="bio-stat-value"
+            style={singleRow ? { fontSize: 20 } : undefined}
+          >
+            {item.value}
+          </div>
+          {item.sub ? (
+            <div
+              className="bio-stat-sub"
+              style={singleRow ? { fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : undefined}
+              title={typeof item.sub === 'string' ? item.sub : undefined}
+            >
+              {item.sub}
+            </div>
+          ) : null}
         </div>
       </div>
     ))}

@@ -833,39 +833,52 @@ export class BiometricAttendanceService {
     const fromDate = String(query.fromDate || '').trim();
     const toDate = String(query.toDate || '').trim();
     const status = String(query.status || '').trim().toLowerCase();
-    const params: unknown[] = [];
-    const where: string[] = [];
+    const baseParams: unknown[] = [];
+    const baseWhere: string[] = [];
 
     if (search) {
-      params.push(`%${search}%`);
-      where.push(`(
-        device_user_id ILIKE $${params.length}
-        OR COALESCE(device_id, '') ILIKE $${params.length}
-        OR COALESCE(name_on_device, '') ILIKE $${params.length}
-        OR COALESCE(student_name, '') ILIKE $${params.length}
-        OR COALESCE(reg_no, '') ILIKE $${params.length}
-        OR COALESCE(room_no, '') ILIKE $${params.length}
-        OR COALESCE(card_no, '') ILIKE $${params.length}
+      baseParams.push(`%${search}%`);
+      baseWhere.push(`(
+        device_user_id ILIKE $${baseParams.length}
+        OR COALESCE(device_id, '') ILIKE $${baseParams.length}
+        OR COALESCE(name_on_device, '') ILIKE $${baseParams.length}
+        OR COALESCE(student_name, '') ILIKE $${baseParams.length}
+        OR COALESCE(reg_no, '') ILIKE $${baseParams.length}
+        OR COALESCE(room_no, '') ILIKE $${baseParams.length}
+        OR COALESCE(card_no, '') ILIKE $${baseParams.length}
       )`);
     }
     if (fromDate) {
-      params.push(fromDate);
-      where.push(`last_synced::date >= $${params.length}::date`);
+      baseParams.push(fromDate);
+      baseWhere.push(`last_synced::date >= $${baseParams.length}::date`);
     }
     if (toDate) {
-      params.push(toDate);
-      where.push(`last_synced::date <= $${params.length}::date`);
+      baseParams.push(toDate);
+      baseWhere.push(`last_synced::date <= $${baseParams.length}::date`);
     }
+
+    const dataParams = [...baseParams];
+    const dataWhere = [...baseWhere];
+
     if (status === 'active' || status === 'in') {
-      where.push(`(matched AND student_status = 'In')`);
+      dataWhere.push(`(matched AND student_status = 'In')`);
     } else if (status === 'vacated') {
-      where.push(`(matched AND student_status = 'Vacated')`);
+      dataWhere.push(`(matched AND student_status = 'Vacated')`);
     } else if (status === 'unmatched') {
-      where.push(`(NOT matched)`);
+      dataWhere.push(`(NOT matched)`);
     } else if (status === 'matched') {
-      where.push(`(matched)`);
+      dataWhere.push(`(matched)`);
+    } else if (status === 'both') {
+      dataWhere.push(`(matched AND student_status = 'In' AND face_enrolled AND fingerprint_enrolled)`);
+    } else if (status === 'face_only') {
+      dataWhere.push(`(matched AND student_status = 'In' AND face_enrolled AND NOT fingerprint_enrolled)`);
+    } else if (status === 'fingerprint_only') {
+      dataWhere.push(`(matched AND student_status = 'In' AND NOT face_enrolled AND fingerprint_enrolled)`);
+    } else if (status === 'pin_only' || status === 'no_bio') {
+      dataWhere.push(`(matched AND student_status = 'In' AND NOT face_enrolled AND NOT fingerprint_enrolled)`);
     }
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const baseWhereSql = baseWhere.length ? `WHERE ${baseWhere.join(' AND ')}` : '';
+    const dataWhereSql = dataWhere.length ? `WHERE ${dataWhere.join(' AND ')}` : '';
 
     const emptySummary = {
       totalUsers: 0,
@@ -878,6 +891,10 @@ export class BiometricAttendanceService {
       fingerprintEnrolled: 0,
       activeFaceEnrolled: 0,
       activeFingerprintEnrolled: 0,
+      activeFaceOnly: 0,
+      activeFingerprintOnly: 0,
+      activeBothBiometric: 0,
+      activePinOnly: 0,
     };
 
     const hasDeviceUsers = availability.tables.has(OBJ.deviceUsers);
@@ -954,6 +971,7 @@ export class BiometricAttendanceService {
           ) AS fingerprint_enrolled,
           MAX(${syncExpr}) AS last_synced
         FROM public.biometric_attendance_logs b
+        WHERE b.device_id NOT ILIKE 'SIMULAT%'
         GROUP BY b.device_id, b.user_id
       `);
     }
@@ -999,16 +1017,12 @@ export class BiometricAttendanceService {
       deduped_matched AS (
         SELECT
           MAX(device_id) AS device_id,
-          CASE 
-            WHEN manual_reg_no IS NOT NULL AND reg_no IS NOT NULL AND manual_reg_no <> reg_no
-              THEN manual_reg_no || ' (' || reg_no || ')'
-            ELSE COALESCE(manual_reg_no, reg_no, MAX(device_user_id))
-          END AS device_user_id,
+          COALESCE(reg_no, MAX(device_user_id)) AS device_user_id,
           COALESCE(MAX(name_on_device), MAX(student_name)) AS name_on_device,
           true AS matched,
           student_id,
           student_name,
-          reg_no,
+          COALESCE(manual_reg_no, reg_no) AS reg_no,
           room_no,
           bed_no,
           student_status,
@@ -1056,9 +1070,13 @@ export class BiometricAttendanceService {
               COUNT(*) FILTER (WHERE face_enrolled)::int AS face_enrolled,
               COUNT(*) FILTER (WHERE fingerprint_enrolled)::int AS fingerprint_enrolled,
               COUNT(*) FILTER (WHERE face_enrolled AND student_status = 'In')::int AS active_face_enrolled,
-              COUNT(*) FILTER (WHERE fingerprint_enrolled AND student_status = 'In')::int AS active_fingerprint_enrolled
-       FROM unified ${whereSql}`,
-      params,
+              COUNT(*) FILTER (WHERE fingerprint_enrolled AND student_status = 'In')::int AS active_fingerprint_enrolled,
+              COUNT(*) FILTER (WHERE face_enrolled AND NOT fingerprint_enrolled AND student_status = 'In')::int AS active_face_only,
+              COUNT(*) FILTER (WHERE NOT face_enrolled AND fingerprint_enrolled AND student_status = 'In')::int AS active_fingerprint_only,
+              COUNT(*) FILTER (WHERE face_enrolled AND fingerprint_enrolled AND student_status = 'In')::int AS active_both_biometric,
+              COUNT(*) FILTER (WHERE NOT face_enrolled AND NOT fingerprint_enrolled AND matched AND student_status = 'In')::int AS active_pin_only
+       FROM unified ${baseWhereSql}`,
+      baseParams,
     );
 
     const activeStudentsRes = await this.query<{ total: number }>(
@@ -1070,32 +1088,63 @@ export class BiometricAttendanceService {
       `${cte}
        SELECT device_id, device_user_id, name_on_device, matched, student_id, student_name,
               reg_no, room_no, bed_no, student_status, face_enrolled, fingerprint_enrolled, card_no, last_synced
-       FROM unified ${whereSql}
+       FROM unified ${dataWhereSql}
        ORDER BY matched DESC, CASE WHEN student_status = 'In' THEN 0 WHEN student_status = 'Vacated' THEN 1 ELSE 2 END, student_name ASC NULLS LAST, device_user_id ASC
        LIMIT ${limit} OFFSET ${offset}`,
-      params,
+      dataParams,
     );
 
     const summaryRow = summaryResult.rows[0] || {};
-    const total = Number(summaryRow.total_users) || 0;
+    const totalUsers = Number(summaryRow.total_users) || 0;
+    const matched = Number(summaryRow.matched) || 0;
+    const activeMatched = Number(summaryRow.active_matched) || 0;
+    const vacatedMatched = Number(summaryRow.vacated_matched) || 0;
+    const unmatched = Number(summaryRow.unmatched) || 0;
+    const activeFaceOnly = Number(summaryRow.active_face_only) || 0;
+    const activeFingerprintOnly = Number(summaryRow.active_fingerprint_only) || 0;
+    const activeBothBiometric = Number(summaryRow.active_both_biometric) || 0;
+    const activePinOnly = Number(summaryRow.active_pin_only) || 0;
+
+    let filteredTotal = totalUsers;
+    if (status === 'active' || status === 'in') {
+      filteredTotal = activeMatched;
+    } else if (status === 'vacated') {
+      filteredTotal = vacatedMatched;
+    } else if (status === 'unmatched') {
+      filteredTotal = unmatched;
+    } else if (status === 'matched') {
+      filteredTotal = matched;
+    } else if (status === 'both') {
+      filteredTotal = activeBothBiometric;
+    } else if (status === 'face_only') {
+      filteredTotal = activeFaceOnly;
+    } else if (status === 'fingerprint_only') {
+      filteredTotal = activeFingerprintOnly;
+    } else if (status === 'pin_only' || status === 'no_bio') {
+      filteredTotal = activePinOnly;
+    }
 
     return this.envelope(
       availability,
       {
         data: dataResult.rows,
         summary: {
-          totalUsers: total,
-          matched: Number(summaryRow.matched) || 0,
-          activeMatched: Number(summaryRow.active_matched) || 0,
-          vacatedMatched: Number(summaryRow.vacated_matched) || 0,
+          totalUsers,
+          matched,
+          activeMatched,
+          vacatedMatched,
           totalActiveStudents,
-          unmatched: Number(summaryRow.unmatched) || 0,
+          unmatched,
           faceEnrolled: Number(summaryRow.face_enrolled) || 0,
           fingerprintEnrolled: Number(summaryRow.fingerprint_enrolled) || 0,
           activeFaceEnrolled: Number(summaryRow.active_face_enrolled) || 0,
           activeFingerprintEnrolled: Number(summaryRow.active_fingerprint_enrolled) || 0,
+          activeFaceOnly,
+          activeFingerprintOnly,
+          activeBothBiometric,
+          activePinOnly,
         },
-        pagination: this.pagination(page, limit, total),
+        pagination: this.pagination(page, limit, filteredTotal),
       },
       summaryResult.error || dataResult.error,
     );

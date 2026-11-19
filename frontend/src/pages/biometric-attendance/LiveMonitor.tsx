@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Activity, Clock3, LogIn, LogOut, UserCheck } from 'lucide-react';
+import {
+  Activity,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Building2,
+  Clock3,
+  UserCheck,
+} from 'lucide-react';
 import { BiometricAttendanceAPI } from '../../api/biometricAttendance.api';
 import { useApiData } from './hooks';
 import {
@@ -63,6 +70,24 @@ const LiveMonitor = () => {
 
   const rows = data?.data || [];
   const todayStats = dashboard?.stats;
+  const isToday = fromDate === today && toDate === today && !search.trim();
+
+  const punchesCount = isToday
+    ? (todayStats?.punchesToday ?? data?.summary?.total ?? (dashboardLoading ? '…' : '—'))
+    : (data?.summary?.total ?? (loading ? '…' : '—'));
+
+  const activeStudentsCount = isToday
+    ? (todayStats?.activeStudentsToday ?? data?.summary?.students ?? (dashboardLoading ? '…' : '—'))
+    : (data?.summary?.students ?? (loading ? '…' : '—'));
+
+  const inPunchCount = isToday
+    ? (todayStats?.inToday ?? data?.summary?.inCount ?? (dashboardLoading ? '…' : '—'))
+    : (data?.summary?.inCount ?? (loading ? '…' : '—'));
+
+  const outPunchCount = isToday
+    ? (todayStats?.outToday ?? data?.summary?.outCount ?? (dashboardLoading ? '…' : '—'))
+    : (data?.summary?.outCount ?? (loading ? '…' : '—'));
+
   const refreshAll = () => {
     reload();
     reloadDashboard();
@@ -71,6 +96,8 @@ const LiveMonitor = () => {
   const resetRange = () => {
     setFromDate(today);
     setToDate(today);
+    setDirection('');
+    setSearch('');
     setPage(1);
   };
 
@@ -133,10 +160,55 @@ const LiveMonitor = () => {
       <div style={{ marginTop: 14 }}>
         <BioStatGrid
           items={[
-            { label: 'Punches today', value: todayStats?.punchesToday ?? (dashboardLoading ? '…' : '—'), sub: 'Recorded today', icon: <Activity size={19} />, tone: 'accent' },
-            { label: 'Students active today', value: todayStats?.activeStudentsToday ?? (dashboardLoading ? '…' : '—'), sub: 'Movement recorded', icon: <UserCheck size={19} />, tone: 'info' },
-            { label: 'Currently inside hostel', value: todayStats?.inside ?? (dashboardLoading ? '…' : '—'), sub: 'Inside hostel', icon: <LogIn size={19} />, tone: 'success' },
-            { label: 'Currently outside', value: todayStats?.outside ?? (dashboardLoading ? '…' : '—'), sub: (todayStats?.outside || 0) > 0 ? 'Outside hostel' : 'None outside', icon: <LogOut size={19} />, tone: (todayStats?.outside || 0) > 0 ? 'warning' : 'neutral' },
+            {
+              label: isToday ? 'Punches today' : 'Total punches',
+              value: punchesCount,
+              sub: isToday ? 'Recorded today' : 'In selected range',
+              icon: <Activity size={19} />,
+              tone: 'accent',
+              onClick: () => {
+                setDirection('');
+                setPage(1);
+              },
+            },
+            {
+              label: isToday ? 'Students active today' : 'Students active',
+              value: activeStudentsCount,
+              sub: 'Movement recorded',
+              icon: <UserCheck size={19} />,
+              tone: 'info',
+            },
+            {
+              label: isToday ? 'Inside punch' : 'Inside punches',
+              value: inPunchCount,
+              sub: isToday ? 'IN movement today' : 'IN movement in range',
+              icon: <ArrowDownLeft size={19} />,
+              tone: 'success',
+              onClick: () => {
+                setDirection((prev) => (prev === 'IN' ? '' : 'IN'));
+                setPage(1);
+              },
+              active: direction === 'IN',
+            },
+            {
+              label: isToday ? 'Outside punch' : 'Outside punches',
+              value: outPunchCount,
+              sub: isToday ? 'OUT movement today' : 'OUT movement in range',
+              icon: <ArrowUpRight size={19} />,
+              tone: 'warning',
+              onClick: () => {
+                setDirection((prev) => (prev === 'OUT' ? '' : 'OUT'));
+                setPage(1);
+              },
+              active: direction === 'OUT',
+            },
+            {
+              label: 'Currently inside hostel',
+              value: todayStats?.inside ?? (dashboardLoading ? '…' : '—'),
+              sub: 'Inside hostel',
+              icon: <Building2 size={19} />,
+              tone: 'purple',
+            },
           ]}
         />
       </div>

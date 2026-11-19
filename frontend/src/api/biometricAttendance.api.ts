@@ -173,6 +173,10 @@ export interface DeviceUsersResponse extends BioEnvelope {
     fingerprintEnrolled: number;
     activeFaceEnrolled?: number;
     activeFingerprintEnrolled?: number;
+    activeFaceOnly?: number;
+    activeFingerprintOnly?: number;
+    activeBothBiometric?: number;
+    activePinOnly?: number;
   };
   pagination: BioPagination;
 }
