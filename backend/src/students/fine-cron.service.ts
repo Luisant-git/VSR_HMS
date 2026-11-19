@@ -29,8 +29,8 @@ const startOfDay = (value: Date | string) => {
 
 const daysOverdue = (dueDate: Date | string, today: Date) => {
   const due = startOfDay(dueDate);
-  if (today < due) return 0;
-  return Math.floor((today.getTime() - due.getTime()) / 86_400_000) + 1;
+  if (today <= due) return 0;
+  return Math.floor((today.getTime() - due.getTime()) / 86_400_000);
 };
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
@@ -217,33 +217,41 @@ export class FineCronService {
           .filter((t: any) => fineKeyFromDescription(t.description) === key)
           .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
       );
-      const existingPending = roundMoney(
-        rowsForType.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
-      );
-      const stillDue = roundMoney(Math.max(0, info.amount - paidForType));
-
-      if (stillDue <= existingPending + 0.005) continue;
-
-      const difference = roundMoney(stillDue - existingPending);
       const description = this.fineDescription(info);
+      // Recompute from scratch every run. This lowers stale rows when the due
+      // date or Fine Master rate changes, instead of only ever increasing them.
+      const targetAmount = roundMoney(Math.max(0, info.amount - paidForType));
 
       if (rowsForType.length > 0) {
         const primary = rowsForType[0];
-        const newAmount = roundMoney((Number(primary.amount) || 0) + difference);
+        const currentAmount = roundMoney(Number(primary.amount) || 0);
+
+        if (currentAmount === targetAmount && primary.description === description) continue;
+
+        if (targetAmount <= 0) {
+          await this.prisma.feeTransaction.deleteMany({
+            where: { id: { in: rowsForType.map((row: any) => row.id) } },
+          });
+          this.logger.log(
+            `Removed fully paid ${info.label} fine for student ${student.regNo}`,
+          );
+          continue;
+        }
+
         await this.prisma.feeTransaction.update({
           where: { id: primary.id },
-          data: { amount: newAmount, description },
+          data: { amount: targetAmount, description },
         });
         for (let i = 1; i < rowsForType.length; i++) {
           await this.prisma.feeTransaction.delete({ where: { id: rowsForType[i].id } });
         }
         this.logger.log(
-          `Consolidated ${info.label} fine to ₹${newAmount} for student ${student.regNo}`,
+          `Recalculated ${info.label} fine to ₹${targetAmount} for student ${student.regNo}`,
         );
-      } else {
-        await this.createTypedFine(student.id, key, info, difference, typedPending);
+      } else if (targetAmount > 0) {
+        await this.createTypedFine(student.id, key, info, targetAmount, typedPending);
         this.logger.log(
-          `Added ${info.label} fine of ₹${difference} to student ${student.regNo}`,
+          `Added ${info.label} fine of ₹${targetAmount} to student ${student.regNo}`,
         );
       }
     }

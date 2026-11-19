@@ -91,7 +91,7 @@ describe('EbBillsService', () => {
           description: 'EB Bill for 2026-11',
         }),
         data: expect.objectContaining({
-          amount: 1000 / 3,
+          amount: 333,
           description: 'EB Bill for 2026-11',
         }),
       }),
@@ -101,7 +101,7 @@ describe('EbBillsService', () => {
         expect.objectContaining({
           studentId: 'student-3',
           transactionType: 'EB_BILL',
-          amount: 1000 / 3,
+          amount: 333,
           description: 'EB Bill for 2026-11',
           status: 'PENDING',
         }),

@@ -185,7 +185,7 @@ describe('FeesService - outstanding payment ledger', () => {
       return new FeesService(prisma as any);
     };
 
-    it('calculates 10 days of rent fine from Nov 5 through Nov 14 (inclusive)', async () => {
+    it('does not count the due date itself as an overdue day', async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const dueDate = new Date(today);
@@ -194,10 +194,21 @@ describe('FeesService - outstanding payment ledger', () => {
 
       const quote = await service.previewFine('student-1', dateInput(today));
 
-      expect(quote.daysOverdue).toBe(10);
+      expect(quote.daysOverdue).toBe(9);
       expect(quote.dailyFine).toBe(25);
-      expect(quote.amount).toBe(250);
-      expect(quote.currentAmount).toBe(250);
+      expect(quote.amount).toBe(225);
+      expect(quote.currentAmount).toBe(225);
+    });
+
+    it('charges no fine on the due date', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const service = makeService(today);
+
+      const quote = await service.previewFine('student-1', dateInput(today));
+
+      expect(quote.daysOverdue).toBe(0);
+      expect(quote.amount).toBe(0);
     });
 
     it('does not calculate a fine for a selected date before the due date', async () => {

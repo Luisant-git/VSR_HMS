@@ -414,11 +414,10 @@ export class FeesService {
           : collegeDueDate;
       if (!dueDate) continue;
 
+      // The due date itself is not overdue; counting starts the next day.
       const daysFor = (date: Date) => {
-        if (date.getTime() < dueDate.getTime()) return 0;
-        return (
-          Math.floor((date.getTime() - dueDate.getTime()) / 86_400_000) + 1
-        );
+        if (date.getTime() <= dueDate.getTime()) return 0;
+        return Math.floor((date.getTime() - dueDate.getTime()) / 86_400_000);
       };
       const paid = roundMoney(paidByType[config.key]);
       const amountFor = (date: Date) =>
@@ -480,11 +479,9 @@ export class FeesService {
           paidByType.rent + paidByType.mess + paidByType.eb + legacyPaid,
         );
         const daysFor = (date: Date) => {
-          if (date.getTime() < collegeDueDate.getTime()) return 0;
-          return (
-            Math.floor(
-              (date.getTime() - collegeDueDate.getTime()) / 86_400_000,
-            ) + 1
+          if (date.getTime() <= collegeDueDate.getTime()) return 0;
+          return Math.floor(
+            (date.getTime() - collegeDueDate.getTime()) / 86_400_000,
           );
         };
         return {
