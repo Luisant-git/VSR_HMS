@@ -91,9 +91,7 @@ async function main() {
     where: { collegeId: college.id, status: { not: 'Vacated' } },
     include: {
       transactions: {
-        where: {
-          OR: [{ status: 'PENDING' }, { status: 'COMPLETED', transactionType: 'FINE' }],
-        },
+        where: { status: { in: ['PENDING', 'COMPLETED'] } },
       },
     },
     orderBy: { regNo: 'asc' },
@@ -127,6 +125,28 @@ async function main() {
       );
       const typedRows = pending.filter(t => isLateFine(t) && fineKeyFrom(t.description) === config.key);
       if (parents.length === 0 && typedRows.length === 0) continue;
+
+      const hasParentFeeEver = transactions.some(
+        t =>
+          String(t.transactionType || '').toUpperCase() !== 'FINE' &&
+          config.types.includes(String(t.transactionType || '').toUpperCase()),
+      );
+      if (!hasParentFeeEver) {
+        const existing = roundMoney(typedRows.reduce((sum, t) => sum + (Number(t.amount) || 0), 0));
+        if (existing > 0) {
+          changes.push({
+            regNo: student.regNo,
+            name: student.name,
+            feeStatus: student.feeStatus,
+            type: config.key,
+            storedDays: typedRows.reduce((max, t) => Math.max(max, daysFromDescription(t.description)), 0),
+            newDays: 0,
+            oldAmount: `₹${existing.toLocaleString('en-IN')}`,
+            newAmount: '₹0',
+          });
+        }
+        continue;
+      }
 
       const dueDates = parents.filter(t => t.dueDate).map(t => startOfDay(t.dueDate));
       const due = dueDates.length > 0

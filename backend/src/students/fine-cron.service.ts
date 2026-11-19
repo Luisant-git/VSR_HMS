@@ -80,12 +80,7 @@ export class FineCronService {
         },
         include: {
           transactions: {
-            where: {
-              OR: [
-                { status: 'PENDING' },
-                { status: 'COMPLETED', transactionType: 'FINE' },
-              ],
-            },
+            where: { status: { in: ['PENDING', 'COMPLETED'] } },
           },
         },
       });
@@ -111,7 +106,7 @@ export class FineCronService {
     collegeDueDate?: Date | string | null,
   ) {
     const transactions = student.transactions || [];
-    const pending = transactions.filter((t: any) => t.status === 'PENDING');
+    let pending = transactions.filter((t: any) => t.status === 'PENDING');
     const completedLateFines = transactions.filter(
       (t: any) => t.status === 'COMPLETED' && isLateFine(t),
     );
@@ -131,6 +126,32 @@ export class FineCronService {
       { key: 'mess', label: 'Mess', rate: rates.mess, matches: (type) => type === 'MESS' },
       { key: 'eb', label: 'EB', rate: rates.eb, matches: (type) => type === 'EB_BILL' },
     ];
+
+    // Remove fine rows that have no matching fee at all. This fixes orphan
+    // rows such as an EB fine on a student who never had an EB bill.
+    const nonFineTransactions = transactions.filter(
+      (t: any) => String(t.transactionType || '').toUpperCase() !== 'FINE',
+    );
+    const orphanFineIds = pending
+      .filter(isLateFine)
+      .filter((t: any) => {
+        const key = fineKeyFromDescription(t.description);
+        if (!key) return false;
+        const config = configs.find((item) => item.key === key);
+        if (!config) return false;
+        return !nonFineTransactions.some((fee: any) =>
+          config.matches(String(fee.transactionType || '').toUpperCase()),
+        );
+      })
+      .map((t: any) => t.id);
+
+    if (orphanFineIds.length > 0) {
+      await this.prisma.feeTransaction.deleteMany({
+        where: { id: { in: orphanFineIds } },
+      });
+      this.logger.log(`Removed ${orphanFineIds.length} orphan fine row(s) for student ${student.regNo}`);
+      pending = pending.filter((t: any) => !orphanFineIds.includes(t.id));
+    }
 
     // Work out how much fine each fee type currently owes on its own.
     const expected = new Map<FineKey, FineInfo>();

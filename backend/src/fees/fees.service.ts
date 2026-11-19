@@ -310,7 +310,10 @@ export class FeesService {
       where: { id: studentId },
       include: {
         college: { include: { fineMaster: true } },
-        transactions: { where: { status: 'PENDING' } },
+        // Include paid fees too so we can tell a genuinely owed fine (parent
+        // fee was paid, fine still pending) from an orphan fine left over for
+        // a fee this student never had.
+        transactions: { where: { status: { in: ['PENDING', 'COMPLETED'] } } },
       },
     });
     if (!student) throw new NotFoundException('Student not found.');
@@ -318,7 +321,8 @@ export class FeesService {
     const collegeDueDate = student.college?.dueDate
       ? this.startOfDay(new Date(student.college.dueDate))
       : null;
-    const pending = student.transactions || [];
+    const allTransactions = student.transactions || [];
+    const pending = allTransactions.filter((item: any) => item.status === 'PENDING');
     const fineMaster = student.college?.fineMaster;
 
     const completedFines = await this.prisma.feeTransaction.findMany({
@@ -385,10 +389,13 @@ export class FeesService {
         (item) => fineKeyFromDescription(item.description) === config.key,
       );
 
-      // Only charge a fee type when it is actually due (or a fine for it is
-      // already pending), otherwise every configured rate would apply to
-      // every student.
-      if (pendingParents.length === 0 && !typedFine) continue;
+      // Only charge a fee type when the student actually has that fee. A
+      // typed fine alone is not enough: an orphan fine (e.g. EB fine with no
+      // EB bill) must not keep creating a charge every time Pay Now opens.
+      const hasParentFeeEver = allTransactions.some((item: any) =>
+        config.types.includes(String(item.transactionType || '').toUpperCase()),
+      );
+      if (!hasParentFeeEver) continue;
 
       let rate = config.rate;
 
