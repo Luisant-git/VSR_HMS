@@ -22,6 +22,8 @@ import { PrismaService } from '../prisma.service';
 const OBJ = {
   logs: 'biometric_attendance_logs',
   devices: 'biometric_device_registry',
+  deviceUsers: 'biometric_device_users',
+  userTemplates: 'biometric_user_templates',
   sync: 'biometric_sync_state',
   inOut: 'view_student_in_out_logs',
   inside: 'view_student_currently_inside',
@@ -33,7 +35,7 @@ const OBJ = {
 } as const;
 
 const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 500;
+const MAX_LIMIT = 5000;
 
 export interface PageQuery {
   page?: number;
@@ -818,10 +820,9 @@ export class BiometricAttendanceService {
   }
 
   /**
-   * Distinct device/user pairs observed in the attendance log, enriched with
-   * the matched student. Enrollment details that the terminal never pushes
-   * (card number, enrolled templates) stay null unless the log table stores
-   * them, so the UI can render them as "—" instead of inventing values.
+   * Distinct device/user pairs registered on terminals or observed in the attendance log,
+   * enriched with the matched student. Combines biometric_device_users and biometric_user_templates
+   * with biometric_attendance_logs so enrolled students are accurately reflected even before punching.
    */
   async getDeviceUsers(query: PageQuery & { fromDate?: string; toDate?: string }) {
     const availability = await this.availability();
@@ -863,7 +864,11 @@ export class BiometricAttendanceService {
       fingerprintEnrolled: 0,
     };
 
-    if (!availability.tables.has(OBJ.logs)) {
+    const hasDeviceUsers = availability.tables.has(OBJ.deviceUsers);
+    const hasTemplates = availability.tables.has(OBJ.userTemplates);
+    const hasLogs = availability.tables.has(OBJ.logs);
+
+    if (!hasDeviceUsers && !hasLogs) {
       return this.envelope(availability, {
         data: [],
         summary: emptySummary,
@@ -871,38 +876,87 @@ export class BiometricAttendanceService {
       });
     }
 
-    const columns = await this.logsColumns();
-    const nameColumn = ['user_name', 'name', 'person_name', 'employee_name'].find((name) =>
-      columns.has(name),
-    );
-    const cardColumn = ['card_no', 'card_number', 'cardno'].find((name) => columns.has(name));
-    const nameExpr = nameColumn ? `MAX(b.${nameColumn}::text)` : 'NULL::text';
-    const cardExpr = cardColumn ? `MAX(b.${cardColumn}::text)` : 'NULL::text';
-    const verifyText = columns.has('verify_type')
-      ? `LOWER(COALESCE(b.verify_type::text, ''))`
-      : `''`;
-    const syncExpr = columns.has('synced_at')
-      ? 'b.synced_at'
-      : columns.has('created_at')
-        ? 'b.created_at'
-        : 'b.punch_time';
+    const sources: string[] = [];
 
-    const cte = `
-      WITH users AS (
+    if (hasDeviceUsers) {
+      sources.push(`
+        SELECT
+          u.device_id::text AS device_id,
+          u.user_id::text AS device_user_id,
+          u.name::text AS name_on_device,
+          u.card_no::text AS card_no,
+          (COALESCE(u.face_count, 0) > 0) AS face_enrolled,
+          (COALESCE(u.fingerprint_count, 0) > 0) AS fingerprint_enrolled,
+          u.synced_at AS last_synced
+        FROM public.biometric_device_users u
+      `);
+    }
+
+    if (hasTemplates) {
+      sources.push(`
+        SELECT
+          t.device_id::text AS device_id,
+          t.user_id::text AS device_user_id,
+          NULL::text AS name_on_device,
+          NULL::text AS card_no,
+          BOOL_OR(UPPER(COALESCE(t.template_type::text, '')) IN ('FACE', 'BIOPHOTO')) AS face_enrolled,
+          BOOL_OR(UPPER(COALESCE(t.template_type::text, '')) IN ('FP', 'FINGERPRINT')) AS fingerprint_enrolled,
+          MAX(t.synced_at) AS last_synced
+        FROM public.biometric_user_templates t
+        GROUP BY t.device_id, t.user_id
+      `);
+    }
+
+    if (hasLogs) {
+      const columns = await this.logsColumns();
+      const nameColumn = ['user_name', 'name', 'person_name', 'employee_name'].find((name) =>
+        columns.has(name),
+      );
+      const cardColumn = ['card_no', 'card_number', 'cardno'].find((name) => columns.has(name));
+      const nameExpr = nameColumn ? `MAX(b.${nameColumn}::text)` : 'NULL::text';
+      const cardExpr = cardColumn ? `MAX(b.${cardColumn}::text)` : 'NULL::text';
+      const verifyText = columns.has('verify_type')
+        ? `LOWER(COALESCE(b.verify_type::text, ''))`
+        : `''`;
+      const syncExpr = columns.has('synced_at')
+        ? 'b.synced_at'
+        : columns.has('created_at')
+          ? 'b.created_at'
+          : 'b.punch_time';
+
+      sources.push(`
         SELECT
           b.device_id::text AS device_id,
           b.user_id::text AS device_user_id,
-          MAX(${syncExpr}) AS last_synced,
+          ${nameExpr} AS name_on_device,
+          ${cardExpr} AS card_no,
           BOOL_OR(${verifyText} IN ('15', '20', 'face', 'face+fp') OR ${verifyText} LIKE '%face%') AS face_enrolled,
           BOOL_OR(
             ${verifyText} IN ('1', '20', 'fp', 'finger', 'fingerprint', 'face+fp')
             OR ${verifyText} LIKE '%finger%'
             OR ${verifyText} LIKE '%fp%'
           ) AS fingerprint_enrolled,
-          ${cardExpr} AS card_no,
-          ${nameExpr} AS name_on_device
+          MAX(${syncExpr}) AS last_synced
         FROM public.biometric_attendance_logs b
         GROUP BY b.device_id, b.user_id
+      `);
+    }
+
+    const cte = `
+      WITH all_users AS (
+        ${sources.join('\n UNION ALL \n')}
+      ),
+      users AS (
+        SELECT
+          device_id,
+          device_user_id,
+          MAX(NULLIF(TRIM(name_on_device), '')) AS name_on_device,
+          MAX(NULLIF(TRIM(card_no), '')) AS card_no,
+          BOOL_OR(COALESCE(face_enrolled, false)) AS face_enrolled,
+          BOOL_OR(COALESCE(fingerprint_enrolled, false)) AS fingerprint_enrolled,
+          MAX(last_synced) AS last_synced
+        FROM all_users
+        GROUP BY device_id, device_user_id
       ),
       joined AS (
         SELECT

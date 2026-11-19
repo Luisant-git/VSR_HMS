@@ -25,6 +25,7 @@ const DeviceUsers = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [exporting, setExporting] = useState(false);
 
   const { data, loading, error, reload } = useApiData(
     () =>
@@ -60,28 +61,67 @@ const DeviceUsers = () => {
   const rows = data?.data || [];
   const summary = data?.summary;
 
-  const handleExport = () => {
-    if (!rows.length) return;
-    exportExcel(
-      [
-        {
-          name: 'Device enrolled users',
-          rows: rows.map((row) => ({
-            'Device ID': row.device_id || '',
-            'Device PIN / User ID': row.device_user_id,
-            'Name on Device': row.name_on_device || '',
-            'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
-            'Reg No': row.reg_no || '',
-            'Room No': row.room_no || '',
-            'Face Biometric': row.face_enrolled ? 'Yes' : '',
-            Fingerprints: row.fingerprint_enrolled ? 'Yes' : '',
-            'Card No': row.card_no || '',
-            'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
-          })),
-        },
-      ],
-      `device-enrolled-users-${downloadStamp()}.xlsx`,
-    );
+  const handleExport = async () => {
+    if (!rows.length || exporting) return;
+    setExporting(true);
+    try {
+      let exportRows = rows;
+      if (summary?.totalUsers && summary.totalUsers > rows.length) {
+        const full = await BiometricAttendanceAPI.deviceUsers({
+          page: 1,
+          limit: summary.totalUsers,
+          search: search.trim(),
+          fromDate: fromDate || undefined,
+          toDate: toDate || undefined,
+        });
+        if (full?.data?.length) {
+          exportRows = full.data;
+        }
+      }
+      exportExcel(
+        [
+          {
+            name: 'Device enrolled users',
+            rows: exportRows.map((row) => ({
+              'Device ID': row.device_id || '',
+              'Device PIN / User ID': row.device_user_id,
+              'Name on Device': row.name_on_device || '',
+              'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
+              'Reg No': row.reg_no || '',
+              'Room No': row.room_no || '',
+              'Face Biometric': row.face_enrolled ? 'Yes' : '',
+              Fingerprints: row.fingerprint_enrolled ? 'Yes' : '',
+              'Card No': row.card_no || '',
+              'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
+            })),
+          },
+        ],
+        `device-enrolled-users-${downloadStamp()}.xlsx`,
+      );
+    } catch {
+      exportExcel(
+        [
+          {
+            name: 'Device enrolled users',
+            rows: rows.map((row) => ({
+              'Device ID': row.device_id || '',
+              'Device PIN / User ID': row.device_user_id,
+              'Name on Device': row.name_on_device || '',
+              'Matched Student in DB': row.matched ? row.student_name || 'Matched' : 'Not matched',
+              'Reg No': row.reg_no || '',
+              'Room No': row.room_no || '',
+              'Face Biometric': row.face_enrolled ? 'Yes' : '',
+              Fingerprints: row.fingerprint_enrolled ? 'Yes' : '',
+              'Card No': row.card_no || '',
+              'Last Synced': row.last_synced ? formatDateTime(row.last_synced) : '',
+            })),
+          },
+        ],
+        `device-enrolled-users-${downloadStamp()}.xlsx`,
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -92,7 +132,7 @@ const DeviceUsers = () => {
         actions={
           <>
             <BioRefresh onClick={reload} loading={loading} />
-            <BioExportButton onClick={handleExport} disabled={!rows.length} />
+            <BioExportButton onClick={handleExport} disabled={!rows.length || exporting} />
           </>
         }
       />
@@ -103,8 +143,8 @@ const DeviceUsers = () => {
             { label: 'Enrolled users', value: summary?.totalUsers ?? '—', sub: 'Distinct device + PIN pairs', icon: <Users size={19} />, tone: 'accent' },
             { label: 'Matched', value: summary?.matched ?? '—', sub: 'Linked to a student record', icon: <UserCheck size={19} />, tone: 'success' },
             { label: 'Not matched', value: summary?.unmatched ?? '—', sub: 'Need register number mapping', icon: <UserX size={19} />, tone: 'warning' },
-            { label: 'Face biometric', value: summary?.faceEnrolled ?? '—', sub: 'Detected from face punches', icon: <ScanFace size={19} />, tone: 'info' },
-            { label: 'Fingerprints', value: summary?.fingerprintEnrolled ?? '—', sub: 'Detected from fingerprint punches', icon: <Fingerprint size={19} />, tone: 'purple' },
+            { label: 'Face biometric', value: summary?.faceEnrolled ?? '—', sub: 'Enrolled face biometrics', icon: <ScanFace size={19} />, tone: 'info' },
+            { label: 'Fingerprints', value: summary?.fingerprintEnrolled ?? '—', sub: 'Enrolled fingerprints', icon: <Fingerprint size={19} />, tone: 'purple' },
           ]}
         />
       </div>
@@ -112,7 +152,7 @@ const DeviceUsers = () => {
       <div className="bio-card" style={{ marginTop: 16 }}>
         <BioCardHead
           title="Enrolled users"
-          subtitle="Every PIN seen on a terminal, with its student match and enrollment signals"
+          subtitle="Every PIN registered on a terminal or observed in logs, with student mapping and enrollment signals"
           icon={<Users size={17} />}
         />
 
