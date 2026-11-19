@@ -110,6 +110,7 @@ export class FeesService {
               select: {
                 name: true,
                 billingCycle: true,
+                dueDate: true,
               },
             },
           },

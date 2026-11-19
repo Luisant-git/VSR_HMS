@@ -1307,7 +1307,26 @@ const Fees = () => {
                             fee.feesList?.find(
                               (item: any) => (item.transactionType || '').toUpperCase() === 'FINE',
                             );
-                          const overdueDays = fineFee?.description?.match(/(\d+)\s+days?\s+overdue/i)?.[1];
+
+                          // The Fine Master due date is the single source of
+                          // truth. Derive the label from it instead of trusting
+                          // possibly stale text on an old fine row.
+                          const college: any = fee.student?.college;
+                          const collegeDueDate = college && typeof college === 'object' ? college.dueDate : null;
+                          let overdueDays: number | null = null;
+                          if (collegeDueDate) {
+                            const due = new Date(collegeDueDate);
+                            const today = new Date();
+                            due.setHours(0, 0, 0, 0);
+                            today.setHours(0, 0, 0, 0);
+                            if (today > due) {
+                              overdueDays = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+                            }
+                          }
+                          if (overdueDays === null) {
+                            const storedDays = fineFee?.description?.match(/(\d+)\s+days?\s+overdue/i)?.[1];
+                            overdueDays = storedDays ? Number(storedDays) : null;
+                          }
                           return overdueDays
                             ? <div className="fees-note fees-note--danger">{overdueDays} day{Number(overdueDays) === 1 ? '' : 's'} overdue</div>
                             : null;
