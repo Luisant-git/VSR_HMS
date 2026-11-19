@@ -85,6 +85,7 @@ export class BiometricAttendanceController {
     @Query('search') search?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('status') status?: string,
   ) {
     return this.biometric.getDeviceUsers({
       page: numberOrUndefined(page),
@@ -92,6 +93,7 @@ export class BiometricAttendanceController {
       search,
       fromDate,
       toDate,
+      status,
     });
   }
 

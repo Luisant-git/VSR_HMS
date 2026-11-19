@@ -820,11 +820,11 @@ export class BiometricAttendanceService {
   }
 
   /**
-   * Distinct device/user pairs registered on terminals or observed in the attendance log,
-   * enriched with the matched student. Combines biometric_device_users and biometric_user_templates
-   * with biometric_attendance_logs so enrolled students are accurately reflected even before punching.
+   * Device registered users list, mapping physical biometric IDs to HMS students.
+   * Deduplicates by student to prevent double-counting when students are registered under
+   * both their Register Number (regNo) and Biometric Machine ID (manualRegsiName).
    */
-  async getDeviceUsers(query: PageQuery & { fromDate?: string; toDate?: string }) {
+  async getDeviceUsers(query: PageQuery & { fromDate?: string; toDate?: string; status?: string }) {
     const availability = await this.availability();
     const page = this.page(query.page);
     const limit = this.limit(query.limit);
@@ -832,8 +832,10 @@ export class BiometricAttendanceService {
     const search = String(query.search || '').trim();
     const fromDate = String(query.fromDate || '').trim();
     const toDate = String(query.toDate || '').trim();
+    const status = String(query.status || '').trim().toLowerCase();
     const params: unknown[] = [];
     const where: string[] = [];
+
     if (search) {
       params.push(`%${search}%`);
       where.push(`(
@@ -854,14 +856,28 @@ export class BiometricAttendanceService {
       params.push(toDate);
       where.push(`last_synced::date <= $${params.length}::date`);
     }
+    if (status === 'active' || status === 'in') {
+      where.push(`(matched AND student_status = 'In')`);
+    } else if (status === 'vacated') {
+      where.push(`(matched AND student_status = 'Vacated')`);
+    } else if (status === 'unmatched') {
+      where.push(`(NOT matched)`);
+    } else if (status === 'matched') {
+      where.push(`(matched)`);
+    }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const emptySummary = {
       totalUsers: 0,
       matched: 0,
+      activeMatched: 0,
+      vacatedMatched: 0,
+      totalActiveStudents: 0,
       unmatched: 0,
       faceEnrolled: 0,
       fingerprintEnrolled: 0,
+      activeFaceEnrolled: 0,
+      activeFingerprintEnrolled: 0,
     };
 
     const hasDeviceUsers = availability.tables.has(OBJ.deviceUsers);
@@ -946,7 +962,7 @@ export class BiometricAttendanceService {
       WITH all_users AS (
         ${sources.join('\n UNION ALL \n')}
       ),
-      users AS (
+      device_users_grouped AS (
         SELECT
           device_id,
           device_user_id,
@@ -958,25 +974,75 @@ export class BiometricAttendanceService {
         FROM all_users
         GROUP BY device_id, device_user_id
       ),
-      joined AS (
+      matched_mapping AS (
         SELECT
-          u.device_id,
-          u.device_user_id,
-          COALESCE(u.name_on_device, s.name) AS name_on_device,
-          (s.id IS NOT NULL) AS matched,
+          du.device_id,
+          du.device_user_id,
+          du.name_on_device,
+          du.card_no,
+          du.face_enrolled,
+          du.fingerprint_enrolled,
+          du.last_synced,
+          s.id AS student_id,
           s.name AS student_name,
           s."regNo" AS reg_no,
+          s."manualRegsiName" AS manual_reg_no,
           s."roomNo" AS room_no,
           s."bedNo" AS bed_no,
-          u.face_enrolled,
-          u.fingerprint_enrolled,
-          u.card_no,
-          u.last_synced
-        FROM users u
+          s.status AS student_status
+        FROM device_users_grouped du
         LEFT JOIN public."Student" s
-          ON (s."biometricId" = u.device_user_id
-              OR s."regNo" = u.device_user_id
-              OR s."manualRegsiName" = u.device_user_id)
+          ON (s."biometricId" = du.device_user_id
+              OR s."regNo" = du.device_user_id
+              OR s."manualRegsiName" = du.device_user_id)
+      ),
+      deduped_matched AS (
+        SELECT
+          MAX(device_id) AS device_id,
+          CASE 
+            WHEN manual_reg_no IS NOT NULL AND reg_no IS NOT NULL AND manual_reg_no <> reg_no
+              THEN manual_reg_no || ' (' || reg_no || ')'
+            ELSE COALESCE(manual_reg_no, reg_no, MAX(device_user_id))
+          END AS device_user_id,
+          COALESCE(MAX(name_on_device), MAX(student_name)) AS name_on_device,
+          true AS matched,
+          student_id,
+          student_name,
+          reg_no,
+          room_no,
+          bed_no,
+          student_status,
+          BOOL_OR(face_enrolled) AS face_enrolled,
+          BOOL_OR(fingerprint_enrolled) AS fingerprint_enrolled,
+          MAX(card_no) AS card_no,
+          MAX(last_synced) AS last_synced
+        FROM matched_mapping
+        WHERE student_id IS NOT NULL
+        GROUP BY student_id, student_name, reg_no, room_no, bed_no, student_status, manual_reg_no
+      ),
+      deduped_unmatched AS (
+        SELECT
+          device_id,
+          device_user_id,
+          name_on_device,
+          false AS matched,
+          NULL::text AS student_id,
+          NULL::text AS student_name,
+          NULL::text AS reg_no,
+          NULL::text AS room_no,
+          NULL::text AS bed_no,
+          NULL::text AS student_status,
+          face_enrolled,
+          fingerprint_enrolled,
+          card_no,
+          last_synced
+        FROM matched_mapping
+        WHERE student_id IS NULL
+      ),
+      unified AS (
+        SELECT * FROM deduped_matched
+        UNION ALL
+        SELECT * FROM deduped_unmatched
       )
     `;
 
@@ -984,19 +1050,28 @@ export class BiometricAttendanceService {
       `${cte}
        SELECT COUNT(*)::int AS total_users,
               COUNT(*) FILTER (WHERE matched)::int AS matched,
+              COUNT(*) FILTER (WHERE matched AND student_status = 'In')::int AS active_matched,
+              COUNT(*) FILTER (WHERE matched AND student_status = 'Vacated')::int AS vacated_matched,
               COUNT(*) FILTER (WHERE NOT matched)::int AS unmatched,
               COUNT(*) FILTER (WHERE face_enrolled)::int AS face_enrolled,
-              COUNT(*) FILTER (WHERE fingerprint_enrolled)::int AS fingerprint_enrolled
-       FROM joined ${whereSql}`,
+              COUNT(*) FILTER (WHERE fingerprint_enrolled)::int AS fingerprint_enrolled,
+              COUNT(*) FILTER (WHERE face_enrolled AND student_status = 'In')::int AS active_face_enrolled,
+              COUNT(*) FILTER (WHERE fingerprint_enrolled AND student_status = 'In')::int AS active_fingerprint_enrolled
+       FROM unified ${whereSql}`,
       params,
     );
 
+    const activeStudentsRes = await this.query<{ total: number }>(
+      `SELECT COUNT(*)::int AS total FROM public."Student" WHERE status = 'In'`,
+    );
+    const totalActiveStudents = Number(activeStudentsRes.rows[0]?.total) || 0;
+
     const dataResult = await this.query<any>(
       `${cte}
-       SELECT device_id, device_user_id, name_on_device, matched, student_name,
-              reg_no, room_no, bed_no, face_enrolled, fingerprint_enrolled, card_no, last_synced
-       FROM joined ${whereSql}
-       ORDER BY matched DESC, student_name ASC NULLS LAST, device_user_id ASC
+       SELECT device_id, device_user_id, name_on_device, matched, student_id, student_name,
+              reg_no, room_no, bed_no, student_status, face_enrolled, fingerprint_enrolled, card_no, last_synced
+       FROM unified ${whereSql}
+       ORDER BY matched DESC, CASE WHEN student_status = 'In' THEN 0 WHEN student_status = 'Vacated' THEN 1 ELSE 2 END, student_name ASC NULLS LAST, device_user_id ASC
        LIMIT ${limit} OFFSET ${offset}`,
       params,
     );
@@ -1011,9 +1086,14 @@ export class BiometricAttendanceService {
         summary: {
           totalUsers: total,
           matched: Number(summaryRow.matched) || 0,
+          activeMatched: Number(summaryRow.active_matched) || 0,
+          vacatedMatched: Number(summaryRow.vacated_matched) || 0,
+          totalActiveStudents,
           unmatched: Number(summaryRow.unmatched) || 0,
           faceEnrolled: Number(summaryRow.face_enrolled) || 0,
           fingerprintEnrolled: Number(summaryRow.fingerprint_enrolled) || 0,
+          activeFaceEnrolled: Number(summaryRow.active_face_enrolled) || 0,
+          activeFingerprintEnrolled: Number(summaryRow.active_fingerprint_enrolled) || 0,
         },
         pagination: this.pagination(page, limit, total),
       },
