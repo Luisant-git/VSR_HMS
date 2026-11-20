@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Bed, Users, Search, Filter, Home, CheckCircle, XCircle, Plus, Zap, LayoutGrid, List, Wind, SquarePen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
 import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
+import { StudentAPI } from '../api/student.api';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 
@@ -12,7 +14,7 @@ const RoomsDirectory = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [filterStatus, setFilterStatus] = useState('All');
-  const [filterType, setFilterType] = useState('All Types');
+  const [filterBlock, setFilterBlock] = useState('All Blocks');
   const [dbRooms, setDbRooms] = useState<any[]>([]);
   const [newRoom, setNewRoom] = useState<any>({
     id: '', block: '', floor: 1, type: 'Single', capacity: 1, rent: '', messFee: '', amenities: ''
@@ -22,7 +24,18 @@ const RoomsDirectory = () => {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [roomStudents, setRoomStudents] = useState<{ room: any; students: any[]; loading: boolean; error?: string } | null>(null);
   const limit = 12;
+
+  const openRoomStudents = (room: any) => {
+    setRoomStudents({ room, students: [], loading: true });
+    StudentAPI.findAll({ roomFilter: `Room ${room.id}`, limit: 100, statusFilter: 'ACTIVE' })
+      .then((res: any) => {
+        const students = Array.isArray(res) ? res : (res.data || []);
+        setRoomStudents({ room, students, loading: false });
+      })
+      .catch(() => setRoomStudents({ room, students: [], loading: false, error: 'Failed to load students' }));
+  };
 
   const getTypeStyle = (type: string) => {
     const t = type.toLowerCase();
@@ -111,6 +124,60 @@ const RoomsDirectory = () => {
   const occupiedBeds = dbRooms.reduce((sum, r) => sum + r.occupiedCount, 0);
   const vacantBeds = totalBeds - occupiedBeds;
 
+  // Blocks come from the live room list. Normalise values like "Block A" / "A"
+  // and fall back to the room number (A1, B2 ...) so every block is listed once.
+  const normalizeBlock = (rawBlock: any, roomId?: any) => {
+    const room = String(roomId || '').trim();
+    const b = String(rawBlock || '').trim();
+    const letter = room.match(/^([A-E])\d+/i)?.[1]?.toUpperCase();
+    if (letter || /^block\s*[a-e]$/i.test(b) || /^[a-e]$/i.test(b)) {
+      return letter || b.replace(/^block\s*/i, '').trim().toUpperCase();
+    }
+    if (/dorm/i.test(b) || /^dorm/i.test(room)) return 'Dormitory';
+    if (/single/i.test(b) || /^w\d+/i.test(room)) return 'Single Rooms';
+    return b.replace(/^block\s*/i, '').trim() || 'Other';
+  };
+  const roomBlock = (r: any) => normalizeBlock(r.block, r.id);
+  const BLOCK_ORDER = ['A', 'B', 'C', 'CD', 'D', 'E', 'Dormitory', 'Single Rooms', 'W'];
+  const blockRank = (block: string) => {
+    const index = BLOCK_ORDER.findIndex(b => b.toLowerCase() === String(block).toLowerCase());
+    return index === -1 ? BLOCK_ORDER.length : index;
+  };
+  const blockOptions = Array.from(new Set(dbRooms.map(roomBlock).filter(Boolean)))
+    .sort((a, b) => blockRank(a) - blockRank(b) || a.localeCompare(b, undefined, { numeric: true }));
+  const blockCounts: Record<string, number> = Object.fromEntries(
+    blockOptions.map(block => [block, dbRooms.filter(r => roomBlock(r) === block).length]),
+  );
+  const blockLabel = (block: string) => /^[A-E]$/i.test(block) ? `Block ${block.toUpperCase()}` : block;
+
+  // Searchable block dropdown (same react-select style used on Fees / Hostellers).
+  const selectStyles = {
+    control: (base: any, state: any) => ({
+      ...base,
+      padding: '2px',
+      borderRadius: '8px',
+      borderColor: state.isFocused ? 'var(--sidebar-active)' : 'var(--border-color)',
+      boxShadow: state.isFocused ? '0 0 0 1px var(--sidebar-active)' : 'none',
+      '&:hover': { borderColor: state.isFocused ? 'var(--sidebar-active)' : '#cbd5e1' },
+      fontSize: '13px',
+      cursor: 'pointer',
+      width: '200px',
+      background: 'white'
+    }),
+    option: (base: any, state: any) => ({
+      ...base,
+      fontSize: '13px',
+      backgroundColor: state.isSelected ? 'var(--sidebar-active)' : state.isFocused ? '#f8f9fa' : 'white',
+      color: state.isSelected ? 'white' : '#334155',
+      cursor: 'pointer'
+    })
+  };
+
+  const blockSelectOptions = [
+    { value: 'All Blocks', label: `All Blocks (${dbRooms.length})` },
+    ...blockOptions.map(block => ({ value: block, label: `${blockLabel(block)} (${blockCounts[block]})` }))
+  ];
+
   const metrics = [
     { label: 'Total Hostel Rooms', value: `${dbRooms.length} Rooms`, color: '#3b82f6', icon: <Home size={20} /> },
     { label: 'Total Bed Capacity', value: `${totalBeds} Beds`, color: '#8b5cf6', icon: <Bed size={20} /> },
@@ -120,8 +187,11 @@ const RoomsDirectory = () => {
 
 
   const sortedDbRooms = [...dbRooms].sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+  const blockRooms = sortedDbRooms
+    .filter(r => filterBlock === 'All Blocks' || roomBlock(r) === filterBlock)
+    .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' }));
 
-  const roomsData = sortedDbRooms.map(r => ({
+  const roomsData = blockRooms.map(r => ({
     id: r.id,
     block: `${r.block} | ${r.type}`,
     status: r.occupiedCount === r.capacity ? 'Full' : r.occupiedCount === 0 ? 'Fully Vacant' : 'Partially Filled',
@@ -137,7 +207,7 @@ const RoomsDirectory = () => {
     floor: r.floor
   }));
 
-  const tableData = sortedDbRooms.map(r => ({
+  const tableData = blockRooms.map(r => ({
     room: `Room ${r.id}`,
     loc: r.block,
     type: r.type,
@@ -156,7 +226,6 @@ const RoomsDirectory = () => {
   const filteredGridDataRaw = roomsData.filter(room => {
     const matchesSearch = room.id.toLowerCase().includes(searchTerm.toLowerCase()) || room.block.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
-    if (filterType !== 'All Types' && !room.type.toLowerCase().includes(filterType.toLowerCase())) return false;
     if (filterStatus === 'Available') return room.filled < room.total;
     if (filterStatus === 'Fully Vacant') return room.filled === 0;
     if (filterStatus === 'Full') return room.filled === room.total;
@@ -168,7 +237,6 @@ const RoomsDirectory = () => {
   const filteredTableDataRaw = tableData.filter(row => {
     const matchesSearch = row.room.toLowerCase().includes(searchTerm.toLowerCase()) || row.loc.toLowerCase().includes(searchTerm.toLowerCase());
     if (!matchesSearch) return false;
-    if (filterType !== 'All Types' && !row.type.toLowerCase().includes(filterType.toLowerCase())) return false;
     if (filterStatus === 'Available') return row.vac > 0;
     if (filterStatus === 'Fully Vacant') return row.occ === 0;
     if (filterStatus === 'Full') return row.vac === 0;
@@ -213,7 +281,7 @@ const RoomsDirectory = () => {
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '10px 15px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', background: 'white', padding: '10px 15px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '20px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', color: '#64748b' }}>
           <Filter size={16} style={{ marginRight: '6px' }} />
           <span style={{ fontSize: '13px', fontWeight: 700, textTransform: 'uppercase' }}>Filter:</span>
@@ -239,18 +307,14 @@ const RoomsDirectory = () => {
         ))}
 
         <div style={{ marginLeft: '10px', paddingLeft: '10px', borderLeft: '1px solid var(--border-color)', display: 'flex', alignItems: 'center' }}>
-          <select
-            value={filterType}
-            onChange={e => { setFilterType(e.target.value); setPage(1); }}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: 'white', color: '#475569', fontWeight: 600, cursor: 'pointer' }}
-          >
-            <option value="All Types">All Types</option>
-            <option value="Single">Single</option>
-            <option value="Double">Double</option>
-            <option value="Triple">Triple</option>
-            <option value="Four Sharing">Four Sharing</option>
-            <option value="Dormitory">Dormitory</option>
-          </select>
+          <Select
+            options={blockSelectOptions}
+            value={blockSelectOptions.find(o => o.value === filterBlock)}
+            onChange={(opt: any) => { setFilterBlock(opt?.value || 'All Blocks'); setPage(1); }}
+            styles={selectStyles}
+            placeholder="Search block..."
+            isSearchable={true}
+          />
         </div>
 
         <div style={{ position: 'relative', marginLeft: 'auto' }}>
@@ -274,7 +338,7 @@ const RoomsDirectory = () => {
                 )}
                 {filteredGridData.map((r, i) => (
 
-                  <div key={i} className="content-card" style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                  <div key={i} className="content-card" onClick={() => openRoomStudents(r)} style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
                     {r.amenities.includes('AC') ? (
                       <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
                         <Wind size={14} /> AC
@@ -285,7 +349,7 @@ const RoomsDirectory = () => {
                       </span>
                     )}
 
-                    <button onClick={() => handleEditClick(r)} style={{ position: 'absolute', top: '48px', right: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(59, 130, 246, 0.1)' }} title="Edit Room">
+                    <button onClick={(e) => { e.stopPropagation(); handleEditClick(r); }} style={{ position: 'absolute', top: '48px', right: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', boxShadow: '0 1px 2px rgba(59, 130, 246, 0.1)' }} title="Edit Room">
                       <SquarePen size={14} />
                     </button>
 
@@ -346,7 +410,7 @@ const RoomsDirectory = () => {
 
                       <button
                         style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '10px', borderRadius: '8px', background: r.filled === r.total ? '#f8f9fa' : 'var(--sidebar-active)', color: r.filled === r.total ? '#64748b' : 'white', border: r.filled === r.total ? '1px solid #cbd5e1' : 'none', fontWeight: 600, fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s' }}
-                        onClick={() => navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } })}
+                        onClick={(e) => { e.stopPropagation(); navigate('/hostellers', { state: { filterRoom: `Room ${r.id}` } }); }}
                       >
                         {r.filled === r.total ? 'View Students' : 'Assign Student'}
                       </button>
@@ -549,6 +613,51 @@ const RoomsDirectory = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Room occupants modal */}
+      {roomStudents && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={() => setRoomStudents(null)}>
+          <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '600px', padding: '30px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '15px', borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-heading)', margin: 0 }}>Room {roomStudents.room.id}</h3>
+                <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                  {roomStudents.loading ? 'Loading students...' : `${roomStudents.students.length} Student${roomStudents.students.length === 1 ? '' : 's'} in this room`}
+                </div>
+              </div>
+              <button onClick={() => setRoomStudents(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <XCircle size={24} />
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+              {roomStudents.loading ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '14px' }}>Loading...</div>
+              ) : roomStudents.error ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#ef4444', fontSize: '14px' }}>{roomStudents.error}</div>
+              ) : roomStudents.students.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '14px' }}>No active students in this room.</div>
+              ) : (
+                roomStudents.students.map((s: any, idx: number) => (
+                  <div key={s.id || s.uuid || s.regNo || idx} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 14px', marginBottom: '10px' }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '14px' }}>{s.name || 'N/A'}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <span>Reg: {s.manualRegsiName || s.regNo || 'N/A'}</span>
+                      <span>Mobile: {s.mobileNo || 'N/A'}</span>
+                      <span>College: {typeof s.college === 'string' ? s.college : (s.college?.name || 'N/A')}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setRoomStudents(null)} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'white', border: '1px solid #cbd5e1', color: '#475569', cursor: 'pointer' }}>Close</button>
+              <button onClick={() => { navigate('/hostellers', { state: { filterRoom: `Room ${roomStudents.room.id}` } }); setRoomStudents(null); }} style={{ padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, background: 'var(--sidebar-active)', border: 'none', color: 'white', cursor: 'pointer', boxShadow: '0 4px 10px rgba(74, 114, 250, 0.3)' }}>View Hostellers</button>
+            </div>
           </div>
         </div>
       )}
