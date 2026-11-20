@@ -1428,10 +1428,7 @@ const Fees = () => {
                       <td>
                         <div className="fees-person">
                           <div className="fees-person-info">
-                            <div className="fees-person-name" title={studentName}>
-                              {studentName}
-                              {isWarden && <span className="ui-badge fees-warden-badge">WARDEN</span>}
-                            </div>
+                            <div className="fees-person-name" title={studentName}>{studentName}</div>
                             <div className="fees-person-meta" title={regNo}>{regNo}</div>
                           </div>
                         </div>
