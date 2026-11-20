@@ -133,11 +133,12 @@ const EbBills = () => {
   useEffect(() => { fetchBillingHistory(); }, [searchTerm, selectedBillingCycle]);
   useEffect(() => { fetchRoomBills(); }, [selectedRoom]);
 
-  // Carry the last billed readings forward into the next cycle, separately for
-  // AC and Normal. This never runs while editing or after the current cycle has
-  // already been billed, so it cannot overwrite readings the user just saved.
-  useEffect(() => {
-    if (mode === 'edit' || !selectedRoom || !billingCycle || roomBills.length === 0) return;
+  // Fill the current cycle's PREVIOUS readings from the last billed cycle.
+  // Shared by the automatic effect and the Clear button so both behave alike.
+  // Last cycle's CURRENT reading becomes this cycle's starting reading; the
+  // user only enters a fresh current reading.
+  const applyCarryForward = () => {
+    if (!selectedRoom || !billingCycle || roomBills.length === 0) return;
     if (roomBills.some((bill) => bill.billingCycle === billingCycle)) return;
 
     const previous = [...roomBills]
@@ -145,8 +146,6 @@ const EbBills = () => {
       .sort((a, b) => String(b.billingCycle || '').localeCompare(String(a.billingCycle || '')))[0];
     if (!previous) return;
 
-    // Only the PREVIOUS reading carries forward: last cycle's current reading
-    // becomes this cycle's starting reading. The user enters a fresh current.
     const lastCurr = pickReading(previous.normalCurrReading, previous.currReading);
     setNormalPrev(String(lastCurr));
     setNormalCurr('0');
@@ -161,6 +160,12 @@ const EbBills = () => {
       setAcPrev('0');
       setAcCurr('0');
     }
+  };
+
+  // Never auto-fill while editing, so saved readings cannot be overwritten.
+  useEffect(() => {
+    if (mode === 'edit') return;
+    applyCarryForward();
   }, [selectedRoom, billingCycle, roomBills, mode]);
 
   const fetchRooms = async () => {
@@ -303,12 +308,12 @@ const EbBills = () => {
     setMode('create');
     setEditingId(null);
     setBillTariff(null);
-    setSelectedRoom(null);
-    setBillingCycle(currentMonthStr);
+    // Keep the room and billing cycle so the readings can be filled again.
     resetReadings();
     setError(null);
+    applyCarryForward();
     fetchBillingHistory();
-    toast.success('Form cleared');
+    toast.success('Form cleared - readings carried forward');
   };
 
   const handleSubmit = async () => {
