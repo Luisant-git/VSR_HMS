@@ -12,16 +12,21 @@ export class EbBillsService {
     return Math.round(Number(amount) || 0);
   }
 
-  // The tariff master is the single source of truth. The fallback keeps older
-  // clients and tests working when no master row exists yet.
-  private async resolveTariffRate(fallback?: number) {
+  // A rate explicitly supplied for a bill (or carried from an existing bill on
+  // edit) is authoritative. The master is only used when no per-bill rate was
+  // supplied, so changing the master later cannot silently reprice old bills.
+  private async resolveTariffRate(preferred?: number) {
+    if (preferred !== undefined && preferred !== null) {
+      const preferredRate = Number(preferred);
+      if (Number.isFinite(preferredRate) && preferredRate >= 0) return preferredRate;
+    }
+
     const master = await (this.prisma as any).ebTariffMaster
       ?.findUnique?.({ where: { id: 'GLOBAL' } });
     const masterRate = Number(master?.rate);
     if (Number.isFinite(masterRate) && masterRate >= 0) return masterRate;
 
-    const fallbackRate = Number(fallback);
-    return Number.isFinite(fallbackRate) && fallbackRate >= 0 ? fallbackRate : 8.12;
+    return 8.12;
   }
 
   // Normalize incoming readings into AC + Normal + computed units.

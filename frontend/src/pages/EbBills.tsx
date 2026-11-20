@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
 
-import { Calculator, History, X, FileSpreadsheet, Pencil, /* Trash2, */ AlertTriangle, RotateCcw, Save, SquarePen, Wind } from 'lucide-react';
+import { Calculator, History, X, FileSpreadsheet, Pencil, /* Trash2, */ RotateCcw, Save, SquarePen, Wind } from 'lucide-react';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
@@ -103,6 +103,7 @@ const EbBills = () => {
   const [hasAcMeter, setHasAcMeter] = useState(false);
   const [tariff, setTariff] = useState(FALLBACK_TARIFF);
   const [tariffDraft, setTariffDraft] = useState(FALLBACK_TARIFF);
+  const [billTariff, setBillTariff] = useState<string | null>(null);
   const [tariffSaving, setTariffSaving] = useState(false);
   const [billingCycle, setBillingCycle] = useState(currentMonthStr);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
@@ -144,15 +145,17 @@ const EbBills = () => {
       .sort((a, b) => String(b.billingCycle || '').localeCompare(String(a.billingCycle || '')))[0];
     if (!previous) return;
 
-    const nPrev = pickReading(previous.normalPrevReading, previous.prevReading);
-    const nCurr = pickReading(previous.normalCurrReading, previous.currReading);
-    setNormalPrev(String(nPrev));
-    setNormalCurr(String(nCurr));
+    // Only the PREVIOUS reading carries forward: last cycle's current reading
+    // becomes this cycle's starting reading. The user enters a fresh current.
+    const lastCurr = pickReading(previous.normalCurrReading, previous.currReading);
+    setNormalPrev(String(lastCurr));
+    setNormalCurr('0');
 
-    if (previous.hasAcMeter || Number(previous.acCurrReading) > 0) {
+    const acLastCurr = Number(previous.acCurrReading) || 0;
+    if (previous.hasAcMeter || acLastCurr > 0) {
       setHasAcMeter(true);
-      setAcPrev(String(previous.acPrevReading ?? 0));
-      setAcCurr(String(previous.acCurrReading ?? 0));
+      setAcPrev(String(acLastCurr));
+      setAcCurr('0');
     } else {
       setHasAcMeter(false);
       setAcPrev('0');
@@ -236,7 +239,10 @@ const EbBills = () => {
   const acCurrN = parseFloat(acCurr) || 0;
   const normalPrevN = parseFloat(normalPrev) || 0;
   const normalCurrN = parseFloat(normalCurr) || 0;
-  const rate = parseFloat(tariff) || 0;
+  // While editing, the rate saved on that bill wins over the master rate.
+  const rate = mode === 'edit' && billTariff !== null
+    ? parseFloat(billTariff) || 0
+    : parseFloat(tariff) || 0;
 
   const acUnits = acCurrN >= acPrevN ? acCurrN - acPrevN : 0;
   const normalUnits = normalCurrN >= normalPrevN ? normalCurrN - normalPrevN : 0;
@@ -274,6 +280,7 @@ const EbBills = () => {
   const loadForEdit = (bill: any) => {
     setMode('edit');
     setEditingId(bill.id);
+    setBillTariff(String(bill.tariffRate ?? tariff));
     const opt = roomOptions.find((o) => o.value.id === bill.roomNo) || null;
     setSelectedRoom(opt);
     setBillingCycle(bill.billingCycle);
@@ -289,7 +296,19 @@ const EbBills = () => {
   };
 
   const cancelEdit = () => {
-    setMode('create'); setEditingId(null); resetReadings();
+    setMode('create'); setEditingId(null); setBillTariff(null); resetReadings();
+  };
+
+  const clearForm = () => {
+    setMode('create');
+    setEditingId(null);
+    setBillTariff(null);
+    setSelectedRoom(null);
+    setBillingCycle(currentMonthStr);
+    resetReadings();
+    setError(null);
+    fetchBillingHistory();
+    toast.success('Form cleared');
   };
 
   const handleSubmit = async () => {
@@ -466,6 +485,13 @@ const EbBills = () => {
             <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-heading)' }}>
               {mode === 'edit' ? 'Edit Room EB Bill' : 'Calculate Room EB Bill'}
             </h3>
+            <button
+              onClick={clearForm}
+              title="Clear the form and refresh history"
+              style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', background: 'white', fontSize: '11px', fontWeight: 600, color: '#64748b', cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <RotateCcw size={11} /> Clear
+            </button>
           </div>
 
           <div style={{ padding: '14px 16px' }}>
@@ -486,18 +512,6 @@ const EbBills = () => {
                 <Wind size={13} color="#2563eb" /> This room has a separate AC meter
               </label>
             </div>
-
-            {isDuplicate && (
-              <div style={{ marginBottom: '12px', padding: '8px 10px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fcd34d', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertTriangle size={14} color="#d97706" style={{ flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: '#92400e', flex: 1 }}>
-                  Already entered for Room <strong>{selectedRoom?.value?.id}</strong> in {billingCycle}.
-                </span>
-                <button onClick={() => existingBill && loadForEdit(existingBill)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', border: '1px solid #d97706', borderRadius: '5px', background: 'white', fontSize: '11px', fontWeight: 600, color: '#d97706', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  <Pencil size={11} /> Edit
-                </button>
-              </div>
-            )}
 
             {/* AC meter readings */}
             {hasAcMeter && (
@@ -533,21 +547,32 @@ const EbBills = () => {
 
             <div style={{ marginBottom: '16px', padding: '10px', borderRadius: '8px', background: '#fffbeb', border: '1px solid #fde68a' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
-                <label style={{ ...labelStyle, marginBottom: 0, color: '#92400e' }}>Electricity Tariff Rate Master (₹ per Unit)</label>
-                <span style={{ fontSize: '10px', color: tariffDraft !== tariff ? '#dc2626' : '#b45309', whiteSpace: 'nowrap' }}>
-                  {tariffDraft !== tariff ? 'Unsaved changes - click Save' : 'Applies to all new bills'}
+                <label style={{ ...labelStyle, marginBottom: 0, color: '#92400e' }}>
+                  {mode === 'edit' ? 'Electricity Tariff Rate for this Bill (₹ per Unit)' : 'Electricity Tariff Rate Master (₹ per Unit)'}
+                </label>
+                <span style={{ fontSize: '10px', color: mode === 'edit' ? '#b45309' : tariffDraft !== tariff ? '#dc2626' : '#b45309', whiteSpace: 'nowrap' }}>
+                  {mode === 'edit' ? 'Rate saved on this bill' : tariffDraft !== tariff ? 'Unsaved changes - click Save' : 'Applies to all new bills'}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <input type="text" inputMode="decimal" value={tariffDraft} onChange={(e) => setTariffDraft(sanitizeNumber(e.target.value))} style={inputStyle} />
-                <button
-                  onClick={saveTariff}
-                  disabled={tariffSaving}
-                  title="Save tariff rate to master"
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 12px', borderRadius: '8px', border: 'none', background: tariffSaving ? '#94a3b8' : '#b45309', color: 'white', fontSize: '12px', fontWeight: 600, cursor: tariffSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
-                >
-                  <Save size={14} /> {tariffSaving ? 'Saving...' : 'Save'}
-                </button>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={mode === 'edit' ? (billTariff ?? '') : tariffDraft}
+                  onChange={(e) => setTariffDraft(sanitizeNumber(e.target.value))}
+                  readOnly={mode === 'edit'}
+                  style={{ ...inputStyle, background: mode === 'edit' ? '#f1f5f9' : undefined }}
+                />
+                {mode !== 'edit' && (
+                  <button
+                    onClick={saveTariff}
+                    disabled={tariffSaving}
+                    title="Save tariff rate to master"
+                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 12px', borderRadius: '8px', border: 'none', background: tariffSaving ? '#94a3b8' : '#b45309', color: 'white', fontSize: '12px', fontWeight: 600, cursor: tariffSaving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    <Save size={14} /> {tariffSaving ? 'Saving...' : 'Save'}
+                  </button>
+                )}
               </div>
             </div>
 
