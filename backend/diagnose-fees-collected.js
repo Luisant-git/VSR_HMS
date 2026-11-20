@@ -122,6 +122,15 @@ const isPostpaidPayableNow = (fee, currentMonthStr, previousMonthStr) => {
 const studentKey = (fee) =>
   fee?.student?.regNo || fee?.student?.manualRegsiName || fee?.studentId || 'unknown';
 
+/** Mirrors Fees.tsx: paid rows before 2026-11-01 are hidden from the table. */
+const FRESH_CYCLE_CUTOFF = new Date('2026-11-01T00:00:00');
+const isShownInPaidTable = (fee) => {
+  const paidTime = fee?.paidDate || fee?.createdAt || fee?.updatedAt;
+  if (!paidTime) return false;
+  const d = new Date(paidTime);
+  return !isNaN(d.getTime()) && d >= FRESH_CYCLE_CUTOFF;
+};
+
 const money = (value) => `₹${roundMoney(value).toLocaleString('en-IN')}`;
 const dateLabel = (value) => {
   if (!value) return '-';
@@ -178,6 +187,7 @@ async function main() {
         type: typeOf(fee),
         amount: roundMoney(amount),
         source: 'regular',
+        shownInPaidTable: isShownInPaidTable(fee),
         description: descOf(fee).slice(0, 70),
         id: fee.id,
       });
@@ -206,6 +216,7 @@ async function main() {
         type: typeOf(fee),
         amount: roundMoney(fee.amount),
         source: 'outstanding',
+        shownInPaidTable: isShownInPaidTable(fee),
         description: descOf(fee).slice(0, 70),
         id: fee.id,
       });
@@ -216,6 +227,13 @@ async function main() {
 
   console.log(`\nReceipts counted toward Total Fees Collected: ${counted.length}`);
   console.table(counted);
+
+  const hiddenFromTable = counted.filter((row) => !row.shownInPaidTable);
+  if (hiddenFromTable.length > 0) {
+    console.log('\n>>> Counted in the total but HIDDEN from the Paid list (paid before 2026-11-01):');
+    console.table(hiddenFromTable.map(({ date, student, type, amount, description, id }) =>
+      ({ date, student, type, amount: money(amount), description, id })));
+  }
 
   const byType = {};
   for (const row of counted) byType[row.type] = roundMoney((byType[row.type] || 0) + row.amount);
