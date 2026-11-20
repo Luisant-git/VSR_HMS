@@ -503,11 +503,19 @@ export class StudentsService {
     }
 
     if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
-      const currentOrImportedDuesCondition = {
+      // Imported/legacy pending rows are excluded from the fee-status filter,
+      // except October 2026 EB bills, which remain payable and are counted by
+      // the shared frontend pending-fee calculation.
+      const importedOrSettledRowsCondition = {
         OR: [
           { description: { contains: 'Imported', mode: 'insensitive' } },
           { description: { contains: 'Month 1', mode: 'insensitive' } },
-          { description: { contains: 'October 2026', mode: 'insensitive' } }
+          {
+            AND: [
+              { description: { contains: 'October 2026', mode: 'insensitive' } },
+              { transactionType: { not: 'EB_BILL' } },
+            ],
+          },
         ]
       };
 
@@ -515,14 +523,14 @@ export class StudentsService {
         where.transactions = {
           some: {
             status: 'PENDING',
-            NOT: currentOrImportedDuesCondition
+            NOT: importedOrSettledRowsCondition
           }
         };
       } else if (params.feeFilter === 'Paid') {
         where.transactions = {
           none: {
             status: 'PENDING',
-            NOT: currentOrImportedDuesCondition
+            NOT: importedOrSettledRowsCondition
           }
         };
       } else if (params.feeFilter === 'No Dues') {
