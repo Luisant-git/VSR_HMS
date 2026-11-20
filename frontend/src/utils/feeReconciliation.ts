@@ -180,6 +180,15 @@ export const buildFeeReconciliation = ({
     if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) return;
     if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) return;
 
+    // The Paid table hides receipts settled before 2026-11-01. Keep the
+    // dashboard card on the same rule so a hidden receipt cannot inflate
+    // "Total Fees Collected". October EB bills stay in scope for payable dues,
+    // but their payment date still decides whether they count as collected.
+    if (fee.status === 'COMPLETED') {
+      const paidTime = fee.paidDate || fee.createdAt || fee.updatedAt;
+      if (paidTime && new Date(paidTime) < new Date('2026-11-01T00:00:00')) return;
+    }
+
     const amount = roundMoney(Number(fee.amount) || 0);
     if (!Number.isFinite(amount) || amount === 0) return;
 

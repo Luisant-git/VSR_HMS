@@ -169,12 +169,25 @@ async function main() {
 
   let collected = 0;
   const counted = [];
+  const excludedPreNov = [];
 
   for (const fee of filteredFees) {
     if (isMessFee(fee)) continue;
     if (fee.status === 'PENDING' && typeOf(fee) === 'ADVANCE') continue;
     if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) continue;
     if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) continue;
+    // Mirrors the dashboard fix: hidden (pre-Nov) receipts do not count.
+    if (fee.status === 'COMPLETED' && !isShownInPaidTable(fee)) {
+      excludedPreNov.push({
+        date: dateLabel(fee.paidDate || fee.createdAt),
+        student: studentKey(fee),
+        type: typeOf(fee),
+        amount: roundMoney(fee.amount),
+        description: descOf(fee).slice(0, 70),
+        id: fee.id,
+      });
+      continue;
+    }
     const amount = roundMoney(fee.amount);
     if (!Number.isFinite(amount) || amount === 0) continue;
     if (fee.status !== 'COMPLETED' && fee.status !== 'PENDING') continue;
@@ -228,9 +241,14 @@ async function main() {
   console.log(`\nReceipts counted toward Total Fees Collected: ${counted.length}`);
   console.table(counted);
 
-  const hiddenFromTable = counted.filter((row) => !row.shownInPaidTable);
+  const hiddenFromTable = [
+    ...excludedPreNov,
+    ...counted.filter((row) => !row.shownInPaidTable).map(({ date, student, type, amount, description, id }) =>
+      ({ date, student, type, amount, description, id })),
+  ];
   if (hiddenFromTable.length > 0) {
-    console.log('\n>>> Counted in the total but HIDDEN from the Paid list (paid before 2026-11-01):');
+    console.log('\n>>> Receipts HIDDEN from the Paid list (paid before 2026-11-01):');
+    console.log('    These are excluded from the regular receipt total by the dashboard fix.');
     console.table(hiddenFromTable.map(({ date, student, type, amount, description, id }) =>
       ({ date, student, type, amount: money(amount), description, id })));
   }
