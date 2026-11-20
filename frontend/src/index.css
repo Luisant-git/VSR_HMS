@@ -2117,6 +2117,89 @@ textarea:focus {
   background: #fff1f2;
 }
 
+.fees-trash-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.fees-trash-type,
+.fees-trash-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fees-trash-type.is-rent {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fees-trash-type.is-eb {
+  border-color: #a5f3fc;
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.fees-trash-type.is-fine {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.fees-trash-type.is-mess {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.fees-trash-type.is-advance {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.fees-trash-type.is-outstanding {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #a16207;
+}
+
+.fees-trash-type.is-other {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.fees-trash-status.is-paid {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.fees-trash-status.is-pending {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.fees-trash-restore {
+  box-shadow: 0 3px 8px rgba(22, 163, 74, 0.2);
+}
+
+.fees-trash-restore:hover:not(:disabled) {
+  box-shadow: 0 5px 12px rgba(22, 163, 74, 0.28);
+  transform: translateY(-1px);
+}
+
 .ui-cell-title {
   font-weight: 600;
   color: var(--text-heading);

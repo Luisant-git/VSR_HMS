@@ -1,5 +1,24 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
+const developerRequest = async (path: string, init?: RequestInit) => {
+  const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+  if (!token) throw new Error('Please sign in again to manage the fee trash.');
+
+  const headers = new Headers(init?.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.set('Authorization', `Bearer ${token}`);
+
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers,
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => null);
+    throw new Error(error?.message || 'Failed to manage fee trash');
+  }
+  return res.json();
+};
+
 export const FeesAPI = {
   async previewFine(studentId: string, asOfDate: string) {
     const query = new URLSearchParams({ asOfDate });
@@ -52,8 +71,33 @@ export const FeesAPI = {
 
   async findAll() {
     const res = await fetch(`${API_URL}/fees`);
-    if (!res.ok) throw new Error('Failed to fetch fee transactions');
+    if (!res.ok) {
+      const error = await res.json().catch(() => null);
+      throw new Error(error?.message || `Failed to fetch fee transactions (HTTP ${res.status})`);
+    }
     return res.json();
+  },
+
+  async findTrash() {
+    return developerRequest('/fees/trash');
+  },
+
+  async moveToTrash(ids: string[]) {
+    return developerRequest('/fees/trash', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
+  },
+
+  async restoreFromTrash(id: string) {
+    return this.restoreTrashRows([id]);
+  },
+
+  async restoreTrashRows(ids: string[]) {
+    return developerRequest('/fees/trash/restore', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    });
   },
 
   async findByStudent(studentId: string) {

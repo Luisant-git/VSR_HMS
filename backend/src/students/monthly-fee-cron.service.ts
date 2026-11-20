@@ -43,6 +43,7 @@ export class MonthlyFeeCronService {
         room: true,
         college: true,
         transactions: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
         },
       },

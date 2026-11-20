@@ -1,14 +1,19 @@
 /**
- * Remove fee transaction rows for two discontinued students.
+ * Remove fee transaction rows for discontinued students.
  *
  * This deletes fee rows only. It does not delete students, clearance records,
  * Razorpay orders, or invoice counters, and it does not issue refunds.
  *
  * Run from the backend folder:
- *   node remove-discontinued-student-fees.js                  # preview only
- *   node remove-discontinued-student-fees.js --apply           # delete listed rows
- *   node remove-discontinued-student-fees.js --apply --allow-gateway-records
- *                                                              # if rows have Razorpay IDs
+ *   node remove-discontinued-student-fees.js --student=SEASIND25032
+ *                                                               # preview Catharine's rows
+ *   node remove-discontinued-student-fees.js --student=SEASIND25032 --apply
+ *                                                               # delete Catharine's rows
+ *   node remove-discontinued-student-fees.js --student=SEASIND25032 --apply --allow-gateway-records
+ *                                                               # only after reviewing Razorpay references
+ *   node remove-discontinued-student-fees.js                    # preview all configured students
+ *   node remove-discontinued-student-fees.js --apply --all-targets
+ *                                                               # delete all configured students' rows
  */
 
 require('dotenv').config();
@@ -17,10 +22,14 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const APPLY = process.argv.includes('--apply');
 const ALLOW_GATEWAY_RECORDS = process.argv.includes('--allow-gateway-records');
+const ALL_TARGETS = process.argv.includes('--all-targets');
+const studentArg = process.argv.find(arg => arg.startsWith('--student='));
+const SELECTED_STUDENT = studentArg ? studentArg.split('=').slice(1).join('=').trim().toUpperCase() : null;
 
 const TARGETS = [
   { regNo: 'SEASIND25193', nameFragment: 'arthi' },
   { regNo: 'SEASIND26325', nameFragment: 'sweethika' },
+  { regNo: 'SEASIND25032', nameFragment: 'bershiya' },
 ];
 
 const rupees = value => `₹${Number(value || 0).toLocaleString('en-IN', {
@@ -85,6 +94,20 @@ async function findTargetStudent(target) {
 }
 
 async function main() {
+  if (SELECTED_STUDENT && ALL_TARGETS) {
+    throw new Error('Use either --student=REG_NO or --all-targets, not both.');
+  }
+  if (APPLY && !SELECTED_STUDENT && !ALL_TARGETS) {
+    throw new Error('For safety, specify --student=REG_NO or --all-targets when using --apply.');
+  }
+
+  const targets = SELECTED_STUDENT
+    ? TARGETS.filter(target => target.regNo === SELECTED_STUDENT)
+    : TARGETS;
+  if (SELECTED_STUDENT && targets.length !== 1) {
+    throw new Error(`Unknown target ${SELECTED_STUDENT}. No database changes were made.`);
+  }
+
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error('DATABASE_URL is not set. Load the intended database environment before running this script.');
@@ -94,10 +117,10 @@ async function main() {
   console.log(`--- Remove discontinued students' fee rows ${APPLY ? '[APPLY]' : '[DRY RUN - NO CHANGES]'} ---`);
   console.log('=================================================================');
   console.log(`Target database: ${showDatabase(url)} (credentials hidden)`);
-  console.log('Targets: SEASIND25193 (Arthi.V), SEASIND26325 (D.Sweethika)');
+  console.log(`Targets: ${targets.map(target => `${target.regNo} (${target.nameFragment})`).join(', ')}`);
   console.log('Only FeeTransaction rows are in scope; student and Razorpay order records are retained.');
 
-  const students = await Promise.all(TARGETS.map(findTargetStudent));
+  const students = await Promise.all(targets.map(findTargetStudent));
   console.log('\nMatched students:');
   console.table(students.map(student => ({
     id: student.id,
@@ -146,9 +169,9 @@ async function main() {
 
   if (!APPLY) {
     console.log('\nDRY RUN: no database changes were made.');
-    console.log('Review the exact rows above. To delete them, rerun with --apply.');
+    console.log('Review the exact rows above. To delete only this student, rerun with --student=REG_NO --apply.');
     if (gatewayRows.length > 0) {
-      console.log('For rows with Razorpay references, use --apply --allow-gateway-records only after review.');
+      console.log('For rows with Razorpay references, use --student=REG_NO --apply --allow-gateway-records only after review.');
     }
     return;
   }

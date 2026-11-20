@@ -80,7 +80,7 @@ export class FineCronService {
         },
         include: {
           transactions: {
-            where: { status: { in: ['PENDING', 'COMPLETED'] } },
+            where: { status: { in: ['PENDING', 'COMPLETED'] }, deletedAt: null },
           },
         },
       });

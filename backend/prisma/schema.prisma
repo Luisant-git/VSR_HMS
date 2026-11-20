@@ -173,6 +173,9 @@ model FeeTransaction {
   dueDate  DateTime?
   paidDate DateTime?
 
+  deletedAt DateTime?
+  deletedBy String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -180,6 +183,7 @@ model FeeTransaction {
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
   @@index([studentId, billingMonth, transactionType])
+  @@index([deletedAt])
 }
 
 model RazorpayOrder {
@@ -295,7 +299,6 @@ model FineMaster {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
-
 
 // ---------------------------------------------------------
 // College Master

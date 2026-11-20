@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, RawBody, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Headers, RawBody, Query, Req, UseGuards, UnauthorizedException } from '@nestjs/common';
 import { FeesService } from './fees.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RazorpayPaymentService } from './razorpay-payment.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
@@ -66,6 +67,34 @@ export class FeesController {
     return this.feesService.findAll();
   }
 
+  @Get('trash')
+  @UseGuards(JwtAuthGuard)
+  findTrash(@Req() req: any) {
+    this.assertDeveloper(req);
+    return this.feesService.findTrash();
+  }
+
+  @Post('trash')
+  @UseGuards(JwtAuthGuard)
+  moveToTrash(@Req() req: any, @Body() body: { ids: string[] }) {
+    this.assertDeveloper(req);
+    return this.feesService.moveToTrash(Array.isArray(body?.ids) ? body.ids : [], req.user.userId);
+  }
+
+  @Post('trash/restore')
+  @UseGuards(JwtAuthGuard)
+  restoreTrashRows(@Req() req: any, @Body() body: { ids: string[] }) {
+    this.assertDeveloper(req);
+    return this.feesService.restoreFromTrash(Array.isArray(body?.ids) ? body.ids : []);
+  }
+
+  @Patch(':id/restore')
+  @UseGuards(JwtAuthGuard)
+  restoreFromTrash(@Req() req: any, @Param('id') id: string) {
+    this.assertDeveloper(req);
+    return this.feesService.restoreFromTrash([id]);
+  }
+
   @Get('student/:studentId')
   findByStudent(@Param('studentId') studentId: string) {
     return this.feesService.findByStudent(studentId);
@@ -90,7 +119,15 @@ export class FeesController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.feesService.remove(id);
+  @UseGuards(JwtAuthGuard)
+  remove(@Req() req: any, @Param('id') id: string) {
+    this.assertDeveloper(req);
+    return this.feesService.remove(id, req.user.userId);
+  }
+
+  private assertDeveloper(req: any) {
+    if (req.user?.role !== 'DEVELOPER') {
+      throw new UnauthorizedException('Only DEVELOPER can manage the fee trash.');
+    }
   }
 }

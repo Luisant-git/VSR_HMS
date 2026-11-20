@@ -106,6 +106,7 @@ export class RazorpayPaymentService {
             id: { in: selectedIds },
             studentId: student.id,
             status: 'PENDING',
+            deletedAt: null,
           },
         })
       : [];
@@ -137,6 +138,7 @@ export class RazorpayPaymentService {
         where: {
           studentId: student.id,
           status: 'PENDING',
+          deletedAt: null,
           transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] },
           description: { startsWith: 'Outstanding', mode: 'insensitive' },
         },
@@ -146,6 +148,7 @@ export class RazorpayPaymentService {
         where: {
           studentId: student.id,
           status: 'COMPLETED',
+          deletedAt: null,
           transactionType: 'OUTSTANDING_PAYMENT',
         },
         select: { amount: true },
@@ -533,6 +536,7 @@ export class RazorpayPaymentService {
                   id: { in: feeIds },
                   studentId: order.studentId,
                   status: 'PENDING',
+                  deletedAt: null,
                 },
               })
             : [];

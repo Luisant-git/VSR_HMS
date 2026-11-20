@@ -21,6 +21,7 @@ export class ClearanceService {
         where: {
           studentId: data.studentId,
           status: 'PENDING',
+          deletedAt: null,
           transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] }
         }
       });

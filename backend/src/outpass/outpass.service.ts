@@ -136,7 +136,7 @@ export class OutpassService {
       if (daysOut > threshold) {
         // Prevent duplicate deduction for same outpass
         const existing = await this.prisma.feeTransaction.findFirst({
-          where: { studentId: op.studentId, description: { contains: op.outpassId } }
+          where: { studentId: op.studentId, deletedAt: null, description: { contains: op.outpassId } }
         });
         
         if (!existing) {

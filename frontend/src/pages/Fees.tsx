@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, CheckCircle2, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
@@ -44,6 +45,10 @@ const Fees = () => {
 
   const [filter, setFilter] = useState('ALL');
   const [fees, setFees] = useState<any[]>([]);
+  const [isDeveloper, setIsDeveloper] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashFees, setTrashFees] = useState<any[]>([]);
+  const [trashLoading, setTrashLoading] = useState(false);
   const [rooms, setRooms] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,9 +82,11 @@ const Fees = () => {
     return FeesAPI.findAll().then(data => {
       setFees(data);
       return data as any[];
-    }).catch(err => {
-      console.error(err);
-      setError('Failed to load fees');
+    }).catch((err: Error) => {
+      console.error('Failed to load fees:', err);
+      const message = err.message || 'Failed to load fees';
+      setError(message);
+      toast.error(message);
       return [] as any[];
     }).finally(() => setLoading(false));
   };
@@ -87,6 +94,133 @@ const Fees = () => {
   useEffect(() => {
     fetchFees();
   }, []);
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+      if (!token) return;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setIsDeveloper(payload.role === 'DEVELOPER');
+    } catch (error) {
+      console.error('Failed to determine the signed-in role for fee trash controls:', error);
+    }
+  }, []);
+
+  const fetchTrash = async () => {
+    setTrashLoading(true);
+    try {
+      const rows = await FeesAPI.findTrash();
+      setTrashFees(Array.isArray(rows) ? rows : []);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load trashed fee records');
+    } finally {
+      setTrashLoading(false);
+    }
+  };
+
+  const moveFeeToTrash = async (fee: any) => {
+    const ids = Array.from(
+      new Set<string>(
+        (fee.feesList || [fee])
+          .map((row: any) => String(row?.id || ''))
+          .filter(Boolean),
+      ),
+    );
+    if (ids.length === 0) {
+      toast.error('No fee transaction records were found for this row');
+      return;
+    }
+
+    const studentName = fee.student?.name || 'this student';
+    const confirmation = await Swal.fire({
+      title: 'Move fee record to Trash?',
+      text: `${ids.length} fee transaction(s) for ${studentName} will be hidden from the Fees page. A developer can restore them. This does not refund or reverse any payment.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, move to Trash',
+      cancelButtonText: 'No, cancel',
+    });
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await FeesAPI.moveToTrash(ids);
+      toast.success(`${ids.length} fee transaction(s) moved to Trash`);
+      await fetchFees();
+      if (showTrash) await fetchTrash();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to move fee records to Trash');
+    }
+  };
+
+  const restoreFeeFromTrash = async (fee: any) => {
+    const ids = (fee.feesList || [fee]).map((row: any) => String(row?.id || '')).filter(Boolean);
+    if (ids.length === 0) {
+      toast.error('No fee transaction records were found to restore');
+      return;
+    }
+
+    const studentName = fee.student?.name || 'this student';
+    const confirmation = await Swal.fire({
+      title: 'Restore fee records?',
+      text: `Restore ${ids.length} trashed fee transaction(s) for ${studentName}? They will appear in the Fees page again.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#16a34a',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, restore',
+      cancelButtonText: 'No, cancel',
+    });
+    if (!confirmation.isConfirmed) return;
+
+    try {
+      await FeesAPI.restoreTrashRows(ids);
+      toast.success(`${studentName}'s ${ids.length} fee transaction(s) restored`);
+      await Promise.all([fetchTrash(), fetchFees()]);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to restore fee transaction');
+    }
+  };
+
+  const trashGroups = useMemo(() => {
+    const groups = new Map<string, any>();
+    trashFees.forEach(fee => {
+      const studentId = String(fee.studentId || fee.student?.id || fee.id);
+      const deletedAt = fee.deletedAt ? new Date(fee.deletedAt).toISOString() : '';
+      const groupId = `${studentId}-${deletedAt}`;
+      if (!groups.has(groupId)) {
+        groups.set(groupId, {
+          id: groupId,
+          studentId,
+          student: fee.student,
+          feesList: [],
+        });
+      }
+      groups.get(groupId).feesList.push(fee);
+    });
+
+    return Array.from(groups.values()).map(group => {
+      const rows = group.feesList;
+      return {
+        ...group,
+        feeTypes: Array.from(new Set(rows.map((row: any) => row.transactionType).filter(Boolean))),
+        billingMonths: Array.from(new Set(rows.map((row: any) => row.billingMonth).filter(Boolean))),
+        invoiceNumbers: Array.from(new Set(
+          rows
+            .filter((row: any) => row.status === 'COMPLETED' && row.invoiceNumber)
+            .map((row: any) => row.invoiceNumber),
+        )),
+        totalAmount: rows.reduce((sum: number, row: any) => sum + (Number(row.amount) || 0), 0),
+        statuses: Array.from(new Set(rows.map((row: any) => row.status).filter(Boolean))),
+        deletedAt: rows.reduce((latest: Date | null, row: any) => {
+          if (!row.deletedAt) return latest;
+          const date = new Date(row.deletedAt);
+          return !latest || date > latest ? date : latest;
+        }, null as Date | null),
+      };
+    });
+  }, [trashFees]);
 
   useEffect(() => {
     RoomAPI.findAll()
@@ -1128,9 +1262,103 @@ const Fees = () => {
           </button>
         )}
         <div className="ui-spacer"></div>
+        {isDeveloper && (
+          <button
+            className={showTrash ? 'ui-btn ui-btn-secondary ui-btn-sm' : 'ui-btn ui-btn-soft ui-btn-sm'}
+            onClick={() => {
+              const next = !showTrash;
+              setShowTrash(next);
+              if (next) void fetchTrash();
+            }}
+          >
+            {showTrash ? <RotateCcw size={14} /> : <Trash2 size={14} />}
+            {showTrash ? 'Back to Fees' : `Trash (${trashGroups.length})`}
+          </button>
+        )}
       </div>
 
-      <div className="ui-table-wrap">
+      {isDeveloper && showTrash && (
+        <div className="ui-table-wrap fees-trash-wrap">
+          <div className="ui-table-scroll">
+            <table className="ui-table fees-trash-table">
+              <thead className="fees-trash-head">
+                <tr>
+                  <th>Invoice No(s)</th>
+                  <th>Student Name &amp; Reg. No</th>
+                  <th>Fee Types</th>
+                  <th>Billing Month(s)</th>
+                  <th className="num">Total Amount</th>
+                  <th>Status(es)</th>
+                  <th>Moved to Trash</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trashLoading ? (
+                  <LoadingRow colSpan={8} />
+                ) : trashGroups.length === 0 ? (
+                  <tr><td colSpan={8} className="ui-empty">Trash is empty.</td></tr>
+                ) : trashGroups.map((fee: any) => (
+                  <tr key={fee.id} className="fees-trash-row">
+                    <td>{fee.invoiceNumbers.length ? fee.invoiceNumbers.join(', ') : '—'}</td>
+                    <td>
+                      <div>{fee.student?.name || 'Unknown'}</div>
+                      <div className="fees-person-meta">{fee.student?.manualRegsiName || fee.student?.regNo || '—'}</div>
+                    </td>
+                    <td>
+                      <div className="fees-trash-tags">
+                        {fee.feeTypes.map((type: string) => (
+                          <span
+                            className={`fees-trash-type ${(() => {
+                              const normalized = type.toUpperCase();
+                              if (normalized.includes('RENT')) return 'is-rent';
+                              if (normalized.includes('EB') || normalized.includes('ELECTRIC')) return 'is-eb';
+                              if (normalized.includes('FINE')) return 'is-fine';
+                              if (normalized.includes('MESS')) return 'is-mess';
+                              if (normalized.includes('ADVANCE')) return 'is-advance';
+                              if (normalized.includes('OUTSTANDING')) return 'is-outstanding';
+                              return 'is-other';
+                            })()}`}
+                            key={type}
+                          >
+                            {type.replaceAll('_', ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>{fee.billingMonths.map((month: string) => formatBillingMonth(month) || month).join(', ') || '—'}</td>
+                    <td className="num">{formatMoney(fee.totalAmount)}</td>
+                    <td>
+                      <div className="fees-trash-tags">
+                        {fee.statuses.map((status: string) => (
+                          <span
+                            className={`fees-trash-status ${status === 'COMPLETED' ? 'is-paid' : status === 'PENDING' ? 'is-pending' : ''}`}
+                            key={status}
+                          >
+                            {status}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>{fee.deletedAt ? new Date(fee.deletedAt).toLocaleString('en-GB') : '—'}</td>
+                    <td>
+                      <button
+                        className="ui-btn ui-btn-success ui-btn-sm fees-trash-restore"
+                        onClick={() => void restoreFeeFromTrash(fee)}
+                        title={`Restore all ${fee.feesList.length} trashed fee transactions for this student`}
+                      >
+                        <RotateCcw size={14} /> Restore all ({fee.feesList.length})
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!(isDeveloper && showTrash) && <div className="ui-table-wrap">
         <div className="ui-table-scroll">
           <table className="ui-table fees-table">
             <colgroup>
@@ -1367,25 +1595,37 @@ const Fees = () => {
                         </span>
                       </td>
                       <td className="fees-actions">
-                        {fee.displayStatus === 'Unpaid' ? (
-                          <button
-                            onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
-                            className="ui-btn ui-btn-primary ui-btn-sm"
-                          >
-                            <Wallet size={14} /> Pay Now
-                          </button>
-                        ) : fee.displayStatus === 'Not Due' ? (
-                          <span className="fees-note" title="This month's fees are billed in the next postpaid cycle">
-                            Not due yet
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
-                            className="ui-btn ui-btn-secondary ui-btn-sm"
-                          >
-                            <FileText size={14} /> View Receipt
-                          </button>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                          {fee.displayStatus === 'Unpaid' ? (
+                            <button
+                              onClick={() => { setActiveFeeId(fee.id); setFeesToCollect(fee.feesList); }}
+                              className="ui-btn ui-btn-primary ui-btn-sm"
+                            >
+                              <Wallet size={14} /> Pay Now
+                            </button>
+                          ) : fee.displayStatus === 'Not Due' ? (
+                            <span className="fees-note" title="This month's fees are billed in the next postpaid cycle">
+                              Not due yet
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
+                              className="ui-btn ui-btn-secondary ui-btn-sm"
+                            >
+                              <FileText size={14} /> View Receipt
+                            </button>
+                          )}
+                          {isDeveloper && (
+                            <button
+                              className="ui-btn ui-btn-icon ui-btn-danger"
+                              title="Move fee record to Trash"
+                              aria-label={`Move fee records for ${fee.student?.name || 'student'} to Trash`}
+                              onClick={() => void moveFeeToTrash(fee)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1421,7 +1661,7 @@ const Fees = () => {
           </div>
         )}
 
-      </div>
+      </div>}
 
       {/* Import Preview Modal */}
       {importPreview && (

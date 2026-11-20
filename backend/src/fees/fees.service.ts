@@ -98,6 +98,7 @@ export class FeesService {
 
   async findAll() {
     const rows = await this.prisma.feeTransaction.findMany({
+      where: { deletedAt: null },
       include: {
         student: {
           select: {
@@ -122,7 +123,7 @@ export class FeesService {
 
   async findByStudent(studentId: string) {
     const rows = await this.prisma.feeTransaction.findMany({
-      where: { studentId },
+      where: { studentId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
         student: {
@@ -134,8 +135,8 @@ export class FeesService {
   }
 
   async findOne(id: string) {
-    const row = await this.prisma.feeTransaction.findUnique({
-      where: { id },
+    const row = await this.prisma.feeTransaction.findFirst({
+      where: { id, deletedAt: null },
       include: { 
         student: {
           include: { college: true }
@@ -144,6 +145,76 @@ export class FeesService {
     });
     if (row) await this.ensureInvoiceNumbers([row]);
     return row;
+  }
+
+  async findTrash() {
+    return this.prisma.feeTransaction.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            regNo: true,
+            manualRegsiName: true,
+            roomNo: true,
+          },
+        },
+      },
+    });
+  }
+
+  async moveToTrash(ids: string[], userId: string) {
+    const uniqueIds = [...new Set(ids.map(id => String(id || '').trim()).filter(Boolean))];
+    if (uniqueIds.length === 0 || uniqueIds.length !== ids.length) {
+      throw new BadRequestException('Provide a non-empty list of unique fee transaction IDs.');
+    }
+
+    return this.prisma.$transaction(async tx => {
+      const activeRows = await tx.feeTransaction.findMany({
+        where: { id: { in: uniqueIds }, deletedAt: null },
+        select: { id: true },
+      });
+      if (activeRows.length !== uniqueIds.length) {
+        throw new NotFoundException('One or more fee rows do not exist or are already in the trash.');
+      }
+
+      const result = await tx.feeTransaction.updateMany({
+        where: { id: { in: uniqueIds }, deletedAt: null },
+        data: { deletedAt: new Date(), deletedBy: userId },
+      });
+      if (result.count !== uniqueIds.length) {
+        throw new BadRequestException('Fee rows changed before they could be moved to the trash.');
+      }
+      return { moved: result.count };
+    });
+  }
+
+  async restoreFromTrash(ids: string[]) {
+    const uniqueIds = [...new Set(ids.map(id => String(id || '').trim()).filter(Boolean))];
+    if (uniqueIds.length === 0 || uniqueIds.length !== ids.length) {
+      throw new BadRequestException('Provide a non-empty list of unique fee transaction IDs.');
+    }
+
+    return this.prisma.$transaction(async tx => {
+      const trashedRows = await tx.feeTransaction.findMany({
+        where: { id: { in: uniqueIds }, deletedAt: { not: null } },
+        select: { id: true },
+      });
+      if (trashedRows.length !== uniqueIds.length) {
+        throw new NotFoundException('One or more trashed fee transactions were not found.');
+      }
+
+      const result = await tx.feeTransaction.updateMany({
+        where: { id: { in: uniqueIds }, deletedAt: { not: null } },
+        data: { deletedAt: null, deletedBy: null },
+      });
+      if (result.count !== uniqueIds.length) {
+        throw new BadRequestException('Trashed fee rows changed before they could be restored.');
+      }
+      return { restored: result.count };
+    });
   }
 
   /**
@@ -259,8 +330,8 @@ export class FeesService {
   }
 
   async update(id: string, data: UpdateFeeDto) {
-    return this.prisma.feeTransaction.update({
-      where: { id },
+    const result = await this.prisma.feeTransaction.updateMany({
+      where: { id, deletedAt: null },
       data: {
         ...data,
         paidDate: data.paidDate
@@ -268,6 +339,10 @@ export class FeesService {
           : data.paidDate,
       },
     });
+    if (result.count !== 1) {
+      throw new NotFoundException('Active fee transaction not found.');
+    }
+    return this.prisma.feeTransaction.findUnique({ where: { id } });
   }
 
   private validatedPaymentDate(value?: string) {
@@ -314,7 +389,7 @@ export class FeesService {
         // Include paid fees too so we can tell a genuinely owed fine (parent
         // fee was paid, fine still pending) from an orphan fine left over for
         // a fee this student never had.
-        transactions: { where: { status: { in: ['PENDING', 'COMPLETED'] } } },
+        transactions: { where: { status: { in: ['PENDING', 'COMPLETED'] }, deletedAt: null } },
       },
     });
     if (!student) throw new NotFoundException('Student not found.');
@@ -331,6 +406,7 @@ export class FeesService {
         studentId,
         status: 'COMPLETED',
         transactionType: 'FINE',
+        deletedAt: null,
         description: { startsWith: 'Late fine accumulation', mode: 'insensitive' },
       },
       select: { amount: true, description: true },
@@ -457,6 +533,7 @@ export class FeesService {
         studentId,
         status: 'PENDING',
         transactionType: 'FINE',
+        deletedAt: null,
         description: {
           startsWith: 'Late fine accumulation -',
           mode: 'insensitive',
@@ -746,6 +823,7 @@ export class FeesService {
           studentId,
           status: 'COMPLETED',
           transactionType: OUTSTANDING_PAYMENT_TYPE,
+          deletedAt: null,
           description: { contains: marker },
         },
         orderBy: { createdAt: 'asc' },
@@ -852,6 +930,7 @@ export class FeesService {
       where: {
         studentId,
         status: 'PENDING',
+        deletedAt: null,
         transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] },
         description: { startsWith: OUTSTANDING_PREFIX, mode: 'insensitive' },
       },
@@ -864,6 +943,7 @@ export class FeesService {
       where: {
         studentId,
         status: 'COMPLETED',
+        deletedAt: null,
         transactionType: OUTSTANDING_PAYMENT_TYPE,
       },
       orderBy: { createdAt: 'asc' },
@@ -1067,7 +1147,7 @@ export class FeesService {
 
     return this.prisma.$transaction(async tx => {
       const pendingRows = await tx.feeTransaction.findMany({
-        where: { studentId: student.id, status: 'PENDING' },
+        where: { studentId: student.id, status: 'PENDING', deletedAt: null },
         orderBy: { createdAt: 'asc' },
       });
 
@@ -1230,9 +1310,8 @@ export class FeesService {
     return 'other';
   }
 
-  async remove(id: string) {
-    return this.prisma.feeTransaction.delete({
-      where: { id },
-    });
+  async remove(id: string, userId: string) {
+    await this.moveToTrash([id], userId);
+    return { id, movedToTrash: true };
   }
 }

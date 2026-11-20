@@ -12,6 +12,7 @@ type FakeRow = {
   paymentMode?: string | null;
   paidDate?: Date | null;
   dueDate?: Date | null;
+  deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -75,6 +76,7 @@ const createFakePrisma = (seed: FakeRow[]) => {
           paymentMode: data.paymentMode ?? null,
           paidDate: data.paidDate ?? null,
           dueDate: data.dueDate ?? null,
+          deletedAt: data.deletedAt ?? null,
           createdAt: new Date(Date.now() + sequence),
           updatedAt: new Date(Date.now() + sequence),
         };
@@ -116,6 +118,7 @@ const makeRow = (overrides: Partial<FakeRow> & Pick<FakeRow, 'id' | 'amount'>): 
   transactionType: 'RENT',
   description: 'Outstanding Rent for Jan 2026',
   status: 'PENDING',
+  deletedAt: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   ...overrides,
@@ -259,6 +262,46 @@ describe('FeesService - outstanding payment ledger', () => {
       expect(quote.fines.find((item) => item.key === 'rent')?.daysOverdue).toBe(4);
       expect(quote.fines.find((item) => item.key === 'eb')?.daysOverdue).toBe(4);
       expect(quote.amount).toBe(120);
+    });
+  });
+
+  describe('FeesService - fee trash', () => {
+    it('moves selected active fee transactions into the trash', async () => {
+      const tx = {
+        feeTransaction: {
+          findMany: vi.fn().mockResolvedValue([{ id: 'fee-1' }]),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (callback: any) => callback(tx)),
+      };
+      const service = new FeesService(prisma as any);
+
+      await expect(service.moveToTrash(['fee-1'], 'developer-1')).resolves.toEqual({ moved: 1 });
+      expect(tx.feeTransaction.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['fee-1'] }, deletedAt: null },
+        data: expect.objectContaining({ deletedBy: 'developer-1', deletedAt: expect.any(Date) }),
+      });
+    });
+
+    it('restores trashed fee transactions as one group', async () => {
+      const tx = {
+        feeTransaction: {
+          findMany: vi.fn().mockResolvedValue([{ id: 'fee-1' }, { id: 'fee-2' }]),
+          updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+        },
+      };
+      const prisma = {
+        $transaction: vi.fn(async (callback: any) => callback(tx)),
+      };
+      const service = new FeesService(prisma as any);
+
+      await expect(service.restoreFromTrash(['fee-1', 'fee-2'])).resolves.toEqual({ restored: 2 });
+      expect(tx.feeTransaction.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['fee-1', 'fee-2'] }, deletedAt: { not: null } },
+        data: { deletedAt: null, deletedBy: null },
+      });
     });
   });
 

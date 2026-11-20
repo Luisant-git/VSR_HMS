@@ -523,6 +523,7 @@ export class StudentsService {
         where.transactions = {
           some: {
             status: 'PENDING',
+            deletedAt: null,
             NOT: importedOrSettledRowsCondition
           }
         };
@@ -530,11 +531,12 @@ export class StudentsService {
         where.transactions = {
           none: {
             status: 'PENDING',
+            deletedAt: null,
             NOT: importedOrSettledRowsCondition
           }
         };
       } else if (params.feeFilter === 'No Dues') {
-        where.transactions = { none: {} };
+        where.transactions = { none: { deletedAt: null } };
       }
     }
 
@@ -550,7 +552,7 @@ export class StudentsService {
         skip,
         take,
         orderBy,
-        include: { transactions: true, room: true, college: true }
+        include: { transactions: { where: { deletedAt: null } }, room: true, college: true }
       }),
       this.prisma.student.count({ where })
     ]);
@@ -567,7 +569,7 @@ export class StudentsService {
   async findByMobile(mobileNo: string) {
     return this.prisma.student.findFirst({
       where: { mobileNo },
-      include: { transactions: true, room: true, college: true }
+      include: { transactions: { where: { deletedAt: null } }, room: true, college: true }
     });
   }
 
@@ -578,12 +580,12 @@ export class StudentsService {
     if (isUuid) {
       return this.prisma.student.findUnique({
         where: { id },
-        include: { room: true, clearance: true, college: true, transactions: { orderBy: { createdAt: 'desc' } } }
+        include: { room: true, clearance: true, college: true, transactions: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } } }
       });
     } else {
       return this.prisma.student.findFirst({
         where: { OR: [{ regNo: id }, { manualRegsiName: id }] },
-        include: { room: true, clearance: true, college: true, transactions: { orderBy: { createdAt: 'desc' } } }
+        include: { room: true, clearance: true, college: true, transactions: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } } }
       });
     }
   }
@@ -636,7 +638,7 @@ export class StudentsService {
 
     if (newMessFee !== null && newMessFee > 0) {
       const pendingMess = await this.prisma.feeTransaction.findFirst({
-        where: { studentId: existingStudent.id, transactionType: 'MESS', status: 'PENDING' },
+        where: { studentId: existingStudent.id, transactionType: 'MESS', status: 'PENDING', deletedAt: null },
         orderBy: { createdAt: 'desc' }
       });
       if (pendingMess) {
@@ -653,7 +655,7 @@ export class StudentsService {
     // Pending Fees = Monthly Rent + Monthly Mess + EB - Total Paid stays correct.
     if (cleanData.rent !== undefined && Number(cleanData.rent) > 0) {
       await this.prisma.feeTransaction.updateMany({
-        where: { studentId: existingStudent.id, transactionType: 'RENT', status: 'PENDING' },
+        where: { studentId: existingStudent.id, transactionType: 'RENT', status: 'PENDING', deletedAt: null },
         data: { amount: Number(cleanData.rent) },
       });
     }
@@ -737,7 +739,7 @@ export class StudentsService {
    */
   async syncRentInvoices() {
     const pendingRent = await this.prisma.feeTransaction.findMany({
-      where: { transactionType: 'RENT', status: 'PENDING' },
+      where: { transactionType: 'RENT', status: 'PENDING', deletedAt: null },
       include: { student: true },
     });
 

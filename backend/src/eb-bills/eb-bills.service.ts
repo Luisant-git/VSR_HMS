@@ -200,6 +200,7 @@ export class EbBillsService {
             studentId: { in: studentIds },
             transactionType: 'EB_BILL',
             status: 'PENDING',
+            deletedAt: null,
             description: oldDescription,
           },
           data: {
@@ -212,6 +213,7 @@ export class EbBillsService {
           where: {
             studentId: { in: studentIds },
             transactionType: 'EB_BILL',
+            deletedAt: null,
             description,
           },
           select: { studentId: true },
@@ -258,6 +260,7 @@ export class EbBillsService {
           studentId: { in: studentIds },
           transactionType: 'EB_BILL',
           status: 'COMPLETED',
+          deletedAt: null,
           description: `EB Bill for ${billingCycle}`,
         },
       });
