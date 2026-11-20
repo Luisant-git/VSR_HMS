@@ -205,8 +205,15 @@ export class CollegesService {
   }
 
   async remove(id: string) {
-    return this.prisma.college.delete({
-      where: { id },
+    // Students and fine rules reference the college, so clear those links
+    // first; otherwise the foreign key constraint blocks the delete.
+    return this.prisma.$transaction(async (tx) => {
+      await tx.fineMaster.deleteMany({ where: { collegeId: id } });
+      await tx.student.updateMany({
+        where: { collegeId: id },
+        data: { collegeId: null },
+      });
+      return tx.college.delete({ where: { id } });
     });
   }
 }

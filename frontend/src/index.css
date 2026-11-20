@@ -4939,15 +4939,6 @@ textarea.ui-form-control {
   box-shadow: inset 3px 0 0 #f59e0b;
 }
 
-.fees-table .fees-warden-badge {
-  margin-left: 8px;
-  background: #fed7aa;
-  color: #9a3412;
-  border: 1px solid #fdba74;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-}
-
 .content-card.rooms-card-warden {
   background: #fffbeb;
   border-color: #f59e0b;

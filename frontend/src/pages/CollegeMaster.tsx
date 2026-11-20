@@ -198,7 +198,7 @@ const CollegeMaster = () => {
         toast.success('College deleted successfully');
         fetchColleges();
       } catch (err: any) {
-        toast.error('Failed to delete college');
+        toast.error(err.message || 'Failed to delete college');
       }
     }
   };
