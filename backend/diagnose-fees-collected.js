@@ -84,12 +84,39 @@ const resolveFeeBillingMonth = (fee) => {
   return isNaN(created.getTime()) ? null : `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
 };
 
+const isPostpaidPayableFee = (fee, currentMonthStr, previousMonthStr) => {
+  if (typeOf(fee).includes('FINE')) return true;
+  const feeMonth = resolveFeeBillingMonth(fee);
+  return !feeMonth || feeMonth === previousMonthStr || feeMonth === currentMonthStr;
+};
+
 const isFreshCycleApplicable = (fee, currentMonthStr, previousMonthStr) => {
   const feeMonth = resolveFeeBillingMonth(fee);
-  const relevant = !feeMonth || feeMonth === currentMonthStr || feeMonth === previousMonthStr;
+  const collegeCycle = String(fee?.student?.college?.billingCycle || 'PREPAID').toUpperCase();
+  const relevant = !feeMonth ||
+    (collegeCycle === 'POSTPAID' && categoryOf(fee) === 'fine'
+      ? isPostpaidPayableFee(fee, currentMonthStr, previousMonthStr)
+      : feeMonth === currentMonthStr || feeMonth === previousMonthStr);
   if (isImportedInvoice(fee) && !relevant) return false;
   if (isPreviousSettledFee(fee) && !relevant) return false;
   return true;
+};
+
+/** Mirrors the Fees page's own filter (Fees.tsx filteredFees). */
+const isPostpaidPayableNow = (fee, currentMonthStr, previousMonthStr) => {
+  const feeMonth = resolveFeeBillingMonth(fee);
+  const feeType = typeOf(fee);
+  const collegeCycle = String(fee?.student?.college?.billingCycle || 'PREPAID').toUpperCase();
+  return fee.status === 'PENDING' && (!feeMonth ||
+    (collegeCycle === 'POSTPAID'
+      ? (feeType.includes('FINE')
+          ? isPostpaidPayableFee(fee, currentMonthStr, previousMonthStr)
+          : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
+      : (feeType.includes('RENT') || feeType.includes('ADVANCE')
+          ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
+          : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
+            ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
+            : feeMonth === currentMonthStr || feeMonth === previousMonthStr)));
 };
 
 const studentKey = (fee) =>
@@ -112,14 +139,17 @@ async function main() {
   const previousMonthStr = `${prevYear}-${String(prevIndex + 1).padStart(2, '0')}`;
 
   const allFees = await prisma.feeTransaction.findMany({
-    where: STUDENT ? { student: { regNo: STUDENT } } : undefined,
     include: { student: { include: { college: true } } },
     orderBy: { createdAt: 'asc' },
   });
 
-  const filteredFees = STUDENT
-    ? allFees.filter((fee) => studentKey(fee).toUpperCase() === STUDENT.toUpperCase())
-    : allFees;
+  // Mirror the Fees page: previous-settled rows are hidden unless they are a
+  // still-payable postpaid due. October EB bills are exempt from that rule.
+  const filteredFees = allFees.filter((fee) => {
+    if (isPreviousSettledFee(fee) && !isPostpaidPayableNow(fee, currentMonthStr, previousMonthStr)) return false;
+    if (STUDENT && studentKey(fee).toUpperCase() !== STUDENT.toUpperCase()) return false;
+    return true;
+  });
 
   console.log('=================================================================');
   console.log('--- Fees: Total Collected diagnostic ---');
