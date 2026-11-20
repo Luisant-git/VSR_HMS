@@ -53,6 +53,18 @@ const sanitizeNumber = (v: string) => {
 const roundRupees = (value: any) => Math.round(Number(value) || 0);
 const formatRupees = (value: any) => `₹${roundRupees(value).toLocaleString('en-IN')}`;
 
+// Pick the first usable meter reading. Older bills only have the legacy
+// prevReading/currReading columns, while the newer normal* columns default to
+// 0. `??` cannot be used here: 0 is not nullish, so it would hide the legacy
+// value and make the history table / Excel export show 0.0 for old bills.
+const pickReading = (...values: any[]) => {
+  for (const value of values) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  }
+  return 0;
+};
+
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 12px',
@@ -132,8 +144,8 @@ const EbBills = () => {
       .sort((a, b) => String(b.billingCycle || '').localeCompare(String(a.billingCycle || '')))[0];
     if (!previous) return;
 
-    const nPrev = previous.normalPrevReading ?? previous.prevReading ?? 0;
-    const nCurr = previous.normalCurrReading ?? previous.currReading ?? 0;
+    const nPrev = pickReading(previous.normalPrevReading, previous.prevReading);
+    const nCurr = pickReading(previous.normalCurrReading, previous.currReading);
     setNormalPrev(String(nPrev));
     setNormalCurr(String(nCurr));
 
@@ -268,8 +280,8 @@ const EbBills = () => {
     // For legacy rows (no normal* fields), map prev/curr into the Normal meter.
     setAcPrev(String(bill.acPrevReading ?? 0));
     setAcCurr(String(bill.acCurrReading ?? 0));
-    const nPrev = bill.normalPrevReading ?? bill.prevReading ?? 0;
-    const nCurr = bill.normalCurrReading ?? bill.currReading ?? 0;
+    const nPrev = pickReading(bill.normalPrevReading, bill.prevReading);
+    const nCurr = pickReading(bill.normalCurrReading, bill.currReading);
     setNormalPrev(String(nPrev));
     setNormalCurr(String(nCurr));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -333,8 +345,8 @@ const EbBills = () => {
   const getMeterValues = (bill: any) => {
     const acPrev = Number(bill.acPrevReading || 0);
     const acCurr = Number(bill.acCurrReading || 0);
-    const normalPrev = Number(bill.normalPrevReading ?? bill.prevReading ?? 0);
-    const normalCurr = Number(bill.normalCurrReading ?? bill.currReading ?? 0);
+    const normalPrev = pickReading(bill.normalPrevReading, bill.prevReading);
+    const normalCurr = pickReading(bill.normalCurrReading, bill.currReading);
     const hasAc = !!bill.hasAcMeter || acPrev > 0 || acCurr > 0;
     const acUnits = hasAc && acCurr >= acPrev ? acCurr - acPrev : 0;
     const normalUnits = normalCurr >= normalPrev ? normalCurr - normalPrev : 0;
