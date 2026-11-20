@@ -129,7 +129,7 @@ const EbBills = () => {
   useEffect(() => { fetchRooms(); }, []);
   useEffect(() => { fetchTariff(); }, []);
   useEffect(() => { fetchBillingCycles(); }, []);
-  useEffect(() => { fetchBillingHistory(); }, [page, searchTerm, selectedBillingCycle]);
+  useEffect(() => { fetchBillingHistory(); }, [searchTerm, selectedBillingCycle]);
   useEffect(() => { fetchRoomBills(); }, [selectedRoom]);
 
   // Carry the last billed readings forward into the next cycle, separately for
@@ -205,16 +205,17 @@ const EbBills = () => {
   const fetchBillingHistory = async () => {
     try {
       setIsLoading(true); setError(null);
+      // Fetch all matching bills, then sort and paginate on the client so the
+      // A1, A2, B1, B2 ... order is consistent across every page.
       const res = await EbBillsAPI.findAll({
-        page,
-        limit,
+        limit: 100000,
         search: searchTerm,
         billingCycle: selectedBillingCycle || undefined,
       });
       const data = Array.isArray(res) ? res : (res.data || []);
       setBillingHistory(data);
-      setTotalPages(res.totalPages || 1);
-      setTotalRecords(res.total || data.length);
+      setTotalPages(Math.ceil(data.length / limit) || 1);
+      setTotalRecords(data.length);
     } catch { setError('Failed to load EB bills history'); }
     finally { setIsLoading(false); }
   };
@@ -667,7 +668,7 @@ const EbBills = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedHistory.map((bill) => {
+                  {sortedHistory.slice((page - 1) * limit, page * limit).map((bill) => {
                     const readings = getBillReadings(bill);
                     return (
                       <tr key={bill.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
