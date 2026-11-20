@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 import { RoomAPI } from '../api/room.api';
 import { StudentAPI } from '../api/student.api';
 import { LoadingBlock } from '../components/LoadingSpinner';
+import { isWardenStudent } from '../utils/warden';
 import { toast } from 'react-toastify';
 
 const RoomsDirectory = () => {
@@ -194,6 +195,7 @@ const RoomsDirectory = () => {
   const roomsData = blockRooms.map(r => ({
     id: r.id,
     block: `${r.block} | ${r.type}`,
+    isWarden: isWardenStudent(r),
     status: r.occupiedCount === r.capacity ? 'Full' : r.occupiedCount === 0 ? 'Fully Vacant' : 'Partially Filled',
     // price: `₹${(Number(r.rent || 0) + Number(r.messFee || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
     price: `₹${Number(r.rent || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo`,
@@ -209,6 +211,7 @@ const RoomsDirectory = () => {
 
   const tableData = blockRooms.map(r => ({
     room: `Room ${r.id}`,
+    isWarden: isWardenStudent(r),
     loc: r.block,
     type: r.type,
     cap: `${r.capacity} Beds`,
@@ -338,7 +341,7 @@ const RoomsDirectory = () => {
                 )}
                 {filteredGridData.map((r, i) => (
 
-                  <div key={i} className="content-card" onClick={() => openRoomStudents(r)} style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
+                  <div key={i} className={`content-card${r.isWarden ? ' rooms-card-warden' : ''}`} onClick={() => openRoomStudents(r)} style={{ marginTop: 0, position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
                     {r.amenities.includes('AC') ? (
                       <span className="status-pill status-paid" style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '4px', alignItems: 'center' }}>
                         <Wind size={14} /> AC
@@ -354,7 +357,10 @@ const RoomsDirectory = () => {
                     </button>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                      <h3 className="card-title" style={{ margin: 0 }}>Room {r.id}</h3>
+                      <h3 className="card-title" style={{ margin: 0 }}>
+                        Room {r.id}
+                        {r.isWarden && <span className="ui-badge rooms-warden-badge">WARDEN</span>}
+                      </h3>
                     </div>
                     <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>{r.block} &bull; {r.price}</div>
 
@@ -459,8 +465,11 @@ const RoomsDirectory = () => {
                       </tr>
                     )}
                     {filteredTableData.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>{row.room}</td>
+                      <tr key={i} className={row.isWarden ? 'rooms-row-warden' : undefined} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '16px 20px', fontWeight: 700, color: '#1e293b' }}>
+                          {row.room}
+                          {row.isWarden && <span className="ui-badge rooms-warden-badge">WARDEN</span>}
+                        </td>
                         <td style={{ padding: '16px 20px', color: '#475569' }}>{row.loc}</td>
                         <td style={{ padding: '16px 20px' }}>
                           <span style={{ border: `1px solid ${getTypeStyle(row.type).borderColor}`, background: getTypeStyle(row.type).background, padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: getTypeStyle(row.type).color, fontWeight: 600 }}>{row.type}</span>

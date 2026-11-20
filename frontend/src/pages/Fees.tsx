@@ -13,6 +13,7 @@ import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
 import { parseFeeImportFile, type FeeImportRow } from '../utils/feeImport';
+import { isWardenStudent } from '../utils/warden';
 import {
   buildOutstandingTotals,
   getStudentKey,
@@ -1412,10 +1413,11 @@ const Fees = () => {
                 paginatedFees.map((fee: any) => {
                   const regNo = fee.student?.manualRegsiName || fee.student?.regNo || 'N/A';
                   const studentName = fee.student?.name || 'Unknown';
+                  const isWarden = isWardenStudent(fee.student);
                   return (
                     <tr
                       key={fee.id}
-                      className={activeFeeId === fee.id ? 'fees-row-active' : undefined}
+                      className={[activeFeeId === fee.id ? 'fees-row-active' : '', isWarden ? 'fees-row-warden' : ''].filter(Boolean).join(' ') || undefined}
                     >
                       <td
                         className={fee.displayStatus !== 'Unpaid' ? "ui-cell-link fees-invoice" : "fees-invoice"}
@@ -1426,7 +1428,10 @@ const Fees = () => {
                       <td>
                         <div className="fees-person">
                           <div className="fees-person-info">
-                            <div className="fees-person-name" title={studentName}>{studentName}</div>
+                            <div className="fees-person-name" title={studentName}>
+                              {studentName}
+                              {isWarden && <span className="ui-badge fees-warden-badge">WARDEN</span>}
+                            </div>
                             <div className="fees-person-meta" title={regNo}>{regNo}</div>
                           </div>
                         </div>

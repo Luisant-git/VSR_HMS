@@ -18,6 +18,7 @@ import {
   roundMoney,
 } from '../utils/outstanding';
 import { toast } from 'react-toastify';
+import { isWardenStudent } from '../utils/warden';
 const MENU_WIDTH = 232;
 const MENU_GAP = 6;
 const MENU_EDGE = 8;
@@ -112,7 +113,7 @@ const Hostellers = () => {
 
   const fetchHostellers = () => {
     setError(null);
-    StudentAPI.findAll({
+    const params = {
       page,
       limit,
       search: searchQuery,
@@ -121,8 +122,16 @@ const Hostellers = () => {
       sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
       feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined,
       statusFilter: statusFilter !== '-- All Status --' ? statusFilter : undefined
-    }).then(res => {
+    };
+    Promise.all([
+      StudentAPI.findAll(params),
+      // Same filters without pagination, so the warden can be removed from counts.
+      StudentAPI.findAll({ ...params, page: undefined, limit: undefined }),
+    ]).then(([res, allRes]) => {
       const data = res.data || [];
+      const allStudents = Array.isArray(allRes) ? allRes : (allRes.data || []);
+      const wardenCount = allStudents.filter(isWardenStudent).length;
+      const hostellerTotal = Math.max(0, (res.total || 0) - wardenCount);
       const mapped = data.map((h: any) => {
         const transactions = h.transactions || [];
         const outstandingOriginal = transactions
@@ -156,12 +165,13 @@ const Hostellers = () => {
           date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           avatar: h.name.substring(0, 2).toUpperCase(),
+          isWarden: isWardenStudent(h),
           raw: h
         };
       });
       setHostellers(mapped);
-      setTotalPages(res.totalPages || 1);
-      setTotalRecords(res.total || 0);
+      setTotalRecords(hostellerTotal);
+      setTotalPages(Math.ceil(hostellerTotal / limit) || 1);
     }).catch(err => {
       console.error(err);
       setError('Failed to load hostellers');
@@ -634,7 +644,7 @@ const Hostellers = () => {
                   </tr>
                 ) : (
                   filteredHostellers.map((h, i) => (
-                    <tr key={i} className={activeDropdown === h.id ? 'hostellers-row-menu-open' : undefined}>
+                    <tr key={i} className={h.isWarden ? 'hostellers-row-warden' : (activeDropdown === h.id ? 'hostellers-row-menu-open' : undefined)}>
                       <td>
                         <a href="#" className="hostellers-link" title={String(h.id ?? '')} onClick={(e) => { e.preventDefault(); setSelectedHosteller(h); }}>{h.id}</a>
                       </td>
@@ -648,7 +658,10 @@ const Hostellers = () => {
                             )}
                           </div>
                           <div className="hostellers-person-info">
-                            <div className="hostellers-person-name" title={h.name}>{h.name}</div>
+                            <div className="hostellers-person-name" title={h.name}>
+                              {h.name}
+                              {h.isWarden && <span className="ui-badge hostellers-warden-badge">WARDEN</span>}
+                            </div>
                             <div className="hostellers-person-meta" title={h.contact}>
                               <Phone size={12} /> <span className="hostellers-person-contact">{h.contact}</span>
                             </div>

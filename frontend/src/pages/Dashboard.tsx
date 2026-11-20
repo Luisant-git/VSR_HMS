@@ -5,10 +5,11 @@ import { StudentAPI } from '../api/student.api';
 import { gateLogApi } from '../api/gatelog.api';
 import { OutpassAPI } from '../api/outpass.api';
 import { BiometricAttendanceAPI } from '../api/biometricAttendance.api';
-import { Users, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
+import { Users, UserRound, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { calculatePendingDues } from '../utils/outstanding';
+import { isWardenStudent } from '../utils/warden';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -114,7 +115,9 @@ const Dashboard = () => {
   const totalAdvanceHeld = safeFees.filter((f: any) => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum: number, f: any) => sum + f.amount, 0);
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
-  const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated');
+  const wardens = safeStudents.filter((s: any) => s.status !== 'Vacated' && isWardenStudent(s));
+  const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated' && !isWardenStudent(s));
+  const totalRegistered = activeStudents.length + wardens.length;
   const dashboardMissingLogs = Array.isArray(missingLogs) ? missingLogs : ((missingLogs as any).data || []);
 
   const safeOutpasses = Array.isArray(outpasses) ? outpasses : ((outpasses as any).data || []);
@@ -158,10 +161,26 @@ const Dashboard = () => {
       <div className="cards-row">
         <div className="metric-card metric-card-blue" style={{ cursor: 'pointer' }} onClick={() => navigate('/hostellers')}>
           <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            Active Students
+            Active Hostellers
             <Users size={18} />
           </div>
           <div className="value">{activeStudents.length}</div>
+        </div>
+
+        <div className="metric-card" style={{ background: '#f59e0b', cursor: 'pointer' }} onClick={() => navigate('/hostellers', { state: { filterRoom: 'Room E1' } })}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Wardens / Staff
+            <UserRound size={18} />
+          </div>
+          <div className="value">{wardens.length}</div>
+        </div>
+
+        <div className="metric-card" style={{ background: '#475569', cursor: 'pointer' }} onClick={() => navigate('/hostellers')}>
+          <div className="title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            Total Registered
+            <Users size={18} />
+          </div>
+          <div className="value">{totalRegistered}</div>
         </div>
 
         <div className="metric-card metric-card-green" style={{ cursor: 'pointer' }} onClick={() => navigate('/rooms/directory')}>
