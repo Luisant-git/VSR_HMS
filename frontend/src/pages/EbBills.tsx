@@ -304,6 +304,16 @@ const EbBills = () => {
     setMode('create'); setEditingId(null); setBillTariff(null); resetReadings();
   };
 
+  const resetForm = () => {
+    setMode('create');
+    setEditingId(null);
+    setBillTariff(null);
+    setSelectedRoom(null);
+    setBillingCycle(currentMonthStr);
+    resetReadings();
+    setError(null);
+  };
+
   const clearForm = () => {
     setMode('create');
     setEditingId(null);
@@ -345,9 +355,8 @@ const EbBills = () => {
       } else {
         await EbBillsAPI.create(payload);
         toast.success('EB Bill created successfully and split among students');
-        // Carry readings forward for the next entry
-        setAcPrev(acCurr); setAcCurr('0');
-        setNormalPrev(normalCurr); setNormalCurr('0');
+        // Fresh form for the next entry - do not leave the old room/reading behind.
+        resetForm();
       }
 
       await fetchRoomBills();
