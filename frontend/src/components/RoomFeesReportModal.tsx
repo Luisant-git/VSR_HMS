@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { formatBillingMonth, resolveFeeBillingMonth, getBillingMonths } from '../utils/billingCycle';
+import { isOutstandingInvoice, isOutstandingPayment } from '../utils/outstanding';
 
 interface RoomFeesReportModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface RoomFeesReportModalProps {
 interface StudentFeeRow {
   studentId: string;
   name: string;
+  mobileNo: string;
   regNo: string;
   roomNo: string;
   billingCycle: 'PREPAID' | 'POSTPAID';
@@ -30,6 +32,9 @@ interface StudentFeeRow {
   ebPaidDate: string | null;
   fineAmount: number;
   finePaidDate: string | null;
+  outstandingAmount: number;
+  outstandingDisplay: string;
+  outstandingPaidDate: string | null;
 }
 
 interface RoomGroup {
@@ -211,6 +216,14 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         if (f.student && String(f.student.roomNo) === roomId) {
           if (!studentMap.has(f.student.id)) {
             studentMap.set(f.student.id, f.student);
+          } else {
+            const existing = studentMap.get(f.student.id);
+            if (!existing.mobileNo && f.student.mobileNo) {
+              existing.mobileNo = f.student.mobileNo;
+            }
+            if (!existing.college && f.student.college) {
+              existing.college = f.student.college;
+            }
           }
         }
       });
@@ -250,6 +263,16 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                 (student.manualRegsiName && f.student.manualRegsiName === student.manualRegsiName)))
           );
         });
+
+        // Resolve student mobile number
+        const mobileFromFees = studentFees.find((f: any) => f.student?.mobileNo)?.student?.mobileNo;
+        const studentMobile =
+          student.mobileNo ||
+          mobileFromFees ||
+          student.mobile ||
+          student.phone ||
+          student.fatherMobileNo ||
+          '';
 
         // 1. Rent
         const rentFees = studentFees.filter((f: any) => {
@@ -307,12 +330,61 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           }
         }
 
+        // 4. Outstanding Balance & Payment Date
+        const outInvoices = studentFees.filter((f: any) =>
+          isOutstandingInvoice(f) ||
+          (f.status === 'PENDING' && String(f.transactionType || '').toUpperCase().includes('OUTSTANDING'))
+        );
+        const outPayments = studentFees.filter((f: any) =>
+          isOutstandingPayment(f) ||
+          (f.status === 'COMPLETED' && String(f.transactionType || '').toUpperCase().includes('OUTSTANDING'))
+        );
+
+        const originalOut = outInvoices.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        const paidOut = outPayments.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        const remainingOut = Math.max(0, originalOut - paidOut);
+
+        // Older unpaid pending fees from earlier billing months not matched as current rent / eb / fine
+        const olderPendingFees = studentFees.filter((f: any) => {
+          if (f.status !== 'PENDING') return false;
+          const type = String(f.transactionType || '').toUpperCase();
+          if (type.includes('MESS') || type.includes('ADVANCE')) return false;
+          if (rentFees.includes(f) || ebFees.includes(f) || fineFees.includes(f) || outInvoices.includes(f)) return false;
+          const feeMonth = resolveFeeBillingMonth(f);
+          if (feeMonth && selectedMonth && feeMonth < selectedMonth) return true;
+          return false;
+        });
+        const olderPendingTotal = olderPendingFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+
+        let outstandingAmount = 0;
+        let outstandingPaidDate: string | null = null;
+
+        if (outInvoices.length > 0 || outPayments.length > 0 || olderPendingTotal > 0) {
+          if (remainingOut + olderPendingTotal > 0) {
+            outstandingAmount = remainingOut + olderPendingTotal;
+            if (outPayments.length > 0) {
+              const sorted = [...outPayments].sort(
+                (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+              );
+              outstandingPaidDate = sorted[0].paidDate || sorted[0].createdAt || null;
+            }
+          } else if (paidOut > 0) {
+            outstandingAmount = paidOut;
+            const sorted = [...outPayments].sort(
+              (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+            );
+            outstandingPaidDate = sorted[0].paidDate || sorted[0].createdAt || null;
+          }
+        }
+
         const rentDisplay = rentAmount > 0 ? `${rentAmount} (${rentMonthLabel})` : '';
         const ebDisplay = ebAmount > 0 ? ebAmount.toString() : '';
+        const outstandingDisplay = outstandingAmount > 0 ? outstandingAmount.toString() : '';
 
         return {
           studentId,
           name: student.name || 'Unknown', // ONLY student name, NO college name!
+          mobileNo: studentMobile,
           regNo: studentRegNo,
           roomNo: roomId,
           billingCycle,
@@ -326,6 +398,9 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           ebPaidDate,
           fineAmount,
           finePaidDate,
+          outstandingAmount,
+          outstandingDisplay,
+          outstandingPaidDate,
         };
       });
 
@@ -396,7 +471,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
     doc.text(`VSR HOSTEL MANAGEMENT SYSTEM   •   DATE: ${new Date().toLocaleDateString('en-GB')}`, 145, 20.5, { align: 'center' });
 
     // 2. Table Column Headers:
-    // STUDENT NAME | ROOM RENT | PAYMENT DATE | EB CHARGE | PAYMENT DATE | FINE | PAYMENT DATE
+    // STUDENT NAME | ROOM RENT | PAYMENT DATE | EB CHARGE | PAYMENT DATE | FINE | PAYMENT DATE | OUTSTANDING | PAYMENT DATE
     const rentHeaderTitle = postpaidShort === prepaidShort
       ? `ROOM RENT\n${postpaidShort}`
       : `ROOM RENT\n(${postpaidShort} / ${prepaidShort})`;
@@ -411,6 +486,8 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
       'PAYMENT\nDATE',
       'FINE',
       'PAYMENT\nDATE',
+      'OUTSTANDING',
+      'PAYMENT\nDATE',
     ];
 
     // 3. Build Body: Room row (A1, A2, A3) followed by student rows
@@ -421,14 +498,14 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
       tableBody.push([
         {
           content: `${group.roomId}`,
-          colSpan: 7,
+          colSpan: 9,
           styles: {
             fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 11, // Increased room number font size
-            cellPadding: 2.6,
+            fontSize: 10.5,
+            cellPadding: 2.2,
           },
         },
       ]);
@@ -438,20 +515,22 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         tableBody.push([
           {
             content: '',
-            colSpan: 7,
+            colSpan: 9,
             styles: { cellPadding: 2 },
           },
         ]);
       } else {
         group.students.forEach((s) => {
           tableBody.push([
-            s.name, // ONLY student name, NO college name!
+            s.mobileNo ? `${s.name}\n${s.mobileNo}` : s.name,
             s.rentDisplay || '',
             s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
             s.ebDisplay || '',
             s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
             s.fineAmount > 0 ? s.fineAmount.toString() : '',
             s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
+            s.outstandingDisplay || '',
+            s.outstandingPaidDate ? formatPaymentDate(s.outstandingPaidDate) : '',
           ]);
         });
       }
@@ -459,13 +538,15 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
 
     // Column widths: Total 190mm on A4 Portrait (10mm left & right margins)
     const colWidths = {
-      0: 46, // STUDENT NAME
-      1: 27, // ROOM RENT
-      2: 24, // PAYMENT DATE
-      3: 23, // EB CHARGE
-      4: 24, // PAYMENT DATE
-      5: 22, // FINE
-      6: 24, // PAYMENT DATE
+      0: 38, // STUDENT NAME & MOB
+      1: 22, // ROOM RENT
+      2: 19, // PAYMENT DATE
+      3: 19, // EB CHARGE
+      4: 19, // PAYMENT DATE
+      5: 16, // FINE
+      6: 19, // PAYMENT DATE
+      7: 19, // OUTSTANDING
+      8: 19, // PAYMENT DATE
     };
 
     autoTable(doc, {
@@ -475,8 +556,8 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
       theme: 'grid',
       styles: {
         font: 'helvetica',
-        fontSize: 9.5, // Increased text size
-        cellPadding: 2.6, // Spacious padding
+        fontSize: 8.5,
+        cellPadding: 2.2,
         lineColor: [0, 0, 0], // Crisp black border lines matching the printed photo
         lineWidth: 0.15,
         textColor: [0, 0, 0],
@@ -489,7 +570,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         fontStyle: 'bold',
         halign: 'center',
         valign: 'middle',
-        fontSize: 8.5, // Increased header font size
+        fontSize: 7.5,
         lineWidth: 0.2,
         lineColor: [0, 0, 0],
       },
@@ -501,6 +582,8 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         4: { cellWidth: colWidths[4], halign: 'center' },
         5: { cellWidth: colWidths[5], halign: 'center' },
         6: { cellWidth: colWidths[6], halign: 'center' },
+        7: { cellWidth: colWidths[7], halign: 'center' },
+        8: { cellWidth: colWidths[8], halign: 'center' },
       },
       margin: { top: 28, left: 10, right: 10, bottom: 12 },
     });
@@ -538,24 +621,30 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
       excelRows.push({
         'Room': group.roomId,
         'Student Name': `[ROOM ${group.roomId}]`,
+        'Mobile No': '',
         'Room Rent': '',
         'Rent Payment Date': '',
         'EB Charge': '',
         'EB Payment Date': '',
         'Fine': '',
         'Fine Payment Date': '',
+        'Outstanding Balance': '',
+        'Outstanding Payment Date': '',
       });
 
       group.students.forEach((s) => {
         excelRows.push({
           'Room': s.roomNo,
           'Student Name': s.name, // ONLY student name!
+          'Mobile No': s.mobileNo || '',
           'Room Rent': s.rentDisplay || '',
           'Rent Payment Date': s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
           'EB Charge': s.ebDisplay || '',
           'EB Payment Date': s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
           'Fine': s.fineAmount > 0 ? s.fineAmount : '',
           'Fine Payment Date': s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
+          'Outstanding Balance': s.outstandingDisplay || '',
+          'Outstanding Payment Date': s.outstandingPaidDate ? formatPaymentDate(s.outstandingPaidDate) : '',
         });
       });
     });
@@ -590,7 +679,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           backgroundColor: '#fff',
           borderRadius: '12px',
           width: '100%',
-          maxWidth: '1020px',
+          maxWidth: '1160px',
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
@@ -778,7 +867,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                 style={{
                   width: '100%',
                   borderCollapse: 'collapse',
-                  fontSize: '13.5px', // Increased text size
+                  fontSize: '13px',
                   fontFamily: 'inherit',
                   color: '#000',
                   backgroundColor: '#fff',
@@ -786,27 +875,33 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
               >
                 <thead>
                   <tr style={{ backgroundColor: '#fff', borderTop: '1.5px solid #000', borderBottom: '1.5px solid #000' }}>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 12px', textAlign: 'left', fontWeight: 800, width: '28%', fontSize: '13.5px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 10px', textAlign: 'left', fontWeight: 800, width: '20%', fontSize: '13px' }}>
                       STUDENT NAME
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       ROOM RENT <br />
-                      <span style={{ fontSize: '11px', fontWeight: 500 }}>({postpaidShort} / {prepaidShort})</span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 500 }}>({postpaidShort} / {prepaidShort})</span>
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       PAYMENT DATE
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       EB CHARGE <br />
-                      <span style={{ fontSize: '11px', fontWeight: 500 }}>({postpaidShort})</span>
+                      <span style={{ fontSize: '10.5px', fontWeight: 500 }}>({postpaidShort})</span>
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       PAYMENT DATE
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       FINE
                     </th>
-                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
+                      PAYMENT DATE
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
+                      OUTSTANDING
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 6px', textAlign: 'center', fontWeight: 800, fontSize: '12px' }}>
                       PAYMENT DATE
                     </th>
                   </tr>
@@ -817,7 +912,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                       {/* Room Section Row: Clean centered Room number e.g. A1, A2, A3 */}
                       <tr style={{ backgroundColor: '#f8fafc' }}>
                         <td
-                          colSpan={7}
+                          colSpan={9}
                           style={{
                             border: '1.5px solid #000',
                             padding: '8px 12px',
@@ -834,50 +929,71 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                       {/* Students under this room */}
                       {group.students.map((s, idx) => (
                         <tr key={s.studentId + idx}>
-                          <td style={{ border: '1.5px solid #000', padding: '9px 12px', fontWeight: 600, fontSize: '14px' }}>
-                            {s.name} {/* ONLY student name, NO college name! */}
+                          <td style={{ border: '1.5px solid #000', padding: '8px 10px', textAlign: 'left' }}>
+                            <div style={{ fontWeight: 700, fontSize: '13px', color: '#000' }}>
+                              {s.name} {/* ONLY student name, NO college name! */}
+                            </div>
+                            {s.mobileNo && (
+                              <div style={{ fontSize: '11px', color: '#475569', fontWeight: 500, marginTop: '2px' }}>
+                                {s.mobileNo}
+                              </div>
+                            )}
                           </td>
-                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                          <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
                             {s.rentDisplay}
                           </td>
                           <td
                             style={{
                               border: '1.5px solid #000',
-                              padding: '9px 8px',
+                              padding: '8px 6px',
                               textAlign: 'center',
                               fontWeight: 600,
-                              fontSize: '13px',
+                              fontSize: '12.5px',
                             }}
                           >
                             {s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : ''}
                           </td>
-                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                          <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
                             {s.ebDisplay}
                           </td>
                           <td
                             style={{
                               border: '1.5px solid #000',
-                              padding: '9px 8px',
+                              padding: '8px 6px',
                               textAlign: 'center',
                               fontWeight: 600,
-                              fontSize: '13px',
+                              fontSize: '12.5px',
                             }}
                           >
                             {s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : ''}
                           </td>
-                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                          <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
                             {s.fineAmount > 0 ? s.fineAmount.toString() : ''}
                           </td>
                           <td
                             style={{
                               border: '1.5px solid #000',
-                              padding: '9px 8px',
+                              padding: '8px 6px',
                               textAlign: 'center',
                               fontWeight: 600,
-                              fontSize: '13px',
+                              fontSize: '12.5px',
                             }}
                           >
                             {s.finePaidDate ? formatPaymentDate(s.finePaidDate) : ''}
+                          </td>
+                          <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
+                            {s.outstandingDisplay}
+                          </td>
+                          <td
+                            style={{
+                              border: '1.5px solid #000',
+                              padding: '8px 6px',
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              fontSize: '12.5px',
+                            }}
+                          >
+                            {s.outstandingPaidDate ? formatPaymentDate(s.outstandingPaidDate) : ''}
                           </td>
                         </tr>
                       ))}
