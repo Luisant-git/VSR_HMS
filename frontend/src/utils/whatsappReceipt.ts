@@ -1,3 +1,6 @@
+import { sendWhatsAppReceipt } from '../api/whatsapp.api';
+import { toast } from 'react-toastify';
+
 export interface WhatsAppReceiptData {
   studentName?: string;
   regNo?: string;
@@ -160,9 +163,9 @@ export function buildWhatsAppReceiptMessage(data: WhatsAppReceiptData): string {
 }
 
 /**
- * Opens WhatsApp Web or WhatsApp mobile app directly to the student/parent's chat.
+ * Sends the official fee receipt PDF directly to the student / parent on WhatsApp.
  */
-export function sendReceiptViaWhatsApp(data: WhatsAppReceiptData): boolean {
+export async function sendReceiptViaWhatsApp(data: WhatsAppReceiptData): Promise<boolean> {
   let targetPhone = normalizePhoneNumber(data.phone);
 
   if (!targetPhone || targetPhone.length < 10) {
@@ -175,13 +178,72 @@ export function sendReceiptViaWhatsApp(data: WhatsAppReceiptData): boolean {
   }
 
   if (targetPhone.length < 10) {
-    alert('Invalid phone number. Please provide a valid 10-digit mobile number.');
+    toast.error('Invalid mobile number. Please provide a valid 10-digit number.');
     return false;
   }
 
-  const message = buildWhatsAppReceiptMessage(data);
-  const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(message)}`;
+  const toastId = toast.loading(`Sending official PDF receipt to ${targetPhone}...`);
 
-  window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-  return true;
+  try {
+    const invoiceLabel = data.invoiceNo || data.receiptNo || 'Receipt';
+    const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceLabel);
+    const invoiceSerial = invoiceParts?.[2] ?? invoiceParts?.[1];
+    const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : (data.receiptNo || '1');
+
+    const receiptPayload = {
+      studentName: data.studentName || 'Student',
+      regNo: data.regNo || 'N/A',
+      roomNo: data.roomNo || 'N/A',
+      invoiceNo: data.invoiceNo,
+      receiptNo,
+      receiptDate: data.receiptDate || new Date().toLocaleDateString('en-GB'),
+      hostelName: data.hostelName,
+      address: data.address,
+      hostelPhone: data.hostelPhone,
+      billingMonth: data.billingMonth,
+      dueDate: data.dueDate,
+      paymentMode: data.paymentMode || 'CASH',
+      gatewayMethod: data.gatewayMethod || (data.paymentMode?.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual'),
+      pendingBalance: data.pendingBalance,
+      grossAmount: data.grossAmount || data.totalAmount,
+      discountAmount: data.discountAmount,
+      amount: data.totalAmount,
+      notes: data.notes,
+      items:
+        data.items && data.items.length > 0
+          ? data.items.map((item) => ({
+              description: item.description || formatFeeTypeName(item.type),
+              type: item.type || 'FEE',
+              amount: Number(item.amount || 0),
+            }))
+          : [{ description: 'Hostel Fee', type: 'FEE', amount: Number(data.totalAmount || 0) }],
+    };
+
+    const res = await sendWhatsAppReceipt(targetPhone, receiptPayload);
+    if (res && res.success) {
+      toast.update(toastId, {
+        render: `✅ Official PDF Receipt sent to WhatsApp: ${targetPhone}`,
+        type: 'success',
+        isLoading: false,
+        autoClose: 3500,
+      });
+      return true;
+    } else {
+      toast.update(toastId, {
+        render: '⚠️ WhatsApp message could not be delivered. Make sure the backend WhatsApp bot is linked.',
+        type: 'warning',
+        isLoading: false,
+        autoClose: 5000,
+      });
+      return false;
+    }
+  } catch (err: any) {
+    toast.update(toastId, {
+      render: `❌ Failed to send PDF receipt: ${err?.message || 'Error occurred'}`,
+      type: 'error',
+      isLoading: false,
+      autoClose: 5000,
+    });
+    return false;
+  }
 }

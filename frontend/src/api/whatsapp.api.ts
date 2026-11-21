@@ -18,6 +18,24 @@ export const checkWhatsAppStatus = async (): Promise<{ connected: boolean }> => 
   }
 };
 
+export const sendWhatsAppReceipt = async (
+  phone: string,
+  data: any,
+): Promise<{ success: boolean }> => {
+  const res = await fetch(`${BASE_URL}/whatsapp/send-receipt`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ phone, data }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || 'Failed to send WhatsApp receipt');
+  }
+
+  return await res.json();
+};
+
 export const sendWhatsAppPdf = async (
   phone: string,
   pdfBase64: string,
