@@ -5,7 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { formatBillingMonth, resolveFeeBillingMonth, getBillingMonths } from '../utils/billingCycle';
-import { isOutstandingInvoice, isOutstandingPayment } from '../utils/outstanding';
+import { isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee } from '../utils/outstanding';
 
 interface RoomFeesReportModalProps {
   isOpen: boolean;
@@ -278,56 +278,99 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         const rentFees = studentFees.filter((f: any) => {
           const type = String(f.transactionType || '').toUpperCase();
           if (!type.includes('RENT')) return false;
+          // Exclude old settled fees from before Nov 1 unless it is an active pending invoice
+          if (isPreviousSettledFee(f) && f.status !== 'PENDING') return false;
           const feeMonth = resolveFeeBillingMonth(f);
-          return feeMonth === targetRentMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+          return feeMonth === targetRentMonth || feeMonth === selectedMonth || (!feeMonth && f.status === 'PENDING');
         });
 
         let rentAmount = 0;
         let rentPaidDate: string | null = null;
-        if (rentFees.length > 0) {
-          const exactRent = rentFees.find((f) => resolveFeeBillingMonth(f) === targetRentMonth) || rentFees[0];
-          rentAmount = Number(exactRent.amount) || 0;
-          if (exactRent.status === 'COMPLETED') {
-            rentPaidDate = exactRent.paidDate || exactRent.createdAt || null;
-          }
+
+        // Prioritize active PENDING invoice for this cycle (means UNPAID!)
+        const pendingRent = rentFees.find((f) => {
+          if (f.status !== 'PENDING') return false;
+          const m = resolveFeeBillingMonth(f);
+          return m === targetRentMonth || m === selectedMonth || !m;
+        });
+
+        // If no pending invoice, check if there is a COMPLETED payment for this cycle
+        const completedRent = rentFees.find((f) => {
+          if (f.status !== 'COMPLETED') return false;
+          if (isPreviousSettledFee(f)) return false;
+          const m = resolveFeeBillingMonth(f);
+          return m === targetRentMonth || m === selectedMonth;
+        });
+
+        if (pendingRent) {
+          rentAmount = Number(pendingRent.amount) || Number(student.rent) || Number(room.rent) || 0;
+          rentPaidDate = null; // Unpaid! Must leave blank!
+        } else if (completedRent) {
+          rentAmount = Number(completedRent.amount) || Number(student.rent) || Number(room.rent) || 0;
+          rentPaidDate = completedRent.paidDate || completedRent.createdAt || null;
         } else {
+          // No transaction in fees array, fallback to student profile rent or room rent
           rentAmount = Number(student.rent) || Number(room.rent) || 0;
+          rentPaidDate = null;
         }
 
         // 2. EB Charge
         const ebFees = studentFees.filter((f: any) => {
           const type = String(f.transactionType || '').toUpperCase();
           if (!type.includes('EB') && !type.includes('ELECTRIC')) return false;
+          if (isPreviousSettledFee(f) && f.status !== 'PENDING') return false;
           const feeMonth = resolveFeeBillingMonth(f);
-          return feeMonth === targetEbMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+          return feeMonth === targetEbMonth || feeMonth === selectedMonth || (!feeMonth && f.status === 'PENDING');
         });
 
         let ebAmount = 0;
         let ebPaidDate: string | null = null;
-        if (ebFees.length > 0) {
-          const exactEb = ebFees.find((f) => resolveFeeBillingMonth(f) === targetEbMonth) || ebFees[0];
-          ebAmount = Number(exactEb.amount) || 0;
-          if (exactEb.status === 'COMPLETED') {
-            ebPaidDate = exactEb.paidDate || exactEb.createdAt || null;
-          }
+
+        const pendingEb = ebFees.find((f) => {
+          if (f.status !== 'PENDING') return false;
+          const m = resolveFeeBillingMonth(f);
+          return m === targetEbMonth || m === selectedMonth || !m;
+        });
+
+        const completedEb = ebFees.find((f) => {
+          if (f.status !== 'COMPLETED') return false;
+          if (isPreviousSettledFee(f)) return false;
+          const m = resolveFeeBillingMonth(f);
+          return m === targetEbMonth || m === selectedMonth;
+        });
+
+        if (pendingEb) {
+          ebAmount = Number(pendingEb.amount) || 0;
+          ebPaidDate = null; // Unpaid!
+        } else if (completedEb) {
+          ebAmount = Number(completedEb.amount) || 0;
+          ebPaidDate = completedEb.paidDate || completedEb.createdAt || null;
         }
 
         // 3. Fine
         const fineFees = studentFees.filter((f: any) => {
           const type = String(f.transactionType || '').toUpperCase();
           if (!type.includes('FINE')) return false;
+          if (isPreviousSettledFee(f) && f.status !== 'PENDING') return false;
           const feeMonth = resolveFeeBillingMonth(f);
-          return feeMonth === targetRentMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+          return feeMonth === targetRentMonth || feeMonth === targetEbMonth || feeMonth === selectedMonth || !feeMonth;
         });
 
         let fineAmount = 0;
         let finePaidDate: string | null = null;
-        if (fineFees.length > 0) {
-          fineAmount = fineFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-          const paidFine = fineFees.find((f) => f.status === 'COMPLETED');
-          if (paidFine) {
-            finePaidDate = paidFine.paidDate || paidFine.createdAt || null;
-          }
+
+        const pendingFines = fineFees.filter((f) => f.status === 'PENDING');
+        const completedFines = fineFees.filter((f) => f.status === 'COMPLETED' && !isPreviousSettledFee(f));
+
+        if (pendingFines.length > 0) {
+          fineAmount = pendingFines.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+          finePaidDate = null; // Unpaid!
+        } else if (completedFines.length > 0) {
+          fineAmount = completedFines.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+          const latestPaid = completedFines.sort(
+            (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+          )[0];
+          finePaidDate = latestPaid?.paidDate || latestPaid?.createdAt || null;
         }
 
         // 4. Outstanding Balance & Payment Date
@@ -344,14 +387,14 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         const paidOut = outPayments.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
         const remainingOut = Math.max(0, originalOut - paidOut);
 
-        // Older unpaid pending fees from earlier billing months not matched as current rent / eb / fine
+        // Older unpaid pending fees from strictly earlier billing months not matched as current rent / eb / fine
         const olderPendingFees = studentFees.filter((f: any) => {
           if (f.status !== 'PENDING') return false;
           const type = String(f.transactionType || '').toUpperCase();
           if (type.includes('MESS') || type.includes('ADVANCE')) return false;
           if (rentFees.includes(f) || ebFees.includes(f) || fineFees.includes(f) || outInvoices.includes(f)) return false;
           const feeMonth = resolveFeeBillingMonth(f);
-          if (feeMonth && selectedMonth && feeMonth < selectedMonth) return true;
+          if (feeMonth && feeMonth < targetRentMonth && feeMonth < targetEbMonth) return true;
           return false;
         });
         const olderPendingTotal = olderPendingFees.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
