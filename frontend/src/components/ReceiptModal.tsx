@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { getSystemSettings } from '../api/settings.api';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { resolveFeeBillingMonth } from '../utils/billingCycle';
-import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
+import { sendWhatsAppPdf } from '../api/whatsapp.api';
 
 interface ReceiptModalProps {
   fee: any;
@@ -16,6 +16,7 @@ interface ReceiptModalProps {
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const receiptCaptureRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
   const [settings, setSettings] = useState<any>({
     hostelName: '',
     address: '',
@@ -117,153 +118,145 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  const generatePdfBlob = async (): Promise<{ pdf: jsPDF; fileName: string } | null> => {
+    if (!receiptCaptureRef.current) return null;
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    const captureWidth = isMobile ? window.innerWidth : 850;
+    const receiptHeight = receiptCaptureRef.current.scrollHeight;
+    const canvas = await html2canvas(receiptCaptureRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      windowHeight: Math.max(window.innerHeight, receiptHeight),
+      windowWidth: captureWidth,
+      scrollY: 0,
+      onclone: (clonedDocument) => {
+        const modal = clonedDocument.getElementById('receipt-printable-area');
+        const overlay = modal?.parentElement as HTMLElement | null;
+        const receiptPad = modal?.querySelector('.receipt-pad') as HTMLElement | null;
+        [overlay, modal, receiptPad].forEach((element) => {
+          element?.style.setProperty('overflow', 'visible', 'important');
+          element?.style.setProperty('max-height', 'none', 'important');
+          element?.style.setProperty('height', 'auto', 'important');
+        });
+        receiptPad?.style.setProperty('flex', 'none', 'important');
+        receiptPad?.style.setProperty('min-height', '0', 'important');
+
+        if (isMobile) {
+          const feeScroll = modal?.querySelector('.receipt-fee-scroll') as HTMLElement | null;
+          const feeTable = modal?.querySelector('.receipt-fee-table') as HTMLTableElement | null;
+          feeScroll?.style.setProperty('overflow', 'visible', 'important');
+          feeScroll?.style.setProperty('width', '100%', 'important');
+          feeTable?.style.setProperty('width', '100%', 'important');
+          feeTable?.style.setProperty('min-width', '0', 'important');
+          feeTable?.style.setProperty('table-layout', 'fixed', 'important');
+          feeTable?.querySelectorAll('th, td').forEach((cell) => {
+            const tableCell = cell as HTMLElement;
+            tableCell.style.setProperty('min-width', '0', 'important');
+            tableCell.style.setProperty('padding', '6px 4px', 'important');
+            tableCell.style.setProperty('font-size', '10px', 'important');
+            tableCell.style.setProperty('overflow-wrap', 'anywhere', 'important');
+            tableCell.style.setProperty('word-break', 'break-word', 'important');
+          });
+          feeTable?.querySelectorAll('tr').forEach((row) => {
+            const cells = row.querySelectorAll('th, td');
+            if (cells.length === 3) {
+              cells[0].setAttribute('style', `${cells[0].getAttribute('style') || ''}; width: 52% !important;`);
+              cells[1].setAttribute('style', `${cells[1].getAttribute('style') || ''}; width: 20% !important;`);
+              cells[2].setAttribute('style', `${cells[2].getAttribute('style') || ''}; width: 28% !important;`);
+            } else {
+              cells[0]?.setAttribute('style', `${cells[0].getAttribute('style') || ''}; width: 72% !important;`);
+              cells[1]?.setAttribute('style', `${cells[1].getAttribute('style') || ''}; width: 28% !important;`);
+            }
+          });
+        }
+      },
+    });
+
+    const mobilePageWidth = (window.innerWidth * 25.4) / 96;
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: isMobile ? [mobilePageWidth, mobilePageWidth * (297 / 210)] : 'a4',
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageHeightPixels = Math.floor((pageHeight * canvas.width) / pageWidth);
+    let offsetY = 0;
+    while (offsetY < canvas.height) {
+      const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const context = pageCanvas.getContext('2d');
+      if (!context) throw new Error('Could not prepare receipt for download.');
+      context.drawImage(canvas, 0, offsetY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+      if (offsetY > 0) pdf.addPage();
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pageWidth, (sliceHeight * pageWidth) / canvas.width);
+      offsetY += sliceHeight;
+    }
+    const fileName = (invoiceNo || receiptNo).replace(/[<>:"/\\|?*]+/g, '_');
+    return { pdf, fileName };
+  };
+
   const handleDownload = async () => {
     if (!receiptCaptureRef.current) return;
     setDownloading(true);
     try {
-      const isMobile = window.matchMedia('(max-width: 640px)').matches;
-      const captureWidth = isMobile ? window.innerWidth : 850;
-      const receiptHeight = receiptCaptureRef.current.scrollHeight;
-      const canvas = await html2canvas(receiptCaptureRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        windowHeight: Math.max(window.innerHeight, receiptHeight),
-        windowWidth: captureWidth,
-        scrollY: 0,
-        onclone: clonedDocument => {
-          const modal = clonedDocument.getElementById('receipt-printable-area');
-          const overlay = modal?.parentElement as HTMLElement | null;
-          const receiptPad = modal?.querySelector('.receipt-pad') as HTMLElement | null;
-          [overlay, modal, receiptPad].forEach(element => {
-            element?.style.setProperty('overflow', 'visible', 'important');
-            element?.style.setProperty('max-height', 'none', 'important');
-            element?.style.setProperty('height', 'auto', 'important');
-          });
-          receiptPad?.style.setProperty('flex', 'none', 'important');
-          receiptPad?.style.setProperty('min-height', '0', 'important');
-
-          if (isMobile) {
-            const feeScroll = modal?.querySelector('.receipt-fee-scroll') as HTMLElement | null;
-            const feeTable = modal?.querySelector('.receipt-fee-table') as HTMLTableElement | null;
-            feeScroll?.style.setProperty('overflow', 'visible', 'important');
-            feeScroll?.style.setProperty('width', '100%', 'important');
-            feeTable?.style.setProperty('width', '100%', 'important');
-            feeTable?.style.setProperty('min-width', '0', 'important');
-            feeTable?.style.setProperty('table-layout', 'fixed', 'important');
-            feeTable?.querySelectorAll('th, td').forEach(cell => {
-              const tableCell = cell as HTMLElement;
-              tableCell.style.setProperty('min-width', '0', 'important');
-              tableCell.style.setProperty('padding', '6px 4px', 'important');
-              tableCell.style.setProperty('font-size', '10px', 'important');
-              tableCell.style.setProperty('overflow-wrap', 'anywhere', 'important');
-              tableCell.style.setProperty('word-break', 'break-word', 'important');
-            });
-            feeTable?.querySelectorAll('tr').forEach(row => {
-              const cells = row.querySelectorAll('th, td');
-              if (cells.length === 3) {
-                cells[0].setAttribute('style', `${cells[0].getAttribute('style') || ''}; width: 52% !important;`);
-                cells[1].setAttribute('style', `${cells[1].getAttribute('style') || ''}; width: 20% !important;`);
-                cells[2].setAttribute('style', `${cells[2].getAttribute('style') || ''}; width: 28% !important;`);
-              } else {
-                cells[0]?.setAttribute('style', `${cells[0].getAttribute('style') || ''}; width: 72% !important;`);
-                cells[1]?.setAttribute('style', `${cells[1].getAttribute('style') || ''}; width: 28% !important;`);
-              }
-            });
-          }
-        },
-      });
-      const mobilePageWidth = (window.innerWidth * 25.4) / 96;
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: isMobile
-          ? [mobilePageWidth, mobilePageWidth * (297 / 210)]
-          : 'a4',
-      });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const pageHeightPixels = Math.floor(
-        (pageHeight * canvas.width) / pageWidth,
-      );
-      let offsetY = 0;
-      while (offsetY < canvas.height) {
-        const sliceHeight = Math.min(pageHeightPixels, canvas.height - offsetY);
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceHeight;
-        const context = pageCanvas.getContext('2d');
-        if (!context) throw new Error('Could not prepare receipt for download.');
-        context.drawImage(
-          canvas,
-          0,
-          offsetY,
-          canvas.width,
-          sliceHeight,
-          0,
-          0,
-          canvas.width,
-          sliceHeight,
-        );
-        if (offsetY > 0) pdf.addPage();
-        pdf.addImage(
-          pageCanvas.toDataURL('image/png'),
-          'PNG',
-          0,
-          0,
-          pageWidth,
-          (sliceHeight * pageWidth) / canvas.width,
-        );
-        offsetY += sliceHeight;
+      const result = await generatePdfBlob();
+      if (result) {
+        result.pdf.save(`Receipt_${result.fileName}.pdf`);
       }
-      const fileName = (invoiceNo || receiptNo).replace(/[<>:"/\\|?*]+/g, '_');
-      pdf.save(`Receipt_${fileName}.pdf`);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? `Could not download receipt: ${error.message}`
-          : 'Could not download receipt.',
+        error instanceof Error ? `Could not download receipt: ${error.message}` : 'Could not download receipt.',
       );
     } finally {
       setDownloading(false);
     }
   };
 
-  const handleWhatsAppSend = () => {
-    const studentMobile =
+  const handleWhatsAppSend = async () => {
+    let rawPhone =
       primaryStudent?.mobileNo ||
       primaryStudent?.fatherMobileNo ||
       primaryStudent?.guardianMobileNo ||
       '';
 
-    sendReceiptViaWhatsApp({
-      studentName: primaryStudent?.name,
-      regNo: primaryStudent?.manualRegsiName || primaryStudent?.regNo,
-      roomNo: primaryStudent?.room?.roomNumber || primaryStudent?.roomNo,
-      billingMonth: billingMonthValue !== '-' ? billingMonthValue : undefined,
-      dueDate: dueDateValue || undefined,
-      phone: studentMobile,
-      invoiceNo: invoiceNo,
-      receiptNo: receiptNo,
-      receiptDate: receiptDate,
-      grossAmount: grossTotalAmount,
-      discountAmount: discountAmount,
-      totalAmount: totalAmount,
-      paymentMode: displayPaymentMode,
-      gatewayMethod: displayGatewayMethod,
-      refNo: displayRefNo !== '—' ? displayRefNo : undefined,
-      paymentStatus: displayPaymentStatus,
-      pendingBalance: pendingBalance !== '' ? displayPendingBalance : 0,
-      notes: receiptNotes || undefined,
-      items: visibleFeesList.map((item: any) => ({
-        description: item.description?.split('|')[0]?.trim() || item.type || 'Hostel Fee',
-        type: item.transactionType || item.type || 'Fee',
-        amount: displayAmountFor(item),
-      })),
-      hostelName: hostelName,
-      address: address,
-      hostelPhone: phone,
-    });
+    let cleanPhone = String(rawPhone).replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      const entered = window.prompt(
+        `Enter WhatsApp mobile number for ${primaryStudent?.name || 'student'}:`,
+        cleanPhone || '',
+      );
+      if (!entered) return;
+      cleanPhone = entered.replace(/\D/g, '');
+    }
+
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    if (cleanPhone.length < 10) {
+      toast.error('Invalid mobile number. Please provide a valid 10-digit number.');
+      return;
+    }
+
+    setSendingWhatsApp(true);
+    try {
+      const result = await generatePdfBlob();
+      if (!result) throw new Error('Could not prepare receipt document.');
+
+      const pdfBase64 = result.pdf.output('datauristring');
+      const docFileName = `Receipt_${result.fileName}.pdf`;
+      const caption = `Official Fee Receipt for ${primaryStudent?.name || 'Student'} (${invoiceNo || receiptNo})`;
+
+      await sendWhatsAppPdf(cleanPhone, pdfBase64, docFileName, caption);
+      toast.success(`✅ PDF Receipt (${docFileName}) sent to WhatsApp: ${cleanPhone}`);
+    } catch (err: any) {
+      toast.error(
+        `Direct WhatsApp sending failed: ${err.message}. Make sure the backend WhatsApp bot is connected!`,
+      );
+    } finally {
+      setSendingWhatsApp(false);
+    }
   };
 
   const handlePrint = () => {
@@ -886,11 +879,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
           </button>
           <button
             onClick={handleWhatsAppSend}
-            title="Send receipt to student or parent on WhatsApp"
+            disabled={sendingWhatsApp}
+            title="Send exact PDF receipt to student on WhatsApp"
             style={{
               background: '#25D366',
               border: 'none',
-              cursor: 'pointer',
+              cursor: sendingWhatsApp ? 'wait' : 'pointer',
+              opacity: sendingWhatsApp ? 0.7 : 1,
               padding: '10px 24px',
               borderRadius: '8px',
               color: 'white',
@@ -906,7 +901,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
             </svg>
-            Send WhatsApp
+            {sendingWhatsApp ? 'Sending PDF to WhatsApp...' : 'Send PDF via WhatsApp'}
           </button>
           <button onClick={handleDownload} disabled={downloading} style={{ background: '#16a34a', border: 'none', cursor: downloading ? 'wait' : 'pointer', opacity: downloading ? 0.7 : 1, padding: '10px 24px', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.2)' }}>
             <Download size={18} /> {downloading ? 'Preparing PDF...' : 'Download Receipt'}
