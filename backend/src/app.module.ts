@@ -25,10 +25,12 @@ import { StaffModule } from './staff/staff.module';
 import { StaffSalaryModule } from './staff-salary/staff-salary.module';
 import { KitchenModule } from './kitchen/kitchen.module';
 import { BiometricAttendanceModule } from './biometric-attendance/biometric-attendance.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    WhatsappModule,
     UploadModule, 
     AuthModule, 
     UsersModule, 

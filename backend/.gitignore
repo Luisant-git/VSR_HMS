@@ -42,3 +42,7 @@ lerna-debug.log*
 
 # Uploads
 /uploads/*
+
+# WhatsApp session auth credentials
+whatsapp_auth/
+/whatsapp_auth/
