@@ -9,6 +9,7 @@ import { PageHeader } from '../components/PageHeader';
 import { FeesAPI } from '../api/fees.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
+import { RoomFeesReportModal } from '../components/RoomFeesReportModal';
 import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { RoomAPI } from '../api/room.api';
@@ -51,6 +52,8 @@ const Fees = () => {
   const [trashFees, setTrashFees] = useState<any[]>([]);
   const [trashLoading, setTrashLoading] = useState(false);
   const [rooms, setRooms] = useState<string[]>([]);
+  const [allRoomsData, setAllRoomsData] = useState<any[]>([]);
+  const [showRoomPdfModal, setShowRoomPdfModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -228,6 +231,7 @@ const Fees = () => {
     RoomAPI.findAll()
       .then(data => {
         const allRooms = Array.isArray(data) ? data : (data.data || []);
+        setAllRoomsData(allRooms);
         setRooms(allRooms.map((room: any) => String(room.id)));
       })
       .catch(err => {
@@ -1171,6 +1175,21 @@ const Fees = () => {
             <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
               <FileSpreadsheet size={16} /> Export Excel
             </button>
+            <button
+              onClick={() => setShowRoomPdfModal(true)}
+              className="ui-btn ui-btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+                borderColor: '#4338ca',
+                color: '#fff',
+              }}
+              title="Download Block & Room-wise Fees Report PDF (referencing printed sheet)"
+            >
+              <FileText size={16} /> Room Fees PDF
+            </button>
           </div>
         }
       />
@@ -1968,6 +1987,17 @@ const Fees = () => {
               });
             }
           }}
+        />
+      )}
+
+      {/* Block & Room-wise Fees Report PDF Modal */}
+      {showRoomPdfModal && (
+        <RoomFeesReportModal
+          isOpen={showRoomPdfModal}
+          onClose={() => setShowRoomPdfModal(false)}
+          fees={fees}
+          rooms={allRoomsData}
+          billingMonthFilter={billingMonthFilter.value}
         />
       )}
     </div>

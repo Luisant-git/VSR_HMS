@@ -1,0 +1,927 @@
+import React, { useState, useMemo } from 'react';
+import { X, Download, FileSpreadsheet, Building2 } from 'lucide-react';
+import Select from 'react-select';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { formatBillingMonth, resolveFeeBillingMonth, getBillingMonths } from '../utils/billingCycle';
+
+interface RoomFeesReportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  fees: any[];
+  rooms: any[];
+  billingMonthFilter?: string;
+}
+
+interface StudentFeeRow {
+  studentId: string;
+  name: string;
+  regNo: string;
+  roomNo: string;
+  billingCycle: 'PREPAID' | 'POSTPAID';
+  rentMonthLabel: string; // e.g. "SEP 26" or "OCT 26"
+  rentAmount: number;
+  rentDisplay: string;
+  rentPaidDate: string | null;
+  ebMonthLabel: string;   // e.g. "SEP 26"
+  ebAmount: number;
+  ebDisplay: string;
+  ebPaidDate: string | null;
+  fineAmount: number;
+  finePaidDate: string | null;
+}
+
+interface RoomGroup {
+  roomId: string;
+  block: string;
+  students: StudentFeeRow[];
+}
+
+/** Formats payment date as D/M/YY (e.g. 15/10/26 or 8/10/26) matching the handwritten reference register */
+const formatPaymentDate = (d?: string | Date | null): string => {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}/${month}/${year}`;
+};
+
+/** Formats "2026-09" to "SEP 26" */
+const formatShortMonth = (monthStr?: string | null): string => {
+  if (!monthStr) return '';
+  const parts = monthStr.split('-');
+  if (parts.length < 2) return monthStr;
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const idx = Number(parts[1]) - 1;
+  const mName = monthNames[idx] || parts[1];
+  const yShort = parts[0].slice(-2);
+  return `${mName} ${yShort}`;
+};
+
+const customSelectStyles = {
+  control: (base: any, state: any) => ({
+    ...base,
+    minHeight: '36px',
+    borderRadius: '6px',
+    borderColor: state.isFocused ? '#2563eb' : '#cbd5e1',
+    boxShadow: state.isFocused ? '0 0 0 1px #2563eb' : 'none',
+    '&:hover': { borderColor: state.isFocused ? '#2563eb' : '#94a3b8' },
+    fontSize: '13px',
+    cursor: 'pointer',
+    background: '#fff',
+  }),
+  option: (base: any, state: any) => ({
+    ...base,
+    fontSize: '13px',
+    backgroundColor: state.isSelected ? '#2563eb' : state.isFocused ? '#eff6ff' : '#fff',
+    color: state.isSelected ? '#fff' : '#1e293b',
+    cursor: 'pointer',
+  }),
+  menu: (base: any) => ({
+    ...base,
+    zIndex: 99999,
+  }),
+};
+
+export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
+  isOpen,
+  onClose,
+  fees,
+  rooms,
+  billingMonthFilter,
+}) => {
+  const { currentMonthStr } = getBillingMonths();
+
+  // Available Billing Months
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    if (currentMonthStr) months.add(currentMonthStr);
+    fees.forEach((f) => {
+      const m = resolveFeeBillingMonth(f);
+      if (m) months.add(m);
+    });
+    return Array.from(months).sort().reverse();
+  }, [fees, currentMonthStr]);
+
+  // Selected Month (Report cycle, e.g. "2026-10")
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    billingMonthFilter && billingMonthFilter !== 'ALL'
+      ? billingMonthFilter
+      : availableMonths[0] || currentMonthStr,
+  );
+
+  // Previous month string for postpaid (e.g. "2026-09" when selected is "2026-10")
+  const previousMonthStr = useMemo(() => {
+    if (!selectedMonth) return '';
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, [selectedMonth]);
+
+  // Available Blocks
+  const availableBlocks = useMemo(() => {
+    const blocks = new Set<string>();
+    rooms.forEach((r) => {
+      if (r.block) blocks.add(r.block.trim());
+    });
+    return Array.from(blocks).sort();
+  }, [rooms]);
+
+  // Filter states
+  const [selectedBlock, setSelectedBlock] = useState<string>('ALL');
+  const [selectedRoom, setSelectedRoom] = useState<string>('ALL');
+
+  // Filtered rooms list for room selector
+  const roomsInSelectedBlock = useMemo(() => {
+    return rooms
+      .filter((r) => selectedBlock === 'ALL' || (r.block && r.block.trim() === selectedBlock))
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+  }, [rooms, selectedBlock]);
+
+  // Options for react-select
+  const monthOptions = useMemo(() => {
+    return availableMonths.map((m) => ({
+      value: m,
+      label: formatBillingMonth(m) || m,
+    }));
+  }, [availableMonths]);
+
+  const blockOptions = useMemo(() => {
+    return [
+      { value: 'ALL', label: 'All Blocks' },
+      ...availableBlocks.map((b) => ({ value: b, label: b })),
+    ];
+  }, [availableBlocks]);
+
+  const roomOptions = useMemo(() => {
+    return [
+      { value: 'ALL', label: 'All Rooms' },
+      ...roomsInSelectedBlock.map((r) => ({
+        value: String(r.id),
+        label: `Room ${r.id}`,
+      })),
+    ];
+  }, [roomsInSelectedBlock]);
+
+  // Full Month Label (e.g. "October 2026")
+  const monthFullLabel = useMemo(() => {
+    return formatBillingMonth(selectedMonth) || selectedMonth;
+  }, [selectedMonth]);
+
+  const prepaidShort = formatShortMonth(selectedMonth);
+  const postpaidShort = formatShortMonth(previousMonthStr);
+
+  // Build Room & Student groups matching the reference sheet
+  const roomGroups: RoomGroup[] = useMemo(() => {
+    if (!rooms || rooms.length === 0) return [];
+
+    const targetRooms = rooms.filter((r) => {
+      if (selectedBlock !== 'ALL' && (!r.block || r.block.trim() !== selectedBlock)) {
+        return false;
+      }
+      if (selectedRoom !== 'ALL' && String(r.id) !== selectedRoom) {
+        return false;
+      }
+      return true;
+    });
+
+    const groups: RoomGroup[] = [];
+
+    targetRooms.forEach((room) => {
+      const roomId = String(room.id);
+      const blockName = room.block || 'Main';
+
+      // Collect students belonging to this room
+      const studentMap = new Map<string, any>();
+
+      // 1. From room.students relation
+      if (Array.isArray(room.students)) {
+        room.students.forEach((s: any) => {
+          if (s.status !== 'Vacated') {
+            studentMap.set(s.id, s);
+          }
+        });
+      }
+
+      // 2. From fees array (if student has roomNo matching this room)
+      fees.forEach((f: any) => {
+        if (f.student && String(f.student.roomNo) === roomId) {
+          if (!studentMap.has(f.student.id)) {
+            studentMap.set(f.student.id, f.student);
+          }
+        }
+      });
+
+      const studentList = Array.from(studentMap.values());
+
+      // Map each student
+      const studentRows: StudentFeeRow[] = studentList.map((student) => {
+        const studentId = student.id;
+        const studentRegNo = student.manualRegsiName || student.regNo || '—';
+
+        // Detect if student is POSTPAID or PREPAID
+        const cycleStr = String(
+          student.college?.billingCycle ||
+          student.billingCycle ||
+          ''
+        ).toUpperCase();
+        const isPostpaid = cycleStr === 'POSTPAID';
+        const billingCycle: 'PREPAID' | 'POSTPAID' = isPostpaid ? 'POSTPAID' : 'PREPAID';
+
+        // Relevant months:
+        // POSTPAID rent is for previous month (e.g. SEP 26); PREPAID rent is for current month (e.g. OCT 26)
+        const targetRentMonth = isPostpaid ? previousMonthStr : selectedMonth;
+        const rentMonthLabel = formatShortMonth(targetRentMonth);
+
+        // EB is postpaid for everyone (e.g. SEP 26)
+        const targetEbMonth = previousMonthStr || selectedMonth;
+        const ebMonthLabel = formatShortMonth(targetEbMonth);
+
+        // Match student transactions
+        const studentFees = fees.filter((f: any) => {
+          return (
+            f.studentId === studentId ||
+            (f.student &&
+              (f.student.id === studentId ||
+                f.student.regNo === student.regNo ||
+                (student.manualRegsiName && f.student.manualRegsiName === student.manualRegsiName)))
+          );
+        });
+
+        // 1. Rent
+        const rentFees = studentFees.filter((f: any) => {
+          const type = String(f.transactionType || '').toUpperCase();
+          if (!type.includes('RENT')) return false;
+          const feeMonth = resolveFeeBillingMonth(f);
+          return feeMonth === targetRentMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+        });
+
+        let rentAmount = 0;
+        let rentPaidDate: string | null = null;
+        if (rentFees.length > 0) {
+          const exactRent = rentFees.find((f) => resolveFeeBillingMonth(f) === targetRentMonth) || rentFees[0];
+          rentAmount = Number(exactRent.amount) || 0;
+          if (exactRent.status === 'COMPLETED') {
+            rentPaidDate = exactRent.paidDate || exactRent.createdAt || null;
+          }
+        } else {
+          rentAmount = Number(student.rent) || Number(room.rent) || 0;
+        }
+
+        // 2. EB Charge
+        const ebFees = studentFees.filter((f: any) => {
+          const type = String(f.transactionType || '').toUpperCase();
+          if (!type.includes('EB') && !type.includes('ELECTRIC')) return false;
+          const feeMonth = resolveFeeBillingMonth(f);
+          return feeMonth === targetEbMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+        });
+
+        let ebAmount = 0;
+        let ebPaidDate: string | null = null;
+        if (ebFees.length > 0) {
+          const exactEb = ebFees.find((f) => resolveFeeBillingMonth(f) === targetEbMonth) || ebFees[0];
+          ebAmount = Number(exactEb.amount) || 0;
+          if (exactEb.status === 'COMPLETED') {
+            ebPaidDate = exactEb.paidDate || exactEb.createdAt || null;
+          }
+        }
+
+        // 3. Fine
+        const fineFees = studentFees.filter((f: any) => {
+          const type = String(f.transactionType || '').toUpperCase();
+          if (!type.includes('FINE')) return false;
+          const feeMonth = resolveFeeBillingMonth(f);
+          return feeMonth === targetRentMonth || feeMonth === selectedMonth || feeMonth === previousMonthStr;
+        });
+
+        let fineAmount = 0;
+        let finePaidDate: string | null = null;
+        if (fineFees.length > 0) {
+          fineAmount = fineFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+          const paidFine = fineFees.find((f) => f.status === 'COMPLETED');
+          if (paidFine) {
+            finePaidDate = paidFine.paidDate || paidFine.createdAt || null;
+          }
+        }
+
+        const rentDisplay = rentAmount > 0 ? `${rentAmount} (${rentMonthLabel})` : '';
+        const ebDisplay = ebAmount > 0 ? ebAmount.toString() : '';
+
+        return {
+          studentId,
+          name: student.name || 'Unknown', // ONLY student name, NO college name!
+          regNo: studentRegNo,
+          roomNo: roomId,
+          billingCycle,
+          rentMonthLabel,
+          rentAmount,
+          rentDisplay,
+          rentPaidDate,
+          ebMonthLabel,
+          ebAmount,
+          ebDisplay,
+          ebPaidDate,
+          fineAmount,
+          finePaidDate,
+        };
+      });
+
+      // Default: skip rooms with 0 active students
+      if (studentRows.length === 0) {
+        return;
+      }
+
+      groups.push({
+        roomId,
+        block: blockName,
+        students: studentRows,
+      });
+    });
+
+    return groups.sort((a, b) => {
+      const blockCmp = a.block.localeCompare(b.block);
+      if (blockCmp !== 0) return blockCmp;
+      return a.roomId.localeCompare(b.roomId, undefined, { numeric: true });
+    });
+  }, [rooms, fees, selectedMonth, previousMonthStr, selectedBlock, selectedRoom]);
+
+  // Generate and Download PDF with the EXACT SAME LOOK as the user's reference image
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const scopeBlock = selectedBlock === 'ALL' ? 'A BLOCK' : selectedBlock.toUpperCase();
+
+    // 1. Top Header Box matching the printed sheet
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.rect(10, 10, 190, 14);
+
+    // Vertical line dividers
+    doc.line(55, 10, 55, 24);
+    doc.line(100, 10, 100, 24);
+
+    // Left box: ROOM NO & BLOCK
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    doc.text('ROOM NO', 32.5, 15.5, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(scopeBlock, 32.5, 20.5, { align: 'center' });
+
+    // Middle box: MONTH
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('MONTH / YEAR', 77.5, 15.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.text(`${postpaidShort} / ${prepaidShort}`, 77.5, 20.5, { align: 'center' });
+
+    // Right box: TITLE
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(`${monthFullLabel.toUpperCase()} FEES & EB ESTIMATE`, 145, 15.5, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.text(`VSR HOSTEL MANAGEMENT SYSTEM   •   DATE: ${new Date().toLocaleDateString('en-GB')}`, 145, 20.5, { align: 'center' });
+
+    // 2. Table Column Headers:
+    // STUDENT NAME | ROOM RENT | PAYMENT DATE | EB CHARGE | PAYMENT DATE | FINE | PAYMENT DATE
+    const rentHeaderTitle = postpaidShort === prepaidShort
+      ? `ROOM RENT\n${postpaidShort}`
+      : `ROOM RENT\n(${postpaidShort} / ${prepaidShort})`;
+
+    const ebHeaderTitle = `EB CHARGE\n${postpaidShort || prepaidShort}`;
+
+    const tableHeaders = [
+      'STUDENT NAME',
+      rentHeaderTitle,
+      'PAYMENT\nDATE',
+      ebHeaderTitle,
+      'PAYMENT\nDATE',
+      'FINE',
+      'PAYMENT\nDATE',
+    ];
+
+    // 3. Build Body: Room row (A1, A2, A3) followed by student rows
+    const tableBody: any[] = [];
+
+    roomGroups.forEach((group) => {
+      // Room section row: Clean centered Room identifier (e.g. "A1", "A2", "A3")
+      tableBody.push([
+        {
+          content: `${group.roomId}`,
+          colSpan: 7,
+          styles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+            fontSize: 11, // Increased room number font size
+            cellPadding: 2.6,
+          },
+        },
+      ]);
+
+      // Students under this room
+      if (group.students.length === 0) {
+        tableBody.push([
+          {
+            content: '',
+            colSpan: 7,
+            styles: { cellPadding: 2 },
+          },
+        ]);
+      } else {
+        group.students.forEach((s) => {
+          tableBody.push([
+            s.name, // ONLY student name, NO college name!
+            s.rentDisplay || '',
+            s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
+            s.ebDisplay || '',
+            s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
+            s.fineAmount > 0 ? s.fineAmount.toString() : '',
+            s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
+          ]);
+        });
+      }
+    });
+
+    // Column widths: Total 190mm on A4 Portrait (10mm left & right margins)
+    const colWidths = {
+      0: 46, // STUDENT NAME
+      1: 27, // ROOM RENT
+      2: 24, // PAYMENT DATE
+      3: 23, // EB CHARGE
+      4: 24, // PAYMENT DATE
+      5: 22, // FINE
+      6: 24, // PAYMENT DATE
+    };
+
+    autoTable(doc, {
+      startY: 28,
+      head: [tableHeaders],
+      body: tableBody,
+      theme: 'grid',
+      styles: {
+        font: 'helvetica',
+        fontSize: 9.5, // Increased text size
+        cellPadding: 2.6, // Spacious padding
+        lineColor: [0, 0, 0], // Crisp black border lines matching the printed photo
+        lineWidth: 0.15,
+        textColor: [0, 0, 0],
+        fillColor: [255, 255, 255], // Pure white table
+        valign: 'middle',
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        halign: 'center',
+        valign: 'middle',
+        fontSize: 8.5, // Increased header font size
+        lineWidth: 0.2,
+        lineColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: colWidths[0], halign: 'left' },
+        1: { cellWidth: colWidths[1], halign: 'center' },
+        2: { cellWidth: colWidths[2], halign: 'center' },
+        3: { cellWidth: colWidths[3], halign: 'center' },
+        4: { cellWidth: colWidths[4], halign: 'center' },
+        5: { cellWidth: colWidths[5], halign: 'center' },
+        6: { cellWidth: colWidths[6], halign: 'center' },
+      },
+      margin: { top: 28, left: 10, right: 10, bottom: 12 },
+    });
+
+    // Page numbers
+    const totalPages = typeof (doc as any).getNumberOfPages === 'function'
+      ? (doc as any).getNumberOfPages()
+      : ((doc.internal as any).pages?.length ? (doc.internal as any).pages.length - 1 : 1);
+
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(80, 80, 80);
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 6,
+        { align: 'center' },
+      );
+    }
+
+    const safeFilename = `Room_Fees_${selectedBlock === 'ALL' ? 'AllBlocks' : selectedBlock}_${selectedMonth}.pdf`.replace(
+      /[^a-zA-Z0-9_-]/g,
+      '_',
+    );
+    doc.save(safeFilename);
+  };
+
+  // Export to Excel
+  const handleExportExcel = () => {
+    const excelRows: any[] = [];
+
+    roomGroups.forEach((group) => {
+      excelRows.push({
+        'Room': group.roomId,
+        'Student Name': `[ROOM ${group.roomId}]`,
+        'Room Rent': '',
+        'Rent Payment Date': '',
+        'EB Charge': '',
+        'EB Payment Date': '',
+        'Fine': '',
+        'Fine Payment Date': '',
+      });
+
+      group.students.forEach((s) => {
+        excelRows.push({
+          'Room': s.roomNo,
+          'Student Name': s.name, // ONLY student name!
+          'Room Rent': s.rentDisplay || '',
+          'Rent Payment Date': s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
+          'EB Charge': s.ebDisplay || '',
+          'EB Payment Date': s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
+          'Fine': s.fineAmount > 0 ? s.fineAmount : '',
+          'Fine Payment Date': s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
+        });
+      });
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Room_Fees');
+    XLSX.writeFile(workbook, `Room_Fees_${selectedMonth}.xlsx`);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: '12px',
+          width: '100%',
+          maxWidth: '1020px',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header with vibrant professional background and larger text */}
+        <div
+          style={{
+            padding: '16px 22px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
+            color: '#fff',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Building2 size={24} color="#93c5fd" />
+            <div>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#fff', letterSpacing: '0.3px' }}>
+                Room-wise Fees Statement (PDF)
+              </h2>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.15)',
+              border: 'none',
+              color: '#fff',
+              cursor: 'pointer',
+              padding: '6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Toolbar Controls with Searchable Dropdowns (react-select) */}
+        <div
+          style={{
+            padding: '14px 22px',
+            backgroundColor: '#f8fafc',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '14px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
+            {/* Searchable Month Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '180px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                BILLING MONTH
+              </label>
+              <Select
+                value={monthOptions.find((opt) => opt.value === selectedMonth) || monthOptions[0]}
+                onChange={(opt: any) => setSelectedMonth(opt?.value || selectedMonth)}
+                options={monthOptions}
+                styles={customSelectStyles}
+                isSearchable
+              />
+            </div>
+
+            {/* Searchable Block Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                BLOCK
+              </label>
+              <Select
+                value={blockOptions.find((opt) => opt.value === selectedBlock) || blockOptions[0]}
+                onChange={(opt: any) => {
+                  setSelectedBlock(opt?.value || 'ALL');
+                  setSelectedRoom('ALL');
+                }}
+                options={blockOptions}
+                styles={customSelectStyles}
+                isSearchable
+              />
+            </div>
+
+            {/* Searchable Room Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                ROOM
+              </label>
+              <Select
+                value={roomOptions.find((opt) => opt.value === selectedRoom) || roomOptions[0]}
+                onChange={(opt: any) => setSelectedRoom(opt?.value || 'ALL')}
+                options={roomOptions}
+                styles={customSelectStyles}
+                isSearchable
+                placeholder="Search Room..."
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={handleExportExcel}
+              className="ui-btn ui-btn-outline"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              <FileSpreadsheet size={16} /> Excel
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              className="ui-btn ui-btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 18px',
+                fontSize: '13px',
+                fontWeight: 600,
+                backgroundColor: '#1e3a8a',
+                borderColor: '#1e3a8a',
+                cursor: 'pointer',
+              }}
+            >
+              <Download size={16} /> Download PDF
+            </button>
+          </div>
+        </div>
+
+        {/* Live Table View (Larger text size and spacious padding) */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '18px' }}>
+          {roomGroups.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '14px' }}>
+              No rooms found matching the selected filters.
+            </div>
+          ) : (
+            <div>
+              {/* Header block preview */}
+              <div
+                style={{
+                  border: '1.5px solid #000',
+                  borderBottom: 'none',
+                  display: 'flex',
+                  backgroundColor: '#fff',
+                  fontSize: '12px',
+                }}
+              >
+                <div style={{ borderRight: '1.5px solid #000', padding: '8px 16px', minWidth: '140px', textAlign: 'center' }}>
+                  <div style={{ fontWeight: 800, fontSize: '13px' }}>ROOM NO</div>
+                  <div style={{ fontSize: '12.5px', marginTop: '2px' }}>{selectedBlock === 'ALL' ? 'A BLOCK' : selectedBlock}</div>
+                </div>
+                <div style={{ borderRight: '1.5px solid #000', padding: '8px 16px', minWidth: '150px', textAlign: 'center' }}>
+                  <div style={{ fontWeight: 800, fontSize: '13px' }}>RENT MONTHS</div>
+                  <div style={{ fontSize: '12.5px', marginTop: '2px' }}>Post: {postpaidShort} | Pre: {prepaidShort}</div>
+                </div>
+                <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '0.2px' }}>
+                    {monthFullLabel.toUpperCase()} FEES & EB ESTIMATE
+                  </span>
+                </div>
+              </div>
+
+              {/* Main table */}
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '13.5px', // Increased text size
+                  fontFamily: 'inherit',
+                  color: '#000',
+                  backgroundColor: '#fff',
+                }}
+              >
+                <thead>
+                  <tr style={{ backgroundColor: '#fff', borderTop: '1.5px solid #000', borderBottom: '1.5px solid #000' }}>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 12px', textAlign: 'left', fontWeight: 800, width: '28%', fontSize: '13.5px' }}>
+                      STUDENT NAME
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      ROOM RENT <br />
+                      <span style={{ fontSize: '11px', fontWeight: 500 }}>({postpaidShort} / {prepaidShort})</span>
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      PAYMENT DATE
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      EB CHARGE <br />
+                      <span style={{ fontSize: '11px', fontWeight: 500 }}>({postpaidShort})</span>
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      PAYMENT DATE
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      FINE
+                    </th>
+                    <th style={{ border: '1.5px solid #000', padding: '10px 8px', textAlign: 'center', fontWeight: 800, fontSize: '13px' }}>
+                      PAYMENT DATE
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roomGroups.map((group) => (
+                    <React.Fragment key={group.roomId}>
+                      {/* Room Section Row: Clean centered Room number e.g. A1, A2, A3 */}
+                      <tr style={{ backgroundColor: '#f8fafc' }}>
+                        <td
+                          colSpan={7}
+                          style={{
+                            border: '1.5px solid #000',
+                            padding: '8px 12px',
+                            fontWeight: 800,
+                            textAlign: 'center',
+                            fontSize: '15px', // Larger Room header font
+                            letterSpacing: '0.5px',
+                          }}
+                        >
+                          {group.roomId}
+                        </td>
+                      </tr>
+
+                      {/* Students under this room */}
+                      {group.students.map((s, idx) => (
+                        <tr key={s.studentId + idx}>
+                          <td style={{ border: '1.5px solid #000', padding: '9px 12px', fontWeight: 600, fontSize: '14px' }}>
+                            {s.name} {/* ONLY student name, NO college name! */}
+                          </td>
+                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                            {s.rentDisplay}
+                          </td>
+                          <td
+                            style={{
+                              border: '1.5px solid #000',
+                              padding: '9px 8px',
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              fontSize: '13px',
+                            }}
+                          >
+                            {s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : ''}
+                          </td>
+                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                            {s.ebDisplay}
+                          </td>
+                          <td
+                            style={{
+                              border: '1.5px solid #000',
+                              padding: '9px 8px',
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              fontSize: '13px',
+                            }}
+                          >
+                            {s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : ''}
+                          </td>
+                          <td style={{ border: '1.5px solid #000', padding: '9px 8px', textAlign: 'center', fontSize: '13.5px' }}>
+                            {s.fineAmount > 0 ? s.fineAmount.toString() : ''}
+                          </td>
+                          <td
+                            style={{
+                              border: '1.5px solid #000',
+                              padding: '9px 8px',
+                              textAlign: 'center',
+                              fontWeight: 600,
+                              fontSize: '13px',
+                            }}
+                          >
+                            {s.finePaidDate ? formatPaymentDate(s.finePaidDate) : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: '12px 22px',
+            borderTop: '1px solid #e2e8f0',
+            backgroundColor: '#fff',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ fontSize: '12px', color: '#475569' }}>
+            Month: <strong>{monthFullLabel}</strong> &nbsp;•&nbsp;{' '}
+            {selectedBlock === 'ALL' ? 'All Blocks' : selectedBlock} &nbsp;•&nbsp;{' '}
+            {roomGroups.length} Rooms
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={onClose} className="ui-btn ui-btn-outline" style={{ cursor: 'pointer', padding: '7px 14px', fontSize: '13px' }}>
+              Close
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              className="ui-btn ui-btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#1e3a8a',
+                borderColor: '#1e3a8a',
+                cursor: 'pointer',
+                padding: '7px 18px',
+                fontSize: '13px',
+                fontWeight: 600,
+              }}
+            >
+              <Download size={16} /> Download PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
