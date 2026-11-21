@@ -219,10 +219,11 @@ const Register = () => {
       }
 
       toast.success(editId ? 'Update Successful!' : 'Admission Successful!');
+      const resolvedRoomNo = result.roomNo || selectedRoom?.value || selectedRoom?.id || (typeof selectedRoom === 'string' ? selectedRoom : undefined);
       setRegisteredStudent({
         ...result,
         photoUrl: result.photoUrl || capturedImage || undefined,
-        roomNo: result.roomNo || selectedRoom || undefined,
+        roomNo: resolvedRoomNo,
       });
       window.scrollTo(0, 0);
     } catch (e: any) {
@@ -290,6 +291,7 @@ const Register = () => {
       <StudentAcknowledgementCard
         student={registeredStudent}
         collegeName={collegeName}
+        isEdit={Boolean(editId)}
         onBack={() => {
           setRegisteredStudent(null);
           if (!editId) {

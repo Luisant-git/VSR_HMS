@@ -13,9 +13,10 @@ interface StudentAcknowledgementCardProps {
   collegeName?: string;
   onBack: () => void;
   isViewOnly?: boolean;
+  isEdit?: boolean;
 }
 
-export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProps> = ({ student, collegeName, onBack, isViewOnly }) => {
+export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProps> = ({ student, collegeName, onBack, isViewOnly, isEdit }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [hostelName, setHostelName] = useState('Hostel Management System');
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
@@ -67,7 +68,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
 
     setSendingWhatsApp(true);
     const toastId = isAuto
-      ? toast.loading(`Automatically sending ID card to ${targetPhone}...`)
+      ? toast.loading(`Automatically sending ${isEdit ? 'updated ' : ''}ID card to ${targetPhone}...`)
       : toast.loading(`Sending ID card to ${targetPhone}...`);
 
     try {
@@ -79,7 +80,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
       const res = await sendWhatsAppPdf(targetPhone, result.pdfBase64, result.fileName, caption);
       if (res && res.success) {
         toast.update(toastId, {
-          render: `✅ Student ID Card (${result.fileName}) sent to WhatsApp: ${targetPhone}`,
+          render: `✅ ${isEdit ? 'Updated ' : ''}Student ID Card (${result.fileName}) sent to WhatsApp: ${targetPhone}`,
           type: 'success',
           isLoading: false,
           autoClose: 4000,
@@ -148,7 +149,9 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
     }
   }
 
-  const displayRoom = student.roomNo || student.room || 'N/A';
+  const displayRoom = typeof student.roomNo === 'object' && student.roomNo !== null
+    ? student.roomNo.value || student.roomNo.id || student.roomNo.roomNumber || 'N/A'
+    : (student.roomNo || student.room || 'N/A');
   const displayRegNo = student.manualRegsiName || student.regNo || student.id || 'N/A';
 
   return (
@@ -159,10 +162,12 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
           <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
-            Registration Successful!
+            {isEdit ? 'Profile Updated Successfully!' : 'Registration Successful!'}
           </h2>
           <p style={{ color: '#64748b', fontSize: '16px' }}>
-            The student profile has been created. Here is their generated ID Card.
+            {isEdit
+              ? 'The student profile has been updated. Here is their updated ID Card.'
+              : 'The student profile has been created. Here is their generated ID Card.'}
           </p>
         </div>
       ) : (
@@ -309,7 +314,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
           onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
           onMouseOut={(e) => e.currentTarget.style.background = 'white'}
         >
-          <ArrowLeft size={18} /> {isViewOnly ? 'Close' : 'Back to Registration'}
+          <ArrowLeft size={18} /> {isViewOnly ? 'Close' : isEdit ? 'Back to Hostellers' : 'Back to Registration'}
         </button>
         <button
           onClick={handlePrint}
