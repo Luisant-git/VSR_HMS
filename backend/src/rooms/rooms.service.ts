@@ -34,7 +34,12 @@ export class RoomsService {
 
   async findAll() {
     const rooms = await this.prisma.room.findMany({
-      include: { students: true }
+      include: {
+        students: {
+          include: { college: true }
+        }
+      },
+      orderBy: { id: 'asc' }
     });
 
     return rooms.map(room => {

@@ -376,11 +376,24 @@ const Hostellers = () => {
 
   const filteredHostellers = hostellers; // Filtering is now server-side
 
-  const handleExportExcel = () => {
-    const data = filteredHostellers.map(h => {
-      const raw = h.raw || {};
-      return {
-        'REGIS NO': raw.regNo || '',
+  const handleExportExcel = async () => {
+    setError(null);
+    try {
+      // Same filters as the table, but without page/limit so every matching
+      // student is exported instead of only the visible page.
+      const params = {
+        search: searchQuery,
+        roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
+        collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
+        sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
+        feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined,
+        statusFilter: statusFilter !== '-- All Status --' ? statusFilter : undefined,
+      };
+      const result = await StudentAPI.findAll(params);
+      const allStudents: any[] = Array.isArray(result) ? result : ((result as any).data || []);
+
+      const data = allStudents.map(raw => ({
+        'REGIS NO': raw.manualRegsiName || '',
         'NAME': raw.name || '',
         'GENDER': raw.gender || '',
         'MOBILE NO': raw.mobileNo || '',
@@ -405,15 +418,19 @@ const Hostellers = () => {
         'FOOD TYPE': raw.foodType || '',
         'VSR LEDGER-1': raw.vsrLedger1 || '',
         'DATE OF JOINING': raw.dateOfJoining ? new Date(raw.dateOfJoining).toLocaleDateString('en-GB') : '',
-        'PURSUING YEAR': raw.pursuingYear || raw.passingYear || '',
+        'PURSUING YEAR': raw.pursingYear || raw.passingYear || '',
         'STATUS': raw.status || 'In'
-      };
-    });
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Hostellers");
-    XLSX.writeFile(workbook, "Hostellers_Export.xlsx");
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Hostellers");
+      XLSX.writeFile(workbook, "Hostellers_Export.xlsx");
+      toast.success(`Exported ${data.length} hostellers`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to export hostellers');
+    }
   };
 
   return (
