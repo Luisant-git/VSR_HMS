@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { PrismaService } from '../prisma.service';
+import { generateReceiptPdfBuffer } from './pdf-generator';
 
 export interface FeeReceiptNotification {
   studentName?: string;
@@ -86,6 +87,10 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  isConnected(): boolean {
+    return this.isReady && this.sock !== null;
+  }
+
   private async connectToWhatsApp() {
     if (this.isConnecting) return;
     this.isConnecting = true;
@@ -135,7 +140,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         } else if (connection === 'open') {
           this.isReady = true;
           this.isConnecting = false;
-          this.logger.log('WhatsApp Service connected! Zero-click automated receipt sending is active.');
+          this.logger.log('WhatsApp Service connected! Automated PDF receipt dispatch is active.');
         }
       });
     } catch (error) {
@@ -154,6 +159,47 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     return `${clean}@s.whatsapp.net`;
   }
 
+  /**
+   * Sends an actual PDF document file directly to the student / parent on WhatsApp.
+   */
+  async sendPdfDocument(
+    phone: string,
+    pdfBuffer: Buffer,
+    fileName: string,
+    caption?: string,
+  ): Promise<boolean> {
+    const jid = this.formatJid(phone);
+    if (!jid) {
+      this.logger.warn(`Cannot send WhatsApp PDF: phone number "${phone}" is invalid.`);
+      return false;
+    }
+
+    if (!this.sock || !this.isReady) {
+      this.logger.warn(
+        `WhatsApp service is not linked yet. Scan the terminal QR code to activate WhatsApp sending.`,
+      );
+      return false;
+    }
+
+    try {
+      const cleanFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+      await this.sock.sendMessage(jid, {
+        document: pdfBuffer,
+        mimetype: 'application/pdf',
+        fileName: cleanFileName,
+        caption: caption || `Official Fee Receipt: ${cleanFileName}`,
+      });
+      this.logger.log(`PDF receipt (${cleanFileName}) successfully sent to WhatsApp: ${phone}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send WhatsApp PDF to ${phone}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Generates the official fee receipt PDF and automatically sends it as a document attachment.
+   */
   async sendFeeReceipt(phone: string, data: FeeReceiptNotification): Promise<boolean> {
     const jid = this.formatJid(phone);
     if (!jid) {
@@ -162,7 +208,9 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (!this.sock || !this.isReady) {
-      this.logger.warn(`WhatsApp service is not linked yet. Scan the terminal QR code to activate automatic sending.`);
+      this.logger.warn(
+        `WhatsApp service is not linked yet. Scan the terminal QR code to activate automatic sending.`,
+      );
       return false;
     }
 
@@ -179,101 +227,24 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       } catch {}
     }
 
-    const topText = '_Mayanur Sri Sellandiamman Thunai_';
-    const title = (hostelTitle || "SEA SINDU QUEEN'S PARADISE").toUpperCase();
-    const addr = address || '291/2G2, Katheri Village, Komarapalayam, Salem DT - 638 183';
-    const ph = contactPhone || '80126 55555';
-
-    const student = data.studentName || 'Student';
-    const invoice = data.invoiceNo || '—';
-    const receiptNum = data.receiptNo || '1';
-    const dateStr = data.receiptDate || new Date().toLocaleDateString('en-GB');
-
-    const mode = formatPaymentModeName(data.paymentMode);
-    const gatewayMethod = data.gatewayMethod || (data.paymentMode?.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual');
-    const statusStr = (data.paymentStatus || 'PAID').toUpperCase();
-
-    const totalPaid = Number(data.amount || 0);
-    const totalPaidStr = totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const discount = Number(data.discountAmount || 0);
-    const discountStr = discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const gross = Number(data.grossAmount || (totalPaid + discount));
-    const grossStr = gross.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    const pending = Number(data.pendingBalance || 0);
-    const pendingStr = pending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    // Format fee items
-    let itemsBlock = '';
-    if (data.items && data.items.length > 0) {
-      const lines = data.items.map((item) => {
-        const desc = item.description || formatFeeTypeName(item.type);
-        const cat = item.type || 'FEE';
-        const amt = Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return `• *${desc}*\n  Category : ${cat}\n  Amount   : ₹${amt}`;
-      });
-      itemsBlock = lines.join('\n\n');
-    } else {
-      itemsBlock = `• Hostel Fee\n  Amount   : ₹${totalPaidStr}`;
-    }
-
-    const message = [
-      topText,
-      ``,
-      `🏛️ *${title}*`,
-      `*( LADIES HOSTEL )*`,
-      `📍 ${addr}`,
-      `📞 ${ph}`,
-      ``,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `🧾 *FEES RECEIPT*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `*Receipt No :* ${receiptNum}`,
-      `*Invoice No :* ${invoice}`,
-      `*Date       :* ${dateStr}`,
-      ``,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `👤 *RECEIVED FROM*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `*Student Name    :* ${student}`,
-      `*Registration No :* ${data.regNo || 'N/A'}`,
-      `*Room No         :* ${data.roomNo || 'N/A'}`,
-      data.billingMonth ? `*Billing Month   :* ${data.billingMonth}` : '',
-      data.dueDate ? `*Due Date        :* ${data.dueDate}` : '',
-      ``,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `💳 *PAYMENT DETAILS*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `*Payment Mode    :* ${mode}`,
-      `*Gateway Method  :* ${gatewayMethod}`,
-      data.refNo && data.refNo !== '—' ? `*Transaction Ref :* ${data.refNo}` : '',
-      `*Payment Status  :* ${statusStr} ✅`,
-      `*Pending Balance :* ₹${pendingStr}`,
-      ``,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `📋 *FEE BREAKDOWN*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      itemsBlock,
-      `────────────────────────────`,
-      discount > 0 ? `Total Before Discount : ₹${grossStr}\nDiscount              : -₹${discountStr}\n────────────────────────────` : '',
-      `💰 *TOTAL AMOUNT PAID : ₹${totalPaidStr}*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      data.notes ? `\n📝 *NOTES:* ${data.notes}` : '',
-      ``,
-      `✅ *Payment Successful*`,
-      `_This is a computer generated receipt. No signature is required._`,
-    ]
-      .filter((line) => line !== '')
-      .join('\n');
+    const payload: FeeReceiptNotification = {
+      ...data,
+      hostelName: hostelTitle || "SEA SINDU QUEEN'S PARADISE",
+      address: address || '291/2G2, Katheri Village, Komarapalayam, Salem DT - 638 183',
+      hostelPhone: contactPhone || '80126 55555',
+    };
 
     try {
-      await this.sock.sendMessage(jid, { text: message });
-      this.logger.log(`Automated WhatsApp fee receipt successfully sent to ${phone} (${student})`);
-      return true;
+      // 1. Generate exact PDF receipt buffer
+      const pdfBuffer = await generateReceiptPdfBuffer(payload);
+      const invoiceLabel = (payload.invoiceNo || payload.receiptNo || 'Receipt').replace(/[<>:"/\\|?*]+/g, '_');
+      const fileName = `Receipt_${invoiceLabel}.pdf`;
+      const caption = `Official Fee Receipt for ${payload.studentName || 'Student'} (${payload.invoiceNo || payload.receiptNo || ''})`;
+
+      // 2. Send actual PDF document file directly to the student on WhatsApp
+      return await this.sendPdfDocument(phone, pdfBuffer, fileName, caption);
     } catch (error) {
-      this.logger.error(`Failed to send WhatsApp message to ${phone}:`, error);
+      this.logger.error(`Error generating/sending PDF receipt to ${phone}:`, error);
       return false;
     }
   }
