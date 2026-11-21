@@ -253,15 +253,34 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         const targetEbMonth = previousMonthStr || selectedMonth;
         const ebMonthLabel = formatShortMonth(targetEbMonth);
 
-        // Match student transactions
+        // Match student transactions uniquely (NEVER match null === null or empty === empty)
+        const sId = student.id;
+        const sReg = (student.regNo && student.regNo !== '—' && String(student.regNo).trim())
+          ? String(student.regNo).trim().toUpperCase()
+          : null;
+        const sManual = (student.manualRegsiName && student.manualRegsiName !== '—' && String(student.manualRegsiName).trim())
+          ? String(student.manualRegsiName).trim().toUpperCase()
+          : null;
+
         const studentFees = fees.filter((f: any) => {
-          return (
-            f.studentId === studentId ||
-            (f.student &&
-              (f.student.id === studentId ||
-                f.student.regNo === student.regNo ||
-                (student.manualRegsiName && f.student.manualRegsiName === student.manualRegsiName)))
-          );
+          if (!f) return false;
+          if (f.studentId && f.studentId === sId) return true;
+          if (f.student?.id && f.student.id === sId) return true;
+          if (
+            sManual &&
+            f.student?.manualRegsiName &&
+            String(f.student.manualRegsiName).trim().toUpperCase() === sManual
+          ) {
+            return true;
+          }
+          if (
+            sReg &&
+            f.student?.regNo &&
+            String(f.student.regNo).trim().toUpperCase() === sReg
+          ) {
+            return true;
+          }
+          return false;
         });
 
         // Resolve student mobile number
@@ -307,7 +326,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           rentPaidDate = null; // Unpaid! Must leave blank!
         } else if (completedRent) {
           rentAmount = Number(completedRent.amount) || Number(student.rent) || Number(room.rent) || 0;
-          rentPaidDate = completedRent.paidDate || completedRent.createdAt || null;
+          rentPaidDate = completedRent.paidDate || null;
         } else {
           // No transaction in fees array, fallback to student profile rent or room rent
           rentAmount = Number(student.rent) || Number(room.rent) || 0;
@@ -344,7 +363,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           ebPaidDate = null; // Unpaid!
         } else if (completedEb) {
           ebAmount = Number(completedEb.amount) || 0;
-          ebPaidDate = completedEb.paidDate || completedEb.createdAt || null;
+          ebPaidDate = completedEb.paidDate || null;
         }
 
         // 3. Fine
@@ -368,9 +387,9 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         } else if (completedFines.length > 0) {
           fineAmount = completedFines.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
           const latestPaid = completedFines.sort(
-            (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+            (a, b) => new Date(b.paidDate || 0).getTime() - new Date(a.paidDate || 0).getTime()
           )[0];
-          finePaidDate = latestPaid?.paidDate || latestPaid?.createdAt || null;
+          finePaidDate = latestPaid?.paidDate || null;
         }
 
         // 4. Outstanding Balance & Payment Date
@@ -407,16 +426,16 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
             outstandingAmount = remainingOut + olderPendingTotal;
             if (outPayments.length > 0) {
               const sorted = [...outPayments].sort(
-                (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+                (a, b) => new Date(b.paidDate || 0).getTime() - new Date(a.paidDate || 0).getTime()
               );
-              outstandingPaidDate = sorted[0].paidDate || sorted[0].createdAt || null;
+              outstandingPaidDate = sorted[0]?.paidDate || null;
             }
           } else if (paidOut > 0) {
             outstandingAmount = paidOut;
             const sorted = [...outPayments].sort(
-              (a, b) => new Date(b.paidDate || b.createdAt).getTime() - new Date(a.paidDate || a.createdAt).getTime()
+              (a, b) => new Date(b.paidDate || 0).getTime() - new Date(a.paidDate || 0).getTime()
             );
-            outstandingPaidDate = sorted[0].paidDate || sorted[0].createdAt || null;
+            outstandingPaidDate = sorted[0]?.paidDate || null;
           }
         }
 
