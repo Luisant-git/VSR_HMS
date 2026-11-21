@@ -1654,7 +1654,7 @@ const Fees = () => {
                               onClick={() => { setActiveFeeId(fee.id); setSelectedReceipt(fee); }}
                               className="ui-btn ui-btn-secondary ui-btn-sm"
                             >
-                              <FileText size={14} /> View Receipt
+                              View Receipt
                             </button>
                           )}
                           {isDeveloper && (
