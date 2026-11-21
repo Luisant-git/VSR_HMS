@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { getSystemSettings } from '../api/settings.api';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { resolveFeeBillingMonth } from '../utils/billingCycle';
-import { sendWhatsAppPdf } from '../api/whatsapp.api';
+import { sendWhatsAppPdf, sendWhatsAppReceipt } from '../api/whatsapp.api';
 
 interface ReceiptModalProps {
   fee: any;
@@ -241,16 +241,54 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
     setSendingWhatsApp(true);
     try {
-      const result = await generatePdfBlob();
-      if (!result) throw new Error('Could not prepare receipt document.');
+      const receiptPayload = {
+        studentName: primaryStudent?.name || 'Student',
+        regNo: primaryStudent?.regNo || 'N/A',
+        roomNo: primaryStudent?.room?.roomNumber || 'N/A',
+        invoiceNo,
+        receiptNo,
+        receiptDate,
+        hostelName: hostelName || undefined,
+        address: address || undefined,
+        hostelPhone: phone || undefined,
+        billingMonth: billingMonthValue !== '-' ? billingMonthValue : undefined,
+        dueDate: dueDateValue || undefined,
+        paymentMode: paymentMode || paymentMethod || 'CASH',
+        gatewayMethod: razorpayPaymentId ? `Razorpay (${razorpayPaymentId})` : (paymentMethod || 'Manual'),
+        pendingBalance: displayPendingBalance,
+        grossAmount: grossTotalAmount,
+        discountAmount: discountAmount,
+        amount: totalAmount,
+        notes: receiptNotes || undefined,
+        items: visibleFeesList.map((item: any) => ({
+          description: item.type ? item.type.replace(/_/g, ' ') : 'Fee',
+          type: item.type || 'FEE',
+          amount: displayAmountFor(item),
+        })),
+      };
 
-      const pdfBase64 = result.pdf.output('datauristring');
-      const docFileName = `Receipt_${result.fileName}.pdf`;
-      const caption = `Official Fee Receipt for ${primaryStudent?.name || 'Student'} (${invoiceNo || receiptNo})`;
-
-      await sendWhatsAppPdf(cleanPhone, pdfBase64, docFileName, caption);
-      toast.success(`✅ PDF Receipt (${docFileName}) sent to WhatsApp: ${cleanPhone}`);
+      const res = await sendWhatsAppReceipt(cleanPhone, receiptPayload);
+      if (res.success) {
+        toast.success(`✅ Official PDF Receipt sent to WhatsApp: ${cleanPhone}`);
+      } else {
+        toast.error('WhatsApp message could not be delivered. Make sure the backend WhatsApp bot is linked.');
+      }
     } catch (err: any) {
+      // Fallback to sending direct canvas PDF if backend receipt route has an issue
+      try {
+        const result = await generatePdfBlob();
+        if (result) {
+          const pdfBase64 = result.pdf.output('datauristring');
+          const docFileName = `Receipt_${result.fileName}.pdf`;
+          const caption = `Official Fee Receipt for ${primaryStudent?.name || 'Student'} (${invoiceNo || receiptNo})`;
+          await sendWhatsAppPdf(cleanPhone, pdfBase64, docFileName, caption);
+          toast.success(`✅ PDF Receipt (${docFileName}) sent to WhatsApp: ${cleanPhone}`);
+          return;
+        }
+      } catch (fallbackErr: any) {
+        console.error('Fallback PDF send error:', fallbackErr);
+      }
+
       toast.error(
         `Direct WhatsApp sending failed: ${err.message}. Make sure the backend WhatsApp bot is connected!`,
       );

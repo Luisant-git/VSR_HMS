@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -17,6 +18,9 @@ async function bootstrap() {
     rawBody: true,
   });
   
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe());
 

@@ -203,7 +203,7 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
         ['Payment Status', 'PAID', '#16a34a'],
         [
           'Pending Balance',
-          `₹${Number(data.pendingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          `Rs. ${Number(data.pendingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
         ],
       ];
 
@@ -252,7 +252,7 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
 
         doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000');
         doc.text(
-          `₹${Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          `Rs. ${Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
           margin + col1Width + col2Width + 8,
           currentFeeY + 6,
           { width: col3Width - 16, align: 'right' },
@@ -276,7 +276,7 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
           align: 'right',
         });
         doc.text(
-          `₹${gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          `Rs. ${gross.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
           margin + col1Width + col2Width + 8,
           currentFeeY + 6,
           { width: col3Width - 16, align: 'right' },
@@ -291,7 +291,7 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
           align: 'right',
         });
         doc.fillColor('#dc2626').text(
-          `-₹${discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          `-Rs. ${discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
           margin + col1Width + col2Width + 8,
           currentFeeY + 6,
           { width: col3Width - 16, align: 'right' },
@@ -309,7 +309,7 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
         characterSpacing: 0.5,
       });
       doc.fontSize(11).text(
-        `₹${totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+        `Rs. ${totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
         margin + col1Width + col2Width + 8,
         currentFeeY + 6,
         { width: col3Width - 16, align: 'right' },

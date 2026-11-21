@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common';
-import { WhatsappService } from './whatsapp.service';
+import { WhatsappService, FeeReceiptNotification } from './whatsapp.service';
 
 @Controller('whatsapp')
 export class WhatsappController {
@@ -10,6 +10,24 @@ export class WhatsappController {
     return {
       connected: this.whatsappService.isConnected(),
     };
+  }
+
+  @Post('send-receipt')
+  async sendReceipt(
+    @Body()
+    body: {
+      phone: string;
+      data: FeeReceiptNotification;
+    },
+  ) {
+    if (!body.phone) {
+      throw new BadRequestException('Phone number is required.');
+    }
+    if (!body.data) {
+      throw new BadRequestException('Receipt data is required.');
+    }
+    const sent = await this.whatsappService.sendFeeReceipt(body.phone, body.data);
+    return { success: sent };
   }
 
   @Post('send-pdf')
