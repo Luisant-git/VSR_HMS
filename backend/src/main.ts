@@ -28,6 +28,7 @@ async function bootstrap() {
     prefix: '/uploads/',
     maxAge: 31536000,
     setHeaders: (res, path) => {
+      res.set('Access-Control-Allow-Origin', '*');
       const lowerPath = path.toLowerCase();
       if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg') || lowerPath.endsWith('.png') || lowerPath.endsWith('.webp')) {
         res.set('Cache-Control', 'public, max-age=31536000, immutable');
