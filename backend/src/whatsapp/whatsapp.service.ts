@@ -16,13 +16,27 @@ export interface FeeReceiptNotification {
   studentName?: string;
   regNo?: string;
   roomNo?: string;
+  billingMonth?: string;
+  dueDate?: string;
   invoiceNo?: string;
+  receiptNo?: string;
   receiptDate?: string;
   amount: number;
+  grossAmount?: number;
+  discountAmount?: number;
   paymentMode?: string;
+  gatewayMethod?: string;
   refNo?: string;
-  items?: Array<{ type?: string; amount?: number }>;
+  paymentStatus?: string;
+  pendingBalance?: number;
+  notes?: string;
+  items?: Array<{
+    description?: string;
+    type?: string;
+    amount?: number;
+  }>;
   hostelName?: string;
+  address?: string;
   hostelPhone?: string;
 }
 
@@ -47,23 +61,6 @@ export function formatPaymentModeName(mode?: string): string {
   if (clean.includes('BANK')) return 'Bank Transfer (NEFT/IMPS)';
   if (clean === 'CHEQUE') return 'Cheque / DD';
   return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-export function formatDatePretty(rawDate?: string): string {
-  if (!rawDate) {
-    return new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
-  const d = new Date(rawDate);
-  if (isNaN(d.getTime())) return rawDate;
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
 }
 
 @Injectable()
@@ -170,57 +167,105 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     let hostelTitle = data.hostelName;
+    let address = data.address;
     let contactPhone = data.hostelPhone;
 
-    if (!hostelTitle) {
+    if (!hostelTitle || !address || !contactPhone) {
       try {
         const settings = await this.prisma.hostelSettings.findFirst();
-        if (settings?.hostelName) hostelTitle = settings.hostelName;
+        if (settings?.hostelName && !hostelTitle) hostelTitle = settings.hostelName;
+        if (settings?.address && !address) address = settings.address;
         if (settings?.phone && !contactPhone) contactPhone = settings.phone;
       } catch {}
     }
 
-    const title = (hostelTitle || 'HOSTEL MANAGEMENT').toUpperCase();
+    const topText = '_Mayanur Sri Sellandiamman Thunai_';
+    const title = (hostelTitle || "SEA SINDU QUEEN'S PARADISE").toUpperCase();
+    const addr = address || '291/2G2, Katheri Village, Komarapalayam, Salem DT - 638 183';
+    const ph = contactPhone || '80126 55555';
+
     const student = data.studentName || 'Student';
     const invoice = data.invoiceNo || '—';
-    const mode = formatPaymentModeName(data.paymentMode);
-    const amountStr = Number(data.amount || 0).toLocaleString('en-IN');
-    const dateStr = formatDatePretty(data.receiptDate);
+    const receiptNum = data.receiptNo || '1';
+    const dateStr = data.receiptDate || new Date().toLocaleDateString('en-GB');
 
-    let breakdownStr = '';
+    const mode = formatPaymentModeName(data.paymentMode);
+    const gatewayMethod = data.gatewayMethod || (data.paymentMode?.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual');
+    const statusStr = (data.paymentStatus || 'PAID').toUpperCase();
+
+    const totalPaid = Number(data.amount || 0);
+    const totalPaidStr = totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const discount = Number(data.discountAmount || 0);
+    const discountStr = discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const gross = Number(data.grossAmount || (totalPaid + discount));
+    const grossStr = gross.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const pending = Number(data.pendingBalance || 0);
+    const pendingStr = pending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Format fee items
+    let itemsBlock = '';
     if (data.items && data.items.length > 0) {
-      const lines = data.items.map(
-        (item) => `  • ${formatFeeTypeName(item.type)} : ₹${Number(item.amount || 0).toLocaleString('en-IN')}`,
-      );
-      breakdownStr = `📋 *FEE PARTICULARS:*\n${lines.join('\n')}`;
+      const lines = data.items.map((item) => {
+        const desc = item.description || formatFeeTypeName(item.type);
+        const cat = item.type || 'FEE';
+        const amt = Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `• *${desc}*\n  Category : ${cat}\n  Amount   : ₹${amt}`;
+      });
+      itemsBlock = lines.join('\n\n');
+    } else {
+      itemsBlock = `• Hostel Fee\n  Amount   : ₹${totalPaidStr}`;
     }
 
     const message = [
-      `🧾 *OFFICIAL FEE PAYMENT RECEIPT*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `🏢 *${title}*`,
-      `_Payment Confirmation & Acknowledgment_`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      topText,
       ``,
-      `👤 *Student Name :* ${student}`,
-      data.regNo ? `🆔 *Register No   :* ${data.regNo}` : '',
-      data.roomNo ? `🚪 *Room Number  :* ${data.roomNo}` : '',
-      `📄 *Receipt / Inv :* ${invoice}`,
-      `📅 *Payment Date  :* ${dateStr}`,
-      `💳 *Payment Mode  :* ${mode}`,
-      data.refNo && data.refNo !== '—' ? `🔢 *Transaction ID:* ${data.refNo}` : '',
+      `🏛️ *${title}*`,
+      `*( LADIES HOSTEL )*`,
+      `📍 ${addr}`,
+      `📞 ${ph}`,
       ``,
-      breakdownStr ? `━━━━━━━━━━━━━━━━━━━━━━━━━━\n${breakdownStr}` : '',
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `💰 *TOTAL AMOUNT PAID :* *₹${amountStr}*`,
-      `✅ *PAYMENT STATUS   :* *PAID / VERIFIED*`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `🧾 *FEES RECEIPT*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `*Receipt No :* ${receiptNum}`,
+      `*Invoice No :* ${invoice}`,
+      `*Date       :* ${dateStr}`,
       ``,
-      `ℹ️ _This is a computer-generated digital receipt._`,
-      `🙏 _Thank you for your timely payment!_`,
-      contactPhone ? `📞 _For queries, contact: ${contactPhone}_` : '',
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `👤 *RECEIVED FROM*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `*Student Name    :* ${student}`,
+      `*Registration No :* ${data.regNo || 'N/A'}`,
+      `*Room No         :* ${data.roomNo || 'N/A'}`,
+      data.billingMonth ? `*Billing Month   :* ${data.billingMonth}` : '',
+      data.dueDate ? `*Due Date        :* ${data.dueDate}` : '',
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `💳 *PAYMENT DETAILS*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `*Payment Mode    :* ${mode}`,
+      `*Gateway Method  :* ${gatewayMethod}`,
+      data.refNo && data.refNo !== '—' ? `*Transaction Ref :* ${data.refNo}` : '',
+      `*Payment Status  :* ${statusStr} ✅`,
+      `*Pending Balance :* ₹${pendingStr}`,
+      ``,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `📋 *FEE BREAKDOWN*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      itemsBlock,
+      `────────────────────────────`,
+      discount > 0 ? `Total Before Discount : ₹${grossStr}\nDiscount              : -₹${discountStr}\n────────────────────────────` : '',
+      `💰 *TOTAL AMOUNT PAID : ₹${totalPaidStr}*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      data.notes ? `\n📝 *NOTES:* ${data.notes}` : '',
+      ``,
+      `✅ *Payment Successful*`,
+      `_This is a computer generated receipt. No signature is required._`,
     ]
-      .filter((line) => line !== undefined && line !== null)
+      .filter((line) => line !== '')
       .join('\n');
 
     try {

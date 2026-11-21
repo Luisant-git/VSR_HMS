@@ -477,21 +477,51 @@ export class FeesService {
       const student = updated.student;
       const phone = student.mobileNo || student.fatherMobileNo;
       if (phone) {
+        const descRaw = String(updated.description || '');
+        const parseDesc = (key: string) => {
+          const match = descRaw.match(new RegExp(`(?:^|\\|)\\s*${key}:\\s*([^|]+)`, 'i'));
+          return match && match[1].trim() ? match[1].trim() : '';
+        };
+
+        const notes = parseDesc('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+        const discountStr = parseDesc('Discount');
+        const discount = discountStr ? parseFloat(discountStr) || 0 : 0;
+        const origStr = parseDesc('Original Amount');
+        const grossAmount = origStr ? parseFloat(origStr) || (Number(updated.amount || 0) + discount) : (Number(updated.amount || 0) + discount);
+        const pendingStr = parseDesc('Pending Balance');
+        const pendingBalance = pendingStr ? parseFloat(pendingStr) || 0 : 0;
+        const baseDescription = descRaw.split('|')[0]?.trim() || `${updated.transactionType} for ${updated.billingMonth || ''}`;
+
+        const invoiceNo = updated.invoiceNumber || '';
+        const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
+        const invoiceSerial = invoiceParts?.[2] ?? invoiceParts?.[1];
+        const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
+
         this.whatsapp
           .sendFeeReceipt(phone, {
             studentName: student.name,
             regNo: student.manualRegsiName || student.regNo,
             roomNo: student.roomNo || undefined,
-            invoiceNo: updated.invoiceNumber || undefined,
-            amount: Number(updated.amount || 0),
-            paymentMode: updated.paymentMode || undefined,
+            billingMonth: updated.billingMonth || undefined,
+            dueDate: updated.dueDate ? new Date(updated.dueDate).toLocaleDateString('en-GB') : undefined,
+            invoiceNo: invoiceNo || undefined,
+            receiptNo: receiptNo,
             receiptDate: updated.paidDate
               ? new Date(updated.paidDate).toLocaleDateString('en-GB')
               : undefined,
+            amount: Number(updated.amount || 0),
+            grossAmount: grossAmount > 0 ? grossAmount : Number(updated.amount || 0),
+            discountAmount: discount,
+            paymentMode: updated.paymentMode || 'Cash',
+            gatewayMethod: updated.paymentMode && updated.paymentMode.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual',
+            paymentStatus: 'PAID',
+            pendingBalance: pendingBalance,
+            notes: notes || undefined,
             items: [
               {
+                description: baseDescription,
                 type: updated.transactionType || 'Fee',
-                amount: Number(updated.amount || 0),
+                amount: grossAmount > 0 ? grossAmount : Number(updated.amount || 0),
               },
             ],
           })

@@ -2,17 +2,28 @@ export interface WhatsAppReceiptData {
   studentName?: string;
   regNo?: string;
   roomNo?: string;
+  billingMonth?: string;
+  dueDate?: string;
   phone?: string;
   invoiceNo?: string;
   receiptNo?: string;
   receiptDate?: string;
   totalAmount?: number;
-  paymentMode?: string;
-  refNo?: string;
-  items?: Array<{ type?: string; amount?: number | string }>;
+  grossAmount?: number;
   discountAmount?: number;
+  paymentMode?: string;
+  gatewayMethod?: string;
+  refNo?: string;
+  paymentStatus?: string;
   pendingBalance?: number;
+  notes?: string;
+  items?: Array<{
+    description?: string;
+    type?: string;
+    amount?: number | string;
+  }>;
   hostelName?: string;
+  address?: string;
   hostelPhone?: string;
 }
 
@@ -39,23 +50,6 @@ export function formatPaymentModeName(mode?: string): string {
   return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function formatDatePretty(rawDate?: string): string {
-  if (!rawDate) {
-    return new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
-  const d = new Date(rawDate);
-  if (isNaN(d.getTime())) return rawDate;
-  return d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 /**
  * Normalizes phone numbers to standard international format (defaults to India 91 if 10 digits).
  */
@@ -72,59 +66,97 @@ export function normalizePhoneNumber(rawPhone?: string): string {
 }
 
 /**
- * Builds a clean, professional WhatsApp text message for the fee invoice receipt.
+ * Builds the exact match WhatsApp text message identical to the official Fees Receipt PDF.
  */
 export function buildWhatsAppReceiptMessage(data: WhatsAppReceiptData): string {
-  const hostelTitle = (data.hostelName || 'HOSTEL MANAGEMENT').toUpperCase();
-  const student = data.studentName || 'Student';
-  const invoice = data.invoiceNo || data.receiptNo || '—';
-  const mode = formatPaymentModeName(data.paymentMode);
-  const amountStr = Number(data.totalAmount || 0).toLocaleString('en-IN');
-  const dateStr = formatDatePretty(data.receiptDate);
+  const topText = '_Mayanur Sri Sellandiamman Thunai_';
+  const hostelTitle = (data.hostelName || "SEA SINDU QUEEN'S PARADISE").toUpperCase();
+  const address = data.address || '291/2G2, Katheri Village, Komarapalayam, Salem DT - 638 183';
+  const phone = data.hostelPhone || '80126 55555';
 
-  let breakdownStr = '';
+  const student = data.studentName || 'Student';
+  const invoice = data.invoiceNo || '—';
+  const receiptNum = data.receiptNo || '1';
+  const dateStr = data.receiptDate || new Date().toLocaleDateString('en-GB');
+
+  const mode = formatPaymentModeName(data.paymentMode);
+  const gatewayMethod = data.gatewayMethod || (data.paymentMode?.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual');
+  const statusStr = (data.paymentStatus || 'PAID').toUpperCase();
+
+  const totalPaid = Number(data.totalAmount || 0);
+  const totalPaidStr = totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const discount = Number(data.discountAmount || 0);
+  const discountStr = discount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const gross = Number(data.grossAmount || (totalPaid + discount));
+  const grossStr = gross.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const pending = Number(data.pendingBalance || 0);
+  const pendingStr = pending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Format fee items exactly like the table
+  let itemsBlock = '';
   if (data.items && data.items.length > 0) {
     const lines = data.items.map((item) => {
-      const type = formatFeeTypeName(item.type);
-      const amt = Number(item.amount || 0).toLocaleString('en-IN');
-      return `  • ${type} : ₹${amt}`;
+      const desc = item.description || formatFeeTypeName(item.type);
+      const cat = item.type || 'FEE';
+      const amt = Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `• *${desc}*\n  Category : ${cat}\n  Amount   : ₹${amt}`;
     });
-    breakdownStr = `📋 *FEE PARTICULARS:*\n${lines.join('\n')}`;
+    itemsBlock = lines.join('\n\n');
+  } else {
+    itemsBlock = `• Hostel Fee\n  Amount   : ₹${totalPaidStr}`;
   }
 
   const lines = [
-    `🧾 *OFFICIAL FEE PAYMENT RECEIPT*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `🏢 *${hostelTitle}*`,
-    `_Payment Confirmation & Acknowledgment_`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    topText,
     ``,
-    `👤 *Student Name :* ${student}`,
-    data.regNo ? `🆔 *Register No   :* ${data.regNo}` : '',
-    data.roomNo ? `🚪 *Room Number  :* ${data.roomNo}` : '',
-    `📄 *Receipt / Inv :* ${invoice}`,
-    `📅 *Payment Date  :* ${dateStr}`,
-    `💳 *Payment Mode  :* ${mode}`,
-    data.refNo && data.refNo !== '—' ? `🔢 *Transaction ID:* ${data.refNo}` : '',
+    `🏛️ *${hostelTitle}*`,
+    `*( LADIES HOSTEL )*`,
+    `📍 ${address}`,
+    `📞 ${phone}`,
     ``,
-    breakdownStr ? `━━━━━━━━━━━━━━━━━━━━━━━━━━\n${breakdownStr}` : '',
-    data.discountAmount && data.discountAmount > 0
-      ? `🏷️ *Discount Applied :* ₹${Number(data.discountAmount).toLocaleString('en-IN')}\n`
-      : '',
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-    `💰 *TOTAL AMOUNT PAID :* *₹${amountStr}*`,
-    data.pendingBalance && data.pendingBalance > 0
-      ? `⚠️ *Pending Balance  :* ₹${Number(data.pendingBalance).toLocaleString('en-IN')}`
-      : '',
-    `✅ *PAYMENT STATUS   :* *PAID / VERIFIED*`,
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `🧾 *FEES RECEIPT*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `*Receipt No :* ${receiptNum}`,
+    `*Invoice No :* ${invoice}`,
+    `*Date       :* ${dateStr}`,
     ``,
-    `ℹ️ _This is a computer-generated digital receipt._`,
-    `🙏 _Thank you for your timely payment!_`,
-    data.hostelPhone ? `📞 _For queries, contact: ${data.hostelPhone}_` : '',
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `👤 *RECEIVED FROM*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `*Student Name    :* ${student}`,
+    `*Registration No :* ${data.regNo || 'N/A'}`,
+    `*Room No         :* ${data.roomNo || 'N/A'}`,
+    data.billingMonth ? `*Billing Month   :* ${data.billingMonth}` : '',
+    data.dueDate ? `*Due Date        :* ${data.dueDate}` : '',
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `💳 *PAYMENT DETAILS*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `*Payment Mode    :* ${mode}`,
+    `*Gateway Method  :* ${gatewayMethod}`,
+    data.refNo && data.refNo !== '—' ? `*Transaction Ref :* ${data.refNo}` : '',
+    `*Payment Status  :* ${statusStr} ✅`,
+    `*Pending Balance :* ₹${pendingStr}`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `📋 *FEE BREAKDOWN*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    itemsBlock,
+    `────────────────────────────`,
+    discount > 0 ? `Total Before Discount : ₹${grossStr}\nDiscount              : -₹${discountStr}\n────────────────────────────` : '',
+    `💰 *TOTAL AMOUNT PAID : ₹${totalPaidStr}*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    data.notes ? `\n📝 *NOTES:* ${data.notes}` : '',
+    ``,
+    `✅ *Payment Successful*`,
+    `_This is a computer generated receipt. No signature is required._`,
   ];
 
-  return lines.filter((line) => line !== undefined && line !== null).join('\n');
+  return lines.filter((line) => line !== '').join('\n');
 }
 
 /**
