@@ -358,7 +358,8 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const scopeBlock = selectedBlock === 'ALL' ? 'A BLOCK' : selectedBlock.toUpperCase();
+    const scopeBlock = selectedBlock === 'ALL' ? 'ALL BLOCKS' : selectedBlock.toUpperCase();
+    const scopeDisplay = selectedRoom !== 'ALL' ? `ROOM ${selectedRoom}` : scopeBlock;
 
     // 1. Top Header Box matching the printed sheet
     doc.setDrawColor(0, 0, 0);
@@ -376,7 +377,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
     doc.text('ROOM NO', 32.5, 15.5, { align: 'center' });
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text(scopeBlock, 32.5, 20.5, { align: 'center' });
+    doc.text(scopeDisplay, 32.5, 20.5, { align: 'center' });
 
     // Middle box: MONTH
     doc.setFont('helvetica', 'bold');
@@ -753,7 +754,13 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
               >
                 <div style={{ borderRight: '1.5px solid #000', padding: '8px 16px', minWidth: '140px', textAlign: 'center' }}>
                   <div style={{ fontWeight: 800, fontSize: '13px' }}>ROOM NO</div>
-                  <div style={{ fontSize: '12.5px', marginTop: '2px' }}>{selectedBlock === 'ALL' ? 'A BLOCK' : selectedBlock}</div>
+                  <div style={{ fontSize: '12.5px', marginTop: '2px' }}>
+                    {selectedRoom !== 'ALL'
+                      ? `ROOM ${selectedRoom}`
+                      : selectedBlock === 'ALL'
+                        ? 'ALL BLOCKS'
+                        : selectedBlock}
+                  </div>
                 </div>
                 <div style={{ borderRight: '1.5px solid #000', padding: '8px 16px', minWidth: '150px', textAlign: 'center' }}>
                   <div style={{ fontWeight: 800, fontSize: '13px' }}>RENT MONTHS</div>
