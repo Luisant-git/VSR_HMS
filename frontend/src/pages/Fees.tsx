@@ -35,6 +35,13 @@ import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
 // provider list in the cell's tooltip.
 const formatPaymentMode = (mode?: string) => (mode || '').split(/[/(]/)[0].trim();
 
+// Extra report categories added on top of the existing college list.
+// SSM stays on its own; every other college is reported as Seasindhu.
+const collegeCategoryOf = (college: any) => {
+  const name = typeof college === 'string' ? college : college?.name;
+  return String(name || '').trim().toUpperCase() === 'SSM' ? 'SSM' : 'Seasindhu';
+};
+
 const formatMoney = (value: number) =>
   `${value < 0 ? '−' : ''}₹${Math.abs(value).toLocaleString('en-IN', {
     minimumFractionDigits: 2,
@@ -63,6 +70,7 @@ const Fees = () => {
     label: studentParam ? `${studentParam}` : '-- All Students --'
   });
   const [collegeFilter, setCollegeFilter] = useState<any>({ value: 'ALL', label: '-- All Colleges --' });
+  const [collegeCategoryFilter, setCollegeCategoryFilter] = useState<any>({ value: 'ALL', label: '-- All Categories --' });
   const [roomFilter, setRoomFilter] = useState<any>({ value: 'ALL', label: '-- All Rooms --' });
   const [billingMonthFilter, setBillingMonthFilter] = useState<any>({ value: 'ALL', label: '-- All Billing Months --' });
   const [fromDate, setFromDate] = useState('');
@@ -265,6 +273,12 @@ const Fees = () => {
     return [{ value: 'ALL', label: '-- All Colleges --' }, ...Array.from(colleges).map(c => ({ value: c, label: c }))];
   }, [fees]);
 
+  const collegeCategoryOptions = [
+    { value: 'ALL', label: '-- All Categories --' },
+    { value: 'SSM', label: 'SSM' },
+    { value: 'Seasindhu', label: 'Seasindhu' },
+  ];
+
   // Which billing cycle to explain in the generation notice. When a specific
   // student or college is selected we can show one schedule; otherwise we show
   // both PREPAID and POSTPAID.
@@ -275,15 +289,20 @@ const Fees = () => {
       );
       return fee?.student?.college?.billingCycle || null;
     }
-    if (collegeFilter.value !== 'ALL') {
+    if (collegeFilter.value !== 'ALL' || collegeCategoryFilter.value !== 'ALL') {
       const fee = fees.find(f => {
+        if (
+          collegeCategoryFilter.value !== 'ALL' &&
+          collegeCategoryOf(f.student?.college) !== collegeCategoryFilter.value
+        ) return false;
+        if (collegeFilter.value === 'ALL') return true;
         const c = typeof f.student?.college === 'string' ? f.student.college : f.student?.college?.name;
         return c === collegeFilter.value;
       });
       return fee?.student?.college?.billingCycle || null;
     }
     return null;
-  }, [fees, selectedStudent, collegeFilter]);
+  }, [fees, selectedStudent, collegeFilter, collegeCategoryFilter]);
 
   const roomOptions = useMemo(() => {
     const roomNumbers = new Set<string>(rooms);
@@ -418,6 +437,10 @@ const Fees = () => {
       const c = typeof fee.student?.college === 'string' ? fee.student.college : fee.student?.college?.name;
       if (c !== collegeFilter.value) match = false;
     }
+    if (
+      collegeCategoryFilter.value !== 'ALL' &&
+      collegeCategoryOf(fee.student?.college) !== collegeCategoryFilter.value
+    ) match = false;
 
     if (roomFilter.value !== 'ALL' && String(fee.student?.roomNo || '') !== roomFilter.value) match = false;
 
@@ -449,6 +472,7 @@ const Fees = () => {
     filter,
     selectedStudent,
     collegeFilter,
+    collegeCategoryFilter,
     roomFilter,
     billingMonthFilter,
     fromDate,
@@ -720,6 +744,10 @@ const Fees = () => {
         const c = typeof studentObj?.college === 'string' ? studentObj.college : studentObj?.college?.name;
         if (c !== collegeFilter.value) return;
       }
+      if (
+        collegeCategoryFilter.value !== 'ALL' &&
+        collegeCategoryOf(studentObj?.college) !== collegeCategoryFilter.value
+      ) return;
       if (roomFilter.value !== 'ALL' && String(studentObj?.roomNo || '') !== roomFilter.value) return;
       if (
         billingMonthFilter.value !== 'ALL' &&
@@ -793,7 +821,7 @@ const Fees = () => {
     });
 
     return result;
-  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger, billingMonthFilter]);
+  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger, billingMonthFilter, collegeCategoryFilter]);
 
   // Single ledger for all three cards and the reconciliation breakdown. It is
   // built from transactions (not grouped display rows) so every invoice amount
@@ -822,6 +850,7 @@ const Fees = () => {
   const hasFilters =
     selectedStudent.value !== 'ALL' ||
     collegeFilter.value !== 'ALL' ||
+    collegeCategoryFilter.value !== 'ALL' ||
     roomFilter.value !== 'ALL' ||
     billingMonthFilter.value !== 'ALL' ||
     filter !== 'ALL' ||
@@ -832,6 +861,7 @@ const Fees = () => {
   const clearFilters = () => {
     setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
     setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
+    setCollegeCategoryFilter({ value: 'ALL', label: '-- All Categories --' });
     setRoomFilter({ value: 'ALL', label: '-- All Rooms --' });
     setBillingMonthFilter({ value: 'ALL', label: '-- All Billing Months --' });
     setFilter('ALL');
@@ -1269,6 +1299,15 @@ const Fees = () => {
           styles={selectStyles}
           placeholder="Search college..."
           isSearchable={true}
+        />
+
+        <Select
+          options={collegeCategoryOptions}
+          value={collegeCategoryFilter}
+          onChange={(val) => { setCollegeCategoryFilter(val || { value: 'ALL', label: '-- All Categories --' }); setPage(1); }}
+          styles={selectStyles}
+          placeholder="College Category"
+          isSearchable={false}
         />
 
         <Select

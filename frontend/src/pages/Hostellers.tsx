@@ -81,6 +81,7 @@ const Hostellers = () => {
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
+  const [collegeCategoryFilter, setCollegeCategoryFilter] = useState('ALL');
   const [feeStatusFilter, setFeeStatusFilter] = useState('-- All Fee Status --');
   const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,6 +120,7 @@ const Hostellers = () => {
       search: searchQuery,
       roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
       collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
+      collegeCategory: collegeCategoryFilter !== 'ALL' ? collegeCategoryFilter : undefined,
       sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
       feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined,
       statusFilter: statusFilter !== '-- All Status --' ? statusFilter : undefined
@@ -180,7 +182,7 @@ const Hostellers = () => {
 
   useEffect(() => {
     fetchHostellers();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, statusFilter]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter]);
 
   useEffect(() => {
     setSearchParams(current => {
@@ -332,7 +334,7 @@ const Hostellers = () => {
   // the data or pagination changes so it never points at a stale row.
   useEffect(() => {
     closeDropdown();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, sortFilter, feeStatusFilter, statusFilter, closeDropdown]);
+  }, [page, limit, searchQuery, roomFilter, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter, closeDropdown]);
 
   const rooms = useMemo(() => {
     const uniqueRooms = new Set<string>(allRooms);
@@ -351,6 +353,11 @@ const Hostellers = () => {
     return ['-- All Colleges --', ...Array.from(uniqueColleges).sort()];
   }, [hostellers, allColleges]);
   const collegeOptions = colleges.map(c => ({ value: c, label: c }));
+  const collegeCategoryOptions = [
+    { value: 'ALL', label: '-- All Categories --' },
+    { value: 'SSM', label: 'SSM' },
+    { value: 'Seasindhu', label: 'Seasindhu' },
+  ];
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -385,6 +392,7 @@ const Hostellers = () => {
         search: searchQuery,
         roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
         collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
+        collegeCategory: collegeCategoryFilter !== 'ALL' ? collegeCategoryFilter : undefined,
         sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
         feeFilter: feeStatusFilter !== '-- All Fee Status --' ? feeStatusFilter : undefined,
         statusFilter: statusFilter !== '-- All Status --' ? statusFilter : undefined,
@@ -545,6 +553,18 @@ const Hostellers = () => {
           />
 
           <Select
+            options={collegeCategoryOptions}
+            value={collegeCategoryOptions.find(o => o.value === collegeCategoryFilter)}
+            onChange={(opt) => {
+              setCollegeCategoryFilter(opt?.value || 'ALL');
+              setPage(1);
+            }}
+            styles={selectStyles}
+            placeholder="College Category"
+            isSearchable={false}
+          />
+
+          <Select
             options={[
               { value: '-- All Fee Status --', label: '-- All Fee Status --' },
               { value: 'Un-Paid', label: 'Un-Paid' },
@@ -591,12 +611,13 @@ const Hostellers = () => {
             isSearchable={false}
           />
 
-          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || feeStatusFilter !== '-- All Fee Status --' || statusFilter !== '-- All Status --') && (
+          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || collegeCategoryFilter !== 'ALL' || feeStatusFilter !== '-- All Fee Status --' || statusFilter !== '-- All Status --') && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setRoomFilter('-- All Rooms --');
                 setCollegeFilter('-- All Colleges --');
+                setCollegeCategoryFilter('ALL');
                 setFeeStatusFilter('-- All Fee Status --');
                 setStatusFilter('ACTIVE');
                 setSortFilter('latest');

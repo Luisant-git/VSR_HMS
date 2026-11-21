@@ -464,7 +464,7 @@ export class StudentsService {
     };
   }
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; collegeCategory?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string }) {
     const hasPagination = params?.page !== undefined || params?.limit !== undefined;
     const page = params?.page || 1;
     const limit = params?.limit || 10;
@@ -494,6 +494,19 @@ export class StudentsService {
       where.college = {
         name: params.collegeFilter
       };
+    }
+
+    // Separate report category filter: SSM on its own, everything else Seasindhu.
+    if (params?.collegeCategory === 'SSM') {
+      where.AND = [
+        ...(where.AND || []),
+        { college: { name: { equals: 'SSM', mode: 'insensitive' } } },
+      ];
+    } else if (params?.collegeCategory === 'Seasindhu') {
+      where.AND = [
+        ...(where.AND || []),
+        { NOT: { college: { name: { equals: 'SSM', mode: 'insensitive' } } } },
+      ];
     }
 
     if (params?.statusFilter === 'ACTIVE') {

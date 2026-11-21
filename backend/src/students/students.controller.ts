@@ -29,6 +29,7 @@ export class StudentsController {
     @Query('search') search?: string,
     @Query('roomFilter') roomFilter?: string,
     @Query('collegeFilter') collegeFilter?: string,
+    @Query('collegeCategory') collegeCategory?: string,
     @Query('sortFilter') sortFilter?: string,
     @Query('feeFilter') feeFilter?: string,
     @Query('statusFilter') statusFilter?: string,
@@ -39,6 +40,7 @@ export class StudentsController {
       search,
       roomFilter,
       collegeFilter,
+      collegeCategory,
       sortFilter,
       feeFilter,
       statusFilter
