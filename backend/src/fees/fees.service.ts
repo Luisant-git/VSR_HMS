@@ -227,74 +227,137 @@ export class FeesService {
     rows: T[],
   ): Promise<T[]> {
     const missing = rows.filter(row => !row.invoiceNumber);
-    if (missing.length === 0) return rows;
+    if (missing.length > 0) {
+      missing.sort(
+        (a, b) =>
+          new Date((a as any).createdAt).getTime() -
+          new Date((b as any).createdAt).getTime(),
+      );
 
-    missing.sort(
-      (a, b) =>
-        new Date((a as any).createdAt).getTime() -
-        new Date((b as any).createdAt).getTime(),
-    );
+      // One invoice number per displayed receipt. Outstanding payments are each
+      // their own receipt; unpaid outstanding invoices and current pending dues
+      // are grouped per student; other paid fees are grouped per payment.
+      const groups = new Map<string, T[]>();
+      for (const row of missing) {
+        const key = this.invoiceGroupKey(row as any);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(row);
+      }
 
-    // One invoice number per displayed receipt. Outstanding payments are each
-    // their own receipt; unpaid outstanding invoices and current pending dues
-    // are grouped per student; other paid fees are grouped per student/minute.
-    const groups = new Map<string, T[]>();
-    for (const row of missing) {
-      const key = this.invoiceGroupKey(row as any);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(row);
-    }
-
-    const groupsByPeriod = new Map<string, T[][]>();
-    for (const group of groups.values()) {
-      const first = group[0] as any;
-      const date = new Date(first.paidDate || first.createdAt || Date.now());
-      const period = this.invoicePeriod(date);
-      if (!groupsByPeriod.has(period)) groupsByPeriod.set(period, []);
-      groupsByPeriod.get(period)!.push(group);
-    }
-
-    const reservedPeriods = await Promise.all(
-      Array.from(groupsByPeriod, async ([period, periodGroups]) => {
-        const counter = await this.prisma.invoiceCounter.upsert({
-          where: { period },
-          create: { period, value: periodGroups.length },
-          update: { value: { increment: periodGroups.length } },
-        });
-        return {
-          periodGroups,
-          firstSerial: counter.value - periodGroups.length + 1,
-        };
-      }),
-    );
-
-    for (const { periodGroups, firstSerial } of reservedPeriods) {
-      const numberedGroups = periodGroups.map((group, index) => {
-        const first = group[0] as any;
-        const date = new Date(first.paidDate || first.createdAt || Date.now());
-        return {
-          group,
-          invoiceNumber: this.formatInvoiceNumber(date, firstSerial + index),
-        };
+      const orderedGroups = Array.from(groups.values()).sort((a, b) => {
+        const aTime = new Date((a[0] as any).paidDate || (a[0] as any).createdAt || 0).getTime();
+        const bTime = new Date((b[0] as any).paidDate || (b[0] as any).createdAt || 0).getTime();
+        return aTime - bTime;
       });
 
-      for (let offset = 0; offset < numberedGroups.length; offset += 25) {
-        const batch = numberedGroups.slice(offset, offset + 25);
-        await Promise.all(
-          batch.map(async ({ group, invoiceNumber }) => {
-            await this.prisma.feeTransaction.updateMany({
-              where: { id: { in: group.map(row => row.id) } },
-              data: { invoiceNumber },
-            });
-            group.forEach(row => {
-              (row as any).invoiceNumber = invoiceNumber;
-            });
-          }),
-        );
+      if (orderedGroups.length > 0) {
+        // Reserve one contiguous block from the global sequence so the new
+        // numbers stay in order even when several receipts are numbered at once.
+        const counter = await this.prisma.invoiceCounter.upsert({
+          where: { period: this.invoiceSequenceKey },
+          create: { period: this.invoiceSequenceKey, value: orderedGroups.length },
+          update: { value: { increment: orderedGroups.length } },
+        });
+        const firstSerial = counter.value - orderedGroups.length + 1;
+        const numberedGroups = orderedGroups.map((group, index) => {
+          const first = group[0] as any;
+          const date = new Date(first.paidDate || first.createdAt || Date.now());
+          return {
+            group,
+            invoiceNumber: this.formatInvoiceNumber(date, firstSerial + index),
+          };
+        });
+
+        for (let offset = 0; offset < numberedGroups.length; offset += 25) {
+          const batch = numberedGroups.slice(offset, offset + 25);
+          await Promise.all(
+            batch.map(async ({ group, invoiceNumber }) => {
+              await this.prisma.feeTransaction.updateMany({
+                where: { id: { in: group.map(row => row.id) } },
+                data: { invoiceNumber },
+              });
+              group.forEach(row => {
+                (row as any).invoiceNumber = invoiceNumber;
+              });
+            }),
+          );
+        }
       }
     }
 
+    // Keep the sequence counter ahead of every number already stored so a new
+    // receipt can never reuse an existing number.
+    const maxSerial = rows.reduce((max, row) => {
+      const match = /^INV-\d{4}-(\d{3})$/.exec(String((row as any).invoiceNumber || '').trim());
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+    const counterRow = await this.prisma.invoiceCounter.findUnique({
+      where: { period: this.invoiceSequenceKey },
+    });
+    if (!counterRow || counterRow.value < maxSerial) {
+      await this.prisma.invoiceCounter.upsert({
+        where: { period: this.invoiceSequenceKey },
+        create: { period: this.invoiceSequenceKey, value: Math.max(maxSerial, 1) },
+        update: { value: Math.max(maxSerial, 1) },
+      });
+    }
+
+    // Convert legacy receipt numbers (INV-YYYY-MM-NNN) to the new global
+    // sequence, oldest payment first, and give every separate payment its own
+    // number. Numbers already in the new format are left untouched.
+    const receiptGroups = new Map<string, any[]>();
+    for (const row of rows) {
+      const item = row as any;
+      if (item.status !== 'COMPLETED') continue;
+      const key = `${item.studentId}-${this.paymentGroupKey(item)}`;
+      if (!receiptGroups.has(key)) receiptGroups.set(key, []);
+      receiptGroups.get(key)!.push(row);
+    }
+    const orderedReceipts = Array.from(receiptGroups.values()).sort((a, b) => {
+      const aTime = new Date((a[0] as any).paidDate || (a[0] as any).createdAt || 0).getTime();
+      const bTime = new Date((b[0] as any).paidDate || (b[0] as any).createdAt || 0).getTime();
+      return aTime - bTime || String((a[0] as any).id).localeCompare(String((b[0] as any).id));
+    });
+
+    const usedNumbers = new Set<string>();
+    for (const group of orderedReceipts) {
+      const first = group[0] as any;
+      const current = String(first.invoiceNumber || '').trim();
+      const allSame = group.every(
+        row => String((row as any).invoiceNumber || '').trim() === current,
+      );
+      if (
+        current &&
+        allSame &&
+        this.isSequentialInvoiceNumber(current) &&
+        !usedNumbers.has(current)
+      ) {
+        usedNumbers.add(current);
+        continue;
+      }
+
+      const date = new Date(first.paidDate || first.createdAt || Date.now());
+      const newNumber = await this.allocateInvoiceNumber(this.prisma, date);
+      await this.prisma.feeTransaction.updateMany({
+        where: { id: { in: group.map(row => (row as any).id) } },
+        data: { invoiceNumber: newNumber },
+      });
+      group.forEach(row => {
+        (row as any).invoiceNumber = newNumber;
+      });
+      usedNumbers.add(newNumber);
+    }
+
     return rows;
+  }
+
+  private paymentGroupKey(row: any) {
+    const description = String(row.description || '');
+    return (
+      description.match(/\[PAY:([^\]]+)\]/)?.[1] ||
+      description.match(/\|\s*Ref:\s*Razorpay\s+([^\s|]+)/i)?.[1] ||
+      String(row.id)
+    );
   }
 
   private invoiceGroupKey(row: any) {
@@ -304,36 +367,81 @@ export class FeesService {
       return `outstanding-invoice-${row.studentId}`;
     }
     if (row.status === 'PENDING') return `pending-${row.studentId}`;
+    // Rows from the same payment submission share one receipt number. Never
+    // key on the minute alone: two separate payments made in the same minute
+    // would otherwise be handed the same invoice number.
+    const paymentToken = this.paymentGroupKey(row);
+    if (paymentToken !== String(row.id)) {
+      return `paid-${row.studentId}-payment-${paymentToken}`;
+    }
     const time = new Date(row.paidDate || row.createdAt).toISOString().slice(0, 16);
     return `paid-${row.studentId}-${time}`;
   }
+
+  private readonly invoiceSequenceKey = 'INVOICE_SEQUENCE';
 
   private invoicePeriod(date: Date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  /** New numbers look like INV-2026-001 (year + 3-digit sequence). */
   private formatInvoiceNumber(date: Date, serial: number) {
-    return `INV-${this.invoicePeriod(date)}-${String(serial).padStart(3, '0')}`;
+    return `INV-${date.getFullYear()}-${String(serial).padStart(3, '0')}`;
+  }
+
+  private isSequentialInvoiceNumber(value?: string | null) {
+    return /^INV-\d{4}-\d{3}$/.test(String(value || '').trim());
   }
 
   private async allocateInvoiceNumber(
     client: Prisma.TransactionClient | PrismaService,
     date: Date,
   ): Promise<string> {
-    const period = this.invoicePeriod(date);
+    // One global counter keeps both invoice numbers and receipt numbers in a
+    // single unbroken sequence instead of restarting every month.
     const counter = await client.invoiceCounter.upsert({
-      where: { period },
-      create: { period, value: 1 },
+      where: { period: this.invoiceSequenceKey },
+      create: { period: this.invoiceSequenceKey, value: 1 },
       update: { value: { increment: 1 } },
     });
     return this.formatInvoiceNumber(date, counter.value);
   }
 
   async update(id: string, data: UpdateFeeDto) {
+    const existing = await this.prisma.feeTransaction.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) {
+      throw new NotFoundException('Active fee transaction not found.');
+    }
+
+    // Pending dues of one student intentionally share a single invoice number
+    // (they are one row in the Fees table). Once a fee is paid it becomes its
+    // own receipt, so it needs its own permanent number.
+    let invoiceNumber = existing.invoiceNumber;
+    const shouldAllocate =
+      data.status === 'COMPLETED' &&
+      existing.status !== 'COMPLETED' &&
+      (!this.isSequentialInvoiceNumber(invoiceNumber) ||
+        (await this.prisma.feeTransaction.count({
+          where: {
+            invoiceNumber,
+            deletedAt: null,
+            id: { not: id },
+          },
+        })) > 0);
+    if (shouldAllocate) {
+      const date = data.paidDate
+        ? this.validatedPaymentDate(data.paidDate) ?? new Date()
+        : new Date();
+      invoiceNumber = await this.allocateInvoiceNumber(this.prisma, date);
+    }
+
     const result = await this.prisma.feeTransaction.updateMany({
       where: { id, deletedAt: null },
       data: {
         ...data,
+        ...(invoiceNumber ? { invoiceNumber } : {}),
         paidDate: data.paidDate
           ? this.validatedPaymentDate(data.paidDate)
           : data.paidDate,

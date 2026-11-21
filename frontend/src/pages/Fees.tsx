@@ -60,6 +60,7 @@ const Fees = () => {
   });
   const [collegeFilter, setCollegeFilter] = useState<any>({ value: 'ALL', label: '-- All Colleges --' });
   const [roomFilter, setRoomFilter] = useState<any>({ value: 'ALL', label: '-- All Rooms --' });
+  const [billingMonthFilter, setBillingMonthFilter] = useState<any>({ value: 'ALL', label: '-- All Billing Months --' });
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
@@ -362,6 +363,20 @@ const Fees = () => {
     { value: 'UNPAID', label: 'Unpaid' }
   ];
 
+  const billingMonthOptions = useMemo(() => {
+    const months = Array.from(
+      new Set(
+        fees
+          .map((fee) => resolveFeeBillingMonth(fee))
+          .filter((month): month is string => Boolean(month)),
+      ),
+    ).sort().reverse();
+    return [
+      { value: 'ALL', label: '-- All Billing Months --' },
+      ...months.map((month) => ({ value: month, label: formatBillingMonth(month) || month })),
+    ];
+  }, [fees]);
+
   const filteredFees = useMemo(() => fees.filter(fee => {
     // Hide old settled receipts/invoices. Cycle-relevant pending dues for both
     // PREPAID and POSTPAID must remain visible even when generated earlier.
@@ -401,6 +416,8 @@ const Fees = () => {
 
     if (roomFilter.value !== 'ALL' && String(fee.student?.roomNo || '') !== roomFilter.value) match = false;
 
+    if (billingMonthFilter.value !== 'ALL' && feeMonth !== billingMonthFilter.value) match = false;
+
     if (fromDate) {
       if (new Date(fee.createdAt) < new Date(fromDate)) match = false;
     }
@@ -428,6 +445,7 @@ const Fees = () => {
     selectedStudent,
     collegeFilter,
     roomFilter,
+    billingMonthFilter,
     fromDate,
     toDate,
     searchQuery,
@@ -609,12 +627,22 @@ const Fees = () => {
       } else {
         const paidTime = f.paidDate || f.createdAt || f.updatedAt;
         const isOutstandingPay = isOutstandingPayment(f);
+        // Group only the rows that were actually paid together. Each payment
+        // submission carries its own [PAY:...] token; Razorpay rows share one
+        // payment id in their Ref. Grouping by timestamp alone used to merge
+        // two separate payments made in the same minute into one receipt.
+        const description = String(f.description || '');
+        const paymentGroup =
+          description.match(/\[PAY:([^\]]+)\]/)?.[1] ||
+          description.match(/\|\s*Ref:\s*(Razorpay\s+[^\s|]+)/i)?.[1];
         // Each confirmed outstanding payment must remain its own receipt/invoice
         // entry. Do not merge them into a single student summary row or the app
         // will keep reusing the first payment's invoice number.
         const batchKey = isOutstandingPay
           ? `${studentId}-outstanding-${f.id}`
-          : `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
+          : paymentGroup
+            ? `${studentId}-payment-${paymentGroup}`
+            : `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
             isGrouped: true,
@@ -688,6 +716,10 @@ const Fees = () => {
         if (c !== collegeFilter.value) return;
       }
       if (roomFilter.value !== 'ALL' && String(studentObj?.roomNo || '') !== roomFilter.value) return;
+      if (
+        billingMonthFilter.value !== 'ALL' &&
+        !invoices.some((invoice: any) => resolveFeeBillingMonth(invoice) === billingMonthFilter.value)
+      ) return;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matches = (
@@ -756,7 +788,7 @@ const Fees = () => {
     });
 
     return result;
-  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger]);
+  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger, billingMonthFilter]);
 
   // Single ledger for all three cards and the reconciliation breakdown. It is
   // built from transactions (not grouped display rows) so every invoice amount
@@ -786,6 +818,7 @@ const Fees = () => {
     selectedStudent.value !== 'ALL' ||
     collegeFilter.value !== 'ALL' ||
     roomFilter.value !== 'ALL' ||
+    billingMonthFilter.value !== 'ALL' ||
     filter !== 'ALL' ||
     fromDate !== '' ||
     toDate !== '' ||
@@ -795,6 +828,7 @@ const Fees = () => {
     setSelectedStudent({ value: 'ALL', label: '-- All Students --' });
     setCollegeFilter({ value: 'ALL', label: '-- All Colleges --' });
     setRoomFilter({ value: 'ALL', label: '-- All Rooms --' });
+    setBillingMonthFilter({ value: 'ALL', label: '-- All Billing Months --' });
     setFilter('ALL');
     setFromDate('');
     setToDate('');
@@ -1236,6 +1270,15 @@ const Fees = () => {
         />
 
         <Select
+          options={billingMonthOptions}
+          value={billingMonthFilter}
+          onChange={(val) => { setBillingMonthFilter(val || { value: 'ALL', label: '-- All Billing Months --' }); setPage(1); }}
+          styles={selectStyles}
+          placeholder="Billing month..."
+          isSearchable={true}
+        />
+
+        <Select
           options={statusOptions}
           value={statusOptions.find(o => o.value === filter)}
           onChange={(val: any) => { setFilter(val.value); setPage(1); }}
@@ -1465,19 +1508,16 @@ const Fees = () => {
                                 billingCycle === 'POSTPAID' ? previousMonthStr : currentMonthStr;
                               return formatBillingMonth(payableMonth) || payableMonth;
                             }
-                            const months = Array.from(
-                              new Set(
-                                (fee.feesList || [fee])
-                                  .map((item: any) => resolveFeeBillingMonth(item))
-                                  .filter(Boolean),
-                              ),
-                            ).sort();
-                            if (months.length === 0) {
-                              return fee.billingMonth || resolveFeeBillingMonth(fee.feesList?.[0]) || '—';
-                            }
-                            return months
-                              .map((m) => formatBillingMonth(m as string) || m)
-                              .join(' / ');
+                            // One receipt = one payment. Show the billing month
+                            // of its primary fee only. Joining every month in a
+                            // group produced labels like "October 2026 / November
+                            // 2026" when two separate payments were merged.
+                            const primaryFee = fee.feesList?.[0] || fee;
+                            const primaryMonth =
+                              resolveFeeBillingMonth(primaryFee) ||
+                              fee.billingMonth ||
+                              '';
+                            return formatBillingMonth(primaryMonth) || primaryMonth || '—';
                           })()}
                         </span>
                       </td>

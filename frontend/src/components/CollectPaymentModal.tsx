@@ -186,6 +186,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const [loadingFineQuote, setLoadingFineQuote] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState('');
   const [notes, setNotes] = useState('');
+  // Admin-only concession on the selected fees. The net amount is what the
+  // student actually pays and what gets stored on the completed fee rows.
+  const [discountInput, setDiscountInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ updatedItems: any[], paymentMode: string } | null>(null);
   const onlineRequestId = useRef<string | null>(null);
@@ -483,8 +486,36 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       : 0;
 
   const hasOutstandingPayment = outstandingAmount > 0;
-  const totalAmount = roundMoney(currentMonthTotal + outstandingAmount);
+  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount);
+
+  // Discount is only offered by the admin (offline collection). It reduces the
+  // amount actually collected; the original amount is kept in the fee
+  // description so the receipt can show both the gross and the net figure.
+  const discountInputTrimmed = discountInput.trim();
+  let discountError: string | null = null;
+  if (discountInputTrimmed !== '') {
+    const parsed = Number(discountInputTrimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      discountError = 'Enter a valid discount amount.';
+    } else if (parsed >= subTotalAmount) {
+      discountError = `Discount must be less than the total fees of ₹${subTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`;
+    }
+  }
+  const discountAmount =
+    !isStudentMode && !discountError && discountInputTrimmed !== ''
+      ? roundMoney(Number(discountInputTrimmed))
+      : 0;
+  const totalAmount = roundMoney(subTotalAmount - discountAmount);
   const remainingOutstanding = roundMoney(Math.max(0, outstandingBalance - outstandingAmount));
+
+  // Dues still left after this payment: unchecked current fees plus whatever
+  // remains of the previous outstanding balance. This is printed on the receipt.
+  const pendingBalance = roundMoney(
+    displayItems
+      .filter((f: any) => !isItemSelected(f))
+      .reduce((sum: number, f: any) => sum + f.amount * getMultiplier(f.transactionType), 0) +
+      remainingOutstanding,
+  );
 
   const getMonthNames = (count: number, startDesc: string) => {
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -524,9 +555,23 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     setOutstandingAmountInput(value);
   };
 
+  const handleDiscountChange = (value: string) => {
+    if (value === '') {
+      setDiscountInput('');
+      return;
+    }
+    // Only non-negative amounts with at most two decimal places are allowed.
+    if (!/^\d*\.?\d{0,2}$/.test(value)) return;
+    setDiscountInput(value);
+  };
+
   const handleSubmit = async () => {
     if (outstandingSelected && outstandingError) {
       toast.error(outstandingError);
+      return;
+    }
+    if (discountError) {
+      toast.error(discountError);
       return;
     }
     if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
@@ -557,7 +602,31 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         ? 'TXN' + Math.floor(Math.random() * 10000000000).toString()
         : referenceNumber;
 
-      const currentUpdatedItems = await Promise.all(activeItemsToPay.map(async (f: any) => {
+      // Share the net amount across all lines of this payment. The gross line
+      // amount and the concession are kept in the description so the receipt
+      // can print both, while the stored amount stays the real money received.
+      const grossParts = [
+        ...activeItemsToPay.map((f: any) => f.amount * getMultiplier(f.transactionType)),
+        ...(hasOutstandingPayment ? [outstandingAmount] : []),
+      ];
+      const grossTotal = roundMoney(grossParts.reduce((sum, value) => sum + value, 0));
+      let allocatedNet = 0;
+      const netParts = grossParts.map((part, index) => {
+        if (index === grossParts.length - 1) {
+          return Math.max(0, roundMoney(totalAmount - allocatedNet));
+        }
+        const net = grossTotal > 0 ? roundMoney((part / grossTotal) * totalAmount) : 0;
+        allocatedNet = roundMoney(allocatedNet + net);
+        return net;
+      });
+      const receiptMeta = (gross: number, net: number) => {
+        const lineDiscount = roundMoney(Math.max(0, gross - net));
+        // [PAY:...] ties every row of one submission together so separate
+        // payments made within the same minute never merge into one receipt.
+        return ` | Original Amount: ${gross} | Discount: ${lineDiscount} | Pending Balance: ${pendingBalance} | [PAY:${requestId}]`;
+      };
+
+      const currentUpdatedItems = await Promise.all(activeItemsToPay.map(async (f: any, index: number) => {
         let finalDesc = f.description || '';
         const ref = effectiveRef;
         if (ref) finalDesc += ` | Ref: ${ref}`;
@@ -567,6 +636,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           const coveredMonths = getMonthNames(currentMultiplier, f.description || '');
           finalDesc += ` | Paid for ${currentMultiplier} Months (${coveredMonths})`;
         }
+        finalDesc += receiptMeta(grossParts[index], netParts[index]);
 
         const tType = (f.transactionType || '').toUpperCase();
         if (tType.includes('RENT') || tType.includes('MESS')) {
@@ -601,7 +671,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           status: 'COMPLETED',
           paymentMode,
           paidDate: selectedPaidDate,
-          amount: f.amount * currentMultiplier,
+          amount: netParts[index],
           description: finalDesc,
         });
         return { ...updated, student: updated.student || f.student };
@@ -612,12 +682,23 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       // serializable transaction before anything is changed.
       let outstandingRecords: any[] = [];
       if (hasOutstandingPayment) {
+        const netOutstanding = netParts[netParts.length - 1];
+        const outstandingDiscount = roundMoney(Math.max(0, outstandingAmount - netOutstanding));
+        // The backend appends these as its own "| Notes: ..." segment, so the
+        // receipt parser can read them exactly like the current fee rows.
+        const outstandingNotes = [
+          notes,
+          `Original Amount: ${outstandingAmount}`,
+          `Discount: ${outstandingDiscount}`,
+          `Pending Balance: ${pendingBalance}`,
+          `[PAY:${requestId}]`,
+        ].filter(Boolean).join(' | ');
         const response = await FeesAPI.payOutstanding({
           studentId,
-          amount: outstandingAmount,
+          amount: netOutstanding,
           paymentMode,
           referenceNumber: effectiveRef || undefined,
-          notes: notes || undefined,
+          notes: outstandingNotes,
           requestId,
           paidDate: selectedPaidDate,
         });
@@ -903,6 +984,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   */
 
   const outstandingInvalid = outstandingSelected && outstandingInputTrimmed !== '' && outstandingError !== null;
+  const discountInvalid = !isStudentMode && discountInputTrimmed !== '' && discountError !== null;
   // The fine quote is fetched for every student, including the portal. Block
   // submission while it is loading; a failed quote only blocks payment when
   // there is actually a fine to recalculate (otherwise stored amounts are safe).
@@ -913,6 +995,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     !onlineConfirmationPending &&
     !fineQuoteBlocked &&
     !outstandingInvalid &&
+    !discountInvalid &&
     (activeItemsToPay.length > 0 || hasOutstandingPayment);
 
   if (itemsToPay.length === 0) return null;
@@ -1202,6 +1285,33 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                   </div>
                 )}
 
+                {!isStudentMode && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Discount (₹)</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: '15px' }}>₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={discountInput}
+                        onChange={(e) => handleDiscountChange(e.target.value)}
+                        disabled={isSubmitting}
+                        style={{ width: '100%', padding: '10px 12px 10px 28px', border: `1px solid ${discountError ? '#f87171' : '#cbd5e1'}`, borderRadius: '8px', outline: 'none', fontSize: '14px', boxSizing: 'border-box', color: '#1e293b' }}
+                      />
+                    </div>
+                    {discountError ? (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>{discountError}</div>
+                    ) : (
+                      <div style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+                        Enter the amount to reduce from the total fees.
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {isStudentMode && (
                   <div style={{ padding: '12px 14px', border: '1px solid #bfdbfe', borderRadius: '8px', background: '#eff6ff', color: '#1e40af', fontSize: '13px' }}>
                     Secure online checkout supports UPI, cards, net banking, and other Razorpay-enabled payment methods.
@@ -1220,12 +1330,20 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
             {/* Footer */}
             <div style={{ background: '#f8fafc', padding: '24px', borderTop: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '20px', gap: '12px' }}>
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Payable</div>
                   <div style={{ fontSize: '14px', color: '#475569', fontWeight: 500 }}>{summaryText}</div>
+                  {!isStudentMode && (
+                    <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                      Fees ₹{subTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      {discountAmount > 0 && (
+                        <> · Discount <strong style={{ color: '#dc2626' }}>−₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', lineHeight: 1, whiteSpace: 'nowrap' }}>
                   ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
               </div>

@@ -56,7 +56,44 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const paymentMethod = firstValue('paymentMethod');
   const paymentMode = firstValue('paymentMode');
 
-  const totalAmount = isGrouped ? fee.totalAmount : firstFee?.amount;
+  const totalAmount = Number(isGrouped ? fee.totalAmount : firstFee?.amount) || 0;
+
+  // Payment metadata is stored in the fee descriptions so it survives a page
+  // reload and is available when a receipt is opened from the fees table.
+  const parseDescriptionValue = (feeItem: any, key: string) => {
+    const raw = String(feeItem?.description || '');
+    const match = raw.match(new RegExp(`(?:^|\\|)\\s*${key}:\\s*([^|]+)`, 'i'));
+    return match && match[1].trim() ? match[1].trim() : '';
+  };
+
+  const descriptionValue = (key: string) => {
+    for (const item of feesList) {
+      const value = parseDescriptionValue(item, key);
+      if (value) return value;
+    }
+    return '';
+  };
+
+  const parseMoney = (value: string) => {
+    const amount = Number(value.replace(/[^0-9.]/g, ''));
+    return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : 0;
+  };
+
+  const displayAmountFor = (feeItem: any) => {
+    const original = parseMoney(parseDescriptionValue(feeItem, 'Original Amount'));
+    return original > 0 ? original : Math.round((Number(feeItem?.amount) || 0) * 100) / 100;
+  };
+
+  const grossTotalAmount = Math.round(
+    feesList.reduce((sum: number, item: any) => sum + displayAmountFor(item), 0) * 100,
+  ) / 100;
+  const discountAmount = Math.round(
+    feesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
+  ) / 100;
+  // Strip the hidden payment-group token before showing the operator's note.
+  const receiptNotes = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+  const pendingBalance = descriptionValue('Pending Balance');
+  const displayPendingBalance = parseMoney(pendingBalance);
 
   const hostelName = String(settings.hostelName || '').trim();
   const address = String(settings.address || '').trim();
@@ -65,7 +102,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const invoiceSource = firstFee || fee;
   const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
   
-  const invoiceSerial = /^INV-\d{4}-\d{2}-(\d+)$/.exec(invoiceNo)?.[1];
+  // Supports both the new INV-YYYY-0000000001 format and the legacy
+  // INV-YYYY-MM-NNN format. The sequence is the receipt number.
+  const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
+  const invoiceSerial = invoiceParts?.[2] ?? invoiceParts?.[1];
   const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
   const receiptDate = new Date(fee.paidDate || fee.createdAt || firstFee?.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
@@ -255,7 +295,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
     : paymentMode && paymentMode.toUpperCase() !== 'RAZORPAY'
       ? 'Manual'
       : '—';
-  const displayPaymentId = razorpayPaymentId || refNo || '—';
+  // A manual reference number is not a gateway payment id. These rows are only
+  // rendered when a value actually exists, so empty manual payments do not
+  // show "Payment ID —" / "Transaction Ref —" on the receipt.
+  const displayPaymentId = razorpayPaymentId || '—';
   const displayRefNo = refNo || razorpayPaymentId || razorpayOrderId || '—';
   const displayPaymentStatus =
     (paymentStatus || (firstFee?.status === 'COMPLETED' ? 'PAID' : '')).toUpperCase() ||
@@ -670,9 +713,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   <tbody>
                     <tr><td>Payment Mode</td><td>{displayPaymentMode}</td></tr>
                     <tr><td>Gateway Method</td><td>{displayGatewayMethod}</td></tr>
-                    <tr><td>Payment ID</td><td>{displayPaymentId}</td></tr>
-                    <tr><td>Transaction Ref</td><td>{displayRefNo}</td></tr>
+                    {displayPaymentId !== '—' && (
+                      <tr><td>Payment ID</td><td>{displayPaymentId}</td></tr>
+                    )}
+                    {displayRefNo !== '—' && (
+                      <tr><td>Transaction Ref</td><td>{displayRefNo}</td></tr>
+                    )}
                     <tr><td>Payment Status</td><td style={{ color: '#16a34a' }}>{displayPaymentStatus}</td></tr>
+                    {pendingBalance !== '' && (
+                      <tr><td>Pending Balance</td><td>₹{displayPendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -698,7 +748,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                           {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
                         </div>
                         {f.description?.includes('|') && f.description.split('|').slice(1)
-                          .filter((part: string) => !part.trim().startsWith('Ref:') && !part.trim().startsWith('Notes:'))
+                          .filter((part: string) => {
+                            const text = part.trim();
+                            return !text.startsWith('Ref:') &&
+                              !text.startsWith('Notes:') &&
+                              !text.startsWith('Original Amount:') &&
+                              !text.startsWith('Discount:') &&
+                              !text.startsWith('Pending Balance:') &&
+                              !text.startsWith('[PAY:');
+                          })
                           .map((descPart: string, idx: number) => {
                             const trimmed = descPart.trim();
                             const match = trimmed.match(/Paid for (\d+) Months/);
@@ -721,10 +779,30 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                         {f.transactionType}
                       </td>
                       <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
-                        ₹{f.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{displayAmountFor(f).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
+                  {discountAmount > 0 && (
+                    <>
+                      <tr className="print-exact">
+                        <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                          Total Before Discount
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                          ₹{grossTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      <tr className="print-exact">
+                        <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                          Discount
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#b91c1c', fontWeight: 600, textAlign: 'right' }}>
+                          −₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </>
+                  )}
                   {/* Total Row */}
                   <tr className="print-exact" style={{ background: '#f5f5f5' }}>
                     <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -737,6 +815,12 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                 </tbody>
               </table>
               </div>
+              {receiptNotes && (
+                <div className="print-exact" style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '13px', color: '#000', wordBreak: 'break-word' }}>
+                  <strong style={{ textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Notes:</strong>
+                  <span>{receiptNotes}</span>
+                </div>
+              )}
             </div>
 
             {/* Footer Section */}
