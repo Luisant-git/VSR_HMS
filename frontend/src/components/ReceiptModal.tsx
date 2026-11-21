@@ -84,14 +84,21 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
     return original > 0 ? original : Math.round((Number(feeItem?.amount) || 0) * 100) / 100;
   };
 
+  const visibleFeesList = feesList.filter((item: any) => displayAmountFor(item) > 0);
+  const detailFee = visibleFeesList[0] || firstFee;
+
   const grossTotalAmount = Math.round(
-    feesList.reduce((sum: number, item: any) => sum + displayAmountFor(item), 0) * 100,
+    visibleFeesList.reduce((sum: number, item: any) => sum + displayAmountFor(item), 0) * 100,
   ) / 100;
   const discountAmount = Math.round(
-    feesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
+    visibleFeesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
   ) / 100;
   // Strip the hidden payment-group token before showing the operator's note.
   const receiptNotes = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+  const billingMonthValue = resolveFeeBillingMonth(detailFee) || '-';
+  const dueDateValue = detailFee?.dueDate
+    ? new Date(detailFee.dueDate).toLocaleDateString('en-GB')
+    : '';
   const pendingBalance = descriptionValue('Pending Balance');
   const displayPendingBalance = parseMoney(pendingBalance);
 
@@ -693,8 +700,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   <tbody>
                     <tr><td>Registration No</td><td>{primaryStudent?.manualRegsiName || primaryStudent?.regNo || 'N/A'}</td></tr>
                     <tr><td>Room No</td><td>{primaryStudent?.roomNo || 'N/A'}</td></tr>
-                    <tr><td>Billing Month</td><td>{resolveFeeBillingMonth(firstFee) || '-'}</td></tr>
-                    <tr><td>Due Date</td><td>{firstFee?.dueDate ? new Date(firstFee.dueDate).toLocaleDateString('en-GB') : '—'}</td></tr>
+                    <tr><td>Billing Month</td><td>{billingMonthValue}</td></tr>
+                    {dueDateValue && <tr><td>Due Date</td><td>{dueDateValue}</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -741,7 +748,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {feesList.map((f: any) => (
+                  {visibleFeesList.map((f: any) => (
                     <tr key={f.id}>
                       <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
                         <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
