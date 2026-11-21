@@ -48,8 +48,9 @@ export class WhatsappController {
       throw new BadRequestException('PDF data is required.');
     }
 
-    const cleanBase64 = body.pdfBase64.replace(/^data:application\/pdf;base64,/, '');
-    const buffer = Buffer.from(cleanBase64, 'base64');
+    const commaIndex = body.pdfBase64.indexOf(',');
+    const cleanBase64 = commaIndex !== -1 ? body.pdfBase64.slice(commaIndex + 1) : body.pdfBase64;
+    const buffer = Buffer.from(cleanBase64.trim(), 'base64');
     const fileName = body.fileName || 'Fee_Receipt.pdf';
     const caption = body.caption || 'Official Fee Receipt';
 

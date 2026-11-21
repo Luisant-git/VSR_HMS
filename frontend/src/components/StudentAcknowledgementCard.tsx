@@ -29,7 +29,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
 
   const generateIdCardPdf = async (): Promise<{ pdfBase64: string; fileName: string } | null> => {
     if (!cardRef.current) return null;
-    const canvas = await html2canvas(cardRef.current, { scale: 3, useCORS: true });
+    const canvas = await html2canvas(cardRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false });
     const imgData = canvas.toDataURL('image/png');
     // JS PDF CR80 format in portrait (54x85.6mm)
     const pdf = new jsPDF({
@@ -40,7 +40,9 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
     pdf.addImage(imgData, 'PNG', 0, 0, 54, 85.6);
     const regLabel = String(student.manualRegsiName || student.regNo || 'student').replace(/[<>:"/\\|?*]+/g, '_');
     const fileName = `StudentID_${regLabel}.pdf`;
-    const pdfBase64 = pdf.output('datauristring');
+    const rawData = pdf.output('datauristring');
+    const commaIdx = rawData.indexOf(',');
+    const pdfBase64 = commaIdx !== -1 ? rawData.slice(commaIdx + 1) : rawData;
     return { pdfBase64, fileName };
   };
 
@@ -72,18 +74,7 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
       const result = await generateIdCardPdf();
       if (!result) throw new Error('Could not prepare ID card document.');
 
-      const caption =
-        `🪪 *OFFICIAL STUDENT ID CARD*\n` +
-        `🏢 *Hostel:* ${hostelName}\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `👤 *Student:* ${student.name}\n` +
-        `🆔 *Reg No:* ${displayRegNo}\n` +
-        `🚪 *Room:* ${displayRoom} ${student.bedNo && student.bedNo !== 'N/A' ? `(${student.bedNo})` : ''}\n` +
-        `🩸 *Blood Group:* ${student.bloodGroup || 'N/A'}\n` +
-        `🏫 *College:* ${collegeName || student.collegeId || 'N/A'}\n` +
-        `📅 *Date of Joining:* ${formattedDate}\n` +
-        `━━━━━━━━━━━━━━━━━━━━\n` +
-        `✨ _Welcome to ${hostelName}! Keep this official ID card for entry, biometric attendance, and hostel records._`;
+      const caption = `Official Student ID Card - ${student.name || 'Student'}`;
 
       const res = await sendWhatsAppPdf(targetPhone, result.pdfBase64, result.fileName, caption);
       if (res && res.success) {

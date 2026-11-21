@@ -219,7 +219,11 @@ const Register = () => {
       }
 
       toast.success(editId ? 'Update Successful!' : 'Admission Successful!');
-      setRegisteredStudent(result);
+      setRegisteredStudent({
+        ...result,
+        photoUrl: result.photoUrl || capturedImage || undefined,
+        roomNo: result.roomNo || selectedRoom || undefined,
+      });
       window.scrollTo(0, 0);
     } catch (e: any) {
       toast.error(e.message || 'Admission failed');
