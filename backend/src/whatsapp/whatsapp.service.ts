@@ -10,6 +10,7 @@ import * as fs from 'fs';
 // @ts-ignore
 import * as qrcode from 'qrcode-terminal';
 import pino from 'pino';
+import { PrismaService } from '../prisma.service';
 
 export interface FeeReceiptNotification {
   studentName?: string;
@@ -25,6 +26,46 @@ export interface FeeReceiptNotification {
   hostelPhone?: string;
 }
 
+export function formatFeeTypeName(type?: string): string {
+  if (!type) return 'Hostel Fee';
+  const clean = String(type).trim().toUpperCase();
+  if (clean === 'EB_BILL' || clean === 'EB') return 'Electricity Bill (EB)';
+  if (clean === 'RENT') return 'Hostel Room Rent';
+  if (clean === 'MESS') return 'Mess Food Charges';
+  if (clean === 'FINE' || clean.includes('FINE')) return 'Late Payment Fine';
+  if (clean === 'OUTSTANDING_PAYMENT' || clean.includes('OUTSTANDING')) return 'Previous Dues Payment';
+  if (clean === 'ADVANCE') return 'Caution Deposit / Advance';
+  return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatPaymentModeName(mode?: string): string {
+  if (!mode) return 'Cash';
+  const clean = String(mode).trim().toUpperCase();
+  if (clean === 'CASH') return 'Cash';
+  if (clean === 'UPI') return 'UPI / QR Code';
+  if (clean === 'RAZORPAY') return 'Online (Razorpay)';
+  if (clean.includes('BANK')) return 'Bank Transfer (NEFT/IMPS)';
+  if (clean === 'CHEQUE') return 'Cheque / DD';
+  return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatDatePretty(rawDate?: string): string {
+  if (!rawDate) {
+    return new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return rawDate;
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 @Injectable()
 export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsappService.name);
@@ -32,8 +73,10 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private isConnecting = false;
   private isReady = false;
 
+  constructor(private readonly prisma: PrismaService) {}
+
   async onModuleInit() {
-    this.connectToWhatsApp().catch(err => {
+    this.connectToWhatsApp().catch((err) => {
       this.logger.error('Failed to initialize WhatsApp service:', err);
     });
   }
@@ -86,7 +129,9 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-          this.logger.warn(`WhatsApp connection closed (code: ${statusCode}). Reconnecting: ${shouldReconnect}`);
+          this.logger.warn(
+            `WhatsApp connection closed (code: ${statusCode}). Reconnecting: ${shouldReconnect}`,
+          );
           if (shouldReconnect) {
             setTimeout(() => this.connectToWhatsApp(), 5000);
           }
@@ -124,38 +169,59 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       return false;
     }
 
-    const title = (data.hostelName || 'HOSTEL ADMINISTRATION').toUpperCase();
+    let hostelTitle = data.hostelName;
+    let contactPhone = data.hostelPhone;
+
+    if (!hostelTitle) {
+      try {
+        const settings = await this.prisma.hostelSettings.findFirst();
+        if (settings?.hostelName) hostelTitle = settings.hostelName;
+        if (settings?.phone && !contactPhone) contactPhone = settings.phone;
+      } catch {}
+    }
+
+    const title = (hostelTitle || 'HOSTEL MANAGEMENT').toUpperCase();
     const student = data.studentName || 'Student';
     const invoice = data.invoiceNo || '—';
-    const mode = (data.paymentMode || 'PAID').toUpperCase();
+    const mode = formatPaymentModeName(data.paymentMode);
     const amountStr = Number(data.amount || 0).toLocaleString('en-IN');
-    const dateStr = data.receiptDate || new Date().toLocaleDateString('en-GB');
+    const dateStr = formatDatePretty(data.receiptDate);
 
     let breakdownStr = '';
     if (data.items && data.items.length > 0) {
-      const lines = data.items.map(item => `• ${item.type || 'Fee'}: ₹${Number(item.amount || 0).toLocaleString('en-IN')}`);
-      breakdownStr = `\n📋 *Fee Breakdown:*\n${lines.join('\n')}`;
+      const lines = data.items.map(
+        (item) => `  • ${formatFeeTypeName(item.type)} : ₹${Number(item.amount || 0).toLocaleString('en-IN')}`,
+      );
+      breakdownStr = `📋 *FEE PARTICULARS:*\n${lines.join('\n')}`;
     }
 
     const message = [
-      `🧾 *FEE PAYMENT RECEIPT*`,
+      `🧾 *OFFICIAL FEE PAYMENT RECEIPT*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `🏢 *${title}*`,
-      `━━━━━━━━━━━━━━━━━━━━`,
-      `👤 *Student:* ${student}`,
-      data.regNo ? `🆔 *Reg No:* ${data.regNo}` : '',
-      data.roomNo ? `🚪 *Room:* ${data.roomNo}` : '',
-      `📄 *Receipt / Inv No:* ${invoice}`,
-      `📅 *Date:* ${dateStr}`,
-      `💳 *Payment Mode:* ${mode}`,
-      data.refNo && data.refNo !== '—' ? `🔢 *Txn / Ref:* ${data.refNo}` : '',
-      breakdownStr,
-      `━━━━━━━━━━━━━━━━━━━━`,
-      `💰 *Total Amount Paid:* *₹${amountStr}*`,
-      `━━━━━━━━━━━━━━━━━━━━`,
-      `✅ *Status:* SUCCESS / PAID`,
-      `\n🙏 _Thank you for your payment!_`,
-      data.hostelPhone ? `📞 For queries, contact: ${data.hostelPhone}` : '',
-    ].filter(Boolean).join('\n');
+      `_Payment Confirmation & Acknowledgment_`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `👤 *Student Name :* ${student}`,
+      data.regNo ? `🆔 *Register No   :* ${data.regNo}` : '',
+      data.roomNo ? `🚪 *Room Number  :* ${data.roomNo}` : '',
+      `📄 *Receipt / Inv :* ${invoice}`,
+      `📅 *Payment Date  :* ${dateStr}`,
+      `💳 *Payment Mode  :* ${mode}`,
+      data.refNo && data.refNo !== '—' ? `🔢 *Transaction ID:* ${data.refNo}` : '',
+      ``,
+      breakdownStr ? `━━━━━━━━━━━━━━━━━━━━━━━━━━\n${breakdownStr}` : '',
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `💰 *TOTAL AMOUNT PAID :* *₹${amountStr}*`,
+      `✅ *PAYMENT STATUS   :* *PAID / VERIFIED*`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      ``,
+      `ℹ️ _This is a computer-generated digital receipt._`,
+      `🙏 _Thank you for your timely payment!_`,
+      contactPhone ? `📞 _For queries, contact: ${contactPhone}_` : '',
+    ]
+      .filter((line) => line !== undefined && line !== null)
+      .join('\n');
 
     try {
       await this.sock.sendMessage(jid, { text: message });
@@ -167,4 +233,3 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
     }
   }
 }
-

@@ -16,6 +16,46 @@ export interface WhatsAppReceiptData {
   hostelPhone?: string;
 }
 
+export function formatFeeTypeName(type?: string): string {
+  if (!type) return 'Hostel Fee';
+  const clean = String(type).trim().toUpperCase();
+  if (clean === 'EB_BILL' || clean === 'EB') return 'Electricity Bill (EB)';
+  if (clean === 'RENT') return 'Hostel Room Rent';
+  if (clean === 'MESS') return 'Mess Food Charges';
+  if (clean === 'FINE' || clean.includes('FINE')) return 'Late Payment Fine';
+  if (clean === 'OUTSTANDING_PAYMENT' || clean.includes('OUTSTANDING')) return 'Previous Dues Payment';
+  if (clean === 'ADVANCE') return 'Caution Deposit / Advance';
+  return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatPaymentModeName(mode?: string): string {
+  if (!mode) return 'Cash';
+  const clean = String(mode).trim().toUpperCase();
+  if (clean === 'CASH') return 'Cash';
+  if (clean === 'UPI') return 'UPI / QR Code';
+  if (clean === 'RAZORPAY') return 'Online (Razorpay)';
+  if (clean.includes('BANK')) return 'Bank Transfer (NEFT/IMPS)';
+  if (clean === 'CHEQUE') return 'Cheque / DD';
+  return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function formatDatePretty(rawDate?: string): string {
+  if (!rawDate) {
+    return new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+  const d = new Date(rawDate);
+  if (isNaN(d.getTime())) return rawDate;
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 /**
  * Normalizes phone numbers to standard international format (defaults to India 91 if 10 digits).
  */
@@ -25,7 +65,6 @@ export function normalizePhoneNumber(rawPhone?: string): string {
   if (cleaned.startsWith('0')) {
     cleaned = cleaned.replace(/^0+/, '');
   }
-  // Standard Indian 10-digit mobile number
   if (cleaned.length === 10) {
     cleaned = `91${cleaned}`;
   }
@@ -33,49 +72,59 @@ export function normalizePhoneNumber(rawPhone?: string): string {
 }
 
 /**
- * Builds a formatted WhatsApp text message for the fee invoice receipt.
+ * Builds a clean, professional WhatsApp text message for the fee invoice receipt.
  */
 export function buildWhatsAppReceiptMessage(data: WhatsAppReceiptData): string {
-  const hostelTitle = (data.hostelName || 'HOSTEL ADMINISTRATION').toUpperCase();
+  const hostelTitle = (data.hostelName || 'HOSTEL MANAGEMENT').toUpperCase();
   const student = data.studentName || 'Student';
   const invoice = data.invoiceNo || data.receiptNo || '—';
-  const mode = (data.paymentMode || 'PAID').toUpperCase();
+  const mode = formatPaymentModeName(data.paymentMode);
   const amountStr = Number(data.totalAmount || 0).toLocaleString('en-IN');
-  const dateStr = data.receiptDate || new Date().toLocaleDateString('en-GB');
+  const dateStr = formatDatePretty(data.receiptDate);
 
   let breakdownStr = '';
   if (data.items && data.items.length > 0) {
-    const lines = data.items.map(item => {
-      const type = item.type || 'Fee';
+    const lines = data.items.map((item) => {
+      const type = formatFeeTypeName(item.type);
       const amt = Number(item.amount || 0).toLocaleString('en-IN');
-      return `• ${type}: ₹${amt}`;
+      return `  • ${type} : ₹${amt}`;
     });
-    breakdownStr = `\n📋 *Fee Breakdown:*\n${lines.join('\n')}`;
+    breakdownStr = `📋 *FEE PARTICULARS:*\n${lines.join('\n')}`;
   }
 
   const lines = [
-    `🧾 *FEE PAYMENT RECEIPT*`,
+    `🧾 *OFFICIAL FEE PAYMENT RECEIPT*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     `🏢 *${hostelTitle}*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `👤 *Student:* ${student}`,
-    data.regNo ? `🆔 *Reg No:* ${data.regNo}` : '',
-    data.roomNo ? `🚪 *Room:* ${data.roomNo}` : '',
-    `📄 *Receipt / Inv No:* ${invoice}`,
-    `📅 *Date:* ${dateStr}`,
-    `💳 *Payment Mode:* ${mode}`,
-    data.refNo && data.refNo !== '—' ? `🔢 *Txn / Ref:* ${data.refNo}` : '',
-    breakdownStr,
-    data.discountAmount && data.discountAmount > 0 ? `\n🏷️ *Discount Applied:* ₹${Number(data.discountAmount).toLocaleString('en-IN')}` : '',
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `💰 *Total Amount Paid:* *₹${amountStr}*`,
-    data.pendingBalance && data.pendingBalance > 0 ? `⚠️ *Pending Balance:* ₹${Number(data.pendingBalance).toLocaleString('en-IN')}` : '',
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `✅ *Status:* SUCCESS / PAID`,
-    `\n🙏 _Thank you for your payment!_`,
-    data.hostelPhone ? `📞 For questions, call: ${data.hostelPhone}` : ''
+    `_Payment Confirmation & Acknowledgment_`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `👤 *Student Name :* ${student}`,
+    data.regNo ? `🆔 *Register No   :* ${data.regNo}` : '',
+    data.roomNo ? `🚪 *Room Number  :* ${data.roomNo}` : '',
+    `📄 *Receipt / Inv :* ${invoice}`,
+    `📅 *Payment Date  :* ${dateStr}`,
+    `💳 *Payment Mode  :* ${mode}`,
+    data.refNo && data.refNo !== '—' ? `🔢 *Transaction ID:* ${data.refNo}` : '',
+    ``,
+    breakdownStr ? `━━━━━━━━━━━━━━━━━━━━━━━━━━\n${breakdownStr}` : '',
+    data.discountAmount && data.discountAmount > 0
+      ? `🏷️ *Discount Applied :* ₹${Number(data.discountAmount).toLocaleString('en-IN')}\n`
+      : '',
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    `💰 *TOTAL AMOUNT PAID :* *₹${amountStr}*`,
+    data.pendingBalance && data.pendingBalance > 0
+      ? `⚠️ *Pending Balance  :* ₹${Number(data.pendingBalance).toLocaleString('en-IN')}`
+      : '',
+    `✅ *PAYMENT STATUS   :* *PAID / VERIFIED*`,
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `ℹ️ _This is a computer-generated digital receipt._`,
+    `🙏 _Thank you for your timely payment!_`,
+    data.hostelPhone ? `📞 _For queries, contact: ${data.hostelPhone}_` : '',
   ];
 
-  return lines.filter(Boolean).join('\n');
+  return lines.filter((line) => line !== undefined && line !== null).join('\n');
 }
 
 /**
@@ -87,7 +136,7 @@ export function sendReceiptViaWhatsApp(data: WhatsAppReceiptData): boolean {
   if (!targetPhone || targetPhone.length < 10) {
     const entered = window.prompt(
       `Enter WhatsApp mobile number for ${data.studentName || 'student'}:`,
-      data.phone || ''
+      data.phone || '',
     );
     if (!entered) return false;
     targetPhone = normalizePhoneNumber(entered);
