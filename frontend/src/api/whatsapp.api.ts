@@ -55,3 +55,21 @@ export const sendWhatsAppPdf = async (
 
   return await res.json();
 };
+
+export const sendStudentWhatsAppIdCard = async (
+  phone: string,
+  student: any,
+): Promise<{ success: boolean }> => {
+  const res = await fetch(`${BASE_URL}/whatsapp/send-student-id-card`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ phone, student }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.message || 'Failed to send WhatsApp ID card');
+  }
+
+  return await res.json();
+};

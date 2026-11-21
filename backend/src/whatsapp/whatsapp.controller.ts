@@ -57,4 +57,22 @@ export class WhatsappController {
     const sent = await this.whatsappService.sendPdfDocument(body.phone, buffer, fileName, caption);
     return { success: sent };
   }
+
+  @Post('send-student-id-card')
+  async sendStudentIdCard(
+    @Body()
+    body: {
+      phone: string;
+      student: any;
+    },
+  ) {
+    if (!body.phone) {
+      throw new BadRequestException('Phone number is required.');
+    }
+    if (!body.student) {
+      throw new BadRequestException('Student data is required.');
+    }
+    const sent = await this.whatsappService.sendStudentIdCard(body.phone, body.student);
+    return { success: sent };
+  }
 }

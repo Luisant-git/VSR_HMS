@@ -4,7 +4,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { Printer, Download, ArrowLeft, Building2 } from 'lucide-react';
 import { getSystemSettings } from '../api/settings.api';
-import { sendWhatsAppPdf } from '../api/whatsapp.api';
+import { sendWhatsAppPdf, sendStudentWhatsAppIdCard } from '../api/whatsapp.api';
 import { normalizePhoneNumber } from '../utils/whatsappReceipt';
 import { toast } from 'react-toastify';
 
@@ -30,21 +30,33 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
 
   const generateIdCardPdf = async (): Promise<{ pdfBase64: string; fileName: string } | null> => {
     if (!cardRef.current) return null;
-    const canvas = await html2canvas(cardRef.current, { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false });
-    const imgData = canvas.toDataURL('image/png');
-    // JS PDF CR80 format in portrait (54x85.6mm)
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [54, 85.6]
-    });
-    pdf.addImage(imgData, 'PNG', 0, 0, 54, 85.6);
-    const regLabel = String(student.manualRegsiName || student.regNo || 'student').replace(/[<>:"/\\|?*]+/g, '_');
-    const fileName = `StudentID_${regLabel}.pdf`;
-    const rawData = pdf.output('datauristring');
-    const commaIdx = rawData.indexOf(',');
-    const pdfBase64 = commaIdx !== -1 ? rawData.slice(commaIdx + 1) : rawData;
-    return { pdfBase64, fileName };
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        imageTimeout: 3000,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      // JS PDF CR80 format in portrait (54x85.6mm)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [54, 85.6],
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, 54, 85.6);
+      const regLabel = String(student.manualRegsiName || student.regNo || 'student').replace(/[<>:"/\\|?*]+/g, '_');
+      const fileName = `StudentID_${regLabel}.pdf`;
+      const rawData = pdf.output('datauristring');
+      const commaIdx = rawData.indexOf(',');
+      const pdfBase64 = commaIdx !== -1 ? rawData.slice(commaIdx + 1) : rawData;
+      return { pdfBase64, fileName };
+    } catch (e) {
+      console.warn('Canvas capture fallback:', e);
+      return null;
+    }
   };
 
   const handleWhatsAppSend = async (isAuto = false) => {
@@ -72,15 +84,36 @@ export const StudentAcknowledgementCard: React.FC<StudentAcknowledgementCardProp
       : toast.loading(`Sending ID card to ${targetPhone}...`);
 
     try {
-      const result = await generateIdCardPdf();
-      if (!result) throw new Error('Could not prepare ID card document.');
+      let sentSuccess = false;
 
-      const caption = `Official Student ID Card - ${student.name || 'Student'}`;
+      // 1. Try sending the official server-rendered vector ID card PDF directly
+      try {
+        const serverRes = await sendStudentWhatsAppIdCard(targetPhone, {
+          ...student,
+          collegeName: collegeName || student.collegeId,
+        });
+        if (serverRes && serverRes.success) {
+          sentSuccess = true;
+        }
+      } catch (serverErr) {
+        // Fallback to client-side rendered PDF if server endpoint had an issue
+      }
 
-      const res = await sendWhatsAppPdf(targetPhone, result.pdfBase64, result.fileName, caption);
-      if (res && res.success) {
+      // 2. Fallback to client-rendered PDF if needed
+      if (!sentSuccess) {
+        const result = await generateIdCardPdf();
+        if (result) {
+          const caption = `Official Student ID Card - ${student.name || 'Student'}`;
+          const res = await sendWhatsAppPdf(targetPhone, result.pdfBase64, result.fileName, caption);
+          if (res && res.success) {
+            sentSuccess = true;
+          }
+        }
+      }
+
+      if (sentSuccess) {
         toast.update(toastId, {
-          render: `✅ ${isEdit ? 'Updated ' : ''}Student ID Card (${result.fileName}) sent to WhatsApp: ${targetPhone}`,
+          render: `✅ ${isEdit ? 'Updated ' : ''}Student ID Card sent to WhatsApp: ${targetPhone}`,
           type: 'success',
           isLoading: false,
           autoClose: 4000,

@@ -1,9 +1,13 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class StudentsService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private whatsappService: WhatsappService,
+  ) { }
 
   async getNextRegsiName(dateOfJoining?: Date | string) {
     const ref = dateOfJoining ? new Date(dateOfJoining) : new Date();
@@ -458,6 +462,29 @@ export class StudentsService {
       }
     }
 
+    // Automatically send official Student ID Card PDF to the student via WhatsApp
+    const targetPhone = student.mobileNo || cleanData.mobileNo || student.fatherMobileNo;
+    if (targetPhone && !isImport) {
+      this.whatsappService.sendStudentIdCard(targetPhone, {
+        id: student.id,
+        uuid: student.id,
+        name: student.name,
+        regNo: student.regNo,
+        manualRegsiName: student.manualRegsiName,
+        roomNo: student.roomNo,
+        bedNo: student.bedNo,
+        bloodGroup: student.bloodGroup,
+        collegeName: rawCollegeName || cleanData.collegeName,
+        mobileNo: student.mobileNo,
+        dateOfJoining: student.dateOfJoining,
+        foodType: student.foodType,
+        biometricId: student.biometricId,
+        photoUrl: student.photoUrl,
+      }).catch(err => {
+        console.error('Failed to auto-send student ID card on registration:', err);
+      });
+    }
+
     return {
       ...student,
       _isUpdated: false
@@ -703,6 +730,37 @@ export class StudentsService {
           }
         });
       }
+    }
+
+    // Automatically send updated official Student ID Card PDF to the student via WhatsApp
+    const targetPhone = updatedStudent.mobileNo || cleanData.mobileNo || updatedStudent.fatherMobileNo;
+    if (targetPhone) {
+      let collegeName: string | undefined;
+      if (updatedStudent.collegeId) {
+        try {
+          const col = await this.prisma.college.findUnique({ where: { id: updatedStudent.collegeId } });
+          collegeName = col?.name;
+        } catch {}
+      }
+
+      this.whatsappService.sendStudentIdCard(targetPhone, {
+        id: updatedStudent.id,
+        uuid: updatedStudent.id,
+        name: updatedStudent.name,
+        regNo: updatedStudent.regNo,
+        manualRegsiName: updatedStudent.manualRegsiName,
+        roomNo: updatedStudent.roomNo,
+        bedNo: updatedStudent.bedNo,
+        bloodGroup: updatedStudent.bloodGroup,
+        collegeName: collegeName,
+        mobileNo: updatedStudent.mobileNo,
+        dateOfJoining: updatedStudent.dateOfJoining,
+        foodType: updatedStudent.foodType,
+        biometricId: updatedStudent.biometricId,
+        photoUrl: updatedStudent.photoUrl,
+      }).catch(err => {
+        console.error('Failed to auto-send student ID card on update:', err);
+      });
     }
 
     return updatedStudent;

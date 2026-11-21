@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { PrismaService } from '../prisma.service';
-import { generateReceiptPdfBuffer } from './pdf-generator';
+import { generateReceiptPdfBuffer, generateIdCardPdfBuffer, StudentIdCardData } from './pdf-generator';
 
 export interface FeeReceiptNotification {
   studentName?: string;
@@ -245,6 +245,51 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       return await this.sendPdfDocument(phone, pdfBuffer, fileName, caption);
     } catch (error) {
       this.logger.error(`Error generating/sending PDF receipt to ${phone}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Generates the official vector student ID card PDF and sends it as a document attachment.
+   */
+  async sendStudentIdCard(phone: string, student: StudentIdCardData): Promise<boolean> {
+    const jid = this.formatJid(phone);
+    if (!jid) {
+      this.logger.warn(`Cannot send WhatsApp ID card: phone number "${phone}" is invalid.`);
+      return false;
+    }
+
+    if (!this.sock || !this.isReady) {
+      this.logger.warn(
+        `WhatsApp service is not linked yet. Scan the terminal QR code to activate automated ID card dispatch.`,
+      );
+      return false;
+    }
+
+    let hostelTitle = student.hostelName;
+    if (!hostelTitle) {
+      try {
+        const settings = await this.prisma.hostelSettings.findFirst();
+        if (settings?.hostelName) hostelTitle = settings.hostelName;
+      } catch {}
+    }
+
+    const payload: StudentIdCardData = {
+      ...student,
+      hostelName: hostelTitle || "SEA SINDU QUEEN'S PARADISE",
+    };
+
+    try {
+      // 1. Generate official CR80 PDF ID card buffer
+      const pdfBuffer = await generateIdCardPdfBuffer(payload);
+      const regLabel = (payload.manualRegsiName || payload.regNo || payload.name || 'Student').replace(/[<>:"/\\|?*]+/g, '_');
+      const fileName = `StudentID_${regLabel}.pdf`;
+      const caption = `Official Student ID Card - ${payload.name || 'Student'}`;
+
+      // 2. Send actual PDF document file directly to the student on WhatsApp
+      return await this.sendPdfDocument(phone, pdfBuffer, fileName, caption);
+    } catch (error) {
+      this.logger.error(`Error generating/sending Student ID card to ${phone}:`, error);
       return false;
     }
   }
