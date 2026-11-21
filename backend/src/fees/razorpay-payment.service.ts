@@ -7,10 +7,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+// @ts-ignore
 import Razorpay = require('razorpay');
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { FeesService } from './fees.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { CreateRazorpayOrderDto } from './dto/create-razorpay-order.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 
@@ -39,6 +41,7 @@ export class RazorpayPaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly feesService: FeesService,
+    private readonly whatsapp: WhatsappService,
   ) {}
 
   async createOrder(dto: CreateRazorpayOrderDto) {
@@ -301,7 +304,7 @@ export class RazorpayPaymentService {
       (left, right) => right.created_at - left.created_at,
     )[0];
     const capturedPayment = gatewayPayments.items.find(
-      (payment) =>
+      (payment: any) =>
         payment.order_id === orderId &&
         payment.status === 'captured' &&
         payment.captured,
@@ -649,6 +652,44 @@ export class RazorpayPaymentService {
               paymentMethod,
             },
           });
+
+          // Zero-click automated WhatsApp receipt dispatch for online payment
+          this.prisma.student
+            .findUnique({
+              where: { id: order.studentId },
+              select: {
+                name: true,
+                regNo: true,
+                manualRegsiName: true,
+                roomNo: true,
+                mobileNo: true,
+                fatherMobileNo: true,
+              },
+            })
+            .then((student) => {
+              if (student) {
+                const phone = student.mobileNo || student.fatherMobileNo;
+                if (phone) {
+                  const totalPaid = (order.amountPaise || 0) / 100;
+                  this.whatsapp
+                    .sendFeeReceipt(phone, {
+                      studentName: student.name,
+                      regNo: student.manualRegsiName || student.regNo,
+                      roomNo: student.roomNo || undefined,
+                      refNo: paymentId,
+                      amount: totalPaid,
+                      paymentMode: 'RAZORPAY ONLINE',
+                      receiptDate: new Date().toLocaleDateString('en-GB'),
+                      items: paidItems.map((p: any) => ({
+                        type: p.transactionType || 'Fee',
+                        amount: Number(p.amount || 0),
+                      })),
+                    })
+                    .catch((err) => console.error('Automated WhatsApp dispatch error:', err));
+                }
+              }
+            })
+            .catch(() => {});
 
           return { duplicate: false, orderId, paymentId, payments: paidItems };
         },

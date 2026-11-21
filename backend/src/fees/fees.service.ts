@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
 import { PayOutstandingDto } from './dto/pay-outstanding.dto';
@@ -80,7 +81,10 @@ export class FeesService {
    */
   private readonly legacyFineSplitInFlight = new Set<string>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private whatsapp: WhatsappService,
+  ) {}
 
   async create(data: CreateFeeDto) {
     return this.prisma.$transaction(async tx => {
@@ -107,6 +111,8 @@ export class FeesService {
             regNo: true,
             manualRegsiName: true,
             roomNo: true,
+            mobileNo: true,
+            fatherMobileNo: true,
             college: {
               select: {
                 name: true,
@@ -450,7 +456,50 @@ export class FeesService {
     if (result.count !== 1) {
       throw new NotFoundException('Active fee transaction not found.');
     }
-    return this.prisma.feeTransaction.findUnique({ where: { id } });
+
+    const updated = await this.prisma.feeTransaction.findUnique({
+      where: { id },
+      include: {
+        student: {
+          select: {
+            name: true,
+            regNo: true,
+            manualRegsiName: true,
+            roomNo: true,
+            mobileNo: true,
+            fatherMobileNo: true,
+          },
+        },
+      },
+    });
+
+    if (data.status === 'COMPLETED' && updated?.student) {
+      const student = updated.student;
+      const phone = student.mobileNo || student.fatherMobileNo;
+      if (phone) {
+        this.whatsapp
+          .sendFeeReceipt(phone, {
+            studentName: student.name,
+            regNo: student.manualRegsiName || student.regNo,
+            roomNo: student.roomNo || undefined,
+            invoiceNo: updated.invoiceNumber || undefined,
+            amount: Number(updated.amount || 0),
+            paymentMode: updated.paymentMode || undefined,
+            receiptDate: updated.paidDate
+              ? new Date(updated.paidDate).toLocaleDateString('en-GB')
+              : undefined,
+            items: [
+              {
+                type: updated.transactionType || 'Fee',
+                amount: Number(updated.amount || 0),
+              },
+            ],
+          })
+          .catch((err) => console.error('Automated WhatsApp send error:', err));
+      }
+    }
+
+    return updated;
   }
 
   private validatedPaymentDate(value?: string) {
@@ -1013,6 +1062,40 @@ export class FeesService {
         paymentMethod: gateway?.paymentMethod,
       },
     });
+
+    // Automated WhatsApp receipt dispatch with zero clicks
+    this.prisma.student
+      .findUnique({
+        where: { id: studentId },
+        select: {
+          name: true,
+          regNo: true,
+          manualRegsiName: true,
+          roomNo: true,
+          mobileNo: true,
+          fatherMobileNo: true,
+        },
+      })
+      .then((student) => {
+        if (student) {
+          const phone = student.mobileNo || student.fatherMobileNo;
+          if (phone) {
+            this.whatsapp
+              .sendFeeReceipt(phone, {
+                studentName: student.name,
+                regNo: student.manualRegsiName || student.regNo,
+                roomNo: student.roomNo || undefined,
+                invoiceNo: invoiceNumber,
+                amount,
+                paymentMode: dto.paymentMode,
+                receiptDate: paidDate.toLocaleDateString('en-GB'),
+                items: [{ type: 'Outstanding Balance Payment', amount }],
+              })
+              .catch((err) => console.error('Automated WhatsApp dispatch error:', err));
+          }
+        }
+      })
+      .catch(() => {});
 
     return {
       duplicate: false,
