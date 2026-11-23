@@ -28,22 +28,28 @@ export class StudentsController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('roomFilter') roomFilter?: string,
+    @Query('blockFilter') blockFilter?: string,
     @Query('collegeFilter') collegeFilter?: string,
     @Query('collegeCategory') collegeCategory?: string,
     @Query('sortFilter') sortFilter?: string,
     @Query('feeFilter') feeFilter?: string,
     @Query('statusFilter') statusFilter?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
   ) {
     return this.studentsService.findAll({
       page: page ? parseInt(page) : undefined,
       limit: limit ? parseInt(limit) : undefined,
       search,
       roomFilter,
+      blockFilter,
       collegeFilter,
       collegeCategory,
       sortFilter,
       feeFilter,
-      statusFilter
+      statusFilter,
+      fromDate,
+      toDate
     });
   }
 

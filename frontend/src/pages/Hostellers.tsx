@@ -33,6 +33,35 @@ type MenuPosition = {
   width: number;
 };
 
+const BLOCK_ORDER = ['A', 'B', 'C', 'CD', 'D', 'E', 'Dormitory', 'Single Rooms', 'W'];
+const blockRank = (block: string) => {
+  const index = BLOCK_ORDER.findIndex(b => b.toLowerCase() === String(block).toLowerCase());
+  return index === -1 ? BLOCK_ORDER.length : index;
+};
+
+// Blocks are stored on rooms ("A", "Block A", ...). Fall back to the room
+// number (A1, B3, W2 ...) when the room relation is missing.
+const normalizeBlock = (rawBlock: any, roomNo?: any) => {
+  const room = String(roomNo || '').trim();
+  const raw = String(rawBlock || '').trim();
+  const letter = room.match(/^([A-E])\d+/i)?.[1]?.toUpperCase();
+  if (letter || /^block\s*[a-e]$/i.test(raw) || /^[a-e]$/i.test(raw)) {
+    return letter || raw.replace(/^block\s*/i, '').trim().toUpperCase();
+  }
+  if (/dorm/i.test(raw) || /^dorm/i.test(room)) return 'Dormitory';
+  if (/single/i.test(raw) || /^w\d+/i.test(room)) return 'Single Rooms';
+  return raw.replace(/^block\s*/i, '').trim() || 'Other';
+};
+
+const blockLabel = (block: string) =>
+  /^[A-E]$/i.test(block) ? `Block ${block.toUpperCase()}` : block;
+
+const getCollegeName = (student: any) => {
+  const college = student?.college;
+  const name = typeof college === 'string' ? college : college?.name;
+  return name?.trim() || 'N/A';
+};
+
 /**
  * Position the Manage menu in the viewport.
  *
@@ -80,6 +109,9 @@ const Hostellers = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
+  const [blockFilter, setBlockFilter] = useState('All Blocks');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [collegeFilter, setCollegeFilter] = useState('-- All Colleges --');
   const [collegeCategoryFilter, setCollegeCategoryFilter] = useState('ALL');
   const [feeStatusFilter, setFeeStatusFilter] = useState('-- All Fee Status --');
@@ -99,12 +131,15 @@ const Hostellers = () => {
   const [isUploadingImport, setIsUploadingImport] = useState(false);
 
   const [allRooms, setAllRooms] = useState<string[]>([]);
+  const [allRoomRecords, setAllRoomRecords] = useState<any[]>([]);
   const [allColleges, setAllColleges] = useState<string[]>([]);
+  const [allMatchingStudents, setAllMatchingStudents] = useState<any[]>([]);
 
   useEffect(() => {
     RoomAPI.findAll().then(res => {
       const data = Array.isArray(res) ? res : (res.data || []);
       setAllRooms(data.map((r: any) => `Room ${r.id}`));
+      setAllRoomRecords(data);
     }).catch(console.error);
     CollegeAPI.findAll({ limit: 1000 }).then(res => {
       const data = Array.isArray(res) ? res : (res.data || []);
@@ -119,6 +154,9 @@ const Hostellers = () => {
       limit,
       search: searchQuery,
       roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
+      blockFilter: blockFilter !== 'All Blocks' ? blockFilter : undefined,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
       collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
       collegeCategory: collegeCategoryFilter !== 'ALL' ? collegeCategoryFilter : undefined,
       sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
@@ -164,13 +202,17 @@ const Hostellers = () => {
           advance: `₹${h.advance || 0}`,
           pending: `₹${pendingFeesAmount}`,
           feeStatus: currentFeeStatus,
-          date: new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          // Match the date used by the From / To filter (actual joining date).
+          date: new Date(h.dateOfJoining || h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
           updatedDate: new Date(h.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
           avatar: h.name.substring(0, 2).toUpperCase(),
           isWarden: isWardenStudent(h),
           raw: h
         };
       });
+      // Full (unpaginated) result set drives both the warden-safe total and the
+      // block-wise / college-wise member counts below the filter bar.
+      setAllMatchingStudents(allStudents.filter((h: any) => !isWardenStudent(h)));
       setHostellers(mapped);
       setTotalRecords(hostellerTotal);
       setTotalPages(Math.ceil(hostellerTotal / limit) || 1);
@@ -182,7 +224,7 @@ const Hostellers = () => {
 
   useEffect(() => {
     fetchHostellers();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter]);
+  }, [page, limit, searchQuery, roomFilter, blockFilter, fromDate, toDate, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter]);
 
   useEffect(() => {
     setSearchParams(current => {
@@ -334,7 +376,7 @@ const Hostellers = () => {
   // the data or pagination changes so it never points at a stale row.
   useEffect(() => {
     closeDropdown();
-  }, [page, limit, searchQuery, roomFilter, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter, closeDropdown]);
+  }, [page, limit, searchQuery, roomFilter, blockFilter, fromDate, toDate, collegeFilter, collegeCategoryFilter, sortFilter, feeStatusFilter, statusFilter, closeDropdown]);
 
   const rooms = useMemo(() => {
     const uniqueRooms = new Set<string>(allRooms);
@@ -358,6 +400,101 @@ const Hostellers = () => {
     { value: 'SSM', label: 'SSM' },
     { value: 'Seasindhu', label: 'Seasindhu' },
   ];
+
+  const blockOptions = useMemo(() => {
+    const blocks = new Set<string>(allRoomRecords.map(r => normalizeBlock(r.block, r.id)));
+    allMatchingStudents.forEach(h => {
+      blocks.add(normalizeBlock(h.room?.block, h.roomNo || (typeof h.room === 'string' ? h.room : '')));
+    });
+    return ['All Blocks', ...Array.from(blocks).filter(Boolean).sort((a, b) => blockRank(a) - blockRank(b) || a.localeCompare(b, undefined, { numeric: true }))];
+  }, [allRoomRecords, allMatchingStudents]);
+
+  // Counts are derived from the same filtered, unpaginated student list that
+  // feeds the table and the total, so the report always matches what is shown.
+  const blockCollegeCounts = useMemo(() => {
+    const counts = new Map<string, { block: string; college: string; count: number }>();
+    allMatchingStudents.forEach(student => {
+      const block = normalizeBlock(
+        student.room?.block,
+        student.roomNo || (typeof student.room === 'string' ? student.room : ''),
+      );
+      const college = getCollegeName(student);
+      const key = `${block}\u0000${college}`;
+      const entry = counts.get(key) || { block, college, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
+    });
+
+    const rows = Array.from(counts.values()).sort(
+      (a, b) => blockRank(a.block) - blockRank(b.block) || a.college.localeCompare(b.college),
+    );
+    const blocks = Array.from(new Set(rows.map(row => row.block))).sort(
+      (a, b) => blockRank(a) - blockRank(b) || a.localeCompare(b, undefined, { numeric: true }),
+    );
+    return {
+      groups: blocks.map(block => ({
+        block,
+        rows: rows.filter(row => row.block === block),
+        total: rows.filter(row => row.block === block).reduce((sum, row) => sum + row.count, 0),
+      })),
+      total: allMatchingStudents.length,
+    };
+  }, [allMatchingStudents]);
+
+  // College-wise member counts, shown as dashboard-style metric cards.
+  const collegeMemberCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    allMatchingStudents.forEach(student => {
+      const college = getCollegeName(student);
+      counts.set(college, (counts.get(college) || 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([college, count]) => ({ college, count }))
+      .sort((a, b) => b.count - a.count || a.college.localeCompare(b.college));
+  }, [allMatchingStudents]);
+
+  // Download exactly what the count cards show for the current filters.
+  const handleExportCounts = () => {
+    const blockRows: any[] = [];
+    blockCollegeCounts.groups.forEach(group => {
+      group.rows.forEach(row => blockRows.push({
+        Block: blockLabel(row.block),
+        College: row.college,
+        Members: row.count,
+      }));
+      blockRows.push({ Block: blockLabel(group.block), College: 'All colleges', Members: group.total });
+    });
+    blockRows.push({ Block: 'GRAND TOTAL', College: 'All colleges', Members: blockCollegeCounts.total });
+
+    const collegeRows: any[] = collegeMemberCounts.map(({ college, count }) => ({
+      College: college,
+      Members: count,
+    }));
+    collegeRows.push({ College: 'TOTAL', Members: allMatchingStudents.length });
+
+    const filterRows = [
+      { Filter: 'From Date (Joining)', Value: fromDate || 'All' },
+      { Filter: 'To Date (Joining)', Value: toDate || 'All' },
+      { Filter: 'Block', Value: blockFilter },
+      { Filter: 'Room', Value: roomFilter },
+      { Filter: 'College', Value: collegeFilter },
+      { Filter: 'College Category', Value: collegeCategoryFilter },
+      { Filter: 'Fee Status', Value: feeStatusFilter },
+      { Filter: 'Student Status', Value: statusFilter },
+      { Filter: 'Search', Value: searchQuery || '-' },
+      { Filter: 'Total Members', Value: allMatchingStudents.length },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(blockRows), 'Block-wise College Count');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(collegeRows), 'College-wise Members');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(filterRows), 'Filters');
+    const suffix = fromDate || toDate
+      ? `_${(fromDate || 'all').replace(/-/g, '')}_to_${(toDate || 'all').replace(/-/g, '')}`
+      : '';
+    XLSX.writeFile(workbook, `Hosteller_Counts${suffix}.xlsx`);
+    toast.success('Filtered counts exported as Excel');
+  };
 
   const selectStyles = {
     control: (base: any, state: any) => ({
@@ -391,6 +528,9 @@ const Hostellers = () => {
       const params = {
         search: searchQuery,
         roomFilter: roomFilter !== '-- All Rooms --' ? roomFilter : undefined,
+        blockFilter: blockFilter !== 'All Blocks' ? blockFilter : undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
         collegeFilter: collegeFilter !== '-- All Colleges --' ? collegeFilter : undefined,
         collegeCategory: collegeCategoryFilter !== 'ALL' ? collegeCategoryFilter : undefined,
         sortFilter: sortFilter !== 'latest' ? sortFilter : undefined,
@@ -450,6 +590,13 @@ const Hostellers = () => {
           icon={<Users size={24} color="#fff" />} iconBg="linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)"
           rightContent={
             <>
+              <button
+                onClick={handleExportCounts}
+                className="ui-btn ui-btn-secondary"
+                title="Download the filtered counts as Excel">
+                <FileSpreadsheet size={18} />
+                Export Counts
+              </button>
               <button
                 onClick={handleExportExcel}
                 className="ui-btn ui-btn-success">
@@ -541,6 +688,40 @@ const Hostellers = () => {
           />
 
           <Select
+            options={blockOptions.map(b => ({ value: b, label: b === 'All Blocks' ? b : blockLabel(b) }))}
+            value={{ value: blockFilter, label: blockFilter === 'All Blocks' ? blockFilter : blockLabel(blockFilter) }}
+            onChange={(opt) => {
+              setBlockFilter(opt?.value || 'All Blocks');
+              setPage(1);
+            }}
+            styles={selectStyles}
+            placeholder="All Blocks"
+            isSearchable={false}
+          />
+
+          <div className="ui-field-inline">
+            <span className="ui-field-label">From</span>
+            <input
+              type="date"
+              className="ui-input ui-input--inline"
+              value={fromDate}
+              max={toDate || undefined}
+              onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+            />
+          </div>
+
+          <div className="ui-field-inline">
+            <span className="ui-field-label">To</span>
+            <input
+              type="date"
+              className="ui-input ui-input--inline"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+            />
+          </div>
+
+          <Select
             options={collegeOptions}
             value={collegeOptions.find(o => o.value === collegeFilter)}
             onChange={(opt) => {
@@ -611,11 +792,14 @@ const Hostellers = () => {
             isSearchable={false}
           />
 
-          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || collegeFilter !== '-- All Colleges --' || collegeCategoryFilter !== 'ALL' || feeStatusFilter !== '-- All Fee Status --' || statusFilter !== '-- All Status --') && (
+          {(searchQuery !== '' || roomFilter !== '-- All Rooms --' || blockFilter !== 'All Blocks' || fromDate !== '' || toDate !== '' || collegeFilter !== '-- All Colleges --' || collegeCategoryFilter !== 'ALL' || feeStatusFilter !== '-- All Fee Status --' || statusFilter !== '-- All Status --') && (
             <button
               onClick={() => {
                 setSearchQuery('');
                 setRoomFilter('-- All Rooms --');
+                setBlockFilter('All Blocks');
+                setFromDate('');
+                setToDate('');
                 setCollegeFilter('-- All Colleges --');
                 setCollegeCategoryFilter('ALL');
                 setFeeStatusFilter('-- All Fee Status --');

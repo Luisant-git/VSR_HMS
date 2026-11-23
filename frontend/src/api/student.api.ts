@@ -67,17 +67,20 @@ export const StudentAPI = {
     return res.json();
   },
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; collegeCategory?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; blockFilter?: string; collegeFilter?: string; collegeCategory?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string; fromDate?: string; toDate?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
     if (params?.search) query.append('search', params.search);
     if (params?.roomFilter) query.append('roomFilter', params.roomFilter);
+    if (params?.blockFilter) query.append('blockFilter', params.blockFilter);
     if (params?.collegeFilter) query.append('collegeFilter', params.collegeFilter);
     if (params?.collegeCategory) query.append('collegeCategory', params.collegeCategory);
     if (params?.sortFilter) query.append('sortFilter', params.sortFilter);
     if (params?.feeFilter) query.append('feeFilter', params.feeFilter);
     if (params?.statusFilter) query.append('statusFilter', params.statusFilter);
+    if (params?.fromDate) query.append('fromDate', params.fromDate);
+    if (params?.toDate) query.append('toDate', params.toDate);
     
     const queryString = query.toString() ? `?${query.toString()}` : '';
     const res = await fetch(`${API_URL}/students${queryString}`);

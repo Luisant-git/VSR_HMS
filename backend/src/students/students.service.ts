@@ -491,7 +491,7 @@ export class StudentsService {
     };
   }
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; collegeFilter?: string; collegeCategory?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; roomFilter?: string; blockFilter?: string; collegeFilter?: string; collegeCategory?: string; sortFilter?: string; feeFilter?: string; statusFilter?: string; fromDate?: string; toDate?: string }) {
     const hasPagination = params?.page !== undefined || params?.limit !== undefined;
     const page = params?.page || 1;
     const limit = params?.limit || 10;
@@ -517,6 +517,28 @@ export class StudentsService {
       where.roomNo = r;
     }
 
+    // Block is stored on the room ("A", "Block A", ...). Also match the room
+    // number prefix so students whose room relation is missing are not lost.
+    if (
+      params?.blockFilter &&
+      params.blockFilter !== 'ALL' &&
+      params.blockFilter !== 'All Blocks'
+    ) {
+      const block = params.blockFilter.replace(/^block\s*/i, '').trim();
+      if (block) {
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { room: { block: { equals: block, mode: 'insensitive' } } },
+              { room: { block: { equals: `Block ${block}`, mode: 'insensitive' } } },
+              { roomNo: { startsWith: block, mode: 'insensitive' } },
+            ],
+          },
+        ];
+      }
+    }
+
     if (params?.collegeFilter && params.collegeFilter !== '-- All Colleges --') {
       where.college = {
         name: params.collegeFilter
@@ -540,6 +562,33 @@ export class StudentsService {
       where.status = { not: 'Vacated' };
     } else if (params?.statusFilter === 'INACTIVE') {
       where.status = 'Vacated';
+    }
+
+    // Joining-date range. Inputs are HTML date strings (YYYY-MM-DD); the range
+    // is inclusive of the whole selected start and end days.
+    if (params?.fromDate || params?.toDate) {
+      const joiningDateFilter: any = {};
+      if (params.fromDate) {
+        const from = new Date(`${params.fromDate}T00:00:00`);
+        if (!Number.isNaN(from.getTime())) joiningDateFilter.gte = from;
+      }
+      if (params.toDate) {
+        const to = new Date(`${params.toDate}T23:59:59.999`);
+        if (!Number.isNaN(to.getTime())) joiningDateFilter.lte = to;
+      }
+      if (Object.keys(joiningDateFilter).length > 0) {
+        // Fall back to createdAt for legacy records without a joining date,
+        // matching the date shown on the Hostellers page.
+        where.AND = [
+          ...(where.AND || []),
+          {
+            OR: [
+              { dateOfJoining: joiningDateFilter },
+              { AND: [{ dateOfJoining: null }, { createdAt: joiningDateFilter }] },
+            ],
+          },
+        ];
+      }
     }
 
     if (params?.feeFilter && params.feeFilter !== '-- All Fee Status --') {
