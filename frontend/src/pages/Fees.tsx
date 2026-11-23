@@ -504,42 +504,6 @@ const Fees = () => {
     return map;
   }, [fees]);
 
-  // Running balance shown on each receipt must follow the real payment order.
-  // Sorting by payment amount can scramble the sequence when amounts are mixed,
-  // so use createdAt/paidDate instead of amount to mirror actual ledger flow.
-  const outstandingLedger = useMemo(() => {
-    const balances = new Map<string, number>();
-    const paymentsByStudent = new Map<string, any[]>();
-
-    fees.forEach(fee => {
-      if (!isOutstandingPayment(fee)) return;
-      const key = getStudentKey(fee);
-      if (!paymentsByStudent.has(key)) paymentsByStudent.set(key, []);
-      paymentsByStudent.get(key)!.push(fee);
-    });
-
-    paymentsByStudent.forEach((payments, studentKey) => {
-      const original = outstandingTotals.get(studentKey)?.original || 0;
-      let remaining = original;
-
-      payments
-        .slice()
-        .sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() ||
-            new Date(a.paidDate || 0).getTime() - new Date(b.paidDate || 0).getTime() ||
-            String(a.id).localeCompare(String(b.id)),
-        )
-        .forEach(payment => {
-          balances.set(payment.id, remaining);
-          remaining = roundMoney(Math.max(0, remaining - (Number(payment.amount) || 0)));
-        });
-    });
-
-    return { balances };
-  }, [fees, outstandingTotals]);
-
-
   const displayFees = useMemo(() => {
     const pendingByStudent = new Map();
     const notDueByStudent = new Map();
@@ -667,10 +631,13 @@ const Fees = () => {
         // Each confirmed outstanding payment must remain its own receipt/invoice
         // entry. Do not merge them into a single student summary row or the app
         // will keep reusing the first payment's invoice number.
-        const batchKey = isOutstandingPay
-          ? `${studentId}-outstanding-${f.id}`
-          : paymentGroup
-            ? `${studentId}-payment-${paymentGroup}`
+        // Rows from one payment share a [PAY:...] token. Keep them in a single
+        // receipt even when an outstanding-balance payment is included; only
+        // fall back to per-id grouping for legacy rows without a token.
+        const batchKey = paymentGroup
+          ? `${studentId}-payment-${paymentGroup}`
+          : isOutstandingPay
+            ? `${studentId}-outstanding-${f.id}`
             : `${studentId}-${new Date(paidTime).toISOString().slice(0, 16)}`;
         if (!paidByBatch.has(batchKey)) {
           paidByBatch.set(batchKey, {
@@ -764,6 +731,29 @@ const Fees = () => {
         if (!matches) return;
       }
 
+      // A part payment never settles the whole outstanding balance. Keep the
+      // remaining amount in its own Unpaid row so it can be paid later. The
+      // completed receipt row only shows what was actually paid this time.
+
+      // The student may already have a current-month "Unpaid" row (or a
+      // "Not Due" row). Merge the outstanding balance into that row instead of
+      // rendering a second Unpaid row for the same student.
+      const existingRow: any = result.find((row: any) =>
+        row.isGrouped &&
+        getStudentKey(row) === studentKey &&
+        (row.displayStatus === 'Unpaid' || row.displayStatus === 'Not Due'),
+      );
+      if (existingRow) {
+        const extra = roundMoney(totals.remaining);
+        existingRow.totalAmount = roundMoney((existingRow.totalAmount || 0) + extra);
+        existingRow.outstanding = roundMoney((existingRow.outstanding || 0) + extra);
+        existingRow.displayBalance = roundMoney((existingRow.displayBalance || 0) + extra);
+        existingRow.pendingDue = roundMoney((existingRow.pendingDue || 0) + extra);
+        existingRow.feesList = [...(existingRow.feesList || []), ...invoices];
+        existingRow.displayStatus = 'Unpaid';
+        return;
+      }
+
       result.push({
         isGrouped: true,
         id: `outstanding-unpaid-${studentKey}`,
@@ -794,14 +784,30 @@ const Fees = () => {
       const hasOutstandingPayment = group.feesList.some(isOutstandingPayment);
       if (hasOutstandingPayment) {
         const currentOutstandingPayment = group.feesList.find((item: any) => isOutstandingPayment(item)) || group.feesList[0];
+        const remaining = roundMoney(totals?.remaining || 0);
+        const hasCurrentItems = group.feesList.some(
+          (item: any) => !isOutstandingPayment(item) && !isOutstandingDescription(item),
+        );
+        // Money actually collected towards the outstanding balance in this
+        // receipt (not the balance left over). This is what the Outstanding
+        // Balance column shows on a completed row, so the columns add up to
+        // Total Paid. The remaining dues get their own Pay Now row above.
+        group.paidOutstanding = roundMoney(
+          group.feesList
+            .filter(isOutstandingPayment)
+            .reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0),
+        );
 
-        group.displayPaid = Number(currentOutstandingPayment?.amount || 0);
-        group.displayBalance =
-          outstandingLedger.balances.get(currentOutstandingPayment.id) ??
-          (totals?.original || 0);
-        group.displayStatus = (totals?.remaining || 0) > 0.005 ? 'Partial' : 'Paid';
-        group.invoiceFee = currentOutstandingPayment;
-        group.invoiceNumber = formatInvoiceNumber(currentOutstandingPayment);
+        // One receipt: show the whole amount paid in this submission, not just
+        // the outstanding-payment row.
+        group.displayPaid = roundMoney(group.totalAmount);
+        group.displayBalance = remaining;
+        // A combined current + outstanding payment is a completed receipt.
+        // Only standalone outstanding payments can be Partial.
+        group.displayStatus = remaining > 0.005 && !hasCurrentItems ? 'Partial' : 'Paid';
+        group.invoiceFee =
+          group.feesList.find((item: any) => !isOutstandingPayment(item)) || currentOutstandingPayment;
+        group.invoiceNumber = formatInvoiceNumber(group.invoiceFee);
       } else {
         group.displayPaid = group.totalAmount;
         group.displayBalance = 0;
@@ -821,7 +827,7 @@ const Fees = () => {
     });
 
     return result;
-  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, outstandingLedger, billingMonthFilter, collegeCategoryFilter]);
+  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, billingMonthFilter, collegeCategoryFilter]);
 
   // Single ledger for all three cards and the reconciliation breakdown. It is
   // built from transactions (not grouped display rows) so every invoice amount
@@ -840,6 +846,18 @@ const Fees = () => {
     if (!first) return 0;
     return outstandingTotals.get(getStudentKey(first))?.paid || 0;
   }, [feesToCollect, feeToCollect, outstandingTotals]);
+
+  // On a receipt, the Outstanding Balance column shows the outstanding amount
+  // collected in that payment (so Rent/EB/Fine + Outstanding = Total Paid).
+  // On an unpaid row it shows the balance still owed, which is also what the
+  // Pay Now modal picks up. `displayBalance` stays as the remaining dues for
+  // pending-balance messages/reports.
+  const getOutstandingColumnValue = (fee: any) =>
+    roundMoney(
+      fee.status === 'COMPLETED'
+        ? (fee.paidOutstanding || 0)
+        : (fee.displayBalance || 0),
+    );
 
   const paginatedFees = useMemo(() => {
     return displayFees.slice((page - 1) * limit, page * limit);
@@ -903,7 +921,7 @@ const Fees = () => {
       'EB': fee.eb || 0,
       // 'Mess': fee.mess || 0,
       'Fine': fee.fine || 0,
-      'Outstanding Balance': fee.displayBalance || 0,
+      'Outstanding Balance': getOutstandingColumnValue(fee),
       'Total Paid': fee.displayPaid || 0,
       'Payment Method': fee.displayStatus !== 'Unpaid' ? (fee.paymentMode || '-') : '—',
       'Status': fee.displayStatus,
@@ -1516,6 +1534,7 @@ const Fees = () => {
                   const regNo = fee.student?.manualRegsiName || fee.student?.regNo || 'N/A';
                   const studentName = fee.student?.name || 'Unknown';
                   const isWarden = isWardenStudent(fee.student);
+                  const outstandingColumnValue = getOutstandingColumnValue(fee);
                   return (
                     <tr
                       key={fee.id}
@@ -1662,8 +1681,8 @@ const Fees = () => {
                         })()}
                       </td>
 
-                      <td className={`num fees-outstanding${(fee.displayBalance || 0) > 0 ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>
-                        ₹{Number(fee.displayBalance || 0).toLocaleString('en-IN')}
+                      <td className={`num fees-outstanding${outstandingColumnValue > 0 && fee.status !== 'COMPLETED' ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>
+                        ₹{outstandingColumnValue.toLocaleString('en-IN')}
                       </td>
 
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
