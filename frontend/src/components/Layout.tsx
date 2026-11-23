@@ -61,7 +61,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Gate Logs', to: '/gate-logs', perm: ['gate_logs'] },
       { label: 'Outpasses', to: '/outpass', perm: ['outpass'] },
       { label: 'Late Warnings', to: '/late-warnings', perm: ['late_warnings'] },
-      { label: 'Clearance', to: '/clearance', perm: ['clearance'] },
+      { label: 'Vacated', to: '/vacated', perm: ['clearance'] },
       { label: 'Fees', to: '/fees', perm: ['fees'] },
       { label: 'Mess Attendance Reports', to: '/mess-attendance-reports', perm: ['mess_attendance_reports'] },
     ],

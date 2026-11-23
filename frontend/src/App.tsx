@@ -13,8 +13,8 @@ import RoomsDirectory from './pages/RoomsDirectory';
 import RoomDetails from './pages/RoomDetails';
 import EbBills from './pages/EbBills';
 import Login from './pages/Login';
-import Clearance from './pages/Clearance';
-import ClearanceRecords from './pages/ClearanceRecords';
+import Vacated from './pages/Vacated';
+import VacatedRecords from './pages/VacatedRecords';
 import StudentProfile from './pages/StudentProfile';
 import NotFound from './pages/NotFound';
 import Outpass from './pages/Outpass';
@@ -98,14 +98,17 @@ function App() {
           </Route>
           <Route path="hostellers">
             <Route index element={<Hostellers />} />
-            <Route path="clearance/:id" element={<Clearance />} />
+            <Route path="vacated/:id" element={<Vacated />} />
+            {/* Old links / bookmarks */}
+            <Route path="clearance/:id" element={<Navigate to="/vacated" replace />} />
             <Route path="profile/:id" element={<StudentProfile />} />
           </Route>
           <Route path="gate-logs" element={<GateLogs />} />
           <Route path="late-warnings" element={<LateWarnings />} />
           <Route path="fees" element={<Fees />} />
           <Route path="outpass" element={<Outpass />} />
-          <Route path="clearance" element={<ClearanceRecords />} />
+          <Route path="vacated" element={<VacatedRecords />} />
+          <Route path="clearance" element={<Navigate to="/vacated" replace />} />
           <Route path="colleges" element={<CollegeMaster />} />
           <Route path="register" element={<Register />} />
           <Route path="rooms">

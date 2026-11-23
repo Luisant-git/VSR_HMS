@@ -544,7 +544,7 @@ const StudentProfile = () => {
                 <FileText size={16} /> Issue Outpass
               </button>
               <button
-                onClick={() => navigate(`/hostellers/clearance/${student.uuid}`)}
+                onClick={() => navigate(`/hostellers/vacated/${student.uuid}`)}
                 className="ui-btn ui-btn-outline-danger"
               >
                 <LogOut size={16} /> Checkout Student
@@ -787,33 +787,33 @@ const StudentProfile = () => {
               </div>
 
               {student.status === 'Vacated' && student.clearance && (
-                <div className="sp-clearance">
-                  <h3 className="sp-clearance-title">
-                    <LogOut size={20} color="#dc2626" /> Exit & Clearance Details
+                <div className="sp-vacated">
+                  <h3 className="sp-vacated-title">
+                    <LogOut size={20} color="#dc2626" /> Exit & Vacate Details
                   </h3>
 
-                  <div className="sp-clearance-grid">
+                  <div className="sp-vacated-grid">
                     <div>
-                      <div className="sp-clearance-label">Clearance Date</div>
-                      <div className="sp-clearance-value">{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
+                      <div className="sp-vacated-label">Vacated Date</div>
+                      <div className="sp-vacated-value">{new Date(student.clearance.clearanceDate).toLocaleDateString('en-GB')}</div>
                     </div>
                     <div>
-                      <div className="sp-clearance-label">Exit Reason</div>
-                      <div className="sp-clearance-value">{student.clearance.reason}</div>
+                      <div className="sp-vacated-label">Exit Reason</div>
+                      <div className="sp-vacated-value">{student.clearance.reason}</div>
                     </div>
                     <div>
-                      <div className="sp-clearance-label">Deductions</div>
-                      <div className="sp-clearance-value is-danger">₹{student.clearance.deductions.toFixed(2)}</div>
+                      <div className="sp-vacated-label">Deductions</div>
+                      <div className="sp-vacated-value is-danger">₹{student.clearance.deductions.toFixed(2)}</div>
                     </div>
                     <div>
-                      <div className="sp-clearance-label">Net Refund Settled</div>
-                      <div className="sp-clearance-value is-success">₹{student.clearance.netRefund.toFixed(2)}</div>
+                      <div className="sp-vacated-label">Net Refund Settled</div>
+                      <div className="sp-vacated-value is-success">₹{student.clearance.netRefund.toFixed(2)}</div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="sp-clearance-label">Clearance Remarks</div>
-                    <div className="sp-clearance-remarks">
+                    <div className="sp-vacated-label">Vacate Remarks</div>
+                    <div className="sp-vacated-remarks">
                       {student.clearance.remarks || 'No remarks provided.'}
                     </div>
                   </div>

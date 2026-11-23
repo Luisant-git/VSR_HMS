@@ -19,7 +19,7 @@ export class DeveloperService {
           await this.prisma.room.updateMany({
             data: { occupiedCount: 0 }
           });
-          return { message: 'All Student records and their related data (fees, gate logs, outpasses, clearance, mess attendance) have been truncated, and all rooms are now free.' };
+          return { message: 'All Student records and their related data (fees, gate logs, outpasses, vacated records, mess attendance) have been truncated, and all rooms are now free.' };
           
         case 'COLLEGES':
           // Must ensure no students are attached, or just delete fineMasters and colleges
@@ -46,7 +46,7 @@ export class DeveloperService {
 
         case 'CLEARANCE':
           await this.prisma.clearanceRecord.deleteMany({});
-          return { message: 'All Clearance Records have been truncated.' };
+          return { message: 'All Vacated Records have been truncated.' };
 
         case 'GATELOGS_MESS_ATTENDANCE':
           await this.prisma.gateLog.deleteMany({});

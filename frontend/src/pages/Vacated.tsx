@@ -5,11 +5,11 @@ import { PageHeader } from '../components/PageHeader';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
-import { ClearanceAPI } from '../api/clearance.api';
+import { VacatedAPI } from '../api/clearance.api';
 import { calculatePendingDues } from '../utils/outstanding';
 import { toast } from 'react-toastify';
 
-const Clearance = () => {
+const Vacated = () => {
   const navigate = useNavigate();
   const { id: studentId } = useParams();
 
@@ -49,20 +49,20 @@ const Clearance = () => {
   const advanceHeld = student.advance || 0;
   const netBalance = Math.max(0, advanceHeld - pendingDues - parseFloat(deductions || '0'));
 
-  const processClearance = async () => {
+  const processVacate = async () => {
     setIsProcessing(true);
     setShowConfirmModal(false);
     try {
-      await ClearanceAPI.create({
+      await VacatedAPI.create({
         studentId: student.id,
         reason,
         deductions: parseFloat(deductions || '0'),
         remarks
       });
-      toast.success('Clearance processed successfully! Student has been vacated.');
+      toast.success('Student vacated successfully.');
       navigate('/hostellers');
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Failed to process clearance');
+      toast.error(e.response?.data?.message || 'Failed to vacate student');
       setIsProcessing(false);
     }
   };
@@ -71,7 +71,7 @@ const Clearance = () => {
     <>
       <div className="ui-page">
       <PageHeader
-        title="Student Discontinuation & Room Clearance"
+        title="Vacate Student"
         subtitle="Settle accounts, process security deposit refund, and automatically free room occupancy"
         icon={<UserMinus size={24} color="#fff" />} iconBg="linear-gradient(135deg, #84cc16 0%, #65a30d 100%)"
       />
@@ -84,7 +84,7 @@ const Clearance = () => {
           <div className="ui-card">
             <div className="ui-card-head">
               <h3 className="ui-card-title clear-section-title">
-                <UserMinus size={18} color="var(--accent)" /> Clearance Wizard: {student.name}
+                <UserMinus size={18} color="var(--accent)" /> Vacate Student: {student.name}
               </h3>
             </div>
             <div className="ui-card-body">
@@ -119,7 +119,7 @@ const Clearance = () => {
             <div className="ui-card-body">
               <div className="clear-form">
                 <div>
-                  <label className="clear-form-label">Discontinuation / Exit Reason *</label>
+                  <label className="clear-form-label">Vacate / Exit Reason *</label>
                   <select value={reason} onChange={e => setReason(e.target.value)} className="ui-select">
                     <option>Completed Course / Graduated</option>
                     <option>Transferred to another college</option>
@@ -130,7 +130,7 @@ const Clearance = () => {
                 </div>
 
                 <div>
-                  <label className="clear-form-label">Exit Clearance Remarks</label>
+                  <label className="clear-form-label">Exit / Vacate Remarks</label>
                   <textarea
                     value={remarks}
                     onChange={e => setRemarks(e.target.value)}
@@ -196,7 +196,7 @@ const Clearance = () => {
           <div className="ui-alert ui-alert-warning">
             <AlertCircle size={20} />
             <div>
-              <strong>Important:</strong> Clicking confirm will immediately mark the student as Discontinued, settle their dues, and free up room occupancy in <strong>Room {student.roomNo || 'N/A'}</strong> so it becomes available for new admissions.
+              <strong>Important:</strong> Clicking confirm will immediately mark the student as Vacated, settle their dues, and free up room occupancy in <strong>Room {student.roomNo || 'N/A'}</strong> so it becomes available for new admissions.
             </div>
           </div>
 
@@ -204,7 +204,7 @@ const Clearance = () => {
           <div className="clear-actions">
             <button onClick={() => navigate(-1)} className="ui-btn ui-btn-secondary">Cancel</button>
             <button disabled={isProcessing} onClick={() => setShowConfirmModal(true)} className="ui-btn ui-btn-danger">
-              <CheckCircle2 size={18} /> {isProcessing ? 'Processing...' : 'Confirm Discontinuation'}
+              <CheckCircle2 size={18} /> {isProcessing ? 'Processing...' : 'Confirm Vacate'}
             </button>
           </div>
         </div>
@@ -220,13 +220,13 @@ const Clearance = () => {
                 <div className="clear-confirm-icon">
                   <AlertCircle size={24} />
                 </div>
-                <h3 className="ui-modal-title">Confirm Discontinuation</h3>
+                <h3 className="ui-modal-title">Confirm Vacate</h3>
               </div>
             </div>
             
             <div className="ui-modal-body">
               <p className="clear-confirm-text">
-                Are you sure you want to permanently discontinue <strong>{student.name}</strong>? 
+                Are you sure you want to vacate <strong>{student.name}</strong>? 
                 This action cannot be undone and will immediately unassign their room.
               </p>
             </div>
@@ -235,7 +235,7 @@ const Clearance = () => {
               <button onClick={() => setShowConfirmModal(false)} className="ui-btn ui-btn-secondary">
                 Cancel
               </button>
-              <button onClick={processClearance} className="ui-btn ui-btn-danger">
+              <button onClick={processVacate} className="ui-btn ui-btn-danger">
                 <CheckCircle2 size={16} /> Yes, Confirm
               </button>
             </div>
@@ -246,4 +246,4 @@ const Clearance = () => {
   );
 };
 
-export default Clearance;
+export default Vacated;

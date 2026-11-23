@@ -991,7 +991,7 @@ const Hostellers = () => {
                               onClick={() => {
                                 setActiveDropdown(null);
                                 setMenuPosition(null);
-                                navigate(`/hostellers/clearance/${h.id}`);
+                                navigate(`/hostellers/vacated/${h.id}`);
                               }}
                               className="ui-menu-item danger"
                             >

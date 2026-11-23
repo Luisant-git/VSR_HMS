@@ -2,13 +2,13 @@ import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow, LoadingBlock } from '../components/LoadingSpinner';
-import { ClearanceAPI } from '../api/clearance.api';
+import { VacatedAPI } from '../api/clearance.api';
 import { StudentAPI } from '../api/student.api';
 import { useNavigate } from 'react-router-dom';
 import { X, FileText, FileSpreadsheet, Search } from 'lucide-react';
 import Select from 'react-select';
 
-const ClearanceRecords = () => {
+const VacatedRecords = () => {
   const navigate = useNavigate();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,10 +65,10 @@ const ClearanceRecords = () => {
   const fetchRecords = async () => {
     try {
       setLoading(true);
-      const data = await ClearanceAPI.findAll();
+      const data = await VacatedAPI.findAll();
       setRecords(data || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch clearance records');
+      setError(err.message || 'Failed to fetch vacated records');
     } finally {
       setLoading(false);
     }
@@ -118,14 +118,14 @@ const ClearanceRecords = () => {
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Clearance Records');
-    XLSX.writeFile(workbook, `Clearance_Records_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Vacated Records');
+    XLSX.writeFile(workbook, `Vacated_Records_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
     <div className="ui-page">
       <PageHeader 
-        title="Clearance Records"
+        title="Vacated Records"
         subtitle="View history of vacated students and settled dues"
         icon={<FileText size={24} color="#fff" />} iconBg="linear-gradient(135deg, #ec4899 0%, #db2777 100%)"
         rightContent={
@@ -137,7 +137,7 @@ const ClearanceRecords = () => {
               onClick={() => { setIsModalOpen(true); }}
               className="ui-btn ui-btn-primary"
             >
-              Process New Clearance
+              Vacate Student
             </button>
           </div>
         }
@@ -145,7 +145,7 @@ const ClearanceRecords = () => {
 
       <div className="ui-card ui-card--flush">
         <div className="ui-toolbar">
-          <div className="ui-input-icon clearance-records-search">
+          <div className="ui-input-icon vacated-records-search">
             <Search size={16} />
             <input
               type="text"
@@ -153,7 +153,7 @@ const ClearanceRecords = () => {
               value={searchQuery}
               onChange={event => { setSearchQuery(event.target.value); setPage(1); }}
               placeholder="Search student, registration, reason..."
-              aria-label="Search clearance records"
+              aria-label="Search vacated records"
             />
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px' }}>
@@ -197,7 +197,7 @@ const ClearanceRecords = () => {
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="ui-empty">{records.length === 0 ? 'No clearance records found.' : 'No records match the selected filters.'}</td>
+                  <td colSpan={8} className="ui-empty">{records.length === 0 ? 'No vacated records found.' : 'No records match the selected filters.'}</td>
                 </tr>
               ) : (
                 paginatedRecords.map((record, index) => (
@@ -252,13 +252,13 @@ const ClearanceRecords = () => {
           <div className="ui-modal ui-modal--md">
             <div className="ui-modal-head">
               <h2 className="ui-modal-title">
-                Select Student for Clearance
+                Select Student to Vacate
               </h2>
               <button className="ui-modal-close" onClick={() => setIsModalOpen(false)}><X size={20}/></button>
             </div>
             
             <div className="ui-modal-body">
-              <div className="cr-modal-hint">Select a student from the dropdown below to proceed with their clearance process.</div>
+              <div className="cr-modal-hint">Select a student from the dropdown below to proceed with vacating them.</div>
               {isSearching ? (
                 <LoadingBlock text="Loading students..." />
               ) : (
@@ -266,7 +266,7 @@ const ClearanceRecords = () => {
                   options={studentOptions}
                   placeholder="Search and select student..."
                   onChange={(val: any) => {
-                    if (val) navigate(`/hostellers/clearance/${val.value}`);
+                    if (val) navigate(`/hostellers/vacated/${val.value}`);
                   }}
                   styles={selectStyles}
                   isClearable
@@ -281,4 +281,4 @@ const ClearanceRecords = () => {
   );
 };
 
-export default ClearanceRecords;
+export default VacatedRecords;

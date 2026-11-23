@@ -73,7 +73,7 @@ export default function DeveloperSettings() {
           
           <TruncateCard 
             title="Truncate All Students" 
-            desc="Wipe all registered students, fees, logs, outpasses, and clearance records."
+            desc="Wipe all registered students, fees, logs, outpasses, and vacated records."
             btnText="Wipe Students"
             onClick={() => requestTruncate('STUDENTS', 'All Students & Related Data')}
           />
@@ -108,10 +108,10 @@ export default function DeveloperSettings() {
             onClick={() => requestTruncate('ROOMS', 'All Rooms')}
           />
           <TruncateCard 
-            title="Truncate Clearance Records" 
-            desc="Wipe all student clearance / vacate records."
-            btnText="Wipe Clearance"
-            onClick={() => requestTruncate('CLEARANCE', 'All Clearance Records')}
+            title="Truncate Vacated Records" 
+            desc="Wipe all student vacated records."
+            btnText="Wipe Vacated"
+            onClick={() => requestTruncate('CLEARANCE', 'All Vacated Records')}
           />
           <TruncateCard 
             title="Truncate Staff" 

@@ -301,7 +301,7 @@ const MenuPermission = () => {
                       { id: 'gate_logs', label: 'Gate Logs' },
                       { id: 'outpass', label: 'Outpasses' },
                       { id: 'late_warnings', label: 'Late Warnings' },
-                      { id: 'clearance', label: 'Clearance' },
+                      { id: 'clearance', label: 'Vacated' },
                       { id: 'fees', label: 'Fees & Payments' },
                       { id: 'mess_attendance_reports', label: 'Mess Attendance Reports' },
                     ].map(module => (

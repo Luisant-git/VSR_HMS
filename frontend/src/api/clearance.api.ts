@@ -11,7 +11,7 @@ export const ClearanceAPI = {
       },
       body: JSON.stringify(data)
     });
-    if (!response.ok) throw new Error('Failed to create clearance');
+    if (!response.ok) throw new Error('Failed to vacate student');
     return response.json();
   },
   findAll: async () => {
@@ -21,7 +21,7 @@ export const ClearanceAPI = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
-    if (!response.ok) throw new Error('Failed to fetch clearances');
+    if (!response.ok) throw new Error('Failed to fetch vacated records');
     return response.json();
   },
   findOne: async (id: string) => {
@@ -31,7 +31,10 @@ export const ClearanceAPI = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     });
-    if (!response.ok) throw new Error('Failed to fetch clearance');
+    if (!response.ok) throw new Error('Failed to fetch vacated record');
     return response.json();
   }
 };
+
+// User-facing name is "Vacated"; the endpoint remains /clearance for compatibility.
+export const VacatedAPI = ClearanceAPI;

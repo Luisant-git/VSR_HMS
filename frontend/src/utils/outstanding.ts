@@ -8,7 +8,7 @@
  * Remaining balance = original outstanding invoices - confirmed payments.
  *
  * Keep all balance maths in this file so the Fees page, Student Profile,
- * Hostellers, Dashboard, Clearance and the Student Portal always agree.
+ * Hostellers, Dashboard, Vacated Records and the Student Portal always agree.
  */
 
 import { getBillingMonths, isPostpaidPayableFee } from './billingCycle';
