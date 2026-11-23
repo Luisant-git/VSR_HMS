@@ -128,6 +128,8 @@ const Hostellers = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const hasLoaded = useRef(false);
   const [isUploadingImport, setIsUploadingImport] = useState(false);
 
   const [allRooms, setAllRooms] = useState<string[]>([]);
@@ -149,6 +151,9 @@ const Hostellers = () => {
 
   const fetchHostellers = () => {
     setError(null);
+    // Keep the last good rows on screen while a new page/filter loads.
+    if (hasLoaded.current) setRefreshing(true);
+    else setLoading(true);
     const params = {
       page,
       limit,
@@ -219,7 +224,11 @@ const Hostellers = () => {
     }).catch(err => {
       console.error(err);
       setError('Failed to load hostellers');
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      setLoading(false);
+      setRefreshing(false);
+      hasLoaded.current = true;
+    });
   };
 
   useEffect(() => {
@@ -850,7 +859,7 @@ const Hostellers = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {loading && hostellers.length === 0 ? (
                   <LoadingRow colSpan={10} />
                 ) : error ? (
                   <tr>
@@ -1013,6 +1022,7 @@ const Hostellers = () => {
             <div className="ui-pagination">
               <div className="ui-pagination-info">
                 Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalRecords)} of {totalRecords} entries
+                {refreshing && <span className="ui-badge ui-badge-blue" style={{ marginLeft: 8 }}>Updating…</span>}
               </div>
               <div className="ui-pagination-pages">
                 <button

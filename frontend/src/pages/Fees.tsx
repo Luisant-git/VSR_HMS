@@ -1519,7 +1519,7 @@ const Fees = () => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && fees.length === 0 ? (
                 <LoadingRow colSpan={14} />
               ) : error ? (
                 <tr>

@@ -83,7 +83,15 @@ export const StudentAPI = {
     if (params?.toDate) query.append('toDate', params.toDate);
     
     const queryString = query.toString() ? `?${query.toString()}` : '';
-    const res = await fetch(`${API_URL}/students${queryString}`);
+    // Never let the table spin forever if the server stalls.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/students${queryString}`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!res.ok) throw new Error('Failed to fetch students');
     const json = await res.json();
     

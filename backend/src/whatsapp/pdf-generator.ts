@@ -192,19 +192,25 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
         let currentY = startY;
         const labelWidth = width * 0.45;
         const valWidth = width * 0.55;
-        const rowHeight = 18;
+        const headerHeight = 18;
 
         // Table header
-        doc.fillColor('#f5f5f5').rect(startX, currentY, width, rowHeight).fill();
-        doc.strokeColor('#dddddd').lineWidth(0.5).rect(startX, currentY, width, rowHeight).stroke();
+        doc.fillColor('#f5f5f5').rect(startX, currentY, width, headerHeight).fill();
+        doc.strokeColor('#dddddd').lineWidth(0.5).rect(startX, currentY, width, headerHeight).stroke();
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#333333');
         doc.text('FIELD', startX + 6, currentY + 5, { width: labelWidth - 12 });
         doc.text('DETAILS', startX + labelWidth + 6, currentY + 5, { width: valWidth - 12 });
 
-        currentY += rowHeight;
+        currentY += headerHeight;
 
-        // Table rows
+        // Table rows - row height grows when a value (e.g. remarks) wraps
         for (const [label, val, customColor] of rows) {
+          doc.font('Helvetica').fontSize(8.5);
+          const labelHeight = doc.heightOfString(label, { width: labelWidth - 12 });
+          doc.font('Helvetica-Bold').fontSize(8.5);
+          const valHeight = doc.heightOfString(val, { width: valWidth - 12 });
+          const rowHeight = Math.max(18, Math.ceil(Math.max(labelHeight, valHeight)) + 10);
+
           doc.strokeColor('#eeeeee').lineWidth(0.5).rect(startX, currentY, width, rowHeight).stroke();
           doc.font('Helvetica').fontSize(8.5).fillColor('#333333');
           doc.text(label, startX + 6, currentY + 5, { width: labelWidth - 12 });
@@ -232,6 +238,11 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
           `Rs. ${Number(data.pendingBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
         ],
       ];
+
+      // Remarks are part of the Field / Details table, shown after Pending Balance
+      if (data.notes) {
+        rightRows.push(['Remarks', data.notes]);
+      }
 
       const leftEnd = drawInfoTable(leftColX, tableStartY, colWidth, leftRows);
       const rightEnd = drawInfoTable(rightColX, tableStartY, colWidth, rightRows);
@@ -342,13 +353,6 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
       );
 
       currentFeeY += totalRowH + 12;
-
-      // Notes
-      if (data.notes) {
-        doc.font('Helvetica-Bold').fontSize(9).fillColor('#000000').text('NOTES: ', margin, currentFeeY, { continued: true });
-        doc.font('Helvetica').fontSize(9).fillColor('#333333').text(data.notes);
-        currentFeeY += 20;
-      }
 
       // Footer
       const footerY = Math.max(currentFeeY + 20, 750);

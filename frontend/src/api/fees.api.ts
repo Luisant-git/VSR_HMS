@@ -70,7 +70,15 @@ export const FeesAPI = {
   },
 
   async findAll() {
-    const res = await fetch(`${API_URL}/fees`);
+    // Fail fast instead of leaving the Fees table on "Loading..." forever.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/fees`, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+    }
     if (!res.ok) {
       const error = await res.json().catch(() => null);
       throw new Error(error?.message || `Failed to fetch fee transactions (HTTP ${res.status})`);

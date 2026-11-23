@@ -95,8 +95,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const discountAmount = Math.round(
     visibleFeesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
   ) / 100;
-  // Strip the hidden payment-group token before showing the operator's note.
-  const receiptNotes = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+  // Strip the hidden payment-group token before showing the operator's remarks.
+  const receiptRemarks = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
   const billingMonthValue = resolveFeeBillingMonth(detailFee) || '-';
   const dueDateValue = detailFee?.dueDate
     ? new Date(detailFee.dueDate).toLocaleDateString('en-GB')
@@ -259,7 +259,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         grossAmount: grossTotalAmount,
         discountAmount: discountAmount,
         amount: totalAmount,
-        notes: receiptNotes || undefined,
+        notes: receiptRemarks || undefined,
         items: visibleFeesList.map((item: any) => ({
           description: item.type ? item.type.replace(/_/g, ' ') : 'Fee',
           type: item.type || 'FEE',
@@ -799,6 +799,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                     {pendingBalance !== '' && (
                       <tr><td>Pending Balance</td><td>₹{displayPendingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>
                     )}
+                    {receiptRemarks && (
+                      <tr><td>Remarks</td><td>{receiptRemarks}</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -891,12 +894,6 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                 </tbody>
               </table>
               </div>
-              {receiptNotes && (
-                <div className="print-exact" style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '13px', color: '#000', wordBreak: 'break-word' }}>
-                  <strong style={{ textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Notes:</strong>
-                  <span>{receiptNotes}</span>
-                </div>
-              )}
             </div>
 
             {/* Footer Section */}
