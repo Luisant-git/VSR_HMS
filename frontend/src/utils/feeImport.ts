@@ -6,6 +6,7 @@ export interface FeeImportRow {
   eb?: number;
   fine?: number;
   advance?: number;
+  outstanding?: number;
 }
 
 export interface FeeImportParseResult {
@@ -16,13 +17,14 @@ export interface FeeImportParseResult {
   errors: string[];
 }
 
-type FeeCategory = 'rent' | 'eb' | 'fine' | 'advance';
+type FeeCategory = 'rent' | 'eb' | 'fine' | 'advance' | 'outstanding';
 
 const CATEGORY_LABELS: Record<FeeCategory, string> = {
   rent: 'Rent',
   eb: 'EB',
   fine: 'Fine',
   advance: 'Advance',
+  outstanding: 'Outstanding Balance',
 };
 
 const STUDENT_HEADERS = [
@@ -53,6 +55,7 @@ const AMOUNT_HEADERS: Record<FeeCategory, string[]> = {
   eb: ['EB', 'EBILL', 'EBAMOUNT', 'ELECTRICITY', 'ELECTRICITYBILL'],
   fine: ['FINE', 'FINEAMOUNT'],
   advance: ['ADVANCE', 'ADVANCEAMOUNT', 'DEPOSIT'],
+  outstanding: OUTSTANDING_HEADERS,
 };
 
 const normalizeHeader = (value: string) =>
@@ -101,12 +104,6 @@ const parseAmount = (value: unknown): { value?: number; invalid?: boolean } => {
 
   return { value: Math.round(numeric * 100) / 100 };
 };
-
-const editableTotal = (values: Partial<Record<FeeCategory, number>>) =>
-  (Object.values(values) as Array<number | undefined>).reduce<number>(
-    (sum, value) => sum + (Number(value) || 0),
-    0,
-  );
 
 const isReceiptNumber = (receiptNo: string) => {
   const lower = receiptNo.toLowerCase();
@@ -202,18 +199,26 @@ export const parseFeeImportWorkbook = (
 
     if (invalid) return;
 
-    const outstandingCell = readCell(row, OUTSTANDING_HEADERS);
-    const outstandingBalance = parseAmount(outstandingCell).value ?? 0;
+    const hasOutstandingValue = values.outstanding !== undefined;
+    const nonOutstandingTotal = (['rent', 'eb', 'fine', 'advance'] as const)
+      .reduce((sum, key) => sum + (Number(values[key]) || 0), 0);
 
-    // "Outstanding" rows are the historical ledger and must stay read-only.
+    // Legacy/explicit outstanding rows are ledger rows. They are read-only for
+    // Rent/EB/Fine/Advance, but we still allow the Outstanding Balance value to
+    // be imported when present.
     if (feeType.includes('outstanding')) {
-      skippedOutstanding += 1;
+      if (hasOutstandingValue) {
+        parsedRows.push({ studentKey, values: { outstanding: values.outstanding } });
+      } else {
+        skippedOutstanding += 1;
+      }
       return;
     }
+
     // Older exported files have no "Fee Type" column. Their outstanding row
     // shows a balance with all editable category columns at zero.
-    if (!feeType && outstandingBalance > 0 && editableTotal(values) === 0) {
-      skippedOutstanding += 1;
+    if (!feeType && hasOutstandingValue && nonOutstandingTotal === 0) {
+      parsedRows.push({ studentKey, values: { outstanding: values.outstanding } });
       return;
     }
 
@@ -225,16 +230,18 @@ export const parseFeeImportWorkbook = (
     parsedRows.push({ studentKey, values });
   });
 
-  // A student may have both a Current Due row and an Outstanding row. Keep the
-  // row that actually carries editable amounts, and de-duplicate by student.
+  // A student may have both a Current Due row and an Outstanding row. Merge
+  // them so Rent/EB/Fine/Advance and Outstanding Balance can be imported together.
   const grouped = new Map<string, ParsedSheetRow>();
   for (const row of parsedRows) {
     const key = row.studentKey.toUpperCase();
     const existing = grouped.get(key);
     if (existing) {
-      if (editableTotal(row.values) > editableTotal(existing.values)) {
-        grouped.set(key, row);
+      const merged: Partial<Record<FeeCategory, number>> = { ...existing.values };
+      for (const [category, value] of Object.entries(row.values) as Array<[FeeCategory, number | undefined]>) {
+        if (value !== undefined) merged[category] = value;
       }
+      grouped.set(key, { studentKey: existing.studentKey, values: merged });
     } else {
       grouped.set(key, row);
     }

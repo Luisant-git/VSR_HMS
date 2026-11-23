@@ -974,7 +974,7 @@ const Fees = () => {
         toast.warning(parsed.errors.slice(0, 2).join(' '));
       }
       if (parsed.rows.length === 0) {
-        toast.error('No editable unpaid fee rows were found in that file. Use the exported file and edit only Rent / EB / Fine / Advance.');
+        toast.error('No editable fee rows were found in that file. Use the exported file and edit Rent / EB / Fine / Advance / Outstanding Balance.');
         return;
       }
 

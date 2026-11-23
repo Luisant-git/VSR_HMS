@@ -483,7 +483,8 @@ export class FeesService {
           return match && match[1].trim() ? match[1].trim() : '';
         };
 
-        const notes = parseDesc('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+        const rawNotes = parseDesc('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+        const notes = /^(Original Amount|Discount|Pending Balance)\s*:/i.test(rawNotes) ? '' : rawNotes;
         const discountStr = parseDesc('Discount');
         const discount = discountStr ? parseFloat(discountStr) || 0 : 0;
         const origStr = parseDesc('Original Amount');
@@ -1212,18 +1213,34 @@ export class FeesService {
   private buildDescriptionSuffix(dto: PayOutstandingDto, requestId?: string) {
     let suffix = '';
     if (dto.referenceNumber) suffix += ` | Ref: ${dto.referenceNumber}`;
-    if (dto.notes) suffix += ` | Notes: ${dto.notes}`;
+    if (dto.notes) {
+      // Keep user remarks in Notes, but store receipt metadata as separate
+      // segments so parsers don't show metadata as remarks.
+      const parts = dto.notes.split('|').map((p) => p.trim()).filter(Boolean);
+      const userParts: string[] = [];
+      for (const part of parts) {
+        if (/^(Original Amount|Discount|Pending Balance):/i.test(part) || /^\[PAY:[^\]]+\]$/i.test(part)) {
+          suffix += ` | ${part}`;
+        } else {
+          userParts.push(part);
+        }
+      }
+      const userNote = userParts.join(' | ').trim();
+      if (userNote) suffix += ` | Notes: ${userNote}`;
+    }
     if (requestId) suffix += ` | [REQ:${requestId}]`;
     return suffix;
   }
 
   /**
-   * Applies Rent / EB / Fine / Advance values edited in the Fees Excel sheet.
+   * Applies Rent / EB / Fine / Advance / Outstanding Balance values edited in
+   * the Fees Excel sheet.
    *
-   * Only the student's *current* PENDING dues are touched. Paid receipts,
-   * historical outstanding invoices and the pre-cutoff imported ledger are
-   * never edited. A category is adjusted by its delta on the newest matching
-   * row, so split invoices (for example EB shares) keep their structure.
+   * Rent/EB/Fine/Advance adjust the student's *current* PENDING dues. Paid
+   * receipts, historical outstanding invoices and the pre-cutoff imported
+   * ledger are never edited. Outstanding Balance is treated as the target
+   * remaining outstanding balance: increases create a new outstanding invoice
+   * delta, while reductions are rejected (collect payment in Fees page).
    */
   async importFeeEdits(dto: ImportFeesDto) {
     const rows = Array.isArray(dto?.rows) ? dto.rows : [];
@@ -1240,7 +1257,7 @@ export class FeesService {
       studentName: string;
       roomNo: string | null;
       items: Array<{
-        category: ImportCategory;
+        category: ImportCategory | 'outstanding';
         label: string;
         from: number;
         to: number;
@@ -1273,11 +1290,11 @@ export class FeesService {
         errors.push({ studentKey, message: parsed.error });
         continue;
       }
-      if (Object.keys(parsed.amounts).length === 0) {
+      if (Object.keys(parsed.amounts).length === 0 && parsed.outstanding === undefined) {
         errors.push({
           studentKey,
           message:
-            'No editable fee amount found (Rent / EB / Fine / Advance).',
+            'No editable fee amount found (Rent / EB / Fine / Advance / Outstanding Balance).',
         });
         continue;
       }
@@ -1286,6 +1303,7 @@ export class FeesService {
         const result = await this.applyFeeImportRow(
           studentKey,
           parsed.amounts,
+          parsed.outstanding,
           dryRun,
         );
         if (result.items.length > 0) {
@@ -1312,9 +1330,11 @@ export class FeesService {
 
   private parseImportAmounts(row: ImportFeeRowInput): {
     amounts: Partial<Record<ImportCategory, number>>;
+    outstanding?: number;
     error?: string;
   } {
     const amounts: Partial<Record<ImportCategory, number>> = {};
+    let outstanding: number | undefined;
 
     for (const category of IMPORTABLE_CATEGORIES) {
       const raw = row?.[category];
@@ -1336,12 +1356,28 @@ export class FeesService {
       amounts[category] = roundMoney(numeric);
     }
 
-    return { amounts };
+    const outstandingRaw = row?.outstanding;
+    if (outstandingRaw !== undefined && outstandingRaw !== null && !(typeof outstandingRaw === 'string' && outstandingRaw.trim() === '')) {
+      const numeric =
+        typeof outstandingRaw === 'number'
+          ? outstandingRaw
+          : Number(String(outstandingRaw).replace(/[₹,\s]/g, ''));
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        return {
+          amounts,
+          error: 'Outstanding Balance must be a number greater than or equal to 0.',
+        };
+      }
+      outstanding = roundMoney(numeric);
+    }
+
+    return { amounts, outstanding };
   }
 
   private async applyFeeImportRow(
     studentKey: string,
     amounts: Partial<Record<ImportCategory, number>>,
+    outstanding: number | undefined,
     dryRun: boolean,
   ) {
     const student = await this.prisma.student.findFirst({
@@ -1377,7 +1413,7 @@ export class FeesService {
       );
 
       const items: Array<{
-        category: ImportCategory;
+        category: ImportCategory | 'outstanding';
         label: string;
         from: number;
         to: number;
@@ -1413,6 +1449,44 @@ export class FeesService {
           to: targetTotal,
           delta: roundMoney(targetTotal - currentTotal),
         });
+      }
+
+      if (outstanding !== undefined) {
+        const outstandingInvoices = await this.getOutstandingInvoices(tx, student.id);
+        const confirmedOutstandingPayments = await this.getConfirmedOutstandingPayments(tx, student.id);
+        const originalOutstanding = this.sumAmounts(outstandingInvoices);
+        const previouslyPaid = this.sumAmounts(confirmedOutstandingPayments);
+        const currentRemaining = roundMoney(Math.max(0, originalOutstanding - previouslyPaid));
+        const targetRemaining = roundMoney(outstanding);
+
+        if (Math.abs(targetRemaining - currentRemaining) >= MONEY_EPSILON) {
+          if (targetRemaining < currentRemaining - MONEY_EPSILON) {
+            throw new BadRequestException(
+              'Outstanding Balance can only be increased via Excel import. To reduce it, collect an outstanding payment in the Fees page.',
+            );
+          }
+
+          const delta = roundMoney(targetRemaining - currentRemaining);
+          if (!dryRun) {
+            await tx.feeTransaction.create({
+              data: {
+                studentId: student.id,
+                transactionType: 'RENT',
+                amount: delta,
+                status: 'PENDING',
+                description: 'Outstanding Balance (adjusted from fees sheet)',
+              },
+            });
+          }
+
+          items.push({
+            category: 'outstanding',
+            label: 'Outstanding Balance',
+            from: currentRemaining,
+            to: targetRemaining,
+            delta,
+          });
+        }
       }
 
       return {

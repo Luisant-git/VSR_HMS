@@ -6,6 +6,8 @@ import { IsArray, IsBoolean, IsOptional } from 'class-validator';
  * `studentKey` is the value shown in the "Student ID" column, i.e. either the
  * student's `regNo` or `manualRegsiName`. Amounts are optional: a missing value
  * means "leave this category unchanged", while 0 means "remove this due".
+ * `outstanding` is the target remaining outstanding balance; it can only be
+ * increased via Excel import (reductions must be collected as payments).
  */
 export interface ImportFeeRowInput {
   studentKey: string;
@@ -13,6 +15,7 @@ export interface ImportFeeRowInput {
   eb?: number | string | null;
   fine?: number | string | null;
   advance?: number | string | null;
+  outstanding?: number | string | null;
 }
 
 export class ImportFeesDto {

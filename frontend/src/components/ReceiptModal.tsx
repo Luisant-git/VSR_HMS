@@ -96,7 +96,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
     visibleFeesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
   ) / 100;
   // Strip the hidden payment-group token before showing the operator's remarks.
-  const receiptRemarks = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+  const rawReceiptRemarks = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+  const receiptRemarks = /^(Original Amount|Discount|Pending Balance)\s*:/i.test(rawReceiptRemarks)
+    ? ''
+    : rawReceiptRemarks;
   const billingMonthValue = resolveFeeBillingMonth(detailFee) || '-';
   const dueDateValue = detailFee?.dueDate
     ? new Date(detailFee.dueDate).toLocaleDateString('en-GB')
