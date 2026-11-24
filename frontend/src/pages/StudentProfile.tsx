@@ -1009,10 +1009,10 @@ const StudentProfile = () => {
                             const typeBadge = feeType.includes('RENT')
                               ? 'ui-badge-blue'
                               : feeType.includes('EB')
-                              ? 'ui-badge-warning'
-                              : feeType.includes('FINE')
-                              ? 'ui-badge-danger'
-                              : 'ui-badge-secondary';
+                                ? 'ui-badge-warning'
+                                : feeType.includes('FINE')
+                                  ? 'ui-badge-danger'
+                                  : 'ui-badge-secondary';
                             const billingMonth = fee.billingMonth || (fee.description?.match(/(\d{4}-\d{2})/)?.[1]) || getBillingMonths().currentMonthStr;
 
                             return (
