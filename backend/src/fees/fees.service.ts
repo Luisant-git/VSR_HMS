@@ -1380,11 +1380,17 @@ export class FeesService {
     outstanding: number | undefined,
     dryRun: boolean,
   ) {
-    const student = await this.prisma.student.findFirst({
+    const cleanKey = studentKey.trim();
+    const numericKey = cleanKey.replace(/\D/g, '');
+    const isMobile = numericKey.length === 10;
+
+    let student = await this.prisma.student.findFirst({
       where: {
         OR: [
-          { regNo: { equals: studentKey, mode: 'insensitive' } },
-          { manualRegsiName: { equals: studentKey, mode: 'insensitive' } },
+          { id: cleanKey },
+          { regNo: { equals: cleanKey, mode: 'insensitive' } },
+          { manualRegsiName: { equals: cleanKey, mode: 'insensitive' } },
+          ...(isMobile ? [{ mobileNo: numericKey }, { mobileNo: { endsWith: numericKey } }] : []),
         ],
       },
       select: {
@@ -1395,6 +1401,36 @@ export class FeesService {
         roomNo: true,
       },
     });
+
+    if (!student) {
+      student = await this.prisma.student.findFirst({
+        where: {
+          name: { equals: cleanKey, mode: 'insensitive' },
+        },
+        select: {
+          id: true,
+          regNo: true,
+          manualRegsiName: true,
+          name: true,
+          roomNo: true,
+        },
+      });
+    }
+
+    if (!student && cleanKey.length >= 3) {
+      student = await this.prisma.student.findFirst({
+        where: {
+          name: { contains: cleanKey, mode: 'insensitive' },
+        },
+        select: {
+          id: true,
+          regNo: true,
+          manualRegsiName: true,
+          name: true,
+          roomNo: true,
+        },
+      });
+    }
 
     if (!student) {
       throw new BadRequestException(
@@ -1460,23 +1496,43 @@ export class FeesService {
         const targetRemaining = roundMoney(outstanding);
 
         if (Math.abs(targetRemaining - currentRemaining) >= MONEY_EPSILON) {
-          if (targetRemaining < currentRemaining - MONEY_EPSILON) {
-            throw new BadRequestException(
-              'Outstanding Balance can only be increased via Excel import. To reduce it, collect an outstanding payment in the Fees page.',
-            );
-          }
-
           const delta = roundMoney(targetRemaining - currentRemaining);
-          if (!dryRun) {
-            await tx.feeTransaction.create({
-              data: {
-                studentId: student.id,
-                transactionType: 'RENT',
-                amount: delta,
-                status: 'PENDING',
-                description: 'Outstanding Balance (adjusted from fees sheet)',
-              },
-            });
+          if (delta > 0) {
+            if (!dryRun) {
+              await tx.feeTransaction.create({
+                data: {
+                  studentId: student.id,
+                  transactionType: 'RENT',
+                  amount: delta,
+                  status: 'PENDING',
+                  description: 'Outstanding Balance (adjusted from fees sheet)',
+                },
+              });
+            }
+          } else {
+            // Target is less than current: adjust down pending uncollected outstanding invoices
+            if (!dryRun) {
+              let toReduce = roundMoney(-delta);
+              for (
+                let idx = outstandingInvoices.length - 1;
+                idx >= 0 && toReduce > MONEY_EPSILON;
+                idx -= 1
+              ) {
+                const inv = outstandingInvoices[idx];
+                const amt = roundMoney(Number(inv.amount) || 0);
+                if (amt <= 0) continue;
+                if (amt <= toReduce + MONEY_EPSILON) {
+                  toReduce = roundMoney(toReduce - amt);
+                  await tx.feeTransaction.delete({ where: { id: inv.id } });
+                } else {
+                  await tx.feeTransaction.update({
+                    where: { id: inv.id },
+                    data: { amount: roundMoney(amt - toReduce) },
+                  });
+                  toReduce = 0;
+                }
+              }
+            }
           }
 
           items.push({

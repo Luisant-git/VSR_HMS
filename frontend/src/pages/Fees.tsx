@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, CheckCircle2, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, Download, CheckCircle2, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
@@ -958,6 +958,33 @@ const Fees = () => {
     XLSX.writeFile(workbook, "Fees_Report.xlsx");
   };
 
+  const handleDownloadOutstandingTemplate = () => {
+    const uniqueStudents = new Map<string, any>();
+    fees.forEach(f => {
+      if (f.student && !uniqueStudents.has(f.student.id)) {
+        uniqueStudents.set(f.student.id, f.student);
+      }
+    });
+
+    const rows = Array.from(uniqueStudents.values())
+      .filter((s: any) => s.status !== 'Vacated')
+      .sort((a: any, b: any) => (a.roomNo || '').localeCompare(b.roomNo || '', undefined, { numeric: true }))
+      .map(s => ({
+        'Reg No': s.manualRegsiName || s.regNo || '',
+        'Student Name': s.name || '',
+        'Room No': s.roomNo || '',
+        'Mobile No': s.mobileNo || '',
+        'College': typeof s.college === 'string' ? s.college : s.college?.name || '',
+        'Outstanding Balance': '',
+      }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Outstanding_Template");
+    XLSX.writeFile(workbook, "Student_Outstanding_Import_Template.xlsx");
+    toast.success("Downloaded Outstanding Template. Enter amounts in 'Outstanding Balance' column and upload via Import Excel.");
+  };
+
   const handleImportClick = () => {
     importInputRef.current?.click();
   };
@@ -1217,9 +1244,16 @@ const Fees = () => {
               onClick={handleImportClick}
               className="ui-btn ui-btn-primary"
               disabled={importBusy}
-              title="Upload the exported Excel after editing Rent / EB / Fine / Advance"
+              title="Upload the client Excel sheet for bulk student outstanding balances or fee updates"
             >
               <Upload size={16} /> {importBusy ? 'Reading…' : 'Import Excel'}
+            </button>
+            <button
+              onClick={handleDownloadOutstandingTemplate}
+              className="ui-btn ui-btn-secondary"
+              title="Download Excel template for bulk importing student outstanding balances"
+            >
+              <Download size={16} /> Outstanding Template
             </button>
             <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
               <FileSpreadsheet size={16} /> Export Excel

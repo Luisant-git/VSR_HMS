@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, Plus, Trash2, Save, Loader2, IndianRupee, Calendar, Home, Zap } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee, Calendar, FileSpreadsheet } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -9,9 +9,9 @@ import { OutpassAPI } from '../api/outpass.api';
 import { ReceiptModal } from '../components/ReceiptModal';
 import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
-import { buildOutstandingSummary, calculatePendingDues, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
+import { buildOutstandingSummary, cleanPaymentDescription, isCurrentCycleFee, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
+import { getBillingMonths, isPostpaidPayableFee, formatBillingMonth } from '../utils/billingCycle';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -32,20 +32,64 @@ const StudentProfile = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
 
-  // Outstanding Payment Details state
-  const [outstandingRows, setOutstandingRows] = useState<Array<{
-    id: string;
-    year: number;
-    month: number;
-    rent: number | string;
-    eb: number | string;
-  }>>([]);
-  const [isSavingOutstanding, setIsSavingOutstanding] = useState(false);
-
   // Outstanding ledger: original invoices stay untouched; confirmed
   // OUTSTANDING_PAYMENT rows reduce the remaining balance.
   const outstandingSummary = useMemo(() => buildOutstandingSummary(fees), [fees]);
   const outstandingAllocations = outstandingSummary.allocations;
+
+  // Current cycle pending dues (Rent / EB / Fine)
+  const currentPendingFees = useMemo(() => {
+    return fees.filter(f => isCurrentCycleFee(f, student?.billingCycle));
+  }, [fees, student?.billingCycle]);
+
+  const currentPendingTotal = useMemo(() => {
+    return roundMoney(currentPendingFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0));
+  }, [currentPendingFees]);
+
+  const currentRentPending = useMemo(() => {
+    return roundMoney(
+      currentPendingFees
+        .filter(f => String(f.transactionType || '').toUpperCase().includes('RENT'))
+        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+    );
+  }, [currentPendingFees]);
+
+  const currentEbPending = useMemo(() => {
+    return roundMoney(
+      currentPendingFees
+        .filter(f => {
+          const t = String(f.transactionType || '').toUpperCase();
+          return t.includes('EB') || t.includes('ELECTRIC');
+        })
+        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+    );
+  }, [currentPendingFees]);
+
+  const currentFinePending = useMemo(() => {
+    return roundMoney(
+      currentPendingFees
+        .filter(f => String(f.transactionType || '').toUpperCase().includes('FINE'))
+        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
+    );
+  }, [currentPendingFees]);
+
+  const grandTotalOutstanding = useMemo(() => {
+    return roundMoney(currentPendingTotal + outstandingSummary.remaining);
+  }, [currentPendingTotal, outstandingSummary.remaining]);
+
+  const getDueDateForMonth = (monthStr?: string): string => {
+    if (!monthStr) {
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 5);
+      return nextMonth.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    const match = String(monthStr).match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+    if (!match) return '05th of next month';
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const dueDate = new Date(year, month, 5);
+    return dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   const displayFees = useMemo(() => {
     const billingCycle = student?.billingCycle || 'PREPAID';
@@ -399,90 +443,6 @@ const StudentProfile = () => {
     }
   };
 
-  // Outstanding Payment handlers
-  const addOutstandingRow = () => {
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth() + 1;
-    const newRow = {
-      id: `temp-${Date.now()}`,
-      year: currentYear,
-      month: currentMonth,
-      rent: '',
-      eb: ''
-    };
-    setOutstandingRows(prev => [...prev, newRow]);
-  };
-
-  const removeOutstandingRow = (id: string) => {
-    setOutstandingRows(prev => prev.filter(row => row.id !== id));
-  };
-
-  const updateOutstandingRow = (id: string, field: 'year' | 'month' | 'rent' | 'eb', value: string | number) => {
-    setOutstandingRows(prev => prev.map(row => {
-      let newValue = value;
-      if (field === 'rent' || field === 'eb') {
-        // Store empty string for display, but convert to number for calculations
-        newValue = value === '' ? '' : Number(value);
-      } else if (field === 'year' || field === 'month') {
-        newValue = value === '' ? 0 : Number(value);
-      }
-      return row.id === id ? { ...row, [field]: newValue } : row;
-    }));
-  };
-
-  const getRowRent = (row: any) => row.rent === '' ? 0 : Number(row.rent);
-  const getRowEb = (row: any) => row.eb === '' ? 0 : Number(row.eb);
-  const getRowYear = (row: any) => row.year === '' || row.year === 0 ? '' : row.year;
-
-  const handleSaveOutstanding = async () => {
-    if (!student?.uuid || outstandingRows.length === 0) return;
-
-    setIsSavingOutstanding(true);
-    try {
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-      for (const row of outstandingRows) {
-        const rentAmount = getRowRent(row);
-        const ebAmount = getRowEb(row);
-        const yearVal = String(row.year).trim();
-        const monthVal = String(row.month).trim();
-        const year = (yearVal === '' || yearVal === '0') ? new Date().getFullYear() : Number(row.year);
-        const month = (monthVal === '' || monthVal === '0') ? new Date().getMonth() + 1 : Number(row.month);
-
-        if (rentAmount > 0) {
-          await FeesAPI.create({
-            studentId: student.uuid,
-            transactionType: 'RENT',
-            amount: rentAmount,
-            description: `Outstanding Rent for ${monthNames[month - 1]} ${year}`,
-            status: 'PENDING'
-          });
-        }
-        if (ebAmount > 0) {
-          await FeesAPI.create({
-            studentId: student.uuid,
-            transactionType: 'EB_BILL',
-            amount: ebAmount,
-            description: `Outstanding EB Bill for ${monthNames[month - 1]} ${year}`,
-            status: 'PENDING'
-          });
-        }
-      }
-
-      toast.success('Outstanding payments saved successfully!');
-      setOutstandingRows([]);
-      fetchStudentData(); // Refresh to show new payments
-    } catch (e: any) {
-      toast.error('Failed to save: ' + e.message);
-    }
-    setIsSavingOutstanding(false);
-  };
-
-  const getMonthName = (month: number) => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1] || '';
-  };
-
   useEffect(() => {
     fetchStudentData();
   }, [id]);
@@ -502,7 +462,11 @@ const StudentProfile = () => {
 
   const tabs = [
     { name: 'Master Profile', icon: <User size={16} /> },
-    { name: 'Outstanding Payments', icon: <IndianRupee size={16} /> },
+    {
+      name: 'Outstanding Payments',
+      icon: <IndianRupee size={16} />,
+      badge: grandTotalOutstanding > 0 ? `₹${grandTotalOutstanding.toLocaleString('en-IN')}` : undefined,
+    },
     { name: 'Gate Logs', icon: <Clock size={16} /> },
     { name: 'Fees & Receipts', icon: <CreditCard size={16} /> },
     { name: 'Advance Deposit', icon: <ShieldCheck size={16} /> },
@@ -587,6 +551,24 @@ const StudentProfile = () => {
                 <span className="sp-meta-label">Category:</span>
                 <span className="sp-meta-value-right">{student.category || 'N/A'}</span>
               </div>
+              <div className="sp-meta-row" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '6px' }}>
+                <span className="sp-meta-label">Current Due:</span>
+                <span style={{ fontWeight: 700, color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
+                  ₹{currentPendingTotal.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="sp-meta-row">
+                <span className="sp-meta-label">Imported Due:</span>
+                <span style={{ fontWeight: 700, color: outstandingSummary.remaining > 0 ? '#d97706' : '#16a34a' }}>
+                  ₹{outstandingSummary.remaining.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="sp-meta-row" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px', fontWeight: 800 }}>
+                <span className="sp-meta-label" style={{ color: '#0f172a' }}>Total Due:</span>
+                <span style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
+                  ₹{grandTotalOutstanding.toLocaleString('en-IN')}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -598,7 +580,15 @@ const StudentProfile = () => {
                 onClick={() => setActiveTab(tab.name)}
                 className={`sp-nav-btn${activeTab === tab.name ? ' is-active' : ''}`}
               >
-                {tab.icon} <span>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
+                {tab.icon}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
+                  <span>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
+                  {(tab as any).badge && (
+                    <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: '#fee2e2', color: '#dc2626', fontWeight: 700 }}>
+                      {(tab as any).badge}
+                    </span>
+                  )}
+                </span>
               </button>
             ))}
           </div>
@@ -825,191 +815,433 @@ const StudentProfile = () => {
 
           {activeTab === 'Outstanding Payments' && (
             <div>
-              <div className="sp-tab-head">
-                <h3 className="sp-section-title sp-tab-title">
-                  <IndianRupee size={20} color="#f59e0b" /> Outstanding Payment Details
-                </h3>
+              <div className="sp-tab-head" style={{ marginBottom: '20px' }}>
+                <div>
+                  <h3 className="sp-section-title sp-tab-title" style={{ marginBottom: '4px' }}>
+                    <IndianRupee size={22} color="#f59e0b" /> Outstanding & Pending Dues
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                    Separate breakdown of current monthly cycle dues vs imported historical backlog balances
+                  </p>
+                </div>
+                {grandTotalOutstanding > 0 && (
+                  <button
+                    onClick={() => {
+                      if (currentPendingFees.length > 0) {
+                        setFeeToCollect(currentPendingFees[0]);
+                      } else if (outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0) {
+                        setFeeToCollect(outstandingSummary.invoices[0]);
+                      } else {
+                        navigate(`/fees?student=${student?.id || student?.uuid}`);
+                      }
+                    }}
+                    className="ui-btn ui-btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Wallet size={16} /> Pay Outstanding Dues
+                  </button>
+                )}
               </div>
 
-              {/* Outstanding Balance Summary Card */}
-              <div className="ui-card" style={{ marginBottom: '20px', border: '1px solid #fef08a', background: '#fefce8' }}>
-                <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ width: '56px', height: '56px', background: '#fde047', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <IndianRupee size={28} color="#a16207" />
+              {/* Three-Card Overview Banner */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                {/* 1. Current Month Outstanding Card */}
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #bae6fd', background: '#f0f9ff', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '40px', height: '40px', background: '#0ea5e9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Calendar size={20} color="#ffffff" />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Outstanding</span>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0c4a6e' }}>Monthly Billing Dues</h4>
+                        </div>
+                      </div>
+                      <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
+                        {currentPendingTotal > 0 ? 'Unpaid' : 'Clear'}
+                      </span>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Total Outstanding Balance</div>
-                      <div style={{ fontSize: '28px', fontWeight: 800, color: '#713f12', lineHeight: 1 }}>
-                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                      <div style={{ fontSize: '13px', color: '#854d0e', fontWeight: 600, marginTop: '6px' }}>
-                        Original: ₹{outstandingSummary.original.toLocaleString('en-IN')} &middot; Paid: ₹{outstandingSummary.paid.toLocaleString('en-IN')}
-                      </div>
+
+                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#0369a1', lineHeight: 1.2, marginBottom: '6px' }}>
+                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 600, marginBottom: '10px' }}>
+                      Cycle: {formatBillingMonth(getBillingMonths().currentMonthStr) || 'Current Month'} • Due: {getDueDateForMonth(getBillingMonths().currentMonthStr)}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '12px', color: '#854d0e', marginBottom: '2px' }}>{outstandingAllocations.filter((a: any) => a.remainingAmount > 0).length} Pending Invoice(s)</div>
-                    <div style={{ fontSize: '13px', color: '#a16207', fontWeight: 600 }}>
-                      {outstandingSummary.remaining.toLocaleString('en-IN')} Balance
-                    </div>
+
+                  <div style={{ borderTop: '1px solid #e0f2fe', paddingTop: '10px', fontSize: '12px', color: '#0369a1', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>Rent: <strong>₹{currentRentPending.toLocaleString('en-IN')}</strong></span>
+                    <span>EB: <strong>₹{currentEbPending.toLocaleString('en-IN')}</strong></span>
+                    {currentFinePending > 0 && <span>Fine: <strong>₹{currentFinePending.toLocaleString('en-IN')}</strong></span>}
                   </div>
                 </div>
-              </div>
 
-              {/* Add New Outstanding Payment Section */}
-              <div className="ui-card ui-card--flush">
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                  <h4 className="sp-section-title" style={{ fontSize: '16px', marginBottom: 0, color: '#3b82f6' }}>
-                    Add Outstanding Payment Rows
-                  </h4>
-                  {outstandingRows.length > 0 && (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={addOutstandingRow} className="ui-btn ui-btn-secondary ui-btn-sm">
-                        <Plus size={14} /> Add Row
-                      </button>
+                {/* 2. Imported Outstanding Card */}
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #fde68a', background: '#fefce8', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '40px', height: '40px', background: '#eab308', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FileSpreadsheet size={20} color="#ffffff" />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Imported Outstanding</span>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#713f12' }}>Excel Backlog Ledger</h4>
+                        </div>
+                      </div>
+                      <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
+                        {outstandingSummary.remaining > 0 ? 'Backlog Due' : 'Fully Settled'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#a16207', lineHeight: 1.2, marginBottom: '6px' }}>
+                      ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#854d0e', fontWeight: 600, marginBottom: '10px' }}>
+                      Imported from sheet • {outstandingSummary.invoices.length} invoice record(s)
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #fef08a', paddingTop: '10px', fontSize: '12px', color: '#854d0e', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>Original: <strong>₹{outstandingSummary.original.toLocaleString('en-IN')}</strong></span>
+                    <span>Paid: <strong style={{ color: '#16a34a' }}>₹{outstandingSummary.paid.toLocaleString('en-IN')}</strong></span>
+                    <span>Balance: <strong style={{ color: '#b45309' }}>₹{outstandingSummary.remaining.toLocaleString('en-IN')}</strong></span>
+                  </div>
+                </div>
+
+                {/* 3. Grand Total Card */}
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #ddd6fe', background: '#faf5ff', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '40px', height: '40px', background: '#8b5cf6', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Wallet size={20} color="#ffffff" />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Combined Total</span>
+                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#4c1d95' }}>Grand Total Outstanding</h4>
+                        </div>
+                      </div>
+                      <span className={`ui-badge ${grandTotalOutstanding > 0 ? 'ui-badge-purple' : 'ui-badge-success'}`}>
+                        {grandTotalOutstanding > 0 ? 'Total Due' : 'All Clear'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '28px', fontWeight: 900, color: '#5b21b6', lineHeight: 1.2, marginBottom: '6px' }}>
+                      ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#6d28d9', fontWeight: 600, marginBottom: '10px' }}>
+                      Current (₹{currentPendingTotal.toLocaleString('en-IN')}) + Backlog (₹{outstandingSummary.remaining.toLocaleString('en-IN')})
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid #ede9fe', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: '#6d28d9' }}>Total Payable by Student</span>
+                    {grandTotalOutstanding > 0 && (
                       <button
-                        onClick={handleSaveOutstanding}
-                        disabled={isSavingOutstanding || outstandingRows.every(r => getRowRent(r) === 0 && getRowEb(r) === 0)}
+                        onClick={() => {
+                          if (currentPendingFees.length > 0) {
+                            setFeeToCollect(currentPendingFees[0]);
+                          } else if (outstandingSummary.invoices.length > 0) {
+                            setFeeToCollect(outstandingSummary.invoices[0]);
+                          } else {
+                            navigate(`/fees?student=${student?.id || student?.uuid}`);
+                          }
+                        }}
                         className="ui-btn ui-btn-primary ui-btn-sm"
+                        style={{ padding: '4px 10px', fontSize: '12px' }}
                       >
-                        {isSavingOutstanding ? (
-                          <>
-                            <Loader2 size={14} className="sp-spin" /> Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save size={14} /> Save All
-                          </>
-                        )}
+                        <Wallet size={12} /> Collect Now
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 1: Current Month Outstanding Details */}
+              <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={18} color="#0284c7" /> 1. Current Month Billing Dues
+                    </h4>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      Hostel room rent, EB, and fine invoices for the current billing cycle
+                    </p>
+                  </div>
+                  <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
+                    Total: ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
                 </div>
 
-                <div style={{ padding: '16px 20px' }}>
-                  {outstandingRows.length === 0 ? (
-                    <div className="sp-empty" style={{ textAlign: 'center', padding: '40px 20px' }}>
-                      <IndianRupee size={48} style={{ color: '#cbd5e1', marginBottom: '16px' }} />
-                      <p style={{ color: '#64748b', marginBottom: '16px', fontSize: '15px' }}>No outstanding payment rows added yet.</p>
-                      <button onClick={addOutstandingRow} className="ui-btn ui-btn-primary">
-                        <Plus size={16} /> Add First Row
-                      </button>
+                <div style={{ padding: currentPendingFees.length === 0 ? '30px 20px' : '0' }}>
+                  {currentPendingFees.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#16a34a' }}>
+                      <CheckCircle2 size={36} style={{ margin: '0 auto 8px', color: '#16a34a' }} />
+                      <div style={{ fontWeight: 700, fontSize: '15px' }}>No Current Month Dues Pending</div>
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                        All monthly fees for {formatBillingMonth(getBillingMonths().currentMonthStr) || 'the current cycle'} are settled.
+                      </p>
                     </div>
                   ) : (
-                    <>
-                      <div className="ui-table-wrap">
-                        <table className="ui-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: '50px' }}>#</th>
-                              <th style={{ width: '90px' }}>
-                                <Calendar size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Year
-                              </th>
-                              <th style={{ width: '130px' }}>
-                                <Calendar size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Month
-                              </th>
-                              <th style={{ width: '140px' }} className="num">
-                                <Home size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> Rent (₹)
-                              </th>
-                              <th style={{ width: '140px' }} className="num">
-                                <Zap size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> EB Fees (₹)
-                              </th>
-                              <th style={{ width: '130px' }} className="num">Row Total (₹)</th>
-                              <th style={{ width: '50px' }}>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {outstandingRows.map((row, index) => (
-                              <tr key={row.id}>
-                                <td className="sp-kv-strong" style={{ textAlign: 'center', padding: '10px 8px' }}>{index + 1}</td>
-                                <td style={{ padding: '8px' }}>
-                                  <input
-                                    type="number"
-                                    min="2020"
-                                    max={new Date().getFullYear() + 2}
-                                    value={getRowYear(row)}
-                                    onChange={(e) => updateOutstandingRow(row.id, 'year', e.target.value)}
-                                    onBlur={(e) => {
-                                      const val = parseInt(e.target.value);
-                                      if (!isNaN(val)) updateOutstandingRow(row.id, 'year', val);
-                                    }}
-                                    className="ui-input"
-                                    style={{ width: '100%', padding: '6px 8px', textAlign: 'center', fontSize: '13px' }}
-                                    placeholder="Year"
-                                  />
+                    <div className="ui-table-wrap">
+                      <table className="ui-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px' }}>#</th>
+                            <th>Fee Description</th>
+                            <th>Category</th>
+                            <th>Billing Month</th>
+                            <th>Due Date</th>
+                            <th className="num">Amount (₹)</th>
+                            <th>Status</th>
+                            <th className="num">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentPendingFees.map((fee, idx) => {
+                            const feeType = String(fee.transactionType || '').toUpperCase();
+                            const typeBadge = feeType.includes('RENT')
+                              ? 'ui-badge-blue'
+                              : feeType.includes('EB')
+                              ? 'ui-badge-warning'
+                              : feeType.includes('FINE')
+                              ? 'ui-badge-danger'
+                              : 'ui-badge-secondary';
+                            const billingMonth = fee.billingMonth || (fee.description?.match(/(\d{4}-\d{2})/)?.[1]) || getBillingMonths().currentMonthStr;
+
+                            return (
+                              <tr key={fee.id || idx}>
+                                <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                                <td>
+                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{fee.description || 'Monthly Fee'}</div>
+                                  <div style={{ fontSize: '11px', color: '#64748b' }}>Generated on {new Date(fee.createdAt).toLocaleDateString('en-GB')}</div>
                                 </td>
-                                <td style={{ padding: '8px' }}>
-                                  <select
-                                    value={row.month || ''}
-                                    onChange={(e) => updateOutstandingRow(row.id, 'month', e.target.value ? parseInt(e.target.value) : 0)}
-                                    className="ui-input"
-                                    style={{ width: '100%', padding: '6px 8px', fontSize: '13px' }}
-                                  >
-                                    <option value="">Select</option>
-                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                      <option key={m} value={m}>
-                                        {getMonthName(m)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                <td>
+                                  <span className={`ui-badge ${typeBadge}`}>
+                                    {feeType.replace('_', ' ')}
+                                  </span>
                                 </td>
-                                <td className="num" style={{ padding: '8px' }}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={row.rent === '' ? '' : row.rent}
-                                    onChange={(e) => updateOutstandingRow(row.id, 'rent', e.target.value)}
-                                    className="ui-input"
-                                    style={{ width: '100%', padding: '6px 8px', textAlign: 'right', fontSize: '13px' }}
-                                    placeholder="Rent"
-                                  />
+                                <td>
+                                  <span style={{ fontWeight: 600, color: '#334155' }}>
+                                    {formatBillingMonth(billingMonth) || billingMonth}
+                                  </span>
                                 </td>
-                                <td className="num" style={{ padding: '8px' }}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={row.eb === '' ? '' : row.eb}
-                                    onChange={(e) => updateOutstandingRow(row.id, 'eb', e.target.value)}
-                                    className="ui-input"
-                                    style={{ width: '100%', padding: '6px 8px', textAlign: 'right', fontSize: '13px' }}
-                                    placeholder="EB"
-                                  />
+                                <td>
+                                  <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '12px' }}>
+                                    {getDueDateForMonth(billingMonth)}
+                                  </span>
                                 </td>
-                                <td className="num sp-kv-strong" style={{ fontSize: '13px', padding: '10px 8px' }}>
-                                  ₹{(getRowRent(row) + getRowEb(row)).toLocaleString('en-IN')}
+                                <td className="num sp-kv-strong" style={{ color: '#dc2626', fontSize: '14px' }}>
+                                  ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
-                                <td style={{ textAlign: 'center', padding: '8px' }}>
+                                <td>
+                                  <span className="ui-badge ui-badge-danger">Unpaid</span>
+                                </td>
+                                <td className="num">
                                   <button
-                                    onClick={() => removeOutstandingRow(row.id)}
-                                    className="ui-btn ui-btn-danger ui-btn-sm"
-                                    title="Remove row"
-                                    style={{ padding: '6px 8px' }}
+                                    onClick={() => setFeeToCollect(fee)}
+                                    className="ui-btn ui-btn-primary ui-btn-sm"
+                                    style={{ padding: '5px 12px', fontSize: '12px' }}
                                   >
-                                    <Trash2 size={14} />
+                                    <Wallet size={12} /> Pay Now
                                   </button>
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr style={{ background: '#f8fafc', fontWeight: '600' }}>
-                              <td colSpan={3} style={{ textAlign: 'right', padding: '12px 8px' }}>Grand Total:</td>
-                              <td className="num" style={{ padding: '12px 8px' }}>₹{outstandingRows.reduce((sum, r) => sum + getRowRent(r), 0).toLocaleString('en-IN')}</td>
-                              <td className="num" style={{ padding: '12px 8px' }}>₹{outstandingRows.reduce((sum, r) => sum + getRowEb(r), 0).toLocaleString('en-IN')}</td>
-                              <td className="num sp-kv-strong" style={{ padding: '12px 8px', fontSize: '14px' }}>₹{outstandingRows.reduce((sum, r) => sum + getRowRent(r) + getRowEb(r), 0).toLocaleString('en-IN')}</td>
-                              <td></td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
+                            <td colSpan={5} style={{ textAlign: 'right', padding: '12px 16px' }}>Current Month Dues Subtotal:</td>
+                            <td className="num" style={{ color: '#dc2626', fontSize: '14px', padding: '12px 16px' }}>
+                              ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   )}
                 </div>
               </div>
 
+              {/* Section 2: Imported Outstanding Details (From Excel) */}
+              <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fefce8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileSpreadsheet size={18} color="#eab308" /> 2. Imported Outstanding Ledger (Excel Backlog)
+                    </h4>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#854d0e' }}>
+                      Historical dues imported in bulk from client Excel sheets or opening balance records
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
+                      Remaining Backlog: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                    {outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0 && (
+                      <button
+                        onClick={() => setFeeToCollect(outstandingSummary.invoices[0])}
+                        className="ui-btn ui-btn-primary ui-btn-sm"
+                        style={{ padding: '5px 12px', fontSize: '12px' }}
+                      >
+                        <Wallet size={12} /> Pay Backlog
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ padding: outstandingSummary.invoices.length === 0 ? '30px 20px' : '0' }}>
+                  {outstandingSummary.invoices.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#64748b' }}>
+                      <CheckCircle2 size={36} style={{ margin: '0 auto 8px', color: '#16a34a' }} />
+                      <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a' }}>No Imported Backlog Outstanding</div>
+                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+                        This student has no historical or Excel-imported backlog balance.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="ui-table-wrap">
+                      <table className="ui-table">
+                        <thead>
+                          <tr>
+                            <th style={{ width: '40px' }}>#</th>
+                            <th>Import Date</th>
+                            <th>Description</th>
+                            <th className="num">Original Amount (₹)</th>
+                            <th className="num">Amount Paid (₹)</th>
+                            <th className="num">Remaining Due (₹)</th>
+                            <th>Status</th>
+                            <th className="num">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {outstandingAllocations.map((item: any, idx: number) => {
+                            const isFullyPaid = item.remainingAmount <= 0.005;
+                            const isPartial = !isFullyPaid && item.paidAmount > 0;
+                            return (
+                              <tr key={item.invoiceId || idx} style={{ background: isFullyPaid ? '#f8fafc' : undefined }}>
+                                <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                                <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
+                                <td>
+                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                                    {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                    Type: {item.invoice?.transactionType || 'OUTSTANDING'}
+                                  </div>
+                                </td>
+                                <td className="num">₹{Number(item.originalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                                <td className="num" style={{ color: '#16a34a', fontWeight: 600 }}>
+                                  ₹{Number(item.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                                <td className="num sp-kv-strong" style={{ color: isFullyPaid ? '#16a34a' : '#b45309', fontSize: '14px' }}>
+                                  ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </td>
+                                <td>
+                                  <span className={`ui-badge ${isFullyPaid ? 'ui-badge-success' : isPartial ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                                    {isFullyPaid ? 'Settled' : isPartial ? 'Partial' : 'Unpaid'}
+                                  </span>
+                                </td>
+                                <td className="num">
+                                  {!isFullyPaid ? (
+                                    <button
+                                      onClick={() => setFeeToCollect(item.invoice)}
+                                      className="ui-btn ui-btn-primary ui-btn-sm"
+                                      style={{ padding: '5px 12px', fontSize: '12px' }}
+                                    >
+                                      <Wallet size={12} /> Pay
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>Cleared</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ background: '#fefce8', fontWeight: 700 }}>
+                            <td colSpan={3} style={{ textAlign: 'right', padding: '12px 16px', color: '#713f12' }}>Imported Backlog Totals:</td>
+                            <td className="num" style={{ padding: '12px 16px', color: '#713f12' }}>
+                              ₹{outstandingSummary.original.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="num" style={{ padding: '12px 16px', color: '#16a34a' }}>
+                              ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="num sp-kv-strong" style={{ padding: '12px 16px', color: '#b45309', fontSize: '14px' }}>
+                              ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td colSpan={2}></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Outstanding Payment Receipts */}
+              {outstandingSummary.payments.length > 0 && (
+                <div className="ui-card ui-card--flush">
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CheckCircle2 size={18} color="#16a34a" /> 3. Confirmed Payments Towards Outstanding Backlog
+                    </h4>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
+                      Receipts issued for payments made against the historical backlog
+                    </p>
+                  </div>
+
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>#</th>
+                          <th>Invoice / Receipt No</th>
+                          <th>Payment Date</th>
+                          <th>Payment Mode</th>
+                          <th className="num">Amount Paid (₹)</th>
+                          <th className="num">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {outstandingSummary.payments.map((pmt, idx) => (
+                          <tr key={pmt.id || idx}>
+                            <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                            <td style={{ fontWeight: 600, color: '#0f172a' }}>
+                              {pmt.invoiceNumber || formatInvoiceNumber(pmt, fees)}
+                            </td>
+                            <td>{new Date(pmt.paidDate || pmt.createdAt).toLocaleDateString('en-GB')}</td>
+                            <td>
+                              <span className="ui-badge ui-badge-secondary">{pmt.paymentMode || 'Cash'}</span>
+                            </td>
+                            <td className="num sp-kv-strong" style={{ color: '#16a34a', fontSize: '14px' }}>
+                              ₹{Number(pmt.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="num">
+                              <button
+                                onClick={() => setSelectedReceipt({ ...pmt, student: { name: student.name, regNo: student.id, roomNo: student.room } })}
+                                className="ui-btn ui-btn-secondary ui-btn-sm"
+                                style={{ padding: '5px 12px', fontSize: '12px' }}
+                              >
+                                <FileText size={12} color="#64748b" /> View Receipt
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1113,18 +1345,32 @@ const StudentProfile = () => {
                 </h3>
               </div>
 
-              <div className="sp-stat-grid">
+              <div className="sp-stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Paid (Receipts)</div>
-                  <div className="sp-stat-value">₹{roundMoney(
+                  <div className="sp-stat-value" style={{ color: '#16a34a' }}>₹{roundMoney(
                     displayFees
                       .filter(f => f.displayStatus === 'Paid' || f.displayStatus === 'Partial')
                       .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
                   ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
                 <div className="sp-stat">
-                  <div className="sp-stat-label">Total Pending Dues</div>
-                  <div className="sp-stat-value">₹{calculatePendingDues(fees, student?.billingCycle).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-label">Current Month Due</div>
+                  <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : undefined }}>
+                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Imported Backlog Due</div>
+                  <div className="sp-stat-value" style={{ color: outstandingSummary.remaining > 0 ? '#b45309' : undefined }}>
+                    ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Outstanding Dues</div>
+                  <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
+                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
                 </div>
               </div>
 
