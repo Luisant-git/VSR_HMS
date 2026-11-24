@@ -23,7 +23,7 @@ export const PageHeader = ({
   const navigate = useNavigate();
 
   return (
-    <div className="card-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+    <div className="card-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', flexWrap: 'wrap', gap: '14px' }}>
       <div className="page-header-main" style={{ display: 'flex', alignItems: 'center', minWidth: 0, flexWrap: 'wrap', rowGap: '10px' }}>
         {showBack && (
           <button
@@ -50,7 +50,7 @@ export const PageHeader = ({
         </div>
       </div>
       {rightContent && (
-        <div className="page-header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="page-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginLeft: 'auto', justifyContent: 'flex-end' }}>
           {rightContent}
         </div>
       )}

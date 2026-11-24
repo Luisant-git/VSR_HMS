@@ -70,6 +70,8 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
   private sock: WASocket | null = null;
   private isConnecting = false;
   private isReady = false;
+  private currentQr: string | null = null;
+  private qrGeneratedAt: Date | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -89,6 +91,72 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
 
   isConnected(): boolean {
     return this.isReady && this.sock !== null;
+  }
+
+  getStatus() {
+    const isConn = this.isConnected();
+    if (!isConn && !this.isConnecting && !this.currentQr) {
+      this.connectToWhatsApp().catch(() => {});
+    }
+
+    const rawJid = this.sock?.user?.id || null;
+    let phone: string | null = null;
+    if (rawJid) {
+      const clean = rawJid.split(':')[0].replace(/\D/g, '');
+      phone = clean.length > 10 && clean.startsWith('91') ? `+91 ${clean.slice(2)}` : `+${clean}`;
+    }
+    const name = this.sock?.user?.name || (this.sock?.user as any)?.pushName || null;
+
+    return {
+      connected: isConn,
+      isConnecting: this.isConnecting,
+      qr: isConn ? null : this.currentQr,
+      qrGeneratedAt: this.qrGeneratedAt ? this.qrGeneratedAt.toISOString() : null,
+      phone,
+      name,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  async reconnect() {
+    this.logger.log('Manual WhatsApp reconnect requested...');
+    this.currentQr = null;
+    this.isReady = false;
+    this.isConnecting = false;
+    if (this.sock) {
+      try {
+        this.sock.end(undefined);
+      } catch {}
+      this.sock = null;
+    }
+    await this.connectToWhatsApp();
+    return this.getStatus();
+  }
+
+  async logout() {
+    this.logger.log('Manual WhatsApp logout requested...');
+    this.currentQr = null;
+    this.isReady = false;
+    this.isConnecting = false;
+    if (this.sock) {
+      try {
+        await this.sock.logout();
+      } catch {}
+      try {
+        this.sock.end(undefined);
+      } catch {}
+      this.sock = null;
+    }
+    const authDir = path.join(process.cwd(), 'whatsapp_auth');
+    if (fs.existsSync(authDir)) {
+      try {
+        fs.rmSync(authDir, { recursive: true, force: true });
+      } catch (err) {
+        this.logger.error('Failed to clear WhatsApp auth dir:', err);
+      }
+    }
+    setTimeout(() => this.connectToWhatsApp(), 1500);
+    return { success: true, message: 'Disconnected. Initializing fresh QR code...' };
   }
 
   private async connectToWhatsApp() {
@@ -119,10 +187,14 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
+          this.currentQr = qr;
+          this.qrGeneratedAt = new Date();
           this.logger.log('====================================================');
           this.logger.log('SCAN THIS QR CODE ONCE USING WHATSAPP (LINKED DEVICES)');
           this.logger.log('====================================================');
-          qrcode.generate(qr, { small: true });
+          try {
+            qrcode.generate(qr, { small: true });
+          } catch {}
         }
 
         if (connection === 'close') {
@@ -140,6 +212,7 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
         } else if (connection === 'open') {
           this.isReady = true;
           this.isConnecting = false;
+          this.currentQr = null;
           this.logger.log('WhatsApp Service connected! Automated PDF receipt dispatch is active.');
         }
       });

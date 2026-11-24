@@ -154,10 +154,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     daysOverdue: number;
     dailyFine: number;
     asOfDate: string | null;
+    isDoubled?: boolean;
+    hasOlderUnpaidDue?: boolean;
     fines: Array<{
       key: 'rent' | 'mess' | 'eb';
       label: string;
       rate: number;
+      effectiveRate?: number;
+      isDoubled?: boolean;
+      regularDays?: number;
+      doubledDays?: number;
       dueDate: string;
       daysOverdue: number;
       currentDaysOverdue: number;
@@ -180,6 +186,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     daysOverdue: 0,
     dailyFine: 0,
     asOfDate: null,
+    isDoubled: false,
+    hasOlderUnpaidDue: false,
     fines: [],
     pendingFines: [],
   });
@@ -280,6 +288,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         amount: entry.amount,
         daysOverdue: entry.daysOverdue,
         currentAmount: entry.currentAmount,
+        rate: entry.rate,
+        effectiveRate: entry.effectiveRate ?? entry.rate,
+        isDoubled: entry.isDoubled ?? false,
+        regularDays: entry.regularDays,
+        doubledDays: entry.doubledDays,
       };
     }
     if (getFineParentType(fee) !== null) {
@@ -301,6 +314,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           : fineQuote.amount,
       daysOverdue: fineQuote.daysOverdue,
       currentAmount: fineQuote.currentAmount,
+      rate: fineQuote.dailyFine,
+      effectiveRate: fineQuote.dailyFine,
+      isDoubled: fineQuote.isDoubled ?? false,
     };
   };
 
@@ -1134,21 +1150,63 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                   ) : fineQuoteError ? (
                     <div role="alert" style={{ marginTop: allowPaymentDate ? '8px' : 0, fontSize: '13px', color: '#b91c1c' }}>{fineQuoteError}</div>
                   ) : fineQuoteReady ? (
-                    <div style={{ marginTop: allowPaymentDate ? '8px' : 0, fontSize: '13px', color: '#475569' }}>
-                      Late fine on {formatDateDMY(paymentDate)}:{' '}
-                      <strong>₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    <div style={{
+                      marginTop: allowPaymentDate ? '8px' : 0,
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      background: fineQuote.isDoubled ? '#fff7ed' : '#f8fafc',
+                      border: `1px solid ${fineQuote.isDoubled ? '#fed7aa' : '#e2e8f0'}`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                        <div style={{ fontSize: '13px', color: '#334155' }}>
+                          Late fine on {formatDateDMY(paymentDate)}:{' '}
+                          <strong style={{ color: fineQuote.isDoubled ? '#c2410c' : '#0f172a', fontSize: '14px' }}>
+                            ₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </strong>
+                        </div>
+                        {fineQuote.isDoubled && (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#ffedd5',
+                            color: '#9a3412',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            letterSpacing: '0.3px',
+                            textTransform: 'uppercase',
+                          }}>
+                            ⚡ Doubled Fine Active (2× Rate)
+                          </span>
+                        )}
+                      </div>
                       {fineQuote.fines.length > 0 ? (
-                        <span>
-                          {' '}
-                          ({fineQuote.fines
-                            .map(
-                              (entry) =>
-                                `${entry.label} ₹${entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-                            )
-                            .join(', ')})
-                        </span>
+                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {fineQuote.fines.map((entry) => (
+                            <span key={entry.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.03)', padding: '2px 6px', borderRadius: '4px' }}>
+                              <strong>{entry.label}:</strong> ₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              <span style={{ color: entry.isDoubled ? '#b45309' : '#64748b', fontSize: '11px' }}>
+                                ({entry.daysOverdue}d @ ₹{entry.isDoubled ? entry.effectiveRate : entry.rate}/d
+                                {entry.isDoubled && (entry.doubledDays && entry.regularDays ? ` · 30d reg + ${entry.doubledDays}d 2×` : ' · 2×')}
+                                )
+                              </span>
+                            </span>
+                          ))}
+                        </div>
                       ) : (
-                        <span> — no overdue fine</span>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>— no overdue fine</div>
+                      )}
+                      {fineQuote.isDoubled && (
+                        <div style={{ fontSize: '11.5px', color: '#b45309', lineHeight: 1.4, borderTop: '1px dashed #fed7aa', paddingTop: '4px' }}>
+                          ℹ️ {fineQuote.hasOlderUnpaidDue
+                            ? 'Doubled fine rate applied: Student has prior month dues or backlog unpaid.'
+                            : 'Doubled fine rate applied: Due remains unpaid past the first month (>30 days overdue into next month).'}
+                        </div>
                       )}
                     </div>
                   ) : null}
@@ -1200,16 +1258,24 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                               <div style={{ color: '#64748b', fontSize: '13px' }}>
                                 {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
                                 {f.fineQuote && (
-                                  <span style={{ color: '#b45309', fontWeight: 600 }}>
-                                    {' '}
-                                    · As of {formatDateDMY(paymentDate)}:{' '}
-                                    {f.fineQuote.daysOverdue > 0
-                                      ? `${f.fineQuote.daysOverdue} overdue day${f.fineQuote.daysOverdue === 1 ? '' : 's'}`
-                                      : 'no fine'}
-                                    {!f.fineMigrated && Number(f.originalAmount) !== Number(f.amount) && (
-                                      <> (was ₹{Number(f.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</>
-                                    )}
-                                  </span>
+                                  <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ color: f.fineQuote.isDoubled ? '#c2410c' : '#b45309', fontWeight: 600, fontSize: '12.5px' }}>
+                                      · As of {formatDateDMY(paymentDate)}:{' '}
+                                      {f.fineQuote.daysOverdue > 0 ? (
+                                        <>
+                                          {f.fineQuote.daysOverdue} overdue day{f.fineQuote.daysOverdue === 1 ? '' : 's'}
+                                          {f.fineQuote.isDoubled && (
+                                            <span style={{ marginLeft: '6px', background: '#ffedd5', color: '#9a3412', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
+                                              2× DOUBLED (₹{f.fineQuote.effectiveRate}/d)
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : 'no fine'}
+                                      {!f.fineMigrated && Number(f.originalAmount) !== Number(f.amount) && (
+                                        <span style={{ color: '#64748b', fontWeight: 400 }}> (was ₹{Number(f.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
+                                      )}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                             </div>

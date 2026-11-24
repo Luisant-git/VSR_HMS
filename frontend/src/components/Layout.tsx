@@ -328,28 +328,6 @@ const Layout = () => {
           </NavLink>
           */}
         </nav>
-
-        {/* Logged-in user */}
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="sidebar-user-avatar">{user?.name ? user.name.charAt(0).toUpperCase() : 'A'}</div>
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">{user?.name || 'Admin User'}</span>
-              <span className="sidebar-user-role">{user?.role || 'ADMIN'}</span>
-            </div>
-          </div>
-          <button
-            className="sidebar-logout"
-            onClick={() => {
-              localStorage.removeItem('access_token');
-              navigate('/login');
-            }}
-            aria-label="Logout"
-            title="Logout"
-          >
-            <LogOut size={17} />
-          </button>
-        </div>
       </aside>
 
       {/* Right Side (Header + Content Wrapper) */}

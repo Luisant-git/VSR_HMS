@@ -263,6 +263,63 @@ describe('FeesService - outstanding payment ledger', () => {
       expect(quote.fines.find((item) => item.key === 'eb')?.daysOverdue).toBe(4);
       expect(quote.amount).toBe(120);
     });
+
+    it('doubles late fine rate when fee remains unpaid into the next month (>30 days overdue)', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(today);
+      dueDate.setDate(dueDate.getDate() - 35);
+      const service = makeService(dueDate);
+
+      const quote = await service.previewFine('student-1', dateInput(today));
+
+      expect(quote.daysOverdue).toBe(35);
+      expect(quote.isDoubled).toBe(true);
+      // 30 days @ 25 = 750, 5 days @ 50 (2x) = 250 -> total 1000
+      expect(quote.amount).toBe(1000);
+      const rentEntry = quote.fines.find((item) => item.key === 'rent');
+      expect(rentEntry?.regularDays).toBe(30);
+      expect(rentEntry?.doubledDays).toBe(5);
+      expect(rentEntry?.isDoubled).toBe(true);
+      expect(rentEntry?.effectiveRate).toBe(50);
+    });
+
+    it('doubles fine rate immediately when older prior dues are unpaid', async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const currentDueDate = new Date(today);
+      currentDueDate.setDate(currentDueDate.getDate() - 10);
+      const olderDueDate = new Date(today);
+      olderDueDate.setDate(olderDueDate.getDate() - 40);
+
+      const prisma = {
+        student: {
+          findUnique: vi.fn().mockResolvedValue({
+            id: 'student-1',
+            college: {
+              dueDate: currentDueDate,
+              fineMaster: { rentFine: 50, messFine: 0, ebFine: 10 },
+            },
+            transactions: [
+              { transactionType: 'RENT', status: 'PENDING', dueDate: currentDueDate, billingMonth: '2026-11' },
+              { transactionType: 'RENT', status: 'PENDING', dueDate: olderDueDate, billingMonth: '2026-10' },
+            ],
+          }),
+        },
+        feeTransaction: { findMany: vi.fn().mockResolvedValue([]) },
+      };
+
+      const service = new FeesService(prisma as any);
+      const quote = await service.previewFine('student-1', dateInput(today));
+
+      expect(quote.hasOlderUnpaidDue).toBe(true);
+      expect(quote.isDoubled).toBe(true);
+      // Rent: 10 days @ doubled rate (100) = 1000
+      const rentFine = quote.fines.find((item) => item.key === 'rent');
+      expect(rentFine?.amount).toBe(1000);
+      expect(rentFine?.effectiveRate).toBe(100);
+      expect(rentFine?.isDoubled).toBe(true);
+    });
   });
 
   describe('FeesService - fee trash', () => {

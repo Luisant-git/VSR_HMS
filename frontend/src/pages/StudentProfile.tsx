@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee, Calendar, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -11,8 +11,7 @@ import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { buildOutstandingSummary, cleanPaymentDescription, isCurrentCycleFee, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { getBillingMonths, isPostpaidPayableFee, formatBillingMonth } from '../utils/billingCycle';
-import { getDueDay } from '../utils/dueDate';
+import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -47,28 +46,11 @@ const StudentProfile = () => {
     return roundMoney(currentPendingFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0));
   }, [currentPendingFees]);
 
-  const grandTotalOutstanding = useMemo(() => {
-    return roundMoney(currentPendingTotal + outstandingSummary.remaining);
-  }, [currentPendingTotal, outstandingSummary.remaining]);
+  const hasBacklog = outstandingSummary.remaining > 0.005;
 
-  const getDueDateForMonth = (monthStr?: string): string => {
-    const dueDay = getDueDay(student?.dueDay) ?? 5;
-    if (!monthStr) {
-      const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
-      return nextMonth.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    }
-    const match = String(monthStr).match(/^(\d{4})-(0[1-9]|1[0-2])$/);
-    if (!match) return `${String(dueDay).padStart(2, '0')}th of next month`;
-    const year = Number(match[1]);
-    let monthIndex = Number(match[2]) - 1;
-    // POSTPAID bills are raised the month after the billing month.
-    if (String(student?.billingCycle || '').toUpperCase() === 'POSTPAID') monthIndex += 1;
-    const normalized = new Date(year, monthIndex, 1);
-    const lastDay = new Date(normalized.getFullYear(), normalized.getMonth() + 1, 0).getDate();
-    const dueDate = new Date(normalized.getFullYear(), normalized.getMonth(), Math.min(dueDay, lastDay));
-    return dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const grandTotalOutstanding = useMemo(() => {
+    return roundMoney(currentPendingTotal + (hasBacklog ? outstandingSummary.remaining : 0));
+  }, [currentPendingTotal, hasBacklog, outstandingSummary.remaining]);
 
   const displayFees = useMemo(() => {
     const billingCycle = student?.billingCycle || 'PREPAID';
@@ -311,6 +293,15 @@ const StudentProfile = () => {
 
     return result;
   }, [fees, outstandingSummary, student?.billingCycle]);
+
+  const totalPaid = useMemo(() => {
+    return roundMoney(
+      displayFees
+        .filter(f => f.displayStatus === 'Paid' || f.displayStatus === 'Partial')
+        .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
+    );
+  }, [displayFees]);
+
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -442,11 +433,7 @@ const StudentProfile = () => {
 
   const tabs = [
     { name: 'Master Profile', icon: <User size={16} /> },
-    {
-      name: 'Outstanding Payments',
-      icon: <IndianRupee size={16} />,
-      badge: grandTotalOutstanding > 0 ? `₹${grandTotalOutstanding.toLocaleString('en-IN')}` : undefined,
-    },
+    { name: 'Outstanding Payments', icon: <IndianRupee size={16} /> },
     { name: 'Gate Logs', icon: <Clock size={16} /> },
     { name: 'Fees & Receipts', icon: <CreditCard size={16} /> },
     { name: 'Advance Deposit', icon: <ShieldCheck size={16} /> },
@@ -532,23 +519,40 @@ const StudentProfile = () => {
                 <span className="sp-meta-value-right">{student.category || 'N/A'}</span>
               </div>
               <div className="sp-meta-row" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '6px' }}>
-                <span className="sp-meta-label">Current Due:</span>
-                <span style={{ fontWeight: 700, color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
-                  ₹{currentPendingTotal.toLocaleString('en-IN')}
+                <span className="sp-meta-label">Total Paid:</span>
+                <span style={{ fontWeight: 700, color: '#16a34a' }}>
+                  ₹{totalPaid.toLocaleString('en-IN')}
                 </span>
               </div>
-              <div className="sp-meta-row">
-                <span className="sp-meta-label">Imported Due:</span>
-                <span style={{ fontWeight: 700, color: outstandingSummary.remaining > 0 ? '#d97706' : '#16a34a' }}>
-                  ₹{outstandingSummary.remaining.toLocaleString('en-IN')}
-                </span>
-              </div>
-              <div className="sp-meta-row" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px', fontWeight: 800 }}>
-                <span className="sp-meta-label" style={{ color: '#0f172a' }}>Total Due:</span>
-                <span style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
-                  ₹{grandTotalOutstanding.toLocaleString('en-IN')}
-                </span>
-              </div>
+              {hasBacklog ? (
+                <>
+                  <div className="sp-meta-row">
+                    <span className="sp-meta-label">Current Due:</span>
+                    <span style={{ fontWeight: 700, color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
+                      ₹{currentPendingTotal.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="sp-meta-row">
+                    <span className="sp-meta-label">Imported Due:</span>
+                    <span style={{ fontWeight: 700, color: '#d97706' }}>
+                      ₹{outstandingSummary.remaining.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div className="sp-meta-row" style={{ borderTop: '1px solid #f1f5f9', paddingTop: '6px', fontWeight: 800 }}>
+                    <span className="sp-meta-label" style={{ color: '#0f172a' }}>Total Due:</span>
+                    <span style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
+                      ₹{grandTotalOutstanding.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="sp-meta-row" style={{ fontWeight: 700 }}>
+                  <span className="sp-meta-label" style={{ color: '#0f172a' }}>Pending Due:</span>
+                  <span style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
+                    ₹{currentPendingTotal.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -561,10 +565,10 @@ const StudentProfile = () => {
                 className={`sp-nav-btn${activeTab === tab.name ? ' is-active' : ''}`}
               >
                 {tab.icon}
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px' }}>
-                  <span>{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
+                <span className="sp-nav-text-group">
+                  <span className="sp-nav-title">{tab.name} {tab.name === 'Gate Logs' && `(${gateLogs.length})`}</span>
                   {(tab as any).badge && (
-                    <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', background: '#fee2e2', color: '#dc2626', fontWeight: 700 }}>
+                    <span className="sp-nav-badge">
                       {(tab as any).badge}
                     </span>
                   )}
@@ -795,15 +799,10 @@ const StudentProfile = () => {
 
           {activeTab === 'Outstanding Payments' && (
             <div>
-              <div className="sp-tab-head" style={{ marginBottom: '20px' }}>
-                <div>
-                  <h3 className="sp-section-title sp-tab-title" style={{ marginBottom: '4px' }}>
-                    <IndianRupee size={22} color="#f59e0b" /> Outstanding & Pending Dues
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                    Separate breakdown of current monthly cycle dues vs imported historical backlog balances
-                  </p>
-                </div>
+              <div className="sp-tab-head">
+                <h3 className="sp-section-title sp-tab-title">
+                  <IndianRupee size={20} color="#f59e0b" /> Outstanding Payments
+                </h3>
                 {grandTotalOutstanding > 0 && (
                   <button
                     onClick={() => {
@@ -816,349 +815,184 @@ const StudentProfile = () => {
                       }
                     }}
                     className="ui-btn ui-btn-primary"
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                   >
-                    <Wallet size={16} /> Pay Outstanding Dues
+                    <Wallet size={16} /> Collect Dues
                   </button>
                 )}
               </div>
 
-              {/* Three-Card Overview Banner (Neat & Clean) */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                {/* 1. Current Month Outstanding Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #bae6fd', background: '#f0f9ff', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '40px', height: '40px', background: '#0ea5e9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Calendar size={20} color="#ffffff" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Outstanding</span>
-                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0c4a6e' }}>Monthly Billing Dues</h4>
+              {/* Stat Cards - Displayed in a single row */}
+              <div
+                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-2-col'}`}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+                  gap: '12px',
+                  marginBottom: '24px'
+                }}
+              >
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Paid</div>
+                  <div className="sp-stat-value" style={{ color: '#16a34a' }}>
+                    ₹{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  {outstandingSummary.paid > 0 && (
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      (Backlog paid: ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                    </div>
+                  )}
+                </div>
+                {hasBacklog ? (
+                  <>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Current Month</div>
+                      <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : '#16a34a' }}>
+                        ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
-                    <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
-                      {currentPendingTotal > 0 ? 'Unpaid' : 'Clear'}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#0369a1', lineHeight: 1.2 }}>
-                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
-
-                {/* 2. Imported Outstanding Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #fde68a', background: '#fefce8', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '40px', height: '40px', background: '#eab308', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FileSpreadsheet size={20} color="#ffffff" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Imported Outstanding</span>
-                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#713f12' }}>Excel Backlog Ledger</h4>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Imported Backlog</div>
+                      <div className="sp-stat-value" style={{ color: '#d97706' }}>
+                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
-                    <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
-                      {outstandingSummary.remaining > 0 ? 'Backlog Due' : 'Fully Settled'}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#a16207', lineHeight: 1.2 }}>
-                    ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
-
-                {/* 3. Grand Total Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #ddd6fe', background: '#faf5ff', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '40px', height: '40px', background: '#8b5cf6', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Wallet size={20} color="#ffffff" />
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Combined Total</span>
-                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#4c1d95' }}>Grand Total Outstanding</h4>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Total Outstanding</div>
+                      <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
+                        ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
-                    <span className={`ui-badge ${grandTotalOutstanding > 0 ? 'ui-badge-purple' : 'ui-badge-success'}`}>
-                      {grandTotalOutstanding > 0 ? 'Total Due' : 'All Clear'}
-                    </span>
+                  </>
+                ) : (
+                  <div className="sp-stat">
+                    <div className="sp-stat-label">Current Month Dues</div>
+                    <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
+                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-
-                  <div style={{ fontSize: '28px', fontWeight: 900, color: '#5b21b6', lineHeight: 1.2 }}>
-                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
+                )}
               </div>
 
-              {/* If no dues at all, display a single clean, neat All-Clear banner */}
-              {grandTotalOutstanding <= 0.005 && outstandingAllocations.length === 0 && (
-                <div className="ui-card" style={{ padding: '36px 20px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', marginBottom: '24px' }}>
-                  <CheckCircle2 size={40} style={{ margin: '0 auto 10px', color: '#16a34a' }} />
-                  <div style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>All Outstanding Dues Clear</div>
-                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
-                    This student has no pending monthly billing dues or historical Excel backlog.
-                  </p>
+              {/* Pending Dues Table or Empty State */}
+              {grandTotalOutstanding <= 0.005 ? (
+                <div className="sp-empty">
+                  No outstanding dues. All fees are fully settled.
                 </div>
-              )}
-
-              {/* Section 1: Current Month Outstanding Details (Only rendered when there are current pending dues) */}
-              {currentPendingFees.length > 0 && (
+              ) : (
                 <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Calendar size={18} color="#0284c7" /> Current Month Billing Dues
-                      </h4>
-                      <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
-                        Hostel room rent, EB, and fine invoices for the current billing cycle
-                      </p>
-                    </div>
-                    <span className="ui-badge ui-badge-danger">
-                      Total: ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-
                   <div className="ui-table-wrap">
                     <table className="ui-table">
                       <thead>
                         <tr>
-                          <th style={{ width: '40px' }}>#</th>
-                          <th>Fee Description</th>
-                          <th>Category</th>
-                          <th>Billing Month</th>
-                          <th>Due Date</th>
-                          <th className="num">Amount (₹)</th>
-                          <th>Status</th>
-                          <th className="num">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {currentPendingFees.map((fee, idx) => {
-                          const feeType = String(fee.transactionType || '').toUpperCase();
-                          const typeBadge = feeType.includes('RENT')
-                            ? 'ui-badge-blue'
-                            : feeType.includes('EB')
-                              ? 'ui-badge-warning'
-                              : feeType.includes('FINE')
-                                ? 'ui-badge-danger'
-                                : 'ui-badge-secondary';
-                          const billingMonth = fee.billingMonth || (fee.description?.match(/(\d{4}-\d{2})/)?.[1]) || getBillingMonths().currentMonthStr;
-
-                          return (
-                            <tr key={fee.id || idx}>
-                              <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                              <td>
-                                <div style={{ fontWeight: 600, color: '#0f172a' }}>{fee.description || 'Monthly Fee'}</div>
-                                <div style={{ fontSize: '11px', color: '#64748b' }}>Generated on {new Date(fee.createdAt).toLocaleDateString('en-GB')}</div>
-                              </td>
-                              <td>
-                                <span className={`ui-badge ${typeBadge}`}>
-                                  {feeType.replace('_', ' ')}
-                                </span>
-                              </td>
-                              <td>
-                                <span style={{ fontWeight: 600, color: '#334155' }}>
-                                  {formatBillingMonth(billingMonth) || billingMonth}
-                                </span>
-                              </td>
-                              <td>
-                                <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '12px' }}>
-                                  {getDueDateForMonth(billingMonth)}
-                                </span>
-                              </td>
-                              <td className="num sp-kv-strong" style={{ color: '#dc2626', fontSize: '14px' }}>
-                                ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td>
-                                <span className="ui-badge ui-badge-danger">Unpaid</span>
-                              </td>
-                              <td className="num">
-                                <button
-                                  onClick={() => setFeeToCollect(fee)}
-                                  className="ui-btn ui-btn-primary ui-btn-sm"
-                                  style={{ padding: '5px 12px', fontSize: '12px' }}
-                                >
-                                  <Wallet size={12} /> Pay Now
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
-                          <td colSpan={5} style={{ textAlign: 'right', padding: '12px 16px' }}>Current Month Dues Subtotal:</td>
-                          <td className="num" style={{ color: '#dc2626', fontSize: '14px', padding: '12px 16px' }}>
-                            ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td colSpan={2}></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 2: Imported Outstanding Details (Only rendered when there are imported backlog records) */}
-              {outstandingAllocations.length > 0 && (
-                <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fefce8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileSpreadsheet size={18} color="#eab308" /> Imported Outstanding Ledger (Excel Backlog)
-                      </h4>
-                      <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#854d0e' }}>
-                        Historical dues imported in bulk from client Excel sheets or opening balance records
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
-                        Remaining Backlog: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                      {outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0 && (
-                        <button
-                          onClick={() => setFeeToCollect(outstandingSummary.invoices[0])}
-                          className="ui-btn ui-btn-primary ui-btn-sm"
-                          style={{ padding: '5px 12px', fontSize: '12px' }}
-                        >
-                          <Wallet size={12} /> Pay Backlog
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="ui-table-wrap">
-                    <table className="ui-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '40px' }}>#</th>
-                          <th>Import Date</th>
+                          <th>Date</th>
+                          <th>Type</th>
                           <th>Description</th>
-                          <th className="num">Original Amount (₹)</th>
-                          <th className="num">Amount Paid (₹)</th>
-                          <th className="num">Remaining Due (₹)</th>
-                          <th>Status</th>
-                          <th className="num">Action</th>
+                          <th className="num">Due Amount (₹)</th>
+                          <th className="sp-center">Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {outstandingAllocations.map((item: any, idx: number) => {
-                          const isFullyPaid = item.remainingAmount <= 0.005;
-                          const isPartial = !isFullyPaid && item.paidAmount > 0;
-                          return (
-                            <tr key={item.invoiceId || idx} style={{ background: isFullyPaid ? '#f8fafc' : undefined }}>
-                              <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                              <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
-                              <td>
-                                <div style={{ fontWeight: 600, color: '#0f172a' }}>
-                                  {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
-                                </div>
-                                <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                  Type: {item.invoice?.transactionType || 'OUTSTANDING'}
-                                </div>
-                              </td>
-                              <td className="num">₹{Number(item.originalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                              <td className="num" style={{ color: '#16a34a', fontWeight: 600 }}>
-                                ₹{Number(item.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="num sp-kv-strong" style={{ color: isFullyPaid ? '#16a34a' : '#b45309', fontSize: '14px' }}>
-                                ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td>
-                                <span className={`ui-badge ${isFullyPaid ? 'ui-badge-success' : isPartial ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
-                                  {isFullyPaid ? 'Settled' : isPartial ? 'Partial' : 'Unpaid'}
-                                </span>
-                              </td>
-                              <td className="num">
-                                {!isFullyPaid ? (
-                                  <button
-                                    onClick={() => setFeeToCollect(item.invoice)}
-                                    className="ui-btn ui-btn-primary ui-btn-sm"
-                                    style={{ padding: '5px 12px', fontSize: '12px' }}
-                                  >
-                                    <Wallet size={12} /> Pay
-                                  </button>
-                                ) : (
-                                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>Cleared</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{ background: '#fefce8', fontWeight: 700 }}>
-                          <td colSpan={3} style={{ textAlign: 'right', padding: '12px 16px', color: '#713f12' }}>Imported Backlog Totals:</td>
-                          <td className="num" style={{ padding: '12px 16px', color: '#713f12' }}>
-                            ₹{outstandingSummary.original.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="num" style={{ padding: '12px 16px', color: '#16a34a' }}>
-                            ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="num sp-kv-strong" style={{ padding: '12px 16px', color: '#b45309', fontSize: '14px' }}>
-                            ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td colSpan={2}></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 3: Outstanding Payment Receipts */}
-              {outstandingSummary.payments.length > 0 && (
-                <div className="ui-card ui-card--flush">
-                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <CheckCircle2 size={18} color="#16a34a" /> 3. Confirmed Payments Towards Outstanding Backlog
-                    </h4>
-                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
-                      Receipts issued for payments made against the historical backlog
-                    </p>
-                  </div>
-
-                  <div className="ui-table-wrap">
-                    <table className="ui-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '40px' }}>#</th>
-                          <th>Invoice / Receipt No</th>
-                          <th>Payment Date</th>
-                          <th>Payment Mode</th>
-                          <th className="num">Amount Paid (₹)</th>
-                          <th className="num">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {outstandingSummary.payments.map((pmt, idx) => (
-                          <tr key={pmt.id || idx}>
-                            <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                            <td style={{ fontWeight: 600, color: '#0f172a' }}>
-                              {pmt.invoiceNumber || formatInvoiceNumber(pmt, fees)}
-                            </td>
-                            <td>{new Date(pmt.paidDate || pmt.createdAt).toLocaleDateString('en-GB')}</td>
+                        {/* Current Month Pending Fees */}
+                        {currentPendingFees.map(fee => (
+                          <tr key={fee.id}>
+                            <td>{new Date(fee.createdAt).toLocaleDateString('en-GB')}</td>
                             <td>
-                              <span className="ui-badge ui-badge-secondary">{pmt.paymentMode || 'Cash'}</span>
+                              <span className="ui-badge ui-badge-blue">Current Month</span>
                             </td>
-                            <td className="num sp-kv-strong" style={{ color: '#16a34a', fontSize: '14px' }}>
-                              ₹{Number(pmt.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            <td className="sp-kv-strong">{fee.description || 'Monthly Fee'}</td>
+                            <td className="num is-danger" style={{ fontWeight: 700 }}>
+                              ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </td>
-                            <td className="num">
+                            <td className="sp-center">
                               <button
-                                onClick={() => setSelectedReceipt({ ...pmt, student: { name: student.name, regNo: student.id, roomNo: student.room } })}
-                                className="ui-btn ui-btn-secondary ui-btn-sm"
-                                style={{ padding: '5px 12px', fontSize: '12px' }}
+                                onClick={() => setFeeToCollect(fee)}
+                                className="ui-btn ui-btn-primary ui-btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                               >
-                                <FileText size={12} color="#64748b" /> View Receipt
+                                <Wallet size={12} /> Pay
                               </button>
                             </td>
                           </tr>
                         ))}
+
+                        {/* Backlog Items (Only when backlog is active) */}
+                        {hasBacklog && outstandingAllocations
+                          .filter((item: any) => item.remainingAmount > 0.005)
+                          .map(item => (
+                            <tr key={item.invoiceId}>
+                              <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
+                              <td>
+                                <span className="ui-badge ui-badge-warning">Imported Backlog</span>
+                              </td>
+                              <td className="sp-kv-strong">
+                                {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
+                              </td>
+                              <td className="num is-danger" style={{ fontWeight: 700 }}>
+                                ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="sp-center">
+                                <button
+                                  onClick={() => setFeeToCollect(item.invoice)}
+                                  className="ui-btn ui-btn-primary ui-btn-sm"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                  <Wallet size={12} /> Pay
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmed Payments Towards Backlog Receipts (When backlog payments exist) */}
+              {outstandingSummary.payments.length > 0 && (
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle2 size={18} color="#16a34a" /> Backlog Payment Receipts
+                  </h4>
+                  <div className="ui-card ui-card--flush">
+                    <div className="ui-table-wrap">
+                      <table className="ui-table">
+                        <thead>
+                          <tr>
+                            <th>Receipt No</th>
+                            <th>Payment Date</th>
+                            <th>Payment Mode</th>
+                            <th className="num">Amount Paid (₹)</th>
+                            <th className="sp-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {outstandingSummary.payments.map((pmt, idx) => (
+                            <tr key={pmt.id || idx}>
+                              <td className="sp-kv-strong">
+                                {pmt.invoiceNumber || formatInvoiceNumber(pmt, fees)}
+                              </td>
+                              <td>{new Date(pmt.paidDate || pmt.createdAt).toLocaleDateString('en-GB')}</td>
+                              <td>
+                                <span className="ui-badge ui-badge-secondary">{pmt.paymentMode || 'Cash'}</span>
+                              </td>
+                              <td className="num" style={{ color: '#16a34a', fontWeight: 700 }}>
+                                ₹{Number(pmt.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="sp-center">
+                                <button
+                                  onClick={() => setSelectedReceipt({ ...pmt, student: { name: student.name, regNo: student.id, roomNo: student.room } })}
+                                  className="ui-btn ui-btn-secondary ui-btn-sm"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                                >
+                                  <FileText size={12} /> View Receipt
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1265,33 +1099,48 @@ const StudentProfile = () => {
                 </h3>
               </div>
 
-              <div className="sp-stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+              <div
+                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-2-col'}`}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+                  gap: '12px',
+                  marginBottom: '24px'
+                }}
+              >
                 <div className="sp-stat">
                   <div className="sp-stat-label">Total Paid (Receipts)</div>
-                  <div className="sp-stat-value" style={{ color: '#16a34a' }}>₹{roundMoney(
-                    displayFees
-                      .filter(f => f.displayStatus === 'Paid' || f.displayStatus === 'Partial')
-                      .reduce((sum, f) => sum + Number(f.displayPaid || 0), 0)
-                  ).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  <div className="sp-stat-value" style={{ color: '#16a34a' }}>₹{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
-                <div className="sp-stat">
-                  <div className="sp-stat-label">Current Month Due</div>
-                  <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : undefined }}>
-                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                {hasBacklog ? (
+                  <>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Current Month Due</div>
+                      <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : undefined }}>
+                        ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Imported Backlog Due</div>
+                      <div className="sp-stat-value" style={{ color: '#b45309' }}>
+                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="sp-stat">
+                      <div className="sp-stat-label">Total Outstanding Dues</div>
+                      <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
+                        ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="sp-stat">
+                    <div className="sp-stat-label">Pending Dues</div>
+                    <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
+                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
-                </div>
-                <div className="sp-stat">
-                  <div className="sp-stat-label">Imported Backlog Due</div>
-                  <div className="sp-stat-value" style={{ color: outstandingSummary.remaining > 0 ? '#b45309' : undefined }}>
-                    ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
-                <div className="sp-stat">
-                  <div className="sp-stat-label">Total Outstanding Dues</div>
-                  <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
-                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                </div>
+                )}
               </div>
 
               <FeeGenerationNotice billingCycle={student?.billingCycle} compact />

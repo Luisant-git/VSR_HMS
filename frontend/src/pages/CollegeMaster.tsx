@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, SquarePen, Trash2, AlertCircle, X, Search } from 'lucide-react';
+import { Building2, Plus, SquarePen, Trash2, AlertCircle, X, Search, Info } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { CollegeAPI } from '../api/college.api';
@@ -8,6 +8,7 @@ import { formatDueDay, getDueDay } from '../utils/dueDate';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
+import { MonthlyDueDayPicker } from '../components/MonthlyDueDayPicker';
 
 const collegeSelectStyles = {
   control: (base: any, state: any) => ({
@@ -478,11 +479,15 @@ const CollegeMaster = () => {
                       isSearchable={false}
                     />
                   </div>
-                  <div className="ui-form-group">
-                    <label className="ui-form-label">Due Day of Month <span className="cm-req">*</span></label>
-                    <input type="number" min={1} max={31} value={formData.dueDay} onChange={e => setFormData({...formData, dueDay: e.target.value})} required className="ui-form-control" />
-                    <div className="cm-hint">Fees are due on this day every month; fine starts the next day.</div>
-                  </div>
+                </div>
+
+                <div className="ui-form-group">
+                  <MonthlyDueDayPicker
+                    value={formData.dueDay}
+                    onChange={(newVal) => setFormData({ ...formData, dueDay: newVal })}
+                    label="Due Day"
+                    required
+                  />
                 </div>
 
                 <div className="ui-form-group">
@@ -570,9 +575,12 @@ const CollegeMaster = () => {
                 </div>
 
                 <div className="ui-form-group">
-                  <label className="ui-form-label">Due Day of Every Month {fineTargetColleges.includes('all') && <span className="cm-optional">(Applied to all)</span>}</label>
-                  <input type="number" min={1} max={31} placeholder="e.g. 5" value={fineDueDay} onChange={e => setFineDueDay(e.target.value)} className="ui-form-control" />
-                  <div className="cm-hint">Choose a day (1-31). Example: 5 means fees are due on the 5th and fine starts on the 6th, repeated every month. Paying on or before the due day avoids the fine.</div>
+                  <MonthlyDueDayPicker
+                    value={fineDueDay}
+                    onChange={(newVal) => setFineDueDay(newVal)}
+                    label="Due Day"
+                    optionalTag={fineTargetColleges.includes('all') ? 'Applied to all' : undefined}
+                  />
                 </div>
 
                 <div className="cm-fine-toggles">
@@ -605,6 +613,24 @@ const CollegeMaster = () => {
                       <div className="cm-fine-currency">₹</div>
                       <input type="number" step="1" value={ebFine} onChange={e => setEbFine(parseFloat(e.target.value) || 0)} disabled={!isEbFineEnabled} placeholder="0" />
                     </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 14px',
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: '#1e40af',
+                  lineHeight: 1.45,
+                }}>
+                  <strong style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#1e3a8a', marginBottom: '2px' }}>
+                    <Info size={14} /> Doubled Late Fine Policy:
+                  </strong>
+                  <div>
+                    Fine accumulates daily past the due date. If current month dues remain unpaid into the next month (&gt;30 days overdue) or older dues are pending, the fine rate doubles (2× daily rate).
                   </div>
                 </div>
               </div>

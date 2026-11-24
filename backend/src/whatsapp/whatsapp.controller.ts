@@ -7,9 +7,17 @@ export class WhatsappController {
 
   @Get('status')
   getStatus() {
-    return {
-      connected: this.whatsappService.isConnected(),
-    };
+    return this.whatsappService.getStatus();
+  }
+
+  @Post('reconnect')
+  async reconnect() {
+    return await this.whatsappService.reconnect();
+  }
+
+  @Post('logout')
+  async logout() {
+    return await this.whatsappService.logout();
   }
 
   @Post('send-receipt')

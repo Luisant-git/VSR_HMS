@@ -2,32 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
 import { getFinePeriods, resolveFineThrough, sumFineDays } from '../common/fine-due-date';
-
-type FineKey = 'rent' | 'mess' | 'eb';
-
-/**
- * Fine rows created by this service carry the fee type in their description,
- * e.g. "Late fine accumulation - Rent for 7 days overdue (₹10/day)".
- * The UI uses the "- Rent|- Mess|- EB" tag to show each fine next to its
- * parent fee, so keep the format stable.
- */
-const FINE_TAG_RE = /late fine accumulation\s*-\s*(rent|mess|eb)\b/i;
+import {
+  FineKey,
+  startOfDay,
+  roundMoney,
+  fineKeyFromDescription,
+  hasOlderUnpaidDues,
+  calculateTieredFine,
+  formatFineDescription,
+} from '../fees/fine-calculator';
 
 const isLateFine = (transaction: any) =>
   String(transaction?.transactionType || '').toUpperCase() === 'FINE' &&
   /late fine accumulation/i.test(String(transaction?.description || ''));
-
-const fineKeyFromDescription = (description?: string | null): FineKey | null => {
-  const match = String(description || '').match(FINE_TAG_RE);
-  return match ? (match[1].toLowerCase() as FineKey) : null;
-};
-
-const roundMoney = (value: number) => Math.round(value * 100) / 100;
-
 interface FineInfo {
   key: FineKey;
   label: string;
   rate: number;
+  effectiveRate: number;
+  isDoubled: boolean;
+  regularDays: number;
+  doubledDays: number;
   days: number;
   amount: number;
 }
@@ -178,12 +173,23 @@ export class FineCronService {
       const days = sumFineDays(periods);
       if (days <= 0) continue;
 
+      const collegeDueDate = college?.dueDate;
+      const hasOlderDue = hasOlderUnpaidDues(
+        pending,
+        collegeDueDate ? startOfDay(collegeDueDate) : null,
+      );
+      const calc = calculateTieredFine(days, config.rate, hasOlderDue);
+
       expected.set(config.key, {
         key: config.key,
         label: config.label,
         rate: config.rate,
+        effectiveRate: calc.effectiveRate,
+        isDoubled: calc.isDoubled,
+        regularDays: calc.regularDays,
+        doubledDays: calc.doubledDays,
         days,
-        amount: roundMoney(days * config.rate),
+        amount: calc.amount,
       });
     }
 
@@ -319,6 +325,6 @@ export class FineCronService {
   }
 
   private fineDescription(info: FineInfo) {
-    return `Late fine accumulation - ${info.label} for ${info.days} days overdue (₹${info.rate}/day)`;
+    return formatFineDescription(info.label, info.days, info.rate, info);
   }
 }

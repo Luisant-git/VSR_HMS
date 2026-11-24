@@ -5,6 +5,7 @@ import { setDocumentTitle } from '../utils/documentTitle';
 import { Save, Settings } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingBlock } from '../components/LoadingSpinner';
+import { WhatsAppSettingsCard } from '../components/WhatsAppSettingsCard';
 
 const SystemSettings = () => {
   const [settings, setSettings] = useState({
@@ -129,6 +130,8 @@ const SystemSettings = () => {
           </div>
         </form>
       </div>
+
+      <WhatsAppSettingsCard />
     </div>
   );
 };

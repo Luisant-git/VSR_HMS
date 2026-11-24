@@ -13,31 +13,21 @@ import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
 import { PayOutstandingDto } from './dto/pay-outstanding.dto';
 import { ImportFeeRowInput, ImportFeesDto } from './dto/import-fees.dto';
+import {
+  FineKey,
+  LATE_FINE_RE,
+  LATE_FINE_TAG_RE,
+  startOfDay,
+  roundMoney,
+  fineKeyFromDescription,
+  hasOlderUnpaidDues,
+  calculateTieredFine,
+  formatFineDescription,
+} from './fine-calculator';
 
-const roundMoney = (value: number) => Math.round(value * 100) / 100;
-
-/**
- * Every payment made against a student's historical outstanding balance is
- * stored as its own completed transaction of this type. Outstanding invoices
- * themselves are never edited, so their original amounts stay intact and a
- * payment can never be counted twice.
- */
 const OUTSTANDING_PAYMENT_TYPE = 'OUTSTANDING_PAYMENT';
 const OUTSTANDING_PREFIX = 'Outstanding';
 const MONEY_EPSILON = 0.001;
-
-type FineKey = 'rent' | 'mess' | 'eb';
-
-const LATE_FINE_RE = /late fine accumulation/i;
-const LATE_FINE_TAG_RE = /late fine accumulation\s*-\s*(rent|mess|eb)\b/i;
-
-/** Reads the fee type tag from "Late fine accumulation - Rent ..." rows. */
-const fineKeyFromDescription = (
-  description?: string | null,
-): FineKey | null => {
-  const match = String(description || '').match(LATE_FINE_TAG_RE);
-  return match ? (match[1].toLowerCase() as FineKey) : null;
-};
 
 const isOutstandingDescription = (fee: any) =>
   /^\s*outstanding\b/i.test(String(fee?.description || ''));
@@ -590,7 +580,7 @@ export class FeesService {
     if (!student) throw new NotFoundException('Student not found.');
 
     const collegeDueDate = student.college?.dueDate
-      ? this.startOfDay(new Date(student.college.dueDate))
+      ? startOfDay(new Date(student.college.dueDate))
       : null;
     const allTransactions = student.transactions || [];
     const pending = allTransactions.filter((item: any) => item.status === 'PENDING');
@@ -662,6 +652,10 @@ export class FeesService {
       key: FineKey;
       label: string;
       rate: number;
+      effectiveRate: number;
+      isDoubled: boolean;
+      regularDays: number;
+      doubledDays: number;
       dueDate: string;
       daysOverdue: number;
       currentDaysOverdue: number;
@@ -721,15 +715,26 @@ export class FeesService {
         latestDueDate(currentPeriods) ?? latestDueDate(asOfPeriods) ?? collegeDueDate;
       if (!dueDateForDisplay) continue;
 
+      const hasOlder = hasOlderUnpaidDues(pending, dueDateForDisplay);
+      const calcAsOf = calculateTieredFine(asOfDays, rate, hasOlder);
+      const calcToday = calculateTieredFine(currentDays, rate, hasOlder);
+
+      const amountAsOf = roundMoney(Math.max(0, calcAsOf.amount - paid));
+      const amountToday = roundMoney(Math.max(0, calcToday.amount - paid));
+
       fines.push({
         key: config.key,
         label: config.label,
         rate: roundMoney(rate),
+        effectiveRate: roundMoney(calcAsOf.effectiveRate),
+        isDoubled: calcAsOf.isDoubled,
+        regularDays: calcAsOf.regularDays,
+        doubledDays: calcAsOf.doubledDays,
         dueDate: formatDateInput(dueDateForDisplay),
         daysOverdue: asOfDays,
         currentDaysOverdue: currentDays,
-        amount: roundMoney(Math.max(0, asOfDays * rate - paid)),
-        currentAmount: roundMoney(Math.max(0, currentDays * rate - paid)),
+        amount: amountAsOf,
+        currentAmount: amountToday,
       });
     }
 
@@ -784,12 +789,21 @@ export class FeesService {
         const quoteFees = pendingLateFines.length > 0 ? pendingLateFines : allTransactions;
         const asOfDays = sumFineDays(getFinePeriods(quoteFees, basis, asOfDate));
         const currentDays = sumFineDays(getFinePeriods(quoteFees, basis, today));
+        const hasOlder = hasOlderUnpaidDues(pending, collegeDueDate);
+        const calcAsOf = calculateTieredFine(asOfDays, legacyRate, hasOlder);
+        const calcToday = calculateTieredFine(currentDays, legacyRate, hasOlder);
         return {
           asOfDate: asOfDateValue,
           daysOverdue: asOfDays,
-          dailyFine: roundMoney(legacyRate),
-          amount: roundMoney(Math.max(0, asOfDays * legacyRate - alreadyPaid)),
-          currentAmount: roundMoney(Math.max(0, currentDays * legacyRate - alreadyPaid)),
+          dailyFine: roundMoney(calcAsOf.effectiveRate),
+          amount: roundMoney(
+            Math.max(0, calcAsOf.amount - alreadyPaid),
+          ),
+          currentAmount: roundMoney(
+            Math.max(0, calcToday.amount - alreadyPaid),
+          ),
+          hasOlderUnpaidDue: hasOlder,
+          isDoubled: calcAsOf.isDoubled,
           fines: [],
           pendingFines: pendingFineRows,
         };
@@ -805,6 +819,8 @@ export class FeesService {
     const typedCurrentAmount = roundMoney(
       fines.reduce((sum, entry) => sum + entry.currentAmount, 0),
     );
+    const hasDoubled = fines.some((entry) => entry.isDoubled);
+    const hasOlder = fines.length > 0 ? hasOlderUnpaidDues(pending, collegeDueDate) : false;
 
     return {
       asOfDate: asOfDateValue,
@@ -813,12 +829,14 @@ export class FeesService {
         0,
       ),
       dailyFine: roundMoney(
-        fines.reduce((sum, entry) => sum + entry.rate, 0),
+        fines.reduce((sum, entry) => sum + (entry.isDoubled ? entry.effectiveRate : entry.rate), 0),
       ),
       amount: roundMoney(Math.max(0, typedAmount - legacyPaid)),
       currentAmount: roundMoney(
         Math.max(0, typedCurrentAmount - legacyPaid),
       ),
+      hasOlderUnpaidDue: hasOlder,
+      isDoubled: hasDoubled,
       fines,
       pendingFines: pendingFineRows,
     };
@@ -898,13 +916,24 @@ export class FeesService {
         );
         if (amount <= 0) continue;
 
+        const desc = formatFineDescription(
+          entry.label,
+          entry.currentDaysOverdue,
+          entry.rate,
+          {
+            isDoubled: (entry as any).isDoubled ?? false,
+            regularDays: (entry as any).regularDays ?? 30,
+            doubledDays: (entry as any).doubledDays ?? 0,
+            effectiveRate: (entry as any).effectiveRate ?? entry.rate,
+          },
+        );
         await this.prisma.feeTransaction.create({
           data: {
             studentId,
             transactionType: 'FINE',
             amount,
             status: 'PENDING',
-            description: `Late fine accumulation - ${entry.label} for ${entry.currentDaysOverdue} days overdue (₹${entry.rate}/day)`,
+            description: desc,
           },
         });
         created += 1;

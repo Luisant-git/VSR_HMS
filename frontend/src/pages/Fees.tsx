@@ -1233,7 +1233,7 @@ const Fees = () => {
         subtitle="Track hostel fee invoices, pending dues, and issue payment receipts"
         icon={<Wallet size={24} color="#fff" />} iconBg="linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
         rightContent={
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="fees-header-actions">
             <input
               ref={importInputRef}
               type="file"
@@ -1243,36 +1243,36 @@ const Fees = () => {
             />
             <button
               onClick={handleImportClick}
-              className="ui-btn ui-btn-primary"
+              className="ui-btn ui-btn-primary fees-action-btn"
               disabled={importBusy}
               title="Upload the client Excel sheet for bulk student outstanding balances or fee updates"
             >
-              <Upload size={16} /> {importBusy ? 'Reading…' : 'Import Excel'}
+              <Upload size={14} /> {importBusy ? 'Reading…' : 'Import Excel'}
             </button>
             <button
               onClick={handleDownloadOutstandingTemplate}
-              className="ui-btn ui-btn-secondary"
+              className="ui-btn ui-btn-secondary fees-action-btn"
               title="Download Excel template for bulk importing student outstanding balances"
             >
-              <Download size={16} /> Outstanding Template
+              <Download size={14} /> Outstanding Template
             </button>
-            <button onClick={handleExportExcel} className="ui-btn ui-btn-success">
-              <FileSpreadsheet size={16} /> Export Excel
+            <button onClick={handleExportExcel} className="ui-btn ui-btn-success fees-action-btn">
+              <FileSpreadsheet size={14} /> Export Excel
             </button>
             <button
               onClick={() => setShowRoomPdfModal(true)}
-              className="ui-btn ui-btn-primary"
+              className="ui-btn ui-btn-primary fees-action-btn"
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
                 borderColor: '#4338ca',
                 color: '#fff',
               }}
               title="Download Block & Room-wise Fees Report PDF (referencing printed sheet)"
             >
-              <FileText size={16} /> Room Fees PDF
+              <FileText size={14} /> Room Fees PDF
             </button>
           </div>
         }
