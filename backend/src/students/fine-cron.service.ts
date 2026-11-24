@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
+import { getFinePeriods, resolveFineThrough, sumFineDays } from '../common/fine-due-date';
 
 type FineKey = 'rent' | 'mess' | 'eb';
 
@@ -19,18 +20,6 @@ const isLateFine = (transaction: any) =>
 const fineKeyFromDescription = (description?: string | null): FineKey | null => {
   const match = String(description || '').match(FINE_TAG_RE);
   return match ? (match[1].toLowerCase() as FineKey) : null;
-};
-
-const startOfDay = (value: Date | string) => {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const daysOverdue = (dueDate: Date | string, today: Date) => {
-  const due = startOfDay(dueDate);
-  if (today <= due) return 0;
-  return Math.floor((today.getTime() - due.getTime()) / 86_400_000);
 };
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
@@ -87,7 +76,7 @@ export class FineCronService {
 
       for (const student of students) {
         try {
-          await this.applyStudentFines(student, rates, today, college.dueDate);
+          await this.applyStudentFines(student, rates, today, college);
         } catch (error: any) {
           this.logger.error(
             `Failed to update fines for student ${student.regNo}: ${error.message}`,
@@ -103,7 +92,7 @@ export class FineCronService {
     student: any,
     rates: Record<FineKey, number>,
     today: Date,
-    collegeDueDate?: Date | string | null,
+    college?: { dueDate?: Date | string | null; billingCycle?: string | null },
   ) {
     const transactions = student.transactions || [];
     let pending = transactions.filter((t: any) => t.status === 'PENDING');
@@ -153,31 +142,40 @@ export class FineCronService {
       pending = pending.filter((t: any) => !orphanFineIds.includes(t.id));
     }
 
+    // Payment-aware basis: include late-paid and partially settled fees, but
+    // stop each one's accrual on the date it was actually cleared.
+    const feeRows = transactions.filter((t: any) => {
+      const type = String(t.transactionType || '').toUpperCase();
+      return type !== 'FINE' && type !== 'OUTSTANDING_PAYMENT';
+    });
+    const paymentRows = transactions.filter(
+      (t: any) =>
+        String(t.transactionType || '').toUpperCase() === 'OUTSTANDING_PAYMENT' &&
+        t.status === 'COMPLETED',
+    );
+    const fineThroughValues = resolveFineThrough(feeRows, paymentRows);
+    const fineThroughByFee = new Map<any, Date | null>(
+      (feeRows as any[]).map((row: any, index: number) => [row, fineThroughValues[index]]),
+    );
+
     // Work out how much fine each fee type currently owes on its own.
     const expected = new Map<FineKey, FineInfo>();
     for (const config of configs) {
       if (config.rate <= 0) continue;
 
-      const parents = pending.filter((t: any) =>
-        config.matches(String(t.transactionType || '').toUpperCase()),
-      );
+      const parents = feeRows
+        .filter((t: any) => config.matches(String(t.transactionType || '').toUpperCase()))
+        .map((t: any) => ({ ...t, fineThrough: fineThroughByFee.get(t) ?? null }));
       if (parents.length === 0) continue;
 
-      // The college Fine Master due date is authoritative for every fee type.
-      // Only fall back to a fee-row due date if the college has none configured.
-      const parentDueDates = parents
-        .filter((t: any) => t.dueDate)
-        .map((t: any) => startOfDay(t.dueDate));
-      const dueDate = collegeDueDate
-        ? startOfDay(collegeDueDate)
-        : parentDueDates.length
-          ? parentDueDates.reduce((oldest: Date, current: Date) =>
-              current.getTime() < oldest.getTime() ? current : oldest,
-            )
-          : null;
-      if (!dueDate) continue;
-
-      const days = daysOverdue(dueDate, today);
+      // Fine Master holds a day of month, not a one-off date. Each fee is due
+      // on that day of its own billing month, and counting starts the next
+      // day. Unpaid fees from earlier months keep accruing until paid.
+      const periods = getFinePeriods(parents, {
+        collegeDueDate: college?.dueDate,
+        billingCycle: college?.billingCycle,
+      }, today);
+      const days = sumFineDays(periods);
       if (days <= 0) continue;
 
       expected.set(config.key, {

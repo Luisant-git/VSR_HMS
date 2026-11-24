@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
+import { getFineDueDay } from '../common/fine-due-date';
 
 @Injectable()
 export class MonthlyFeeCronService {
@@ -72,9 +73,8 @@ export class MonthlyFeeCronService {
         // Set due date based on college's due date and billing cycle
         // PREPAID: due date in the billing month (e.g., November fees due Nov 5)
         // POSTPAID: due date in the invoice generation month (e.g., Nov fees generated Dec 1, due Dec 5)
-        if (student.college?.dueDate) {
-          const collegeDueDate = new Date(student.college.dueDate);
-          const dueDay = collegeDueDate.getDate();
+        const dueDay = getFineDueDay(student.college?.dueDate);
+        if (dueDay !== null) {
 
           if (billingCycle === 'POSTPAID') {
             // For POSTPAID, due date is in the current (generation) month

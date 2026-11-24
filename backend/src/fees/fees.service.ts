@@ -2,6 +2,13 @@ import { BadRequestException, Injectable, InternalServerErrorException, NotFound
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import {
+  formatDateInput,
+  getFinePeriods,
+  latestDueDate,
+  resolveFineThrough,
+  sumFineDays,
+} from '../common/fine-due-date';
 import { CreateFeeDto } from './dto/create-fee.dto';
 import { UpdateFeeDto } from './dto/update-fee.dto';
 import { PayOutstandingDto } from './dto/pay-outstanding.dto';
@@ -589,6 +596,24 @@ export class FeesService {
     const pending = allTransactions.filter((item: any) => item.status === 'PENDING');
     const fineMaster = student.college?.fineMaster;
 
+    // Payment-aware fine basis: completed fees stop at their paid date, and
+    // outstanding invoices stop when the matching payment clears them.
+    const feeRows = allTransactions.filter((item: any) => {
+      const type = String(item.transactionType || '').toUpperCase();
+      return type !== 'FINE' && type !== OUTSTANDING_PAYMENT_TYPE;
+    });
+    const paymentRows = allTransactions.filter(
+      (item: any) =>
+        String(item.transactionType || '').toUpperCase() === OUTSTANDING_PAYMENT_TYPE &&
+        item.status === 'COMPLETED',
+    );
+    const fineThroughValues = resolveFineThrough(feeRows, paymentRows);
+    const fineThroughByFee = new Map<any, Date | null>(
+      feeRows.map((row, index) => [row, fineThroughValues[index]]),
+    );
+    const withFineThrough = (rows: any[]) =>
+      rows.map((row) => ({ ...row, fineThrough: fineThroughByFee.get(row) ?? null }));
+
     const completedFines = await this.prisma.feeTransaction.findMany({
       where: {
         studentId,
@@ -672,41 +697,39 @@ export class FeesService {
       }
       if (rate <= 0) continue;
 
-      // The college Fine Master due date is the single source of truth for
-      // every fee type. A dueDate stored on an individual fee row (e.g. an
-      // older EB bill) must not override it, otherwise Rent and EB can show
-      // different overdue day counts for the same student.
-      const parentDueDates = pendingParents
-        .filter((item) => item.dueDate)
-        .map((item) => this.startOfDay(new Date(item.dueDate as Date)));
-
-      const dueDate =
-        collegeDueDate ??
-        (parentDueDates.length > 0
-          ? parentDueDates.reduce((oldest, current) =>
-              current.getTime() < oldest.getTime() ? current : oldest,
-            )
-          : null);
-      if (!dueDate) continue;
-
-      // The due date itself is not overdue; counting starts the next day.
-      const daysFor = (date: Date) => {
-        if (date.getTime() <= dueDate.getTime()) return 0;
-        return Math.floor((date.getTime() - dueDate.getTime()) / 86_400_000);
+      // Fine Master holds a day of month, not a one-off date. Every unpaid
+      // fee gets its own due date in its own billing month; counting starts
+      // the day after that due date. If every fee of this type was already
+      // paid but a fine row is still pending, quote against the last fee so
+      // the stored fine remains collectable.
+      const feesOfType = allTransactions.filter((item: any) =>
+        config.types.includes(String(item.transactionType || '').toUpperCase()),
+      );
+      const basisFees = pendingParents.length > 0 ? pendingParents : feesOfType;
+      const basis = {
+        collegeDueDate: student.college?.dueDate,
+        billingCycle: student.college?.billingCycle,
       };
+      const asOfPeriods = getFinePeriods(withFineThrough(basisFees), basis, asOfDate);
+      const currentPeriods = getFinePeriods(withFineThrough(basisFees), basis, today);
+      if (asOfPeriods.length === 0 && currentPeriods.length === 0) continue;
+
+      const asOfDays = sumFineDays(asOfPeriods);
+      const currentDays = sumFineDays(currentPeriods);
       const paid = roundMoney(paidByType[config.key]);
-      const amountFor = (date: Date) =>
-        roundMoney(Math.max(0, daysFor(date) * rate - paid));
+      const dueDateForDisplay =
+        latestDueDate(currentPeriods) ?? latestDueDate(asOfPeriods) ?? collegeDueDate;
+      if (!dueDateForDisplay) continue;
 
       fines.push({
         key: config.key,
         label: config.label,
         rate: roundMoney(rate),
-        dueDate: `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`,
-        daysOverdue: daysFor(asOfDate),
-        currentDaysOverdue: daysFor(today),
-        amount: amountFor(asOfDate),
-        currentAmount: amountFor(today),
+        dueDate: formatDateInput(dueDateForDisplay),
+        daysOverdue: asOfDays,
+        currentDaysOverdue: currentDays,
+        amount: roundMoney(Math.max(0, asOfDays * rate - paid)),
+        currentAmount: roundMoney(Math.max(0, currentDays * rate - paid)),
       });
     }
 
@@ -741,8 +764,8 @@ export class FeesService {
     });
 
     // Legacy databases may have no Fine Master rates and no typed fine rows.
-    // Fall back to the rate stored in the pending fine description and the
-    // college due date (the previous behaviour).
+    // Fall back to the rate stored in the pending fine description, still
+    // applying the configured due day on a monthly basis.
     if (fines.length === 0) {
       const legacyRateMatch = pendingLateFines[0]?.description?.match(
         /₹([\d,.]+)\/day/i,
@@ -754,22 +777,19 @@ export class FeesService {
         const alreadyPaid = roundMoney(
           paidByType.rent + paidByType.mess + paidByType.eb + legacyPaid,
         );
-        const daysFor = (date: Date) => {
-          if (date.getTime() <= collegeDueDate.getTime()) return 0;
-          return Math.floor(
-            (date.getTime() - collegeDueDate.getTime()) / 86_400_000,
-          );
+        const basis = {
+          collegeDueDate: student.college?.dueDate,
+          billingCycle: student.college?.billingCycle,
         };
+        const quoteFees = pendingLateFines.length > 0 ? pendingLateFines : allTransactions;
+        const asOfDays = sumFineDays(getFinePeriods(quoteFees, basis, asOfDate));
+        const currentDays = sumFineDays(getFinePeriods(quoteFees, basis, today));
         return {
           asOfDate: asOfDateValue,
-          daysOverdue: daysFor(asOfDate),
+          daysOverdue: asOfDays,
           dailyFine: roundMoney(legacyRate),
-          amount: roundMoney(
-            Math.max(0, daysFor(asOfDate) * legacyRate - alreadyPaid),
-          ),
-          currentAmount: roundMoney(
-            Math.max(0, daysFor(today) * legacyRate - alreadyPaid),
-          ),
+          amount: roundMoney(Math.max(0, asOfDays * legacyRate - alreadyPaid)),
+          currentAmount: roundMoney(Math.max(0, currentDays * legacyRate - alreadyPaid)),
           fines: [],
           pendingFines: pendingFineRows,
         };

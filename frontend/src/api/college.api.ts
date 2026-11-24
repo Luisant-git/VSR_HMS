@@ -4,6 +4,7 @@ export interface CreateCollegeDto {
   name: string;
   shortName?: string;
   address?: string;
+  dueDay?: number | string | null;
   dueDate?: string;
   billingCycle?: 'PREPAID' | 'POSTPAID';
   finePerDay?: number;
@@ -23,13 +24,13 @@ export const CollegeAPI = {
     return res.json();
   },
 
-  async findAll(params?: { page?: number; limit?: number; search?: string; fromDate?: string; toDate?: string; ruleStatus?: string }) {
+  async findAll(params?: { page?: number; limit?: number; search?: string; fromDay?: string; toDay?: string; ruleStatus?: string }) {
     const query = new URLSearchParams();
     if (params?.page) query.append('page', params.page.toString());
     if (params?.limit) query.append('limit', params.limit.toString());
     if (params?.search) query.append('search', params.search);
-    if (params?.fromDate) query.append('fromDate', params.fromDate);
-    if (params?.toDate) query.append('toDate', params.toDate);
+    if (params?.fromDay) query.append('fromDay', params.fromDay);
+    if (params?.toDay) query.append('toDay', params.toDay);
     if (params?.ruleStatus) query.append('ruleStatus', params.ruleStatus);
     
     const queryString = query.toString() ? `?${query.toString()}` : '';

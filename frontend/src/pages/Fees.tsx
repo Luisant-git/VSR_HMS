@@ -28,6 +28,7 @@ import {
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { formatBillingMonth, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
+import { getOverdueDays } from '../utils/dueDate';
 import { buildFeeReconciliation } from '../utils/feeReconciliation';
 import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
 
@@ -1690,21 +1691,16 @@ const Fees = () => {
                               (item: any) => (item.transactionType || '').toUpperCase() === 'FINE',
                             );
 
-                          // The Fine Master due date is the single source of
-                          // truth. Derive the label from it instead of trusting
-                          // possibly stale text on an old fine row.
+                          // Fine Master holds a day of month. Derive the
+                          // overdue count from that day in the fee's own
+                          // billing month instead of stale fine-row text.
                           const college: any = fee.student?.college;
                           const collegeDueDate = college && typeof college === 'object' ? college.dueDate : null;
-                          let overdueDays: number | null = null;
-                          if (collegeDueDate) {
-                            const due = new Date(collegeDueDate);
-                            const today = new Date();
-                            due.setHours(0, 0, 0, 0);
-                            today.setHours(0, 0, 0, 0);
-                            if (today > due) {
-                              overdueDays = Math.floor((today.getTime() - due.getTime()) / 86_400_000);
-                            }
-                          }
+                          let overdueDays: number | null = getOverdueDays(collegeDueDate, {
+                            billingMonth: fee.billingMonth,
+                            feeDueDate: fee.dueDate,
+                            billingCycle: college?.billingCycle,
+                          });
                           if (overdueDays === null) {
                             const storedDays = fineFee?.description?.match(/(\d+)\s+days?\s+overdue/i)?.[1];
                             overdueDays = storedDays ? Number(storedDays) : null;

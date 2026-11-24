@@ -24,6 +24,8 @@ export class CollegesController {
     @Query('search') search?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('fromDay') fromDay?: string,
+    @Query('toDay') toDay?: string,
     @Query('ruleStatus') ruleStatus?: string,
   ) {
     return this.collegesService.findAll(
@@ -32,13 +34,15 @@ export class CollegesController {
       search, 
       fromDate,
       toDate,
-      ruleStatus
+      ruleStatus,
+      fromDay,
+      toDay,
     );
   }
 
   @Post('bulk-update')
   @ApiOperation({ summary: 'Bulk update fines for all colleges' })
-  updateBulk(@Body() payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDate?: string | null }) {
+  updateBulk(@Body() payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDay?: number | string | null, dueDate?: string | null }) {
     return this.collegesService.updateBulk(payload);
   }
 

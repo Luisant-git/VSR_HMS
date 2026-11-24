@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { CollegeAPI } from '../api/college.api';
 import { rowBadgeVariant } from '../utils/badge';
+import { formatDueDay, getDueDay } from '../utils/dueDate';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
@@ -37,8 +38,8 @@ const FineMaster = () => {
   
   // Search & Pagination State
   const [searchQuery, setSearchQuery] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDay, setFromDay] = useState('');
+  const [toDay, setToDay] = useState('');
   const [ruleFilter, setRuleFilter] = useState<'All' | 'set' | 'not-set'>('All');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -53,13 +54,13 @@ const FineMaster = () => {
     name: '',
     shortName: '',
     address: '',
-    dueDate: ''
+    dueDay: ''
   });
 
   // Fine Modal State
   const [isFineModalOpen, setIsFineModalOpen] = useState(false);
   const [fineTargetColleges, setFineTargetColleges] = useState<string[]>(['all']);
-  const [fineDueDate, setFineDueDate] = useState<string>('');
+  const [fineDueDay, setFineDueDay] = useState<string>('');
   const [rentFine, setRentFine] = useState<number>(0);
   const [messFine, setMessFine] = useState<number>(0);
   const [ebFine, setEbFine] = useState<number>(0);
@@ -75,8 +76,8 @@ const FineMaster = () => {
         page,
         limit,
         search: searchQuery,
-        fromDate,
-        toDate,
+        fromDay,
+        toDay,
         ruleStatus: ruleFilter === 'All' ? undefined : ruleFilter
       });
       const data = Array.isArray(response) ? response : (response.data || []);
@@ -92,7 +93,7 @@ const FineMaster = () => {
 
   useEffect(() => {
     fetchColleges();
-  }, [page, searchQuery, fromDate, toDate, ruleFilter]);
+  }, [page, searchQuery, fromDay, toDay, ruleFilter]);
 
   const handleCollegeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,16 +124,17 @@ const FineMaster = () => {
     const finalEbFine = isEbFineEnabled ? ebFine : 0;
 
     try {
+      const dueDayValue = fineDueDay === '' ? null : Number(fineDueDay);
       if (fineTargetColleges.includes('all')) {
         await CollegeAPI.updateBulk({
-          rentFine: finalRentFine, messFine: finalMessFine, ebFine: finalEbFine, dueDate: fineDueDate || null
+          rentFine: finalRentFine, messFine: finalMessFine, ebFine: finalEbFine, dueDay: dueDayValue
         });
         toast.success('Bulk fine configuration updated');
       } else {
         await Promise.all(fineTargetColleges.map(id => 
           CollegeAPI.update(id, { 
             rentFine: finalRentFine, messFine: finalMessFine, ebFine: finalEbFine, 
-            dueDate: fineDueDate || null 
+            dueDay: dueDayValue
           })
         ));
         toast.success('Fine configuration updated for selected colleges');
@@ -147,7 +149,7 @@ const FineMaster = () => {
   const openFineModal = (college?: any) => {
     if (college) {
       setFineTargetColleges([college.id]);
-      setFineDueDate(college.dueDate ? new Date(college.dueDate).toISOString().split('T')[0] : '');
+      setFineDueDay(getDueDay(college.dueDate)?.toString() ?? '');
       setRentFine(college.fineMaster?.rentFine || 0);
       setIsRentFineEnabled((college.fineMaster?.rentFine || 0) > 0);
       setMessFine(college.fineMaster?.messFine || 0);
@@ -156,7 +158,7 @@ const FineMaster = () => {
       setIsEbFineEnabled((college.fineMaster?.ebFine || 0) > 0);
     } else {
       setFineTargetColleges(['all']);
-      setFineDueDate('');
+      setFineDueDay('');
       setRentFine(0); setIsRentFineEnabled(false);
       setMessFine(0); setIsMessFineEnabled(false);
       setEbFine(0); setIsEbFineEnabled(false);
@@ -170,7 +172,7 @@ const FineMaster = () => {
       name: college.name,
       shortName: college.shortName || '',
       address: college.address || '',
-      dueDate: college.dueDate ? college.dueDate.split('T')[0] : ''
+      dueDay: getDueDay(college.dueDate)?.toString() ?? ''
     });
     setIsCollegeModalOpen(true);
   };
@@ -230,20 +232,22 @@ const FineMaster = () => {
           )}
         </div>
         <div className="ui-toolbar-group">
-          <span className="ui-toolbar-label">Due From:</span>
+          <span className="ui-toolbar-label">Due Day From:</span>
           <input 
-            type="date" 
-            value={fromDate}
-            onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+            type="number" 
+            min={1} max={31} placeholder="1"
+            value={fromDay}
+            onChange={(e) => { setFromDay(e.target.value); setPage(1); }}
             className="ui-input fm-date"
           />
         </div>
         <div className="ui-toolbar-group">
-          <span className="ui-toolbar-label">Due To:</span>
+          <span className="ui-toolbar-label">To:</span>
           <input 
-            type="date" 
-            value={toDate}
-            onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+            type="number" 
+            min={1} max={31} placeholder="31"
+            value={toDay}
+            onChange={(e) => { setToDay(e.target.value); setPage(1); }}
             className="ui-input fm-date"
           />
         </div>
@@ -260,9 +264,9 @@ const FineMaster = () => {
             <option value="not-set">Rule Not Configured</option>
           </select>
         </div>
-        {(searchQuery || fromDate || toDate || ruleFilter !== 'All') && (
+        {(searchQuery || fromDay || toDay || ruleFilter !== 'All') && (
           <button 
-            onClick={() => { setSearchQuery(''); setFromDate(''); setToDate(''); setRuleFilter('All'); setPage(1); }}
+            onClick={() => { setSearchQuery(''); setFromDay(''); setToDay(''); setRuleFilter('All'); setPage(1); }}
             className="ui-btn ui-btn-soft ui-btn-sm">
             Clear Filters
           </button>
@@ -277,7 +281,7 @@ const FineMaster = () => {
               <th className="fm-sno">S.No</th>
               <th>College Name</th>
               <th>Short Name</th>
-              <th>Due Date</th>
+              <th>Due Day</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Actions</th>
             </tr>
@@ -312,7 +316,7 @@ const FineMaster = () => {
                   </td>
                   <td>
                     <span className="fm-date-text">
-                      {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                      {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>
                   <td>
@@ -341,7 +345,7 @@ const FineMaster = () => {
               <th>College Name</th>
               <th>Short Name</th>
               <th>Billing Cycle</th>
-              <th>Due Date</th>
+              <th>Due Day</th>
               <th>Configured Rule</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Action</th>
@@ -393,7 +397,7 @@ const FineMaster = () => {
                   </td>
                   <td>
                     <span className="fm-date-text">
-                      {c.dueDate ? new Date(c.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'}
+                      {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>
                   <td>
@@ -472,8 +476,9 @@ const FineMaster = () => {
                     <input type="text" value={formData.shortName} onChange={e => setFormData({...formData, shortName: e.target.value})} placeholder="e.g. SRM IST" className="ui-form-control" />
                   </div>
                   <div className="ui-form-group">
-                    <label className="ui-form-label">Due Date <span className="fm-req">*</span></label>
-                    <input type="date" value={formData.dueDate} onChange={e => setFormData({...formData, dueDate: e.target.value})} required className="ui-form-control" />
+                    <label className="ui-form-label">Due Day of Month <span className="fm-req">*</span></label>
+                    <input type="number" min={1} max={31} value={formData.dueDay} onChange={e => setFormData({...formData, dueDay: e.target.value})} required className="ui-form-control" />
+                    <div className="fm-hint">Fees are due on this day every month; fine starts the next day.</div>
                   </div>
                 </div>
 
@@ -521,7 +526,7 @@ const FineMaster = () => {
                       
                       if (vals.includes('all') && !fineTargetColleges.includes('all')) {
                         setFineTargetColleges(['all']);
-                        setFineDueDate('');
+                        setFineDueDay('');
                         setRentFine(0); setIsRentFineEnabled(false);
                         setMessFine(0); setIsMessFineEnabled(false);
                         setEbFine(0); setIsEbFineEnabled(false);
@@ -531,7 +536,7 @@ const FineMaster = () => {
                       const newVals = vals.filter((v: string) => v !== 'all');
                       if (newVals.length === 0) {
                         setFineTargetColleges(['all']);
-                        setFineDueDate('');
+                        setFineDueDay('');
                         setRentFine(0); setIsRentFineEnabled(false);
                         setMessFine(0); setIsMessFineEnabled(false);
                         setEbFine(0); setIsEbFineEnabled(false);
@@ -543,7 +548,7 @@ const FineMaster = () => {
                       if (newVals.length === 1 && fineTargetColleges.includes('all')) {
                         const college = colleges.find(c => c.id === newVals[0]);
                         if (college) {
-                          setFineDueDate(college.dueDate ? new Date(college.dueDate).toISOString().split('T')[0] : '');
+                          setFineDueDay(getDueDay(college.dueDate)?.toString() ?? '');
                           setRentFine(college.fineMaster?.rentFine || 0);
                           setIsRentFineEnabled((college.fineMaster?.rentFine || 0) > 0);
                           setMessFine(college.fineMaster?.messFine || 0);
@@ -562,8 +567,9 @@ const FineMaster = () => {
                 </div>
 
                 <div className="ui-form-group">
-                  <label className="ui-form-label">Due Date {fineTargetColleges.includes('all') && <span className="fm-optional">(Applied to all)</span>}</label>
-                  <input type="date" value={fineDueDate} onChange={e => setFineDueDate(e.target.value)} className="ui-form-control" />
+                  <label className="ui-form-label">Due Day of Every Month {fineTargetColleges.includes('all') && <span className="fm-optional">(Applied to all)</span>}</label>
+                  <input type="number" min={1} max={31} placeholder="e.g. 5" value={fineDueDay} onChange={e => setFineDueDay(e.target.value)} className="ui-form-control" />
+                  <div className="fm-hint">Choose a day (1-31). Example: 5 means fees are due on the 5th and fine starts on the 6th, repeated every month. Paying on or before the due day avoids the fine.</div>
                 </div>
 
                 <div className="fm-fine-toggles">

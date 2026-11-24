@@ -2,6 +2,17 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateCollegeDto } from './dto/create-college.dto';
 import { UpdateCollegeDto } from './dto/update-college.dto';
+import { getFineDueDay, toCanonicalDueDate } from '../common/fine-due-date';
+
+const parseDay = (value?: string | null): number | null => {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (/^\d{1,2}$/.test(raw)) {
+    const day = Number(raw);
+    return day >= 1 && day <= 31 ? day : null;
+  }
+  return getFineDueDay(raw);
+};
 
 @Injectable()
 export class CollegesService {
@@ -34,11 +45,12 @@ export class CollegesService {
   }
 
   async create(createCollegeDto: CreateCollegeDto) {
-    const { rentFine, messFine, ebFine, dueDate, billingCycle, ...collegeData } = createCollegeDto as any;
+    const { rentFine, messFine, ebFine, dueDay, dueDate, billingCycle, ...collegeData } = createCollegeDto as any;
     collegeData.name = await this.resolveUniqueName(collegeData.name);
 
-    // Convert YYYY-MM-DD string to ISO DateTime if present
-    const formattedDueDate = dueDate ? new Date(dueDate).toISOString() : null;
+    // Fine Master holds a due day, stored as a canonical UTC date (only the
+    // day component is read). Accept legacy full dates for compatibility.
+    const formattedDueDate = toCanonicalDueDate(dueDay !== undefined ? dueDay : dueDate);
 
     try {
       return await this.prisma.college.create({
@@ -64,7 +76,16 @@ export class CollegesService {
     }
   }
 
-  async findAll(page: number = 1, limit: number = 10, search?: string, fromDate?: string, toDate?: string, ruleStatus?: string) {
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    fromDate?: string,
+    toDate?: string,
+    ruleStatus?: string,
+    fromDay?: string,
+    toDay?: string,
+  ) {
     const where: any = {};
     
     if (search) {
@@ -73,22 +94,40 @@ export class CollegesService {
         { shortName: { contains: search, mode: 'insensitive' } }
       ];
     }
-    
-    if (fromDate || toDate) {
-      where.dueDate = {};
-      if (fromDate) {
-        where.dueDate.gte = new Date(fromDate + 'T00:00:00');
-      }
-      if (toDate) {
-        where.dueDate.lte = new Date(toDate + 'T23:59:59.999');
-      }
-    }
 
     // A fine rule is "configured" when the college has a FineMaster record.
     if (ruleStatus === 'set') {
       where.fineMaster = { isNot: null };
     } else if (ruleStatus === 'not-set') {
       where.fineMaster = { is: null };
+    }
+
+    // Due dates are now day-of-month values, so range filters are applied to
+    // the day rather than to the stored canonical DateTime.
+    const minDay = parseDay(fromDay ?? fromDate);
+    const maxDay = parseDay(toDay ?? toDate);
+    if (minDay !== null || maxDay !== null) {
+      const matches = await this.prisma.college.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { fineMaster: true },
+      });
+      const filtered = matches.filter((college) => {
+        const day = getFineDueDay(college.dueDate);
+        if (day === null) return false;
+        if (minDay !== null && day < minDay) return false;
+        if (maxDay !== null && day > maxDay) return false;
+        return true;
+      });
+      const total = filtered.length;
+      const skip = (page - 1) * limit;
+      return {
+        data: filtered.slice(skip, skip + limit),
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
     }
 
     const skip = (page - 1) * limit;
@@ -121,18 +160,20 @@ export class CollegesService {
   }
 
   async update(id: string, updateCollegeDto: UpdateCollegeDto) {
-    const { rentFine, messFine, ebFine, dueDate, billingCycle, ...collegeData } = updateCollegeDto as any;
+    const { rentFine, messFine, ebFine, dueDay, dueDate, billingCycle, ...collegeData } = updateCollegeDto as any;
 
     if (collegeData.name !== undefined) {
       collegeData.name = await this.resolveUniqueName(collegeData.name, id);
     }
     
-    // If dueDate is explicitly null, we clear it. If undefined, we leave it.
+    // A null day clears the rule; an omitted one leaves it unchanged.
     let formattedDueDate: any = undefined;
-    if (dueDate === null) {
+    if (dueDay !== undefined) {
+      formattedDueDate = toCanonicalDueDate(dueDay);
+    } else if (dueDate === null) {
       formattedDueDate = null;
     } else if (dueDate) {
-      formattedDueDate = new Date(dueDate).toISOString();
+      formattedDueDate = toCanonicalDueDate(dueDate);
     }
 
     // If billingCycle is explicitly null, we clear it (reset to default). If undefined, we leave it.
@@ -164,14 +205,16 @@ export class CollegesService {
     });
   }
 
-  async updateBulk(payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDate?: string | null }) {
-    const { rentFine, messFine, ebFine, dueDate } = payload;
+  async updateBulk(payload: { rentFine?: number, messFine?: number, ebFine?: number, dueDay?: number | string | null, dueDate?: string | null }) {
+    const { rentFine, messFine, ebFine, dueDay, dueDate } = payload;
     
     let formattedDueDate: any = undefined;
-    if (dueDate === null) {
+    if (dueDay !== undefined) {
+      formattedDueDate = toCanonicalDueDate(dueDay);
+    } else if (dueDate === null) {
       formattedDueDate = null;
     } else if (dueDate) {
-      formattedDueDate = new Date(dueDate).toISOString();
+      formattedDueDate = toCanonicalDueDate(dueDate);
     }
 
     if (formattedDueDate !== undefined) {

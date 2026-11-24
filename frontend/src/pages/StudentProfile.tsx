@@ -12,6 +12,7 @@ import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { buildOutstandingSummary, cleanPaymentDescription, isCurrentCycleFee, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
 import { getBillingMonths, isPostpaidPayableFee, formatBillingMonth } from '../utils/billingCycle';
+import { getDueDay } from '../utils/dueDate';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -51,16 +52,21 @@ const StudentProfile = () => {
   }, [currentPendingTotal, outstandingSummary.remaining]);
 
   const getDueDateForMonth = (monthStr?: string): string => {
+    const dueDay = getDueDay(student?.dueDay) ?? 5;
     if (!monthStr) {
       const now = new Date();
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 5);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
       return nextMonth.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     }
     const match = String(monthStr).match(/^(\d{4})-(0[1-9]|1[0-2])$/);
-    if (!match) return '05th of next month';
+    if (!match) return `${String(dueDay).padStart(2, '0')}th of next month`;
     const year = Number(match[1]);
-    const month = Number(match[2]);
-    const dueDate = new Date(year, month, 5);
+    let monthIndex = Number(match[2]) - 1;
+    // POSTPAID bills are raised the month after the billing month.
+    if (String(student?.billingCycle || '').toUpperCase() === 'POSTPAID') monthIndex += 1;
+    const normalized = new Date(year, monthIndex, 1);
+    const lastDay = new Date(normalized.getFullYear(), normalized.getMonth() + 1, 0).getDate();
+    const dueDate = new Date(normalized.getFullYear(), normalized.getMonth(), Math.min(dueDay, lastDay));
     return dueDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
@@ -361,6 +367,7 @@ const StudentProfile = () => {
             ? `${data.college.name}${data.educationalQua ? ` (${data.educationalQua})` : ''}`
             : (data.educationalQua || 'N/A'),
           billingCycle: data.college?.billingCycle || 'PREPAID',
+          dueDay: data.college?.dueDate ?? null,
           fatherName: data.fatherName,
           fatherMobileNo: data.fatherMobileNo,
           motherName: data.motherName,

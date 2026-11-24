@@ -5623,6 +5623,13 @@ textarea.ui-form-control {
   font-weight: 400;
 }
 
+.cm-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .cm-fine-toggles {
   display: flex;
   flex-direction: column;
@@ -5793,6 +5800,13 @@ textarea.ui-form-control {
   font-size: 11px;
   color: var(--text-muted);
   font-weight: 400;
+}
+
+.fm-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
 }
 
 .fm-fine-toggles {
