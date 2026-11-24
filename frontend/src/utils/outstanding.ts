@@ -20,7 +20,8 @@ export const roundMoney = (value: number) =>
 
 /** True for any row that belongs to the historical outstanding module. */
 export const isOutstandingDescription = (fee: any) =>
-  /^\s*outstanding\b/i.test(String(fee?.description || ''));
+  /\boutstanding\b/i.test(String(fee?.description || '')) ||
+  String(fee?.transactionType || '').toUpperCase() === 'OUTSTANDING';
 
 const isOctoberEbBill = (fee: any) =>
   String(fee?.transactionType || '').toUpperCase() === 'EB_BILL' &&

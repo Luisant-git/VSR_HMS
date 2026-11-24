@@ -46,33 +46,6 @@ const StudentProfile = () => {
     return roundMoney(currentPendingFees.reduce((sum, f) => sum + (Number(f.amount) || 0), 0));
   }, [currentPendingFees]);
 
-  const currentRentPending = useMemo(() => {
-    return roundMoney(
-      currentPendingFees
-        .filter(f => String(f.transactionType || '').toUpperCase().includes('RENT'))
-        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-    );
-  }, [currentPendingFees]);
-
-  const currentEbPending = useMemo(() => {
-    return roundMoney(
-      currentPendingFees
-        .filter(f => {
-          const t = String(f.transactionType || '').toUpperCase();
-          return t.includes('EB') || t.includes('ELECTRIC');
-        })
-        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-    );
-  }, [currentPendingFees]);
-
-  const currentFinePending = useMemo(() => {
-    return roundMoney(
-      currentPendingFees
-        .filter(f => String(f.transactionType || '').toUpperCase().includes('FINE'))
-        .reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-    );
-  }, [currentPendingFees]);
-
   const grandTotalOutstanding = useMemo(() => {
     return roundMoney(currentPendingTotal + outstandingSummary.remaining);
   }, [currentPendingTotal, outstandingSummary.remaining]);
@@ -843,350 +816,290 @@ const StudentProfile = () => {
                 )}
               </div>
 
-              {/* Three-Card Overview Banner */}
+              {/* Three-Card Overview Banner (Neat & Clean) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 {/* 1. Current Month Outstanding Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #bae6fd', background: '#f0f9ff', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '40px', height: '40px', background: '#0ea5e9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Calendar size={20} color="#ffffff" />
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Outstanding</span>
-                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0c4a6e' }}>Monthly Billing Dues</h4>
-                        </div>
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #bae6fd', background: '#f0f9ff', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '40px', height: '40px', background: '#0ea5e9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Calendar size={20} color="#ffffff" />
                       </div>
-                      <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
-                        {currentPendingTotal > 0 ? 'Unpaid' : 'Clear'}
-                      </span>
+                      <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Current Outstanding</span>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#0c4a6e' }}>Monthly Billing Dues</h4>
+                      </div>
                     </div>
-
-                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#0369a1', lineHeight: 1.2, marginBottom: '6px' }}>
-                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 600, marginBottom: '10px' }}>
-                      Cycle: {formatBillingMonth(getBillingMonths().currentMonthStr) || 'Current Month'} • Due: {getDueDateForMonth(getBillingMonths().currentMonthStr)}
-                    </div>
+                    <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
+                      {currentPendingTotal > 0 ? 'Unpaid' : 'Clear'}
+                    </span>
                   </div>
 
-                  <div style={{ borderTop: '1px solid #e0f2fe', paddingTop: '10px', fontSize: '12px', color: '#0369a1', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <span>Rent: <strong>₹{currentRentPending.toLocaleString('en-IN')}</strong></span>
-                    <span>EB: <strong>₹{currentEbPending.toLocaleString('en-IN')}</strong></span>
-                    {currentFinePending > 0 && <span>Fine: <strong>₹{currentFinePending.toLocaleString('en-IN')}</strong></span>}
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#0369a1', lineHeight: 1.2 }}>
+                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
                 {/* 2. Imported Outstanding Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #fde68a', background: '#fefce8', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '40px', height: '40px', background: '#eab308', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <FileSpreadsheet size={20} color="#ffffff" />
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Imported Outstanding</span>
-                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#713f12' }}>Excel Backlog Ledger</h4>
-                        </div>
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #fde68a', background: '#fefce8', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '40px', height: '40px', background: '#eab308', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileSpreadsheet size={20} color="#ffffff" />
                       </div>
-                      <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
-                        {outstandingSummary.remaining > 0 ? 'Backlog Due' : 'Fully Settled'}
-                      </span>
+                      <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Imported Outstanding</span>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#713f12' }}>Excel Backlog Ledger</h4>
+                      </div>
                     </div>
-
-                    <div style={{ fontSize: '26px', fontWeight: 800, color: '#a16207', lineHeight: 1.2, marginBottom: '6px' }}>
-                      ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: '#854d0e', fontWeight: 600, marginBottom: '10px' }}>
-                      Imported from sheet • {outstandingSummary.invoices.length} invoice record(s)
-                    </div>
+                    <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
+                      {outstandingSummary.remaining > 0 ? 'Backlog Due' : 'Fully Settled'}
+                    </span>
                   </div>
 
-                  <div style={{ borderTop: '1px solid #fef08a', paddingTop: '10px', fontSize: '12px', color: '#854d0e', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                    <span>Original: <strong>₹{outstandingSummary.original.toLocaleString('en-IN')}</strong></span>
-                    <span>Paid: <strong style={{ color: '#16a34a' }}>₹{outstandingSummary.paid.toLocaleString('en-IN')}</strong></span>
-                    <span>Balance: <strong style={{ color: '#b45309' }}>₹{outstandingSummary.remaining.toLocaleString('en-IN')}</strong></span>
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#a16207', lineHeight: 1.2 }}>
+                    ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
                 {/* 3. Grand Total Card */}
-                <div className="ui-card" style={{ padding: '20px', border: '1px solid #ddd6fe', background: '#faf5ff', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ width: '40px', height: '40px', background: '#8b5cf6', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Wallet size={20} color="#ffffff" />
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Combined Total</span>
-                          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#4c1d95' }}>Grand Total Outstanding</h4>
-                        </div>
+                <div className="ui-card" style={{ padding: '20px', border: '1px solid #ddd6fe', background: '#faf5ff', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '40px', height: '40px', background: '#8b5cf6', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Wallet size={20} color="#ffffff" />
                       </div>
-                      <span className={`ui-badge ${grandTotalOutstanding > 0 ? 'ui-badge-purple' : 'ui-badge-success'}`}>
-                        {grandTotalOutstanding > 0 ? 'Total Due' : 'All Clear'}
-                      </span>
+                      <div>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Combined Total</span>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#4c1d95' }}>Grand Total Outstanding</h4>
+                      </div>
                     </div>
-
-                    <div style={{ fontSize: '28px', fontWeight: 900, color: '#5b21b6', lineHeight: 1.2, marginBottom: '6px' }}>
-                      ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-
-                    <div style={{ fontSize: '12px', color: '#6d28d9', fontWeight: 600, marginBottom: '10px' }}>
-                      Current (₹{currentPendingTotal.toLocaleString('en-IN')}) + Backlog (₹{outstandingSummary.remaining.toLocaleString('en-IN')})
-                    </div>
+                    <span className={`ui-badge ${grandTotalOutstanding > 0 ? 'ui-badge-purple' : 'ui-badge-success'}`}>
+                      {grandTotalOutstanding > 0 ? 'Total Due' : 'All Clear'}
+                    </span>
                   </div>
 
-                  <div style={{ borderTop: '1px solid #ede9fe', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#6d28d9' }}>Total Payable by Student</span>
-                    {grandTotalOutstanding > 0 && (
-                      <button
-                        onClick={() => {
-                          if (currentPendingFees.length > 0) {
-                            setFeeToCollect(currentPendingFees[0]);
-                          } else if (outstandingSummary.invoices.length > 0) {
-                            setFeeToCollect(outstandingSummary.invoices[0]);
-                          } else {
-                            navigate(`/fees?student=${student?.id || student?.uuid}`);
-                          }
-                        }}
-                        className="ui-btn ui-btn-primary ui-btn-sm"
-                        style={{ padding: '4px 10px', fontSize: '12px' }}
-                      >
-                        <Wallet size={12} /> Collect Now
-                      </button>
-                    )}
+                  <div style={{ fontSize: '28px', fontWeight: 900, color: '#5b21b6', lineHeight: 1.2 }}>
+                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
 
-              {/* Section 1: Current Month Outstanding Details */}
-              <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Calendar size={18} color="#0284c7" /> 1. Current Month Billing Dues
-                    </h4>
-                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
-                      Hostel room rent, EB, and fine invoices for the current billing cycle
-                    </p>
-                  </div>
-                  <span className={`ui-badge ${currentPendingTotal > 0 ? 'ui-badge-danger' : 'ui-badge-success'}`}>
-                    Total: ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </span>
+              {/* If no dues at all, display a single clean, neat All-Clear banner */}
+              {grandTotalOutstanding <= 0.005 && outstandingAllocations.length === 0 && (
+                <div className="ui-card" style={{ padding: '36px 20px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', marginBottom: '24px' }}>
+                  <CheckCircle2 size={40} style={{ margin: '0 auto 10px', color: '#16a34a' }} />
+                  <div style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>All Outstanding Dues Clear</div>
+                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
+                    This student has no pending monthly billing dues or historical Excel backlog.
+                  </p>
                 </div>
+              )}
 
-                <div style={{ padding: currentPendingFees.length === 0 ? '30px 20px' : '0' }}>
-                  {currentPendingFees.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#16a34a' }}>
-                      <CheckCircle2 size={36} style={{ margin: '0 auto 8px', color: '#16a34a' }} />
-                      <div style={{ fontWeight: 700, fontSize: '15px' }}>No Current Month Dues Pending</div>
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-                        All monthly fees for {formatBillingMonth(getBillingMonths().currentMonthStr) || 'the current cycle'} are settled.
+              {/* Section 1: Current Month Outstanding Details (Only rendered when there are current pending dues) */}
+              {currentPendingFees.length > 0 && (
+                <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Calendar size={18} color="#0284c7" /> Current Month Billing Dues
+                      </h4>
+                      <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
+                        Hostel room rent, EB, and fine invoices for the current billing cycle
                       </p>
                     </div>
-                  ) : (
-                    <div className="ui-table-wrap">
-                      <table className="ui-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '40px' }}>#</th>
-                            <th>Fee Description</th>
-                            <th>Category</th>
-                            <th>Billing Month</th>
-                            <th>Due Date</th>
-                            <th className="num">Amount (₹)</th>
-                            <th>Status</th>
-                            <th className="num">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentPendingFees.map((fee, idx) => {
-                            const feeType = String(fee.transactionType || '').toUpperCase();
-                            const typeBadge = feeType.includes('RENT')
-                              ? 'ui-badge-blue'
-                              : feeType.includes('EB')
-                                ? 'ui-badge-warning'
-                                : feeType.includes('FINE')
-                                  ? 'ui-badge-danger'
-                                  : 'ui-badge-secondary';
-                            const billingMonth = fee.billingMonth || (fee.description?.match(/(\d{4}-\d{2})/)?.[1]) || getBillingMonths().currentMonthStr;
+                    <span className="ui-badge ui-badge-danger">
+                      Total: ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
 
-                            return (
-                              <tr key={fee.id || idx}>
-                                <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                                <td>
-                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>{fee.description || 'Monthly Fee'}</div>
-                                  <div style={{ fontSize: '11px', color: '#64748b' }}>Generated on {new Date(fee.createdAt).toLocaleDateString('en-GB')}</div>
-                                </td>
-                                <td>
-                                  <span className={`ui-badge ${typeBadge}`}>
-                                    {feeType.replace('_', ' ')}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span style={{ fontWeight: 600, color: '#334155' }}>
-                                    {formatBillingMonth(billingMonth) || billingMonth}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '12px' }}>
-                                    {getDueDateForMonth(billingMonth)}
-                                  </span>
-                                </td>
-                                <td className="num sp-kv-strong" style={{ color: '#dc2626', fontSize: '14px' }}>
-                                  ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td>
-                                  <span className="ui-badge ui-badge-danger">Unpaid</span>
-                                </td>
-                                <td className="num">
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>#</th>
+                          <th>Fee Description</th>
+                          <th>Category</th>
+                          <th>Billing Month</th>
+                          <th>Due Date</th>
+                          <th className="num">Amount (₹)</th>
+                          <th>Status</th>
+                          <th className="num">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentPendingFees.map((fee, idx) => {
+                          const feeType = String(fee.transactionType || '').toUpperCase();
+                          const typeBadge = feeType.includes('RENT')
+                            ? 'ui-badge-blue'
+                            : feeType.includes('EB')
+                              ? 'ui-badge-warning'
+                              : feeType.includes('FINE')
+                                ? 'ui-badge-danger'
+                                : 'ui-badge-secondary';
+                          const billingMonth = fee.billingMonth || (fee.description?.match(/(\d{4}-\d{2})/)?.[1]) || getBillingMonths().currentMonthStr;
+
+                          return (
+                            <tr key={fee.id || idx}>
+                              <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#0f172a' }}>{fee.description || 'Monthly Fee'}</div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>Generated on {new Date(fee.createdAt).toLocaleDateString('en-GB')}</div>
+                              </td>
+                              <td>
+                                <span className={`ui-badge ${typeBadge}`}>
+                                  {feeType.replace('_', ' ')}
+                                </span>
+                              </td>
+                              <td>
+                                <span style={{ fontWeight: 600, color: '#334155' }}>
+                                  {formatBillingMonth(billingMonth) || billingMonth}
+                                </span>
+                              </td>
+                              <td>
+                                <span style={{ color: '#dc2626', fontWeight: 600, fontSize: '12px' }}>
+                                  {getDueDateForMonth(billingMonth)}
+                                </span>
+                              </td>
+                              <td className="num sp-kv-strong" style={{ color: '#dc2626', fontSize: '14px' }}>
+                                ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td>
+                                <span className="ui-badge ui-badge-danger">Unpaid</span>
+                              </td>
+                              <td className="num">
+                                <button
+                                  onClick={() => setFeeToCollect(fee)}
+                                  className="ui-btn ui-btn-primary ui-btn-sm"
+                                  style={{ padding: '5px 12px', fontSize: '12px' }}
+                                >
+                                  <Wallet size={12} /> Pay Now
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
+                          <td colSpan={5} style={{ textAlign: 'right', padding: '12px 16px' }}>Current Month Dues Subtotal:</td>
+                          <td className="num" style={{ color: '#dc2626', fontSize: '14px', padding: '12px 16px' }}>
+                            ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 2: Imported Outstanding Details (Only rendered when there are imported backlog records) */}
+              {outstandingAllocations.length > 0 && (
+                <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fefce8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileSpreadsheet size={18} color="#eab308" /> Imported Outstanding Ledger (Excel Backlog)
+                      </h4>
+                      <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#854d0e' }}>
+                        Historical dues imported in bulk from client Excel sheets or opening balance records
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
+                        Remaining Backlog: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                      {outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0 && (
+                        <button
+                          onClick={() => setFeeToCollect(outstandingSummary.invoices[0])}
+                          className="ui-btn ui-btn-primary ui-btn-sm"
+                          style={{ padding: '5px 12px', fontSize: '12px' }}
+                        >
+                          <Wallet size={12} /> Pay Backlog
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="ui-table-wrap">
+                    <table className="ui-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>#</th>
+                          <th>Import Date</th>
+                          <th>Description</th>
+                          <th className="num">Original Amount (₹)</th>
+                          <th className="num">Amount Paid (₹)</th>
+                          <th className="num">Remaining Due (₹)</th>
+                          <th>Status</th>
+                          <th className="num">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {outstandingAllocations.map((item: any, idx: number) => {
+                          const isFullyPaid = item.remainingAmount <= 0.005;
+                          const isPartial = !isFullyPaid && item.paidAmount > 0;
+                          return (
+                            <tr key={item.invoiceId || idx} style={{ background: isFullyPaid ? '#f8fafc' : undefined }}>
+                              <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
+                              <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
+                              <td>
+                                <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                                  {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#64748b' }}>
+                                  Type: {item.invoice?.transactionType || 'OUTSTANDING'}
+                                </div>
+                              </td>
+                              <td className="num">₹{Number(item.originalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                              <td className="num" style={{ color: '#16a34a', fontWeight: 600 }}>
+                                ₹{Number(item.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="num sp-kv-strong" style={{ color: isFullyPaid ? '#16a34a' : '#b45309', fontSize: '14px' }}>
+                                ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td>
+                                <span className={`ui-badge ${isFullyPaid ? 'ui-badge-success' : isPartial ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
+                                  {isFullyPaid ? 'Settled' : isPartial ? 'Partial' : 'Unpaid'}
+                                </span>
+                              </td>
+                              <td className="num">
+                                {!isFullyPaid ? (
                                   <button
-                                    onClick={() => setFeeToCollect(fee)}
+                                    onClick={() => setFeeToCollect(item.invoice)}
                                     className="ui-btn ui-btn-primary ui-btn-sm"
                                     style={{ padding: '5px 12px', fontSize: '12px' }}
                                   >
-                                    <Wallet size={12} /> Pay Now
+                                    <Wallet size={12} /> Pay
                                   </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
-                            <td colSpan={5} style={{ textAlign: 'right', padding: '12px 16px' }}>Current Month Dues Subtotal:</td>
-                            <td className="num" style={{ color: '#dc2626', fontSize: '14px', padding: '12px 16px' }}>
-                              ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td colSpan={2}></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Section 2: Imported Outstanding Details (From Excel) */}
-              <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: '#fefce8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#713f12', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileSpreadsheet size={18} color="#eab308" /> 2. Imported Outstanding Ledger (Excel Backlog)
-                    </h4>
-                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#854d0e' }}>
-                      Historical dues imported in bulk from client Excel sheets or opening balance records
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span className={`ui-badge ${outstandingSummary.remaining > 0 ? 'ui-badge-warning' : 'ui-badge-success'}`}>
-                      Remaining Backlog: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
-                    {outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0 && (
-                      <button
-                        onClick={() => setFeeToCollect(outstandingSummary.invoices[0])}
-                        className="ui-btn ui-btn-primary ui-btn-sm"
-                        style={{ padding: '5px 12px', fontSize: '12px' }}
-                      >
-                        <Wallet size={12} /> Pay Backlog
-                      </button>
-                    )}
+                                ) : (
+                                  <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>Cleared</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr style={{ background: '#fefce8', fontWeight: 700 }}>
+                          <td colSpan={3} style={{ textAlign: 'right', padding: '12px 16px', color: '#713f12' }}>Imported Backlog Totals:</td>
+                          <td className="num" style={{ padding: '12px 16px', color: '#713f12' }}>
+                            ₹{outstandingSummary.original.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="num" style={{ padding: '12px 16px', color: '#16a34a' }}>
+                            ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="num sp-kv-strong" style={{ padding: '12px 16px', color: '#b45309', fontSize: '14px' }}>
+                            ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td colSpan={2}></td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 </div>
-
-                <div style={{ padding: outstandingSummary.invoices.length === 0 ? '30px 20px' : '0' }}>
-                  {outstandingSummary.invoices.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#64748b' }}>
-                      <CheckCircle2 size={36} style={{ margin: '0 auto 8px', color: '#16a34a' }} />
-                      <div style={{ fontWeight: 700, fontSize: '15px', color: '#0f172a' }}>No Imported Backlog Outstanding</div>
-                      <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
-                        This student has no historical or Excel-imported backlog balance.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="ui-table-wrap">
-                      <table className="ui-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '40px' }}>#</th>
-                            <th>Import Date</th>
-                            <th>Description</th>
-                            <th className="num">Original Amount (₹)</th>
-                            <th className="num">Amount Paid (₹)</th>
-                            <th className="num">Remaining Due (₹)</th>
-                            <th>Status</th>
-                            <th className="num">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {outstandingAllocations.map((item: any, idx: number) => {
-                            const isFullyPaid = item.remainingAmount <= 0.005;
-                            const isPartial = !isFullyPaid && item.paidAmount > 0;
-                            return (
-                              <tr key={item.invoiceId || idx} style={{ background: isFullyPaid ? '#f8fafc' : undefined }}>
-                                <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>{idx + 1}</td>
-                                <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
-                                <td>
-                                  <div style={{ fontWeight: 600, color: '#0f172a' }}>
-                                    {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: '#64748b' }}>
-                                    Type: {item.invoice?.transactionType || 'OUTSTANDING'}
-                                  </div>
-                                </td>
-                                <td className="num">₹{Number(item.originalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                                <td className="num" style={{ color: '#16a34a', fontWeight: 600 }}>
-                                  ₹{Number(item.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td className="num sp-kv-strong" style={{ color: isFullyPaid ? '#16a34a' : '#b45309', fontSize: '14px' }}>
-                                  ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                </td>
-                                <td>
-                                  <span className={`ui-badge ${isFullyPaid ? 'ui-badge-success' : isPartial ? 'ui-badge-warning' : 'ui-badge-danger'}`}>
-                                    {isFullyPaid ? 'Settled' : isPartial ? 'Partial' : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td className="num">
-                                  {!isFullyPaid ? (
-                                    <button
-                                      onClick={() => setFeeToCollect(item.invoice)}
-                                      className="ui-btn ui-btn-primary ui-btn-sm"
-                                      style={{ padding: '5px 12px', fontSize: '12px' }}
-                                    >
-                                      <Wallet size={12} /> Pay
-                                    </button>
-                                  ) : (
-                                    <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>Cleared</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{ background: '#fefce8', fontWeight: 700 }}>
-                            <td colSpan={3} style={{ textAlign: 'right', padding: '12px 16px', color: '#713f12' }}>Imported Backlog Totals:</td>
-                            <td className="num" style={{ padding: '12px 16px', color: '#713f12' }}>
-                              ₹{outstandingSummary.original.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="num" style={{ padding: '12px 16px', color: '#16a34a' }}>
-                              ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="num sp-kv-strong" style={{ padding: '12px 16px', color: '#b45309', fontSize: '14px' }}>
-                              ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td colSpan={2}></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
               {/* Section 3: Outstanding Payment Receipts */}
               {outstandingSummary.payments.length > 0 && (
