@@ -136,6 +136,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: <Braces size={18} />,
     children: [
       { label: 'System Truncate', to: '/developer/settings', role: 'DEVELOPER' },
+      { label: 'Role Master', to: '/developer/role-master', role: 'DEVELOPER' },
       { label: 'User Management', to: '/settings/user-management', role: 'DEVELOPER' },
       { label: 'Menu Permission', to: '/settings/menu-permission', role: 'DEVELOPER' },
     ],

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { MenuPermissionAPI } from '../api/menuPermission.api';
+import { RoleAPI } from '../api/role.api';
 import { toast } from 'react-toastify';
 import { ShieldCheck } from 'lucide-react';
 
@@ -13,20 +14,26 @@ const MenuPermission = () => {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const roles = [
-    'ADMIN', 
+  const [roles, setRoles] = useState<string[]>([
+    'ADMIN',
     'WARDEN',
     'SUPER_ADMIN',
     'DEVELOPER',
-    'CANTEEN_MANAGER'
-  ];
+    'CANTEEN_MANAGER',
+  ]);
 
   const fetchPermissions = async () => {
     setFetching(true);
     setError(null);
     try {
-      const data = await MenuPermissionAPI.getAll();
+      const [data, roleList] = await Promise.all([
+        MenuPermissionAPI.getAll(),
+        RoleAPI.getAll().catch(() => null),
+      ]);
       setPermissions(data);
+      if (Array.isArray(roleList) && roleList.length > 0) {
+        setRoles(roleList.map((r) => r.name));
+      }
     } catch (err) {
       setError('Failed to load permissions');
     } finally {

@@ -30,6 +30,20 @@ model MenuPermission {
 }
 
 // ---------------------------------------------------------
+// Role Master (Developer-managed user roles)
+// ---------------------------------------------------------
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  label       String
+  description String?
+  isActive    Boolean  @default(true)
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
 // Room & Bed Management
 // ---------------------------------------------------------
 model Room {

@@ -3,11 +3,19 @@ import { Plus, SquarePen, CheckCircle, XCircle, X, Trash2, Users, Search } from 
 import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { UserAPI } from '../api/user.api';
+import { RoleAPI, type RoleItem } from '../api/role.api';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 
 const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
+  const [roles, setRoles] = useState<RoleItem[]>([
+    { id: '1', name: 'ADMIN', label: 'Admin', isActive: true, isSystem: true },
+    { id: '2', name: 'WARDEN', label: 'Warden', isActive: true, isSystem: true },
+    { id: '3', name: 'SUPER_ADMIN', label: 'Super Admin', isActive: true, isSystem: true },
+    { id: '4', name: 'DEVELOPER', label: 'Developer', isActive: true, isSystem: true },
+    { id: '5', name: 'CANTEEN_MANAGER', label: 'Canteen Manager', isActive: true, isSystem: true },
+  ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +54,18 @@ const UserManagement = () => {
   useEffect(() => {
     fetchUsers();
   }, [page, limit, searchQuery]);
+
+  useEffect(() => {
+    RoleAPI.getAll(true)
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRoles(data);
+        }
+      })
+      .catch(() => {
+        // Keep built-in role options if Role Master endpoint is unreachable
+      });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,11 +327,11 @@ const UserManagement = () => {
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
                     className="ui-select"
                   >
-                    <option value="ADMIN">Admin</option>
-                    <option value="WARDEN">Warden</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                    <option value="DEVELOPER">Developer</option>
-                    <option value="CANTEEN_MANAGER">Canteen Manager</option>
+                    {roles.map((r) => (
+                      <option key={r.name} value={r.name}>
+                        {r.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

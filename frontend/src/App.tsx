@@ -24,6 +24,7 @@ import MenuPermission from './pages/MenuPermission';
 import UserManagement from './pages/UserManagement';
 import StudentPortal from './pages/StudentPortal';
 import DeveloperSettings from './pages/DeveloperSettings';
+import RoleMaster from './pages/RoleMaster';
 import StudentAdmissionForm from './pages/StudentAdmissionForm';
 import MessDeductionMaster from './pages/MessDeductionMaster';
 import SystemSettings from './pages/SystemSettings';
@@ -127,6 +128,7 @@ function App() {
           </Route>
           <Route path="developer">
             <Route path="settings" element={<DeveloperSettings />} />
+            <Route path="role-master" element={<RoleMaster />} />
           </Route>
           <Route path="staff" element={<StaffMaster />} />
           <Route path="staff/attendance" element={<StaffAttendance />} />

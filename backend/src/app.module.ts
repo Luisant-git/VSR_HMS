@@ -15,6 +15,7 @@ import { ClearanceModule } from './clearance/clearance.module';
 import { OutpassModule } from './outpass/outpass.module';
 import { CollegesModule } from './colleges/colleges.module';
 import { MenuPermissionModule } from './menu-permission/menu-permission.module';
+import { RolesModule } from './roles/roles.module';
 import { DeveloperModule } from './developer/developer.module';
 import { DeveloperSeedService } from './developer/developer.seed.service';
 import { MessDeductionModule } from './mess-deduction/mess-deduction.module';
@@ -44,6 +45,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
     OutpassModule, 
     CollegesModule,
     MenuPermissionModule,
+    RolesModule,
     DeveloperModule,
     MessDeductionModule,
     SystemSettingsModule,
