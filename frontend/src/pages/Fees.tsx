@@ -27,7 +27,7 @@ import {
   roundMoney,
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { formatBillingMonth, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
+import { formatBillingMonth, formatBillingMonthOnly, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
 import { getOverdueDays } from '../utils/dueDate';
 import { buildFeeReconciliation } from '../utils/feeReconciliation';
 import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
@@ -1546,7 +1546,9 @@ const Fees = () => {
                 <th className="num">EB</th>
                 {/* <th className="num">Mess</th> */}
                 <th className="num">Fine</th>
-                <th className="num">Outstanding Balance</th>
+                <th className="num fees-th-outstanding" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
+                  Outstanding<br />Balance
+                </th>
                 <th className="num fees-total">Total Paid</th>
                 <th className="fees-method">Payment Method</th>
                 <th className="fees-status">Status</th>
@@ -1590,24 +1592,37 @@ const Fees = () => {
                         </div>
                       </td>
                       <td>
-                        <span className="ui-badge ui-badge-blue" title={`Room ${fee.student?.roomNo || 'N/A'}`}>
-                          Room {fee.student?.roomNo || 'N/A'}
+                        <span className="ui-badge ui-badge-blue" title={fee.student?.roomNo || 'N/A'}>
+                          {fee.student?.roomNo ? String(fee.student.roomNo).replace(/^Room\s*/i, '') : '—'}
                         </span>
                       </td>
                       <td>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                          backgroundColor: '#e0f2fe',
-                          color: '#0369a1',
-                          border: '1px solid #bae6fd',
-                        }}>
+                        <span
+                          title={(() => {
+                            const billingCycle = (fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
+                            if (fee.displayStatus === 'Unpaid' || fee.displayStatus === 'Not Due') {
+                              const { currentMonthStr, previousMonthStr } = getBillingMonths();
+                              const payableMonth = billingCycle === 'POSTPAID' ? previousMonthStr : currentMonthStr;
+                              return formatBillingMonth(payableMonth) || payableMonth;
+                            }
+                            const primaryFee = fee.feesList?.[0] || fee;
+                            const primaryMonth = resolveFeeBillingMonth(primaryFee) || fee.billingMonth || '';
+                            return formatBillingMonth(primaryMonth) || primaryMonth || undefined;
+                          })()}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '2px 6px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            backgroundColor: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #bae6fd',
+                          }}
+                        >
                           {(() => {
                             // POSTPAID dues are paid for the previous month, so
                             // show that payable month on the unpaid/not-due row.
@@ -1619,7 +1634,7 @@ const Fees = () => {
                               const { currentMonthStr, previousMonthStr } = getBillingMonths();
                               const payableMonth =
                                 billingCycle === 'POSTPAID' ? previousMonthStr : currentMonthStr;
-                              return formatBillingMonth(payableMonth) || payableMonth;
+                              return formatBillingMonthOnly(payableMonth) || payableMonth;
                             }
                             // One receipt = one payment. Show the billing month
                             // of its primary fee only. Joining every month in a
@@ -1630,7 +1645,7 @@ const Fees = () => {
                               resolveFeeBillingMonth(primaryFee) ||
                               fee.billingMonth ||
                               '';
-                            return formatBillingMonth(primaryMonth) || primaryMonth || '—';
+                            return formatBillingMonthOnly(primaryMonth) || primaryMonth || '—';
                           })()}
                         </span>
                       </td>

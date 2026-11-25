@@ -50,6 +50,25 @@ export const formatBillingMonthShort = (monthStr?: string | null): string => {
   return `${label} ${match[1]}`;
 };
 
+/** Turn "2026-11" or "November 2026" or "November" into "Nov". */
+export const formatBillingMonthOnly = (monthStr?: string | null): string => {
+  if (!monthStr) return '';
+  const match = String(monthStr || '').match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  if (match) {
+    return monthNames[Number(match[2]) - 1] || '';
+  }
+  const fullMatch = String(monthStr).match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i);
+  if (fullMatch) {
+    const idx = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(fullMatch[1].toLowerCase());
+    if (idx >= 0) return monthNames[idx];
+  }
+  return String(monthStr);
+};
+
 /**
  * When the monthly rent & mess cron runs, and which billing month it creates.
  *
