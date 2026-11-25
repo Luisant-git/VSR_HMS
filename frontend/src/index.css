@@ -2495,7 +2495,7 @@ textarea:focus {
   color: #ffffff;
 }
 
-.ui-modal > form {
+.ui-modal>form {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -3148,6 +3148,7 @@ textarea.ui-form-control {
     flex-wrap: wrap !important;
     gap: 14px !important;
   }
+
   .fees-header-actions {
     width: 100%;
   }
@@ -3544,7 +3545,7 @@ textarea.ui-form-control {
   white-space: nowrap;
 }
 
-.fees-table td.fees-status > .ui-badge {
+.fees-table td.fees-status>.ui-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3562,7 +3563,7 @@ textarea.ui-form-control {
   padding-right: 14px !important;
 }
 
-.fees-table .fees-actions > div {
+.fees-table .fees-actions>div {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
@@ -4107,7 +4108,7 @@ textarea.ui-form-control {
   font-weight: 700;
 }
 
-.sp-nav-btn > .sp-nav-text-group {
+.sp-nav-btn>.sp-nav-text-group {
   flex: 1;
   display: flex;
   align-items: center;
@@ -4143,7 +4144,7 @@ textarea.ui-form-control {
   color: #b91c1c;
 }
 
-.sp-nav-btn > span:not(.sp-nav-text-group):not(.sp-nav-badge) {
+.sp-nav-btn>span:not(.sp-nav-text-group):not(.sp-nav-badge) {
   flex: 1;
 }
 
@@ -4402,6 +4403,7 @@ textarea.ui-form-control {
 }
 
 @media (max-width: 960px) {
+
   .sp-stat-grid--single-row,
   .sp-stat-grid--single-row.is-3-col {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -4409,6 +4411,7 @@ textarea.ui-form-control {
 }
 
 @media (max-width: 640px) {
+
   .sp-stat-grid--single-row,
   .sp-stat-grid--single-row.is-3-col,
   .sp-stat-grid--single-row.is-2-col {
@@ -4692,6 +4695,7 @@ textarea.ui-form-control {
   border: 1.5px solid #cbd5e1;
   color: #475569;
 }
+
 .id-card-btn-close:hover {
   background: #f8fafc;
   border-color: #94a3b8;
@@ -4702,6 +4706,7 @@ textarea.ui-form-control {
   border: 1.5px solid var(--accent, #0ea5e9);
   color: var(--accent, #0ea5e9);
 }
+
 .id-card-btn-print:hover {
   background: #f0f9ff;
 }
@@ -4712,6 +4717,7 @@ textarea.ui-form-control {
   color: #ffffff;
   box-shadow: 0 3px 10px rgba(14, 165, 233, 0.25);
 }
+
 .id-card-btn-download:hover {
   filter: brightness(0.95);
   transform: translateY(-1px);
@@ -4723,6 +4729,7 @@ textarea.ui-form-control {
   color: #ffffff;
   box-shadow: 0 3px 10px rgba(37, 211, 102, 0.25);
 }
+
 .id-card-btn-whatsapp:hover {
   filter: brightness(0.95);
   transform: translateY(-1px);
@@ -4732,15 +4739,19 @@ textarea.ui-form-control {
   .id-card-container {
     padding: 6px 2px;
   }
+
   .id-card-header {
     margin-bottom: 12px;
   }
+
   .id-card-header h2 {
     font-size: 18px;
   }
+
   .id-card-stage {
     margin-bottom: 14px;
   }
+
   .id-card-actions {
     display: flex !important;
     justify-content: flex-start !important;
@@ -4752,6 +4763,7 @@ textarea.ui-form-control {
     -webkit-overflow-scrolling: touch;
     padding: 4px 6px !important;
   }
+
   .id-card-btn {
     padding: 7px 10px !important;
     font-size: 12px !important;
@@ -4851,19 +4863,23 @@ textarea.ui-form-control {
     grid-template-columns: 1fr !important;
     gap: 12px !important;
   }
+
   .sp-outstanding-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+
   .sp-tab-head {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
+
   .sp-tab-head button {
     width: 100%;
     justify-content: center;
   }
+
   .sp-table-responsive table {
     min-width: 580px;
   }
@@ -4887,6 +4903,7 @@ textarea.ui-form-control {
 }
 
 @media (max-width: 640px) {
+
   .sp-search-box,
   .sp-search-box input {
     max-width: 100%;
@@ -6561,6 +6578,7 @@ textarea.ui-form-control {
     gap: 10px;
     padding: 12px;
   }
+
   .fm-fine-amount {
     width: 100%;
   }
@@ -8222,7 +8240,7 @@ textarea.ui-form-control {
     box-shadow: none !important;
   }
 
-  .sp-table-card > .ui-table-wrap {
+  .sp-table-card>.ui-table-wrap {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -8306,6 +8324,7 @@ textarea.ui-form-control {
   .sp-content {
     padding: 12px;
   }
+
   .main-content {
     padding: 8px 10px 16px 10px;
   }
@@ -8576,13 +8595,40 @@ textarea.ui-form-control {
   color: var(--text-muted);
 }
 
-.bio-tone-accent { --bio-stat-color: var(--accent); --bio-stat-soft: var(--accent-soft); }
-.bio-tone-success { --bio-stat-color: var(--success-strong); --bio-stat-soft: var(--success-soft); }
-.bio-tone-danger { --bio-stat-color: var(--danger-strong); --bio-stat-soft: var(--danger-soft); }
-.bio-tone-warning { --bio-stat-color: var(--warning-strong); --bio-stat-soft: var(--warning-soft); }
-.bio-tone-info { --bio-stat-color: var(--info); --bio-stat-soft: var(--info-soft); }
-.bio-tone-purple { --bio-stat-color: var(--purple); --bio-stat-soft: var(--purple-soft); }
-.bio-tone-neutral { --bio-stat-color: #475569; --bio-stat-soft: var(--surface-sunken); }
+.bio-tone-accent {
+  --bio-stat-color: var(--accent);
+  --bio-stat-soft: var(--accent-soft);
+}
+
+.bio-tone-success {
+  --bio-stat-color: var(--success-strong);
+  --bio-stat-soft: var(--success-soft);
+}
+
+.bio-tone-danger {
+  --bio-stat-color: var(--danger-strong);
+  --bio-stat-soft: var(--danger-soft);
+}
+
+.bio-tone-warning {
+  --bio-stat-color: var(--warning-strong);
+  --bio-stat-soft: var(--warning-soft);
+}
+
+.bio-tone-info {
+  --bio-stat-color: var(--info);
+  --bio-stat-soft: var(--info-soft);
+}
+
+.bio-tone-purple {
+  --bio-stat-color: var(--purple);
+  --bio-stat-soft: var(--purple-soft);
+}
+
+.bio-tone-neutral {
+  --bio-stat-color: #475569;
+  --bio-stat-soft: var(--surface-sunken);
+}
 
 /* ---------- Cards ---------- */
 .bio-card {
@@ -8593,7 +8639,7 @@ textarea.ui-form-control {
   overflow: hidden;
 }
 
-.bio-card + .bio-card {
+.bio-card+.bio-card {
   margin-top: 20px;
 }
 
@@ -8682,7 +8728,7 @@ textarea.ui-form-control {
   color: var(--text-muted);
 }
 
-.bio-field > span:first-child {
+.bio-field>span:first-child {
   padding-left: 1px;
 }
 
@@ -9023,9 +9069,17 @@ textarea.ui-form-control {
 }
 
 @keyframes bio-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 6px rgba(22, 163, 74, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
 }
 
 /* ---------- Rate bar ---------- */
@@ -9571,7 +9625,9 @@ textarea.ui-form-control {
 }
 
 @keyframes bio-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ---------- Loading skeleton for lazy panels ---------- */
