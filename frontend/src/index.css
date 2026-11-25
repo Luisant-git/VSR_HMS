@@ -2495,17 +2495,34 @@ textarea:focus {
   color: #ffffff;
 }
 
+.ui-modal > form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-modal-head,
+.ui-modal-header {
+  flex-shrink: 0;
+}
+
 .ui-modal-body {
-  padding: 22px 24px;
+  padding: 20px 22px;
   overflow-y: auto;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ui-modal-footer,
 .ui-modal-foot {
-  padding: 16px 24px;
+  flex-shrink: 0;
+  padding: 14px 22px;
   background: var(--surface-muted);
   border-top: 1px solid var(--border);
   display: flex;
@@ -3342,93 +3359,105 @@ textarea.ui-form-control {
    standalone filter toolbar, fixed column widths, a two-line person cell and
    badge-styled room / status values. */
 .fees-table {
-  table-layout: fixed;
+  table-layout: auto;
   width: 100%;
-  min-width: 1200px;
+  min-width: 1540px;
   border-collapse: separate;
   border-spacing: 0;
 }
 
 .fees-table .fees-col-invoice {
-  width: 7%;
+  width: 125px;
+  min-width: 120px;
 }
 
 .fees-table .fees-col-person {
-  width: 12%;
+  width: 200px;
+  min-width: 190px;
 }
 
 .fees-table .fees-col-room {
-  width: 6%;
+  width: 105px;
+  min-width: 100px;
+}
+
+.fees-table .fees-col-billing {
+  width: 140px;
+  min-width: 135px;
 }
 
 .fees-table .fees-col-date {
-  width: 6%;
+  width: 110px;
+  min-width: 105px;
 }
 
 .fees-table .fees-col-advance {
-  width: 5%;
+  width: 85px;
+  min-width: 80px;
 }
 
 .fees-table .fees-col-rent {
-  width: 5%;
+  width: 95px;
+  min-width: 90px;
 }
 
 .fees-table .fees-col-eb {
-  width: 5%;
-}
-
-.fees-table .fees-col-mess {
-  width: 5%;
+  width: 80px;
+  min-width: 75px;
 }
 
 .fees-table .fees-col-fine {
-  width: 5%;
+  width: 110px;
+  min-width: 105px;
 }
 
 .fees-table .fees-col-outstanding {
-  width: 8%;
+  width: 125px;
+  min-width: 120px;
 }
 
 .fees-table .fees-col-total {
-  width: 8%;
+  width: 105px;
+  min-width: 100px;
 }
 
 .fees-table .fees-col-method {
-  width: 8%;
+  width: 115px;
+  min-width: 110px;
 }
 
 .fees-table .fees-col-status {
-  width: 6%;
+  width: 100px;
+  min-width: 95px;
 }
 
 .fees-table .fees-col-action {
-  width: 9%;
+  width: 155px;
+  min-width: 150px;
 }
 
 .fees-table th,
 .fees-table td {
-  padding: 6px 7px !important;
+  padding: 10px 10px !important;
   box-sizing: border-box;
   vertical-align: middle;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .fees-table th {
-  white-space: normal;
-  line-height: 1.1;
-  vertical-align: bottom;
-  font-size: 10px !important;
-  padding: 8px 7px !important;
+  white-space: nowrap !important;
+  line-height: 1.2;
+  vertical-align: middle;
+  font-size: 11px !important;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+  background: var(--surface-muted);
 }
 
 .fees-table td {
-  font-size: 12px !important;
+  font-size: 13px !important;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .fees-table .fees-method,
@@ -3504,18 +3533,41 @@ textarea.ui-form-control {
   line-height: 1.3;
 }
 
-.fees-table td:last-child {
-  overflow: visible;
-  text-align: right;
+.fees-table th.fees-status,
+.fees-table td.fees-status {
+  text-align: center;
+  white-space: nowrap;
 }
 
-.fees-table th:last-child {
+.fees-table td.fees-status > .ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  white-space: nowrap;
+}
+
+.fees-table th.fees-actions,
+.fees-table td.fees-actions,
+.fees-table th:last-child,
+.fees-table td:last-child {
   text-align: right;
+  overflow: visible;
+  white-space: nowrap;
+  padding-right: 14px !important;
+}
+
+.fees-table .fees-actions > div {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .fees-table td:last-child .ui-btn {
   white-space: nowrap;
-  padding: 6px 9px;
+  padding: 6px 10px;
   font-size: 12.5px;
 }
 
@@ -5952,6 +6004,7 @@ textarea.ui-form-control {
 .cm-date-text {
   font-weight: 700;
   color: var(--text-heading);
+  white-space: nowrap;
 }
 
 .cm-fine-list {
@@ -6131,6 +6184,7 @@ textarea.ui-form-control {
 .fm-date-text {
   font-weight: 700;
   color: var(--text-heading);
+  white-space: nowrap;
 }
 
 .fm-fine-list {
@@ -6302,13 +6356,539 @@ textarea.ui-form-control {
   }
 }
 
-/* MonthlyDueDayPicker ----------------------------------------------------- */
-.monthly-day-picker button:hover:not(:disabled) {
+/* MonthlyDueDayPicker Compact Form Row -------------------------------- */
+.mdp-compact-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdp-compact-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mdp-compact-label {
+  margin-bottom: 0 !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-heading, #0f172a);
+}
+
+.mdp-compact-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--surface, #ffffff);
+  border: 1.5px solid var(--border-strong, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mdp-compact-box:hover {
+  border-color: #94a3b8;
+}
+
+.mdp-compact-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mdp-compact-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.mdp-compact-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+
+.mdp-compact-badge.is-empty {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.mdp-compact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.mdp-compact-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Backward compatibility for mdp-summary-card */
+.mdp-summary-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.mdp-summary-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mdp-summary-label {
+  display: none;
+}
+
+.mdp-summary-value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mdp-summary-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mdp-summary-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.mdp-summary-badge.is-empty {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.mdp-summary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* MonthlyDueDayPicker Compact & Responsive -------------------------------- */
+.monthly-day-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mdp-title {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mdp-req {
+  color: #ef4444;
+  margin-left: 3px;
+}
+
+.mdp-day-input-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mdp-day-label,
+.mdp-day-suffix {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.mdp-day-input {
+  width: 44px;
+  height: 28px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mdp-day-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.mdp-day-input::-webkit-outer-spin-button,
+.mdp-day-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.mdp-day-input {
+  -moz-appearance: textfield;
+}
+
+/* Quick Presets Row */
+.mdp-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdp-quick-label {
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.mdp-quick-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mdp-quick-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 0;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.mdp-quick-btn:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.mdp-quick-btn.is-active {
+  border: 1.5px solid #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+/* Calendar Card & Grid */
+.mdp-calendar-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdp-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  width: 100%;
+}
+
+.mdp-day-btn {
+  height: 28px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.mdp-day-btn:hover:not(.is-active) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
   transform: translateY(-1px);
 }
-@media (max-width: 480px) {
-  .monthly-day-picker input[type="number"] {
-    width: 38px !important;
+
+.mdp-day-btn.is-active {
+  background: #2563eb;
+  color: #ffffff;
+  border: 1px solid #2563eb;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.25);
+}
+
+/* Banner */
+.mdp-banner {
+  padding: 6px 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mdp-banner-icon {
+  flex-shrink: 0;
+  color: #16a34a;
+  margin-top: 1px;
+}
+
+.mdp-banner-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.mdp-banner-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #14532d;
+  margin-bottom: 1px;
+}
+
+.mdp-banner-desc {
+  font-size: 10.5px;
+  color: #15803d;
+  line-height: 1.3;
+}
+
+.mdp-empty-hint {
+  font-size: 11.5px;
+  color: #64748b;
+  font-style: italic;
+  padding: 2px 4px;
+}
+
+/* Dedicated Due Day Modal & Global Modal Responsiveness */
+.fm-dueday-modal {
+  max-width: 360px;
+  width: 95%;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.fm-dueday-modal-head {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+}
+
+.fm-dueday-modal-title {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #0f172a;
+}
+
+.fm-dueday-modal-sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.fm-dueday-modal-body {
+  padding: 10px 14px;
+  max-height: calc(85vh - 90px);
+  overflow-y: auto;
+}
+
+.fm-dueday-modal-footer {
+  padding: 8px 14px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  background: #ffffff;
+}
+
+/* Mobile & Tablet Responsive Breakpoints for Calendar & Modals */
+@media (max-width: 520px) {
+  .fm-dueday-modal {
+    max-width: 100% !important;
+    width: 96% !important;
+    border-radius: 14px;
+  }
+
+  .fm-dueday-modal-head {
+    padding: 12px 14px;
+  }
+
+  .fm-dueday-modal-body {
+    padding: 12px 10px;
+  }
+
+  .fm-dueday-modal-footer {
+    padding: 10px 14px;
+  }
+
+  .mdp-header {
+    gap: 6px;
+  }
+
+  .mdp-title {
+    font-size: 16px;
+  }
+
+  .mdp-day-label,
+  .mdp-day-suffix {
+    font-size: 13.5px;
+  }
+
+  .mdp-day-input {
+    width: 52px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .mdp-quick-label {
+    font-size: 12px;
+  }
+
+  .mdp-quick-list {
+    gap: 4px;
+  }
+
+  .mdp-quick-btn {
+    font-size: 12px;
+    padding: 4px 0;
+    border-radius: 5px;
+  }
+
+  .mdp-calendar-card {
+    padding: 10px 8px;
+    border-radius: 10px;
+  }
+
+  .mdp-calendar-grid {
+    gap: 6px;
+  }
+
+  .mdp-day-btn {
+    min-height: 32px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+
+  .mdp-banner {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .mdp-banner-title {
+    font-size: 13.5px;
+  }
+
+  .mdp-banner-desc {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .mdp-quick-btn {
+    font-size: 11px;
+    padding: 3px 0;
+  }
+
+  .mdp-calendar-grid {
+    gap: 4px;
+  }
+
+  .mdp-day-btn {
+    min-height: 28px;
+    font-size: 13px;
+  }
+
+  .mdp-day-input {
+    width: 44px;
+    height: 32px;
+    font-size: 14px;
   }
 }
 

@@ -87,7 +87,9 @@ interface CollectPaymentModalProps {
 }
 
 const isOutstandingFee = (fee: any) =>
-  /^\s*outstanding\b/i.test(fee?.description || '');
+  /\boutstanding\b/i.test(String(fee?.description || '')) ||
+  String(fee?.transactionType || '').toUpperCase() === 'OUTSTANDING' ||
+  String(fee?.transactionType || '').toUpperCase() === 'BACKLOG';
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -441,12 +443,18 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const activeItemsToPay = displayItems.filter((f: any) => isItemSelected(f));
 
   useEffect(() => {
-    if (!primaryStudent?.id) return;
+    const targetStudentId =
+      primaryStudent?.uuid ||
+      itemsToPay[0]?.studentId ||
+      itemsToPay[0]?.student?.uuid ||
+      itemsToPay[0]?.student?.id ||
+      primaryStudent?.id;
+    if (!targetStudentId) return;
 
     let active = true;
     setLoadingFineQuote(true);
     setFineQuoteError(null);
-    FeesAPI.previewFine(primaryStudent.id, paymentDate)
+    FeesAPI.previewFine(targetStudentId, paymentDate)
       .then((quote) => {
         if (active) {
           setFineQuote({
@@ -597,10 +605,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     }
 
     const studentId =
-      primaryStudent?.id ||
       primaryStudent?.uuid ||
       itemsToPay[0]?.studentId ||
-      itemsToPay[0]?.student?.id;
+      itemsToPay[0]?.student?.uuid ||
+      itemsToPay[0]?.student?.id ||
+      primaryStudent?.id;
 
     if (hasOutstandingPayment && !studentId) {
       toast.error('Unable to identify the student for this payment.');
@@ -727,8 +736,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         }));
       }
 
-      if (primaryStudent?.id && Object.keys(studentUpdates).length > 0) {
-        await StudentAPI.update(primaryStudent.id, studentUpdates);
+      const targetStudentId =
+        primaryStudent?.uuid ||
+        itemsToPay[0]?.studentId ||
+        itemsToPay[0]?.student?.uuid ||
+        itemsToPay[0]?.student?.id ||
+        primaryStudent?.id;
+
+      if (targetStudentId && Object.keys(studentUpdates).length > 0) {
+        await StudentAPI.update(targetStudentId, studentUpdates);
       }
 
       const paidCount = activeItemsToPay.length + (hasOutstandingPayment ? 1 : 0);
@@ -818,10 +834,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     }
 
     const studentId =
-      primaryStudent?.id ||
       primaryStudent?.uuid ||
       itemsToPay[0]?.studentId ||
-      itemsToPay[0]?.student?.id;
+      itemsToPay[0]?.student?.uuid ||
+      itemsToPay[0]?.student?.id ||
+      primaryStudent?.id;
     if (!studentId) {
       toast.error('Unable to identify the student for this payment.');
       return;
@@ -1450,7 +1467,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
               <button
                 onClick={() => {
                   const orderId = onlineOrderId.current;
-                  const studentId = primaryStudent?.id || primaryStudent?.uuid;
+                  const studentId =
+                    primaryStudent?.uuid ||
+                    itemsToPay[0]?.studentId ||
+                    itemsToPay[0]?.student?.uuid ||
+                    itemsToPay[0]?.student?.id ||
+                    primaryStudent?.id;
                   if (onlineConfirmationPending && orderId && studentId) {
                     void checkOnlinePaymentStatus(orderId, studentId);
                   } else if (isStudentMode) {

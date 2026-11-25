@@ -38,6 +38,18 @@ export const formatBillingMonth = (monthStr?: string | null): string => {
   return `${label.charAt(0).toUpperCase()}${label.slice(1)} ${match[1]}`;
 };
 
+/** Turn "2026-11" into "Nov 2026". */
+export const formatBillingMonthShort = (monthStr?: string | null): string => {
+  const match = String(monthStr || '').match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (!match) return '';
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  const label = monthNames[Number(match[2]) - 1];
+  return `${label} ${match[1]}`;
+};
+
 /**
  * When the monthly rent & mess cron runs, and which billing month it creates.
  *

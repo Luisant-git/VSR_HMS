@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee, Calendar, History } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -11,7 +11,7 @@ import { CollectPaymentModal } from '../components/CollectPaymentModal';
 import { FeeGenerationNotice } from '../components/FeeGenerationNotice';
 import { buildOutstandingSummary, cleanPaymentDescription, isCurrentCycleFee, isImportedInvoice, isMessFee, isOutstandingDescription, isOutstandingInvoice, isOutstandingPayment, isPreviousSettledFee, roundMoney } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { getBillingMonths, isPostpaidPayableFee } from '../utils/billingCycle';
+import { getBillingMonths, isPostpaidPayableFee, formatBillingMonthShort, resolveFeeBillingMonth } from '../utils/billingCycle';
 import { StudentAcknowledgementCard } from '../components/StudentAcknowledgementCard';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -806,12 +806,14 @@ const StudentProfile = () => {
                 {grandTotalOutstanding > 0 && (
                   <button
                     onClick={() => {
-                      if (currentPendingFees.length > 0) {
-                        setFeeToCollect(currentPendingFees[0]);
+                      if (currentPendingFees.length > 0 && outstandingSummary.remaining > 0) {
+                        setFeeToCollect([...currentPendingFees, ...outstandingSummary.invoices]);
+                      } else if (currentPendingFees.length > 0) {
+                        setFeeToCollect(currentPendingFees);
                       } else if (outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0) {
-                        setFeeToCollect(outstandingSummary.invoices[0]);
+                        setFeeToCollect(outstandingSummary.invoices);
                       } else {
-                        navigate(`/fees?student=${student?.id || student?.uuid}`);
+                        navigate(`/fees?student=${student?.uuid || student?.id}`);
                       }
                     }}
                     className="ui-btn ui-btn-primary"
@@ -846,7 +848,7 @@ const StudentProfile = () => {
                 {hasBacklog ? (
                   <>
                     <div className="sp-stat">
-                      <div className="sp-stat-label">Current Month</div>
+                      <div className="sp-stat-label">Current Month Dues</div>
                       <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : '#16a34a' }}>
                         ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
@@ -874,78 +876,157 @@ const StudentProfile = () => {
                 )}
               </div>
 
-              {/* Pending Dues Table or Empty State */}
+              {/* Pending Dues Tables or Empty State */}
               {grandTotalOutstanding <= 0.005 ? (
                 <div className="sp-empty">
                   No outstanding dues. All fees are fully settled.
                 </div>
               ) : (
-                <div className="ui-card ui-card--flush" style={{ marginBottom: '24px' }}>
-                  <div className="ui-table-wrap">
-                    <table className="ui-table">
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Type</th>
-                          <th>Description</th>
-                          <th className="num">Due Amount (₹)</th>
-                          <th className="sp-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Current Month Pending Fees */}
-                        {currentPendingFees.map(fee => (
-                          <tr key={fee.id}>
-                            <td>{new Date(fee.createdAt).toLocaleDateString('en-GB')}</td>
-                            <td>
-                              <span className="ui-badge ui-badge-blue">Current Month</span>
-                            </td>
-                            <td className="sp-kv-strong">{fee.description || 'Monthly Fee'}</td>
-                            <td className="num is-danger" style={{ fontWeight: 700 }}>
-                              ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="sp-center">
-                              <button
-                                onClick={() => setFeeToCollect(fee)}
-                                className="ui-btn ui-btn-primary ui-btn-sm"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                              >
-                                <Wallet size={12} /> Pay
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                <>
+                  {/* List 1: Monthly Outstanding */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                        <Calendar size={18} color="#2563eb" /> Monthly Outstanding
+                      </h4>
+                      {currentPendingTotal > 0 && (
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#dc2626' }}>
+                          Total: ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </div>
+                    {currentPendingFees.length > 0 ? (
+                      <div className="ui-card ui-card--flush">
+                        <div className="ui-table-wrap">
+                          <table className="ui-table">
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Month</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th className="num">Due Amount (₹)</th>
+                                <th className="sp-center">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {currentPendingFees.map(fee => {
+                                const monthStr = resolveFeeBillingMonth(fee);
+                                const monthLabel = monthStr ? formatBillingMonthShort(monthStr) : 'Current';
+                                const typeBadge = (() => {
+                                  const t = String(fee?.transactionType || '').toUpperCase();
+                                  const desc = String(fee?.description || '').toLowerCase();
+                                  if (t === 'FINE') {
+                                    if (desc.includes('rent')) return { label: 'Fine (Rent)', color: 'danger' };
+                                    if (desc.includes('eb')) return { label: 'Fine (EB)', color: 'danger' };
+                                    if (desc.includes('mess')) return { label: 'Fine (Mess)', color: 'danger' };
+                                    return { label: 'Late Fine', color: 'danger' };
+                                  }
+                                  if (t === 'RENT') return { label: 'Rent', color: 'info' };
+                                  if (t === 'EB_BILL') return { label: 'EB Bill', color: 'warning' };
+                                  if (t === 'MESS') return { label: 'Mess', color: 'purple' };
+                                  if (t === 'ADVANCE') return { label: 'Advance', color: 'success' };
+                                  return { label: t || 'Fee', color: 'blue' };
+                                })();
 
-                        {/* Backlog Items (Only when backlog is active) */}
-                        {hasBacklog && outstandingAllocations
-                          .filter((item: any) => item.remainingAmount > 0.005)
-                          .map(item => (
-                            <tr key={item.invoiceId}>
-                              <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
-                              <td>
-                                <span className="ui-badge ui-badge-warning">Imported Backlog</span>
-                              </td>
-                              <td className="sp-kv-strong">
-                                {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
-                              </td>
-                              <td className="num is-danger" style={{ fontWeight: 700 }}>
-                                ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="sp-center">
-                                <button
-                                  onClick={() => setFeeToCollect(item.invoice)}
-                                  className="ui-btn ui-btn-primary ui-btn-sm"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                                >
-                                  <Wallet size={12} /> Pay
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+                                return (
+                                  <tr key={fee.id}>
+                                    <td>{new Date(fee.createdAt).toLocaleDateString('en-GB')}</td>
+                                    <td>
+                                      <span className="ui-badge ui-badge-blue" style={{ fontWeight: 600 }}>
+                                        {monthLabel}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span className={`ui-badge ui-badge-${typeBadge.color}`}>
+                                        {typeBadge.label}
+                                      </span>
+                                    </td>
+                                    <td className="sp-kv-strong">{fee.description || typeBadge.label}</td>
+                                    <td className="num is-danger" style={{ fontWeight: 700 }}>
+                                      ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="sp-center">
+                                      <button
+                                        onClick={() => setFeeToCollect(fee)}
+                                        className="ui-btn ui-btn-primary ui-btn-sm"
+                                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                      >
+                                        <Wallet size={12} /> Pay
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="sp-empty" style={{ padding: '16px' }}>
+                        No monthly dues pending.
+                      </div>
+                    )}
                   </div>
-                </div>
+
+                  {/* List 2: Imported Backlog */}
+                  {hasBacklog && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                          <History size={18} color="#d97706" /> Imported Backlog
+                        </h4>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#d97706' }}>
+                          Remaining: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="ui-card ui-card--flush">
+                        <div className="ui-table-wrap">
+                          <table className="ui-table">
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th className="num">Due Amount (₹)</th>
+                                <th className="sp-center">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {outstandingAllocations
+                                .filter((item: any) => item.remainingAmount > 0.005)
+                                .map(item => {
+                                  return (
+                                    <tr key={item.invoiceId}>
+                                      <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
+                                      <td>
+                                        <span className="ui-badge ui-badge-warning">Imported Backlog</span>
+                                      </td>
+                                      <td className="sp-kv-strong">
+                                        {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
+                                      </td>
+                                      <td className="num is-danger" style={{ fontWeight: 700 }}>
+                                        ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                      </td>
+                                      <td className="sp-center">
+                                        <button
+                                          onClick={() => setFeeToCollect(item.invoice)}
+                                          className="ui-btn ui-btn-primary ui-btn-sm"
+                                          style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                        >
+                                          <Wallet size={12} /> Pay
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Confirmed Payments Towards Backlog Receipts (When backlog payments exist) */}
@@ -1115,7 +1196,7 @@ const StudentProfile = () => {
                 {hasBacklog ? (
                   <>
                     <div className="sp-stat">
-                      <div className="sp-stat-label">Current Month Due</div>
+                      <div className="sp-stat-label">Current Month Dues</div>
                       <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : undefined }}>
                         ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
@@ -1490,8 +1571,9 @@ const StudentProfile = () => {
       {feeToCollect && (
         <CollectPaymentModal
           fee={Array.isArray(feeToCollect) ? undefined : { ...feeToCollect, student }}
-          fees={Array.isArray(feeToCollect) ? feeToCollect : undefined}
+          fees={Array.isArray(feeToCollect) ? feeToCollect.map((f: any) => ({ ...f, student: f.student || student })) : undefined}
           outstandingPaid={outstandingSummary.paid}
+          allowPaymentDate
           onClose={() => setFeeToCollect(null)}
           onSuccess={() => {
             setFeeToCollect(null);

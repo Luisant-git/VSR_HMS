@@ -282,7 +282,7 @@ const FineMaster = () => {
               <th className="fm-sno">S.No</th>
               <th>College Name</th>
               <th>Short Name</th>
-              <th>Due Day</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Due Day</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Actions</th>
             </tr>
@@ -315,8 +315,8 @@ const FineMaster = () => {
                       <span className="ui-cell-muted">-</span>
                     )}
                   </td>
-                  <td>
-                    <span className="fm-date-text">
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span className="fm-date-text" style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>
@@ -346,7 +346,7 @@ const FineMaster = () => {
               <th>College Name</th>
               <th>Short Name</th>
               <th>Billing Cycle</th>
-              <th>Due Day</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Due Day</th>
               <th>Configured Rule</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Action</th>
@@ -396,8 +396,8 @@ const FineMaster = () => {
                       {c.billingCycle || 'PREPAID'}
                     </span>
                   </td>
-                  <td>
-                    <span className="fm-date-text">
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span className="fm-date-text" style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap' }}>
                       {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>

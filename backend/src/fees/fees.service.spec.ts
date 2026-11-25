@@ -19,16 +19,24 @@ type FakeRow = {
 
 const matchesWhere = (row: FakeRow, where: any = {}) => {
   for (const [key, value] of Object.entries(where)) {
+    if (key === 'OR' && Array.isArray(value)) {
+      if (!value.some(subWhere => matchesWhere(row, subWhere))) return false;
+      continue;
+    }
     if (key === 'description' && value && typeof value === 'object') {
       const condition = value as { contains?: string; startsWith?: string };
-      const description = row.description || '';
-      if (condition.contains && !description.includes(condition.contains)) return false;
+      const description = (row.description || '').toLowerCase();
+      if (condition.contains && !description.includes(condition.contains.toLowerCase())) return false;
       if (
         condition.startsWith &&
-        !description.toLowerCase().startsWith(condition.startsWith.toLowerCase())
+        !description.startsWith(condition.startsWith.toLowerCase())
       ) {
         return false;
       }
+      continue;
+    }
+    if (value && typeof value === 'object' && 'in' in value) {
+      if (!(value as { in: unknown[] }).in.includes((row as any)[key])) return false;
       continue;
     }
     if (value && typeof value === 'object' && 'notIn' in value) {

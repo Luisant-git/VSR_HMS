@@ -30,7 +30,9 @@ const OUTSTANDING_PREFIX = 'Outstanding';
 const MONEY_EPSILON = 0.001;
 
 const isOutstandingDescription = (fee: any) =>
-  /^\s*outstanding\b/i.test(String(fee?.description || ''));
+  /\boutstanding\b/i.test(String(fee?.description || '')) ||
+  String(fee?.transactionType || '').toUpperCase() === 'OUTSTANDING' ||
+  String(fee?.transactionType || '').toUpperCase() === 'BACKLOG';
 
 /**
  * October 2026 EB bills were imported as-is and are still collectable, so the
@@ -567,8 +569,15 @@ export class FeesService {
       throw new BadRequestException('Payment date cannot be in the future.');
     }
 
-    const student = await this.prisma.student.findUnique({
-      where: { id: studentId },
+    const cleanStudentId = studentId?.trim();
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [
+          { id: cleanStudentId },
+          { regNo: { equals: cleanStudentId, mode: 'insensitive' } },
+          { manualRegsiName: { equals: cleanStudentId, mode: 'insensitive' } },
+        ],
+      },
       include: {
         college: { include: { fineMaster: true } },
         // Include paid fees too so we can tell a genuinely owed fine (parent
@@ -1049,7 +1058,36 @@ export class FeesService {
       paymentMethod?: string;
     },
   ) {
-    const { studentId } = dto;
+    const rawStudentId = dto.studentId?.trim();
+    if (!rawStudentId) {
+      throw new BadRequestException('Student ID is required.');
+    }
+
+    let studentId = rawStudentId;
+    let student: any = null;
+    if (tx.student?.findFirst) {
+      student = await tx.student.findFirst({
+        where: {
+          OR: [
+            { id: rawStudentId },
+            { regNo: { equals: rawStudentId, mode: 'insensitive' } },
+            { manualRegsiName: { equals: rawStudentId, mode: 'insensitive' } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          regNo: true,
+          manualRegsiName: true,
+          roomNo: true,
+          mobileNo: true,
+          fatherMobileNo: true,
+        },
+      });
+      if (student) {
+        studentId = student.id;
+      }
+    }
 
     // Idempotency: a repeat of an already applied request returns the original
     // result instead of charging the student twice.
@@ -1144,38 +1182,39 @@ export class FeesService {
     });
 
     // Automated WhatsApp receipt dispatch with zero clicks
-    this.prisma.student
-      .findUnique({
-        where: { id: studentId },
-        select: {
-          name: true,
-          regNo: true,
-          manualRegsiName: true,
-          roomNo: true,
-          mobileNo: true,
-          fatherMobileNo: true,
-        },
-      })
-      .then((student) => {
-        if (student) {
-          const phone = student.mobileNo || student.fatherMobileNo;
-          if (phone) {
-            this.whatsapp
-              .sendFeeReceipt(phone, {
-                studentName: student.name,
-                regNo: student.manualRegsiName || student.regNo,
-                roomNo: student.roomNo || undefined,
-                invoiceNo: invoiceNumber,
-                amount,
-                paymentMode: dto.paymentMode,
-                receiptDate: paidDate.toLocaleDateString('en-GB'),
-                items: [{ type: 'Outstanding Balance Payment', amount }],
-              })
-              .catch((err) => console.error('Automated WhatsApp dispatch error:', err));
-          }
-        }
-      })
-      .catch(() => {});
+    const studentForWhatsapp =
+      student ||
+      (await this.prisma.student
+        .findUnique({
+          where: { id: studentId },
+          select: {
+            name: true,
+            regNo: true,
+            manualRegsiName: true,
+            roomNo: true,
+            mobileNo: true,
+            fatherMobileNo: true,
+          },
+        })
+        .catch(() => null));
+
+    if (studentForWhatsapp) {
+      const phone = studentForWhatsapp.mobileNo || studentForWhatsapp.fatherMobileNo;
+      if (phone) {
+        this.whatsapp
+          .sendFeeReceipt(phone, {
+            studentName: studentForWhatsapp.name,
+            regNo: studentForWhatsapp.manualRegsiName || studentForWhatsapp.regNo,
+            roomNo: studentForWhatsapp.roomNo || undefined,
+            invoiceNo: invoiceNumber,
+            amount,
+            paymentMode: dto.paymentMode,
+            receiptDate: paidDate.toLocaleDateString('en-GB'),
+            items: [{ type: 'Outstanding Balance Payment', amount }],
+          })
+          .catch((err) => console.error('Automated WhatsApp dispatch error:', err));
+      }
+    }
 
     return {
       duplicate: false,
@@ -1203,7 +1242,12 @@ export class FeesService {
         status: 'PENDING',
         deletedAt: null,
         transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] },
-        description: { startsWith: OUTSTANDING_PREFIX, mode: 'insensitive' },
+        OR: [
+          { description: { startsWith: OUTSTANDING_PREFIX, mode: 'insensitive' } },
+          { description: { contains: 'outstanding', mode: 'insensitive' } },
+          { description: { contains: 'backlog', mode: 'insensitive' } },
+          { transactionType: { in: ['OUTSTANDING', 'BACKLOG'] } },
+        ],
       },
       orderBy: { createdAt: 'asc' },
     });

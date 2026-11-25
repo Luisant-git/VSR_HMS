@@ -30,6 +30,19 @@ export const formatDueDay = (day: number | null): string =>
 export const formatDueDayShort = (day: number | null): string =>
   day === null ? '-' : ordinal(day);
 
+export const formatDueDayAndYear = (value?: string | Date | null): string => {
+  const day = getDueDay(value);
+  if (day === null) return '-';
+  let year = new Date().getFullYear();
+  if (value) {
+    const d = value instanceof Date ? value : new Date(value);
+    if (!isNaN(d.getTime()) && d.getFullYear() > 2000) {
+      year = d.getFullYear();
+    }
+  }
+  return `${ordinal(day)}, ${year}`;
+};
+
 /** Local Date for the configured day inside a billing month. */
 export const getMonthlyDueDate = (
   day: number,

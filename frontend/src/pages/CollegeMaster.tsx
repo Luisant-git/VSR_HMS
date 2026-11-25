@@ -282,7 +282,7 @@ const CollegeMaster = () => {
               <th>College Name</th>
               <th>Short Name</th>
               <th>Billing Cycle</th>
-              <th>Due Day</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Due Day</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Actions</th>
             </tr>
@@ -332,8 +332,8 @@ const CollegeMaster = () => {
                       {c.billingCycle || 'PREPAID'}
                     </span>
                   </td>
-                  <td>
-                    <span className="cm-date-text">
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span className="cm-date-text" style={{ whiteSpace: 'nowrap' }}>
                       {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>
@@ -360,7 +360,7 @@ const CollegeMaster = () => {
           <thead>
             <tr>
               <th>College Name</th>
-              <th>Due Day</th>
+              <th style={{ whiteSpace: 'nowrap' }}>Due Day</th>
               <th>Configured Rule</th>
               <th>Fine (Rent/Mess/EB)</th>
               <th className="is-right">Action</th>
@@ -386,8 +386,8 @@ const CollegeMaster = () => {
                     <div className="ui-cell-title">{c.name}</div>
                     <div className="ui-cell-sub">{c.shortName || 'No Code'}</div>
                   </td>
-                  <td>
-                    <span className="cm-date-text">
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <span className="cm-date-text" style={{ whiteSpace: 'nowrap' }}>
                       {formatDueDay(getDueDay(c.dueDate))}
                     </span>
                   </td>
