@@ -13,7 +13,6 @@ import { RoomAPI } from '../api/room.api';
 import { CollegeAPI } from '../api/college.api';
 import {
   buildOutstandingSummary,
-  cleanPaymentDescription,
   isCurrentCycleFee,
   roundMoney,
 } from '../utils/outstanding';
@@ -56,6 +55,22 @@ const normalizeBlock = (rawBlock: any, roomNo?: any) => {
 
 const blockLabel = (block: string) =>
   /^[A-E]$/i.test(block) ? `Block ${block.toUpperCase()}` : block;
+
+const getSimpleFeeName = (fee: any): string => {
+  const type = String(fee?.transactionType || '').toUpperCase();
+  const desc = String(fee?.description || '').toLowerCase();
+  if (type === 'FINE') {
+    if (desc.includes('rent')) return 'Rent Fine';
+    if (desc.includes('eb')) return 'EB Fine';
+    if (desc.includes('mess')) return 'Mess Fine';
+    return 'Late Fine';
+  }
+  if (type === 'RENT') return 'Room Rent';
+  if (type === 'EB_BILL') return 'EB Bill';
+  if (type === 'MESS') return 'Mess Fee';
+  if (type === 'ADVANCE') return 'Advance';
+  return type ? type.replace(/_/g, ' ') : 'Pending Fee';
+};
 
 const getCollegeName = (student: any) => {
   const college = student?.college;
@@ -940,13 +955,13 @@ const Hostellers = () => {
                           ₹{Number(h.currentPendingAmount || 0).toLocaleString('en-IN')}
                         </span>
                       </td>
-                      <td title="Click to view all outstanding fees">
+                      <td title={`Total Outstanding: ₹${h.pendingFeesAmount} (Click to view details)`}>
                         <button
                           type="button"
                           onClick={() => setOutstandingStudent(h)}
-                          className={`hostellers-outstanding-btn ${h.outstandingRemaining > 0 ? 'is-due' : ''}`}
+                          className={`hostellers-outstanding-btn ${h.pendingFeesAmount > 0 ? 'is-due' : ''}`}
                         >
-                          <span>₹{Number(h.outstandingRemaining || 0).toLocaleString('en-IN')}</span>
+                          <span>₹{Number(h.pendingFeesAmount || 0).toLocaleString('en-IN')}</span>
                           <Eye size={12} />
                         </button>
                       </td>
@@ -1340,17 +1355,13 @@ const Hostellers = () => {
                   {outstandingStudent.currentPendingItems?.map((fee: any) => {
                     const m = resolveFeeBillingMonth(fee);
                     const monthLabel = m ? formatBillingMonthShort(m) : 'Current';
-                    const typeLabel = String(fee.transactionType || '').replace(/_/g, ' ');
                     return (
                       <div key={fee.id} className="hostellers-out-item">
-                        <div className="hostellers-out-item-left">
-                          <div className="hostellers-out-item-title">
-                            {fee.description || typeLabel || 'Pending Fee'}
-                          </div>
-                          <div className="hostellers-out-item-meta">
-                            <span className="ui-badge ui-badge-blue">{monthLabel}</span>
-                            <span>{typeLabel}</span>
-                          </div>
+                        <div className="hostellers-out-item-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className="hostellers-out-item-title" style={{ marginBottom: 0 }}>
+                            {getSimpleFeeName(fee)}
+                          </span>
+                          <span className="ui-badge ui-badge-blue">{monthLabel}</span>
                         </div>
                         <div className="hostellers-out-item-amt">
                           ₹{Number(fee.amount || 0).toLocaleString('en-IN')}
@@ -1359,26 +1370,19 @@ const Hostellers = () => {
                     );
                   })}
 
-                  {outstandingStudent.outstandingSummary?.allocations
-                    ?.filter((item: any) => item.remainingAmount > 0.005)
-                    .map((item: any) => (
-                      <div key={item.invoiceId} className="hostellers-out-item">
-                        <div className="hostellers-out-item-left">
-                          <div className="hostellers-out-item-title">
-                            {cleanPaymentDescription(item.invoice?.description) || 'Old Outstanding Balance'}
-                          </div>
-                          <div className="hostellers-out-item-meta">
-                            <span className="ui-badge ui-badge-warning">Old Outstanding</span>
-                            {item.paidAmount > 0 && (
-                              <span>Paid ₹{Number(item.paidAmount).toLocaleString('en-IN')} of ₹{Number(item.originalAmount).toLocaleString('en-IN')}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="hostellers-out-item-amt is-amber">
-                          ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN')}
-                        </div>
+                  {outstandingStudent.outstandingRemaining > 0.005 && (
+                    <div className="hostellers-out-item">
+                      <div className="hostellers-out-item-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className="hostellers-out-item-title" style={{ marginBottom: 0 }}>
+                          Old Outstanding
+                        </span>
+                        <span className="ui-badge ui-badge-warning">Previous Due</span>
                       </div>
-                    ))}
+                      <div className="hostellers-out-item-amt is-amber">
+                        ₹{Number(outstandingStudent.outstandingRemaining || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
