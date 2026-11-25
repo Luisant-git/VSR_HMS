@@ -172,4 +172,31 @@ describe('FineCronService monthly recurring fines', () => {
     await result.service.handleDailyFines();
     expect(result.createdFines).toHaveLength(0);
   });
+
+  it('tracks separate monthly fine rows continuously at 1x rate across months without doubling', async () => {
+    const novFee = rentFee({ id: 'fee-nov', billingMonth: '2026-11' });
+    const decFee = rentFee({ id: 'fee-dec', billingMonth: '2026-12' });
+    const config = college({
+      billingCycle: 'POSTPAID',
+      fineMaster: { rentFine: 50, messFine: 0, ebFine: 0 },
+    });
+
+    // As of Jan 10, 2027:
+    // - Nov 2026 was due Dec 5, 2026 -> 36 days @ 50 = 1800 (no doubling)
+    // - Dec 2026 was due Jan 5, 2027 -> 5 days @ 50 = 250
+    const result = createService(new Date(2027, 0, 10, 12), config, [novFee, decFee]);
+    await result.service.handleDailyFines();
+
+    expect(result.createdFines).toHaveLength(2);
+    expect(result.createdFines[0]).toMatchObject({
+      billingMonth: '2026-11',
+      amount: 1800,
+      description: expect.stringContaining('Nov 2026'),
+    });
+    expect(result.createdFines[1]).toMatchObject({
+      billingMonth: '2026-12',
+      amount: 250,
+      description: expect.stringContaining('Dec 2026'),
+    });
+  });
 });

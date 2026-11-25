@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee, Calendar, History } from 'lucide-react';
+import { ArrowLeft, User, ShieldCheck, MapPin, Phone, FileText, CreditCard, Clock, Lock, CheckCircle2, Camera, Wallet, LogOut, Bed, X, Upload, IdCard, IndianRupee, Calendar, History, Search } from 'lucide-react';
 import { UploadAPI } from '../api/upload.api';
 import { StudentAPI } from '../api/student.api';
 import { FeesAPI } from '../api/fees.api';
@@ -31,6 +31,9 @@ const StudentProfile = () => {
   const [outpasses, setOutpasses] = useState<any[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
+  const [showOldReceiptsModal, setShowOldReceiptsModal] = useState(false);
+  const [outstandingSearch, setOutstandingSearch] = useState('');
+  const [feeTxSearch, setFeeTxSearch] = useState('');
 
   // Outstanding ledger: original invoices stay untouched; confirmed
   // OUTSTANDING_PAYMENT rows reduce the remaining balance.
@@ -51,6 +54,43 @@ const StudentProfile = () => {
   const grandTotalOutstanding = useMemo(() => {
     return roundMoney(currentPendingTotal + (hasBacklog ? outstandingSummary.remaining : 0));
   }, [currentPendingTotal, hasBacklog, outstandingSummary.remaining]);
+
+  const filteredPendingFees = useMemo(() => {
+    const q = outstandingSearch.trim().toLowerCase();
+    if (!q) return currentPendingFees;
+    return currentPendingFees.filter(fee => {
+      const dateStr = new Date(fee.createdAt).toLocaleDateString('en-GB').toLowerCase();
+      const monthStr = resolveFeeBillingMonth(fee);
+      const monthLabel = (monthStr ? formatBillingMonthShort(monthStr) : 'Current').toLowerCase();
+      const typeStr = String(fee.transactionType || '').toLowerCase();
+      const descStr = String(fee.description || '').toLowerCase();
+      const amtStr = String(fee.amount ?? '').toLowerCase();
+      return (
+        dateStr.includes(q) ||
+        monthLabel.includes(q) ||
+        typeStr.includes(q) ||
+        descStr.includes(q) ||
+        amtStr.includes(q)
+      );
+    });
+  }, [currentPendingFees, outstandingSearch]);
+
+  const filteredOutstandingAllocations = useMemo(() => {
+    const active = outstandingAllocations.filter((item: any) => item.remainingAmount > 0.005);
+    const q = outstandingSearch.trim().toLowerCase();
+    if (!q) return active;
+    return active.filter((item: any) => {
+      const dateStr = new Date(item.invoice?.createdAt).toLocaleDateString('en-GB').toLowerCase();
+      const descStr = (cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance').toLowerCase();
+      const amtStr = String(item.remainingAmount ?? '').toLowerCase();
+      return (
+        dateStr.includes(q) ||
+        'old outstanding'.includes(q) ||
+        descStr.includes(q) ||
+        amtStr.includes(q)
+      );
+    });
+  }, [outstandingAllocations, outstandingSearch]);
 
   const displayFees = useMemo(() => {
     const billingCycle = student?.billingCycle || 'PREPAID';
@@ -533,7 +573,7 @@ const StudentProfile = () => {
                     </span>
                   </div>
                   <div className="sp-meta-row">
-                    <span className="sp-meta-label">Imported Due:</span>
+                    <span className="sp-meta-label">Old Outstanding:</span>
                     <span style={{ fontWeight: 700, color: '#d97706' }}>
                       ₹{outstandingSummary.remaining.toLocaleString('en-IN')}
                     </span>
@@ -547,9 +587,9 @@ const StudentProfile = () => {
                 </>
               ) : (
                 <div className="sp-meta-row" style={{ fontWeight: 700 }}>
-                  <span className="sp-meta-label" style={{ color: '#0f172a' }}>Pending Due:</span>
-                  <span style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
-                    ₹{currentPendingTotal.toLocaleString('en-IN')}
+                  <span className="sp-meta-label" style={{ color: '#0f172a' }}>Total Outstanding:</span>
+                  <span style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a', fontSize: '13px' }}>
+                    ₹{grandTotalOutstanding.toLocaleString('en-IN')}
                   </span>
                 </div>
               )}
@@ -803,33 +843,45 @@ const StudentProfile = () => {
                 <h3 className="sp-section-title sp-tab-title">
                   <IndianRupee size={20} color="#f59e0b" /> Outstanding Payments
                 </h3>
-                {grandTotalOutstanding > 0 && (
-                  <button
-                    onClick={() => {
-                      if (currentPendingFees.length > 0 && outstandingSummary.remaining > 0) {
-                        setFeeToCollect([...currentPendingFees, ...outstandingSummary.invoices]);
-                      } else if (currentPendingFees.length > 0) {
-                        setFeeToCollect(currentPendingFees);
-                      } else if (outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0) {
-                        setFeeToCollect(outstandingSummary.invoices);
-                      } else {
-                        navigate(`/fees?student=${student?.uuid || student?.id}`);
-                      }
-                    }}
-                    className="ui-btn ui-btn-primary"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                  >
-                    <Wallet size={16} /> Collect Dues
-                  </button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {outstandingSummary.payments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowOldReceiptsModal(true)}
+                      className="ui-btn ui-btn-secondary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}
+                    >
+                      <FileText size={15} /> Outstanding Payment Receipts ({outstandingSummary.payments.length})
+                    </button>
+                  )}
+                  {grandTotalOutstanding > 0 && (
+                    <button
+                      onClick={() => {
+                        if (currentPendingFees.length > 0 && outstandingSummary.remaining > 0) {
+                          setFeeToCollect([...currentPendingFees, ...outstandingSummary.invoices]);
+                        } else if (currentPendingFees.length > 0) {
+                          setFeeToCollect(currentPendingFees);
+                        } else if (outstandingSummary.remaining > 0 && outstandingSummary.invoices.length > 0) {
+                          setFeeToCollect(outstandingSummary.invoices);
+                        } else {
+                          navigate(`/fees?student=${student?.uuid || student?.id}`);
+                        }
+                      }}
+                      className="ui-btn ui-btn-primary"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <Wallet size={16} /> Collect Dues
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Stat Cards - Displayed in a single row */}
               <div
-                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-2-col'}`}
+                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-3-col'}`}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
                   gap: '12px',
                   marginBottom: '24px'
                 }}
@@ -839,41 +891,27 @@ const StudentProfile = () => {
                   <div className="sp-stat-value" style={{ color: '#16a34a' }}>
                     ₹{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
-                  {outstandingSummary.paid > 0 && (
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      (Backlog paid: ₹{outstandingSummary.paid.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
-                    </div>
-                  )}
                 </div>
-                {hasBacklog ? (
-                  <>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Current Month Dues</div>
-                      <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : '#16a34a' }}>
-                        ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Imported Backlog</div>
-                      <div className="sp-stat-value" style={{ color: '#d97706' }}>
-                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Total Outstanding</div>
-                      <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
-                        ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </>
-                ) : (
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Current Month Dues</div>
+                  <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : '#16a34a' }}>
+                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                {hasBacklog && (
                   <div className="sp-stat">
-                    <div className="sp-stat-label">Current Month Dues</div>
-                    <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
-                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <div className="sp-stat-label">Old Outstanding</div>
+                    <div className="sp-stat-value" style={{ color: '#d97706' }}>
+                      ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                 )}
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Outstanding</div>
+                  <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
+                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
 
               {/* Pending Dues Tables or Empty State */}
@@ -883,6 +921,30 @@ const StudentProfile = () => {
                 </div>
               ) : (
                 <>
+                  {/* Search Bar for Outstanding Lists */}
+                  <div className="sp-search-row">
+                    <div className="ui-search sp-search-box">
+                      <Search size={15} />
+                      <input
+                        type="search"
+                        value={outstandingSearch}
+                        onChange={e => setOutstandingSearch(e.target.value)}
+                        placeholder="Search by month, type, description, date or amount..."
+                        aria-label="Search outstanding dues"
+                      />
+                      {outstandingSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setOutstandingSearch('')}
+                          className="ui-search-clear"
+                          aria-label="Clear search"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* List 1: Monthly Outstanding */}
                   <div style={{ marginBottom: '24px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -895,10 +957,10 @@ const StudentProfile = () => {
                         </span>
                       )}
                     </div>
-                    {currentPendingFees.length > 0 ? (
-                      <div className="ui-card ui-card--flush">
+                    {filteredPendingFees.length > 0 ? (
+                      <div className="ui-card ui-card--flush sp-table-card">
                         <div className="ui-table-wrap">
-                          <table className="ui-table">
+                          <table className="ui-table sp-responsive-table">
                             <thead>
                               <tr>
                                 <th>Date</th>
@@ -910,7 +972,7 @@ const StudentProfile = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {currentPendingFees.map(fee => {
+                              {filteredPendingFees.map(fee => {
                                 const monthStr = resolveFeeBillingMonth(fee);
                                 const monthLabel = monthStr ? formatBillingMonthShort(monthStr) : 'Current';
                                 const typeBadge = (() => {
@@ -931,22 +993,22 @@ const StudentProfile = () => {
 
                                 return (
                                   <tr key={fee.id}>
-                                    <td>{new Date(fee.createdAt).toLocaleDateString('en-GB')}</td>
-                                    <td>
+                                    <td data-label="Date">{new Date(fee.createdAt).toLocaleDateString('en-GB')}</td>
+                                    <td data-label="Month">
                                       <span className="ui-badge ui-badge-blue" style={{ fontWeight: 600 }}>
                                         {monthLabel}
                                       </span>
                                     </td>
-                                    <td>
+                                    <td data-label="Type">
                                       <span className={`ui-badge ui-badge-${typeBadge.color}`}>
                                         {typeBadge.label}
                                       </span>
                                     </td>
-                                    <td className="sp-kv-strong">{fee.description || typeBadge.label}</td>
-                                    <td className="num is-danger" style={{ fontWeight: 700 }}>
+                                    <td data-label="Description" className="sp-kv-strong">{fee.description || typeBadge.label}</td>
+                                    <td data-label="Due Amount (₹)" className="num is-danger" style={{ fontWeight: 700 }}>
                                       ₹{Number(fee.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                     </td>
-                                    <td className="sp-center">
+                                    <td data-label="Action" className="sp-center sp-cell-action">
                                       <button
                                         onClick={() => setFeeToCollect(fee)}
                                         className="ui-btn ui-btn-primary ui-btn-sm"
@@ -964,25 +1026,26 @@ const StudentProfile = () => {
                       </div>
                     ) : (
                       <div className="sp-empty" style={{ padding: '16px' }}>
-                        No monthly dues pending.
+                        {outstandingSearch.trim() ? 'No matching monthly dues found.' : 'No monthly dues pending.'}
                       </div>
                     )}
                   </div>
 
-                  {/* List 2: Imported Backlog */}
+                  {/* List 2: Old Outstanding */}
                   {hasBacklog && (
                     <div style={{ marginBottom: '24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                         <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                          <History size={18} color="#d97706" /> Imported Backlog
+                          <History size={18} color="#d97706" /> Old Outstanding
                         </h4>
                         <span style={{ fontSize: '13px', fontWeight: 600, color: '#d97706' }}>
                           Remaining: ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
-                      <div className="ui-card ui-card--flush">
+                      {filteredOutstandingAllocations.length > 0 ? (
+                      <div className="ui-card ui-card--flush sp-table-card">
                         <div className="ui-table-wrap">
-                          <table className="ui-table">
+                          <table className="ui-table sp-responsive-table">
                             <thead>
                               <tr>
                                 <th>Date</th>
@@ -993,22 +1056,20 @@ const StudentProfile = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {outstandingAllocations
-                                .filter((item: any) => item.remainingAmount > 0.005)
-                                .map(item => {
+                              {filteredOutstandingAllocations.map(item => {
                                   return (
                                     <tr key={item.invoiceId}>
-                                      <td>{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
-                                      <td>
-                                        <span className="ui-badge ui-badge-warning">Imported Backlog</span>
+                                      <td data-label="Date">{new Date(item.invoice?.createdAt).toLocaleDateString('en-GB')}</td>
+                                      <td data-label="Type">
+                                        <span className="ui-badge ui-badge-warning">Old Outstanding</span>
                                       </td>
-                                      <td className="sp-kv-strong">
+                                      <td data-label="Description" className="sp-kv-strong">
                                         {cleanPaymentDescription(item.invoice?.description) || 'Outstanding Balance'}
                                       </td>
-                                      <td className="num is-danger" style={{ fontWeight: 700 }}>
+                                      <td data-label="Due Amount (₹)" className="num is-danger" style={{ fontWeight: 700 }}>
                                         ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                       </td>
-                                      <td className="sp-center">
+                                      <td data-label="Action" className="sp-center sp-cell-action">
                                         <button
                                           onClick={() => setFeeToCollect(item.invoice)}
                                           className="ui-btn ui-btn-primary ui-btn-sm"
@@ -1024,58 +1085,14 @@ const StudentProfile = () => {
                           </table>
                         </div>
                       </div>
+                      ) : (
+                        <div className="sp-empty" style={{ padding: '16px' }}>
+                          No matching old outstanding records found.
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Confirmed Payments Towards Backlog Receipts (When backlog payments exist) */}
-              {outstandingSummary.payments.length > 0 && (
-                <div style={{ marginTop: '24px' }}>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <CheckCircle2 size={18} color="#16a34a" /> Backlog Payment Receipts
-                  </h4>
-                  <div className="ui-card ui-card--flush">
-                    <div className="ui-table-wrap">
-                      <table className="ui-table">
-                        <thead>
-                          <tr>
-                            <th>Receipt No</th>
-                            <th>Payment Date</th>
-                            <th>Payment Mode</th>
-                            <th className="num">Amount Paid (₹)</th>
-                            <th className="sp-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {outstandingSummary.payments.map((pmt, idx) => (
-                            <tr key={pmt.id || idx}>
-                              <td className="sp-kv-strong">
-                                {pmt.invoiceNumber || formatInvoiceNumber(pmt, fees)}
-                              </td>
-                              <td>{new Date(pmt.paidDate || pmt.createdAt).toLocaleDateString('en-GB')}</td>
-                              <td>
-                                <span className="ui-badge ui-badge-secondary">{pmt.paymentMode || 'Cash'}</span>
-                              </td>
-                              <td className="num" style={{ color: '#16a34a', fontWeight: 700 }}>
-                                ₹{Number(pmt.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="sp-center">
-                                <button
-                                  onClick={() => setSelectedReceipt({ ...pmt, student: { name: student.name, regNo: student.id, roomNo: student.room } })}
-                                  className="ui-btn ui-btn-secondary ui-btn-sm"
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                                >
-                                  <FileText size={12} /> View Receipt
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
               )}
             </div>
           )}
@@ -1181,10 +1198,10 @@ const StudentProfile = () => {
               </div>
 
               <div
-                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-2-col'}`}
+                className={`sp-stat-grid sp-stat-grid--single-row ${hasBacklog ? '' : 'is-3-col'}`}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+                  gridTemplateColumns: hasBacklog ? 'repeat(4, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
                   gap: '12px',
                   marginBottom: '24px'
                 }}
@@ -1193,47 +1210,109 @@ const StudentProfile = () => {
                   <div className="sp-stat-label">Total Paid (Receipts)</div>
                   <div className="sp-stat-value" style={{ color: '#16a34a' }}>₹{totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
                 </div>
-                {hasBacklog ? (
-                  <>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Current Month Dues</div>
-                      <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : undefined }}>
-                        ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Imported Backlog Due</div>
-                      <div className="sp-stat-value" style={{ color: '#b45309' }}>
-                        ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    <div className="sp-stat">
-                      <div className="sp-stat-label">Total Outstanding Dues</div>
-                      <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
-                        ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  </>
-                ) : (
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Current Month Dues</div>
+                  <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#0284c7' : '#16a34a' }}>
+                    ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                {hasBacklog && (
                   <div className="sp-stat">
-                    <div className="sp-stat-label">Pending Dues</div>
-                    <div className="sp-stat-value" style={{ color: currentPendingTotal > 0 ? '#dc2626' : '#16a34a' }}>
-                      ₹{currentPendingTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <div className="sp-stat-label">Old Outstanding Due</div>
+                    <div className="sp-stat-value" style={{ color: '#b45309' }}>
+                      ₹{outstandingSummary.remaining.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                   </div>
                 )}
+                <div className="sp-stat">
+                  <div className="sp-stat-label">Total Outstanding</div>
+                  <div className="sp-stat-value" style={{ color: grandTotalOutstanding > 0 ? '#dc2626' : '#16a34a' }}>
+                    ₹{grandTotalOutstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
 
               <FeeGenerationNotice billingCycle={student?.billingCycle} compact />
 
-              {displayFees.length === 0 ? (
-                <div className="sp-empty">
-                  No fee records found for this student.
+              {displayFees.length > 0 && (
+                <div className="sp-search-row">
+                  <div className="ui-search sp-search-box">
+                    <Search size={15} />
+                    <input
+                      type="search"
+                      value={feeTxSearch}
+                      onChange={e => setFeeTxSearch(e.target.value)}
+                      placeholder="Search invoice no, date, status or amount..."
+                      aria-label="Search fee transactions"
+                    />
+                    {feeTxSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setFeeTxSearch('')}
+                        className="ui-search-clear"
+                        aria-label="Clear search"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="ui-card ui-card--flush">
+              )}
+
+              {(() => {
+                const q = feeTxSearch.trim().toLowerCase();
+                const filteredFees = !q
+                  ? displayFees
+                  : displayFees.filter(fee => {
+                      const invNo =
+                        fee.displayStatus !== 'Unpaid' && fee.status === 'COMPLETED'
+                          ? String(fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : ''))
+                          : '';
+                      const payDate =
+                        fee.status === 'COMPLETED'
+                          ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB')
+                          : '';
+                      const statusText = String(fee.displayStatus || '').toLowerCase();
+                      const balanceStr = String(fee.displayBalance ?? '');
+                      const paidStr = String(fee.displayPaid ?? '');
+                      const descText = (fee.feesList || [])
+                        .map((x: any) => `${x.description || ''} ${x.transactionType || ''}`)
+                        .join(' ')
+                        .toLowerCase();
+                      return (
+                        invNo.toLowerCase().includes(q) ||
+                        payDate.toLowerCase().includes(q) ||
+                        statusText.includes(q) ||
+                        balanceStr.includes(q) ||
+                        paidStr.includes(q) ||
+                        String(fee.rent ?? '').includes(q) ||
+                        String(fee.eb ?? '').includes(q) ||
+                        String(fee.fine ?? '').includes(q) ||
+                        String(fee.advance ?? '').includes(q) ||
+                        descText.includes(q)
+                      );
+                    });
+
+                if (displayFees.length === 0) {
+                  return (
+                    <div className="sp-empty">
+                      No fee records found for this student.
+                    </div>
+                  );
+                }
+
+                if (filteredFees.length === 0) {
+                  return (
+                    <div className="sp-empty">
+                      No matching fee transactions found.
+                    </div>
+                  );
+                }
+
+                return (
+                <div className="ui-card ui-card--flush sp-table-card">
                   <div className="ui-table-wrap">
-                    <table className="ui-table">
+                    <table className="ui-table sp-responsive-table sp-fees-table">
                       <thead>
                         <tr>
                           <th>Invoice No</th>
@@ -1250,19 +1329,19 @@ const StudentProfile = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayFees.map(fee => (
+                        {filteredFees.map(fee => (
                           <tr key={fee.id} className={fee.status === 'PENDING' ? 'sp-row-pending' : undefined}>
-                            <td className="sp-invoice">
+                            <td data-label="Invoice No" className="sp-invoice">
                               {fee.displayStatus !== 'Unpaid' && fee.status === 'COMPLETED'
                                 ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee, fees) : '—'))
                                 : '—'}
                             </td>
-                            <td>
+                            <td data-label="Payment Date">
                               {fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}
                             </td>
-                            <td className="num sp-advance-amount">₹{fee.advance.toLocaleString('en-IN')}</td>
-                            <td className="num">
-                              <div>₹{fee.rent.toLocaleString('en-IN')}</div>
+                            <td data-label="Advance" className="num sp-advance-amount">₹{fee.advance.toLocaleString('en-IN')}</td>
+                            <td data-label="Rent" className="num">
+                              <span>₹{fee.rent.toLocaleString('en-IN')}</span>
                               {fee.status === 'COMPLETED' && (() => {
                                 const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
                                 const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
@@ -1273,7 +1352,7 @@ const StudentProfile = () => {
                                 return null;
                               })()}
                             </td>
-                            <td className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
+                            <td data-label="EB" className="num">₹{fee.eb.toLocaleString('en-IN')}</td>
                             {/*
                             <td className="num">
                               <div>₹{fee.mess.toLocaleString('en-IN')}</div>
@@ -1288,22 +1367,22 @@ const StudentProfile = () => {
                               })()}
                             </td>
                             */}
-                            <td className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
+                            <td data-label="Fine" className="num">₹{fee.fine.toLocaleString('en-IN')}</td>
 
-                            <td className={`num sp-outstanding${(fee.displayBalance || 0) > 0 ? ' is-due' : ' is-clear'}`}>
+                            <td data-label="Outstanding Balance" className={`num sp-outstanding${(fee.displayBalance || 0) > 0 ? ' is-due' : ' is-clear'}`}>
                               ₹{Number(fee.displayBalance || 0).toLocaleString('en-IN')}
                             </td>
 
-                            <td className={`num sp-total${fee.displayStatus === 'Unpaid' ? ' is-pending' : ''}`}>
+                            <td data-label="Total Paid" className={`num sp-total${fee.displayStatus === 'Unpaid' ? ' is-pending' : ''}`}>
                               ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                             </td>
 
-                            <td>
+                            <td data-label="Status">
                               <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-success' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : fee.displayStatus === 'Not Due' ? 'ui-badge-blue' : 'ui-badge-danger'}`}>
                                 {fee.displayStatus}
                               </span>
                             </td>
-                            <td className="num">
+                            <td data-label="Action" className="num sp-cell-action">
                               {fee.displayStatus === 'Unpaid' ? (
                                 <button onClick={() => navigate(`/fees?student=${student?.id || student?.uuid}`)} className="ui-btn ui-btn-primary ui-btn-sm">
                                   <Wallet size={14} /> Pay Now
@@ -1324,7 +1403,8 @@ const StudentProfile = () => {
                     </table>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -1561,6 +1641,74 @@ const StudentProfile = () => {
 
         </div>
       </div>
+
+      {/* Outstanding Payment Receipts Modal */}
+      {showOldReceiptsModal && (
+        <div className="ui-modal-overlay" style={{ zIndex: 990 }} onClick={() => setShowOldReceiptsModal(false)}>
+          <div className="ui-modal" style={{ maxWidth: '780px' }} onClick={e => e.stopPropagation()}>
+            <div className="ui-modal-head">
+              <h3 className="ui-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={18} color="#16a34a" /> Outstanding Payment Receipts
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowOldReceiptsModal(false)}
+                className="ui-modal-close"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="ui-modal-body">
+              <div className="ui-card ui-card--flush sp-table-card">
+                <div className="ui-table-wrap">
+                  <table className="ui-table sp-responsive-table sp-receipts-table">
+                    <thead>
+                      <tr>
+                        <th>Receipt No</th>
+                        <th>Payment Date</th>
+                        <th>Payment Mode</th>
+                        <th className="num">Amount Paid (₹)</th>
+                        <th className="sp-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {outstandingSummary.payments.map((pmt, idx) => (
+                        <tr key={pmt.id || idx}>
+                          <td data-label="Receipt No" className="sp-kv-strong">
+                            {pmt.invoiceNumber || formatInvoiceNumber(pmt, fees)}
+                          </td>
+                          <td data-label="Payment Date">{new Date(pmt.paidDate || pmt.createdAt).toLocaleDateString('en-GB')}</td>
+                          <td data-label="Payment Mode">
+                            <span className="ui-badge ui-badge-secondary">{pmt.paymentMode || 'Cash'}</span>
+                          </td>
+                          <td data-label="Amount Paid (₹)" className="num" style={{ color: '#16a34a', fontWeight: 700 }}>
+                            ₹{Number(pmt.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td data-label="Action" className="sp-center sp-cell-action">
+                            <button
+                              onClick={() => setSelectedReceipt({ ...pmt, student: { name: student.name, regNo: student.id, roomNo: student.room } })}
+                              className="ui-btn ui-btn-secondary ui-btn-sm"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            >
+                              <FileText size={12} /> View Receipt
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div className="ui-modal-footer">
+              <button type="button" onClick={() => setShowOldReceiptsModal(false)} className="ui-btn ui-btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Receipt Modal */}
       {selectedReceipt && (

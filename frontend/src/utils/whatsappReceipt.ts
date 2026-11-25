@@ -103,7 +103,11 @@ export function buildWhatsAppReceiptMessage(data: WhatsAppReceiptData): string {
   if (data.items && data.items.length > 0) {
     const lines = data.items.map((item) => {
       const desc = item.description || formatFeeTypeName(item.type);
-      const cat = item.type || 'FEE';
+      const rawType = String(item.type || '').trim().toUpperCase();
+      const cat =
+        rawType === 'OUTSTANDING_PAYMENT' || rawType === 'OUTSTANDING' || rawType === 'BACKLOG'
+          ? 'OLD OUTSTANDING_PAYMENT'
+          : (item.type || 'FEE');
       const amt = Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return `• *${desc}*\n  Category : ${cat}\n  Amount   : ₹${amt}`;
     });

@@ -12,11 +12,12 @@ import { FeesAPI } from '../api/fees.api';
 import { RoomAPI } from '../api/room.api';
 import { CollegeAPI } from '../api/college.api';
 import {
-  isOutstandingInvoice,
-  isOutstandingPayment,
+  buildOutstandingSummary,
+  cleanPaymentDescription,
   isCurrentCycleFee,
   roundMoney,
 } from '../utils/outstanding';
+import { formatBillingMonthShort, resolveFeeBillingMonth } from '../utils/billingCycle';
 import { toast } from 'react-toastify';
 import { isWardenStudent } from '../utils/warden';
 const MENU_WIDTH = 232;
@@ -108,6 +109,7 @@ const Hostellers = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedHosteller, setSelectedHosteller] = useState<any>(null);
+  const [outstandingStudent, setOutstandingStudent] = useState<any>(null);
   const [roomFilter, setRoomFilter] = useState(location.state?.filterRoom || '-- All Rooms --');
   const [blockFilter, setBlockFilter] = useState('All Blocks');
   const [fromDate, setFromDate] = useState('');
@@ -179,16 +181,14 @@ const Hostellers = () => {
       const hostellerTotal = Math.max(0, (res.total || 0) - wardenCount);
       const mapped = data.map((h: any) => {
         const transactions = h.transactions || [];
-        const outstandingOriginal = transactions
-          .filter(isOutstandingInvoice)
-          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
-        const outstandingPaid = transactions
-          .filter(isOutstandingPayment)
-          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
-        const outstandingRemaining = roundMoney(Math.max(0, outstandingOriginal - outstandingPaid));
-        const currentPending = transactions
-          .filter((fee: any) => isCurrentCycleFee(fee, h.college?.billingCycle))
-          .reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0);
+        const outstandingSummary = buildOutstandingSummary(transactions);
+        const outstandingRemaining = outstandingSummary.remaining;
+        const currentPendingItems = transactions.filter((fee: any) =>
+          isCurrentCycleFee(fee, h.college?.billingCycle),
+        );
+        const currentPending = roundMoney(
+          currentPendingItems.reduce((sum: number, f: any) => sum + (Number(f.amount) || 0), 0),
+        );
         // Original outstanding invoices are netted by confirmed payments; they
         // are never added again at full value.
         const pendingFeesAmount = roundMoney(currentPending + outstandingRemaining);
@@ -205,7 +205,12 @@ const Hostellers = () => {
           college: h.college?.name ? h.college.name.trim() : typeof h.college === 'string' ? h.college.trim() : 'N/A',
           dept: h.educationalQua ? h.educationalQua.trim() : 'N/A',
           advance: `₹${h.advance || 0}`,
-          pending: `₹${pendingFeesAmount}`,
+          pending: `₹${currentPending}`,
+          currentPendingAmount: currentPending,
+          outstandingRemaining,
+          pendingFeesAmount,
+          currentPendingItems,
+          outstandingSummary,
           feeStatus: currentFeeStatus,
           // Match the date used by the From / To filter (actual joining date).
           date: new Date(h.dateOfJoining || h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
@@ -838,9 +843,10 @@ const Hostellers = () => {
                 <col className="hostellers-col-room" />
                 <col className="hostellers-col-status" />
                 <col className="hostellers-col-college" />
-                <col className="hostellers-col-advance" />
+                {/* <col className="hostellers-col-advance" /> */}
                 <col className="hostellers-col-fee" />
                 <col className="hostellers-col-pending" />
+                <col className="hostellers-col-outstanding" />
                 <col className="hostellers-col-date" />
                 <col className="hostellers-col-actions" />
               </colgroup>
@@ -851,9 +857,10 @@ const Hostellers = () => {
                   <th>Room</th>
                   <th>Status</th>
                   <th>College / Dept</th>
-                  <th>Advance Held</th>
+                  {/* <th>Advance Held</th> */}
                   <th>Fee Status</th>
                   <th>Pending Fees</th>
+                  <th>Outstanding Fee</th>
                   <th>Joining Date</th>
                   <th>Actions</th>
                 </tr>
@@ -916,9 +923,9 @@ const Hostellers = () => {
                         <div className="hostellers-college-name" title={h.college?.name || h.college || '-'}>{h.college?.name || h.college || '-'}</div>
                         <div className="hostellers-college-dept" title={h.dept}>{h.dept}</div>
                       </td>
-                      <td className="hostellers-advance" title={h.advance}>
+                      {/* <td className="hostellers-advance" title={h.advance}>
                         {h.advance}
-                      </td>
+                      </td> */}
                       <td>
                         <span className={
                           h.feeStatus === 'Paid' ? 'ui-badge ui-badge-green'
@@ -928,10 +935,20 @@ const Hostellers = () => {
                           {h.feeStatus}
                         </span>
                       </td>
-                      <td title={String(h.pending)}>
-                        <span className="ui-badge ui-badge-red">
-                          {h.pending}
+                      <td title={`Current Pending: ₹${h.currentPendingAmount}`}>
+                        <span className={`ui-badge ${h.currentPendingAmount > 0 ? 'ui-badge-red' : 'ui-badge-green'}`}>
+                          ₹{Number(h.currentPendingAmount || 0).toLocaleString('en-IN')}
                         </span>
+                      </td>
+                      <td title="Click to view all outstanding fees">
+                        <button
+                          type="button"
+                          onClick={() => setOutstandingStudent(h)}
+                          className={`hostellers-outstanding-btn ${h.outstandingRemaining > 0 ? 'is-due' : ''}`}
+                        >
+                          <span>₹{Number(h.outstandingRemaining || 0).toLocaleString('en-IN')}</span>
+                          <Eye size={12} />
+                        </button>
                       </td>
                       <td title={h.date}>{h.date}</td>
                       <td className="hostellers-actions">
@@ -1264,6 +1281,136 @@ const Hostellers = () => {
               <button onClick={handleAddFee} disabled={isSubmittingFee} className="ui-btn ui-btn-success">
                 {isSubmittingFee ? 'Saving...' : 'Save Record'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {outstandingStudent && (
+        <div className="ui-modal-overlay" onClick={() => setOutstandingStudent(null)}>
+          <div className="ui-modal ui-modal-sm hostellers-outstanding-modal" onClick={e => e.stopPropagation()}>
+            <div className="ui-modal-head">
+              <div>
+                <h3 className="ui-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wallet size={17} color="#d97706" /> Outstanding Fee Details
+                </h3>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  {outstandingStudent.name} ({outstandingStudent.id}) • Room {outstandingStudent.room}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOutstandingStudent(null)}
+                className="ui-modal-close"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="ui-modal-body" style={{ gap: '14px' }}>
+              {/* Compact 3-pill breakdown */}
+              <div className="hostellers-out-summary">
+                <div className="hostellers-out-stat">
+                  <div className="hostellers-out-stat-label">Current Pending</div>
+                  <div className="hostellers-out-stat-val" style={{ color: outstandingStudent.currentPendingAmount > 0 ? '#0284c7' : '#16a34a' }}>
+                    ₹{Number(outstandingStudent.currentPendingAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="hostellers-out-stat">
+                  <div className="hostellers-out-stat-label">Old Outstanding</div>
+                  <div className="hostellers-out-stat-val" style={{ color: outstandingStudent.outstandingRemaining > 0 ? '#d97706' : '#16a34a' }}>
+                    ₹{Number(outstandingStudent.outstandingRemaining || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="hostellers-out-stat is-total">
+                  <div className="hostellers-out-stat-label">Total Outstanding</div>
+                  <div className="hostellers-out-stat-val" style={{ color: outstandingStudent.pendingFeesAmount > 0 ? '#dc2626' : '#16a34a' }}>
+                    ₹{Number(outstandingStudent.pendingFeesAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+              </div>
+
+              {outstandingStudent.pendingFeesAmount <= 0.005 ? (
+                <div style={{ textAlign: 'center', padding: '18px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#15803d', fontSize: '13px', fontWeight: 600 }}>
+                  All dues are cleared. No outstanding fees pending.
+                </div>
+              ) : (
+                <div className="hostellers-out-list">
+                  {outstandingStudent.currentPendingItems?.map((fee: any) => {
+                    const m = resolveFeeBillingMonth(fee);
+                    const monthLabel = m ? formatBillingMonthShort(m) : 'Current';
+                    const typeLabel = String(fee.transactionType || '').replace(/_/g, ' ');
+                    return (
+                      <div key={fee.id} className="hostellers-out-item">
+                        <div className="hostellers-out-item-left">
+                          <div className="hostellers-out-item-title">
+                            {fee.description || typeLabel || 'Pending Fee'}
+                          </div>
+                          <div className="hostellers-out-item-meta">
+                            <span className="ui-badge ui-badge-blue">{monthLabel}</span>
+                            <span>{typeLabel}</span>
+                          </div>
+                        </div>
+                        <div className="hostellers-out-item-amt">
+                          ₹{Number(fee.amount || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {outstandingStudent.outstandingSummary?.allocations
+                    ?.filter((item: any) => item.remainingAmount > 0.005)
+                    .map((item: any) => (
+                      <div key={item.invoiceId} className="hostellers-out-item">
+                        <div className="hostellers-out-item-left">
+                          <div className="hostellers-out-item-title">
+                            {cleanPaymentDescription(item.invoice?.description) || 'Old Outstanding Balance'}
+                          </div>
+                          <div className="hostellers-out-item-meta">
+                            <span className="ui-badge ui-badge-warning">Old Outstanding</span>
+                            {item.paidAmount > 0 && (
+                              <span>Paid ₹{Number(item.paidAmount).toLocaleString('en-IN')} of ₹{Number(item.originalAmount).toLocaleString('en-IN')}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="hostellers-out-item-amt is-amber">
+                          ₹{Number(item.remainingAmount || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            <div className="ui-modal-footer">
+              <button type="button" onClick={() => setOutstandingStudent(null)} className="ui-btn ui-btn-secondary ui-btn-sm">
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const sid = outstandingStudent.id;
+                  setOutstandingStudent(null);
+                  navigate(`/hostellers/profile/${sid}?tab=fees`);
+                }}
+                className="ui-btn ui-btn-outline-primary ui-btn-sm"
+              >
+                View Profile
+              </button>
+              {outstandingStudent.pendingFeesAmount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sid = outstandingStudent.id;
+                    setOutstandingStudent(null);
+                    navigate(`/fees?student=${sid}`);
+                  }}
+                  className="ui-btn ui-btn-primary ui-btn-sm"
+                >
+                  Collect Fees
+                </button>
+              )}
             </div>
           </div>
         </div>

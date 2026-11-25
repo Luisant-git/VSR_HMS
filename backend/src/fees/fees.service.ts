@@ -21,7 +21,8 @@ import {
   roundMoney,
   fineKeyFromDescription,
   hasOlderUnpaidDues,
-  calculateTieredFine,
+  calculateContinuousFine,
+  formatBillingMonthShortLabel,
   formatFineDescription,
 } from './fine-calculator';
 
@@ -570,22 +571,28 @@ export class FeesService {
     }
 
     const cleanStudentId = studentId?.trim();
-    const student = await this.prisma.student.findFirst({
-      where: {
-        OR: [
-          { id: cleanStudentId },
-          { regNo: { equals: cleanStudentId, mode: 'insensitive' } },
-          { manualRegsiName: { equals: cleanStudentId, mode: 'insensitive' } },
-        ],
-      },
-      include: {
-        college: { include: { fineMaster: true } },
-        // Include paid fees too so we can tell a genuinely owed fine (parent
-        // fee was paid, fine still pending) from an orphan fine left over for
-        // a fee this student never had.
-        transactions: { where: { status: { in: ['PENDING', 'COMPLETED'] }, deletedAt: null } },
-      },
-    });
+    const studentInclude = {
+      college: { include: { fineMaster: true } },
+      // Include paid fees too so we can tell a genuinely owed fine (parent
+      // fee was paid, fine still pending) from an orphan fine left over for
+      // a fee this student never had.
+      transactions: { where: { status: { in: ['PENDING', 'COMPLETED'] }, deletedAt: null } },
+    };
+    const student = this.prisma.student?.findFirst
+      ? await this.prisma.student.findFirst({
+          where: {
+            OR: [
+              { id: cleanStudentId },
+              { regNo: { equals: cleanStudentId, mode: 'insensitive' } },
+              { manualRegsiName: { equals: cleanStudentId, mode: 'insensitive' } },
+            ],
+          },
+          include: studentInclude,
+        })
+      : await this.prisma.student.findUnique({
+          where: { id: cleanStudentId },
+          include: studentInclude,
+        });
     if (!student) throw new NotFoundException('Student not found.');
 
     const collegeDueDate = student.college?.dueDate
@@ -621,18 +628,30 @@ export class FeesService {
         deletedAt: null,
         description: { startsWith: 'Late fine accumulation', mode: 'insensitive' },
       },
-      select: { amount: true, description: true },
+      select: { amount: true, description: true, billingMonth: true },
     });
 
-    // Track how much fine was already paid, separately per fee type, so a
-    // backdated receipt only reduces the fine types that are still pending.
+    // Track how much fine was already paid, separately per fee type and
+    // optionally by billing month so settling one month's fine never reduces another.
     const paidByType: Record<FineKey, number> = { rent: 0, mess: 0, eb: 0 };
+    const paidByTypeMonth = new Map<string, number>();
+    const untaggedPaidByType: Record<FineKey, number> = { rent: 0, mess: 0, eb: 0 };
     let legacyPaid = 0;
     completedFines.forEach((item) => {
       const amount = Number(item.amount) || 0;
       const key = fineKeyFromDescription(item.description);
-      if (key) paidByType[key] += amount;
-      else legacyPaid += amount;
+      if (key) {
+        paidByType[key] += amount;
+        const bm = String((item as any).billingMonth || '').trim();
+        if (/^\d{4}-(0[1-9]|1[0-2])$/.test(bm)) {
+          const mapKey = `${key}:${bm}`;
+          paidByTypeMonth.set(mapKey, roundMoney((paidByTypeMonth.get(mapKey) || 0) + amount));
+        } else {
+          untaggedPaidByType[key] = roundMoney(untaggedPaidByType[key] + amount);
+        }
+      } else {
+        legacyPaid += amount;
+      }
     });
 
     const pendingLateFines = pending.filter(
@@ -670,6 +689,16 @@ export class FeesService {
       currentDaysOverdue: number;
       amount: number;
       currentAmount: number;
+      months: Array<{
+        billingMonth: string;
+        monthLabel: string;
+        dueDate: string;
+        daysOverdue: number;
+        currentDaysOverdue: number;
+        rate: number;
+        amount: number;
+        currentAmount: number;
+      }>;
     }> = [];
 
     for (const config of configs) {
@@ -702,9 +731,8 @@ export class FeesService {
 
       // Fine Master holds a day of month, not a one-off date. Every unpaid
       // fee gets its own due date in its own billing month; counting starts
-      // the day after that due date. If every fee of this type was already
-      // paid but a fine row is still pending, quote against the last fee so
-      // the stored fine remains collectable.
+      // the day after that due date and accrues continuously at 1x daily rate
+      // (no doubling), tracked separately month by month.
       const feesOfType = allTransactions.filter((item: any) =>
         config.types.includes(String(item.transactionType || '').toUpperCase()),
       );
@@ -717,33 +745,104 @@ export class FeesService {
       const currentPeriods = getFinePeriods(withFineThrough(basisFees), basis, today);
       if (asOfPeriods.length === 0 && currentPeriods.length === 0) continue;
 
+      const mergedMap = new Map<
+        string,
+        {
+          key: string;
+          billingMonth: string;
+          dueDate: Date;
+          asOfDays: number;
+          currentDays: number;
+        }
+      >();
+      for (const p of currentPeriods) {
+        mergedMap.set(p.key, {
+          key: p.key,
+          billingMonth: p.billingMonth,
+          dueDate: p.dueDate,
+          asOfDays: 0,
+          currentDays: p.days,
+        });
+      }
+      for (const p of asOfPeriods) {
+        const existing = mergedMap.get(p.key);
+        if (existing) {
+          existing.asOfDays = p.days;
+        } else {
+          mergedMap.set(p.key, {
+            key: p.key,
+            billingMonth: p.billingMonth,
+            dueDate: p.dueDate,
+            asOfDays: p.days,
+            currentDays: 0,
+          });
+        }
+      }
+      const orderedPeriods = Array.from(mergedMap.values()).sort(
+        (a, b) => a.dueDate.getTime() - b.dueDate.getTime(),
+      );
+
+      let untaggedPoolAsOf = roundMoney(untaggedPaidByType[config.key]);
+      let untaggedPoolToday = roundMoney(untaggedPaidByType[config.key]);
+
+      const monthEntries = orderedPeriods.map((period) => {
+        const calcAsOf = calculateContinuousFine(period.asOfDays, rate);
+        const calcToday = calculateContinuousFine(period.currentDays, rate);
+        const explicitMonthPaid = roundMoney(
+          paidByTypeMonth.get(`${config.key}:${period.billingMonth}`) || 0,
+        );
+
+        const afterExplicitAsOf = roundMoney(Math.max(0, calcAsOf.amount - explicitMonthPaid));
+        const usedUntaggedAsOf = roundMoney(Math.min(untaggedPoolAsOf, afterExplicitAsOf));
+        untaggedPoolAsOf = roundMoney(untaggedPoolAsOf - usedUntaggedAsOf);
+        const amountAsOfMonth = roundMoney(Math.max(0, afterExplicitAsOf - usedUntaggedAsOf));
+
+        const afterExplicitToday = roundMoney(Math.max(0, calcToday.amount - explicitMonthPaid));
+        const usedUntaggedToday = roundMoney(Math.min(untaggedPoolToday, afterExplicitToday));
+        untaggedPoolToday = roundMoney(untaggedPoolToday - usedUntaggedToday);
+        const amountTodayMonth = roundMoney(Math.max(0, afterExplicitToday - usedUntaggedToday));
+
+        return {
+          billingMonth: period.billingMonth,
+          monthLabel: formatBillingMonthShortLabel(period.billingMonth) || period.billingMonth,
+          dueDate: formatDateInput(period.dueDate),
+          daysOverdue: period.asOfDays,
+          currentDaysOverdue: period.currentDays,
+          rate: roundMoney(rate),
+          amount: amountAsOfMonth,
+          currentAmount: amountTodayMonth,
+        };
+      });
+
       const asOfDays = sumFineDays(asOfPeriods);
       const currentDays = sumFineDays(currentPeriods);
-      const paid = roundMoney(paidByType[config.key]);
       const dueDateForDisplay =
         latestDueDate(currentPeriods) ?? latestDueDate(asOfPeriods) ?? collegeDueDate;
       if (!dueDateForDisplay) continue;
 
-      const hasOlder = hasOlderUnpaidDues(pending, dueDateForDisplay);
-      const calcAsOf = calculateTieredFine(asOfDays, rate, hasOlder);
-      const calcToday = calculateTieredFine(currentDays, rate, hasOlder);
-
-      const amountAsOf = roundMoney(Math.max(0, calcAsOf.amount - paid));
-      const amountToday = roundMoney(Math.max(0, calcToday.amount - paid));
+      const amountAsOf = roundMoney(
+        monthEntries.reduce((sum, m) => sum + m.amount, 0),
+      );
+      const amountToday = roundMoney(
+        monthEntries.reduce((sum, m) => sum + m.currentAmount, 0),
+      );
 
       fines.push({
         key: config.key,
         label: config.label,
         rate: roundMoney(rate),
-        effectiveRate: roundMoney(calcAsOf.effectiveRate),
-        isDoubled: calcAsOf.isDoubled,
-        regularDays: calcAsOf.regularDays,
-        doubledDays: calcAsOf.doubledDays,
+        effectiveRate: roundMoney(rate),
+        isDoubled: false,
+        regularDays: asOfDays,
+        doubledDays: 0,
         dueDate: formatDateInput(dueDateForDisplay),
         daysOverdue: asOfDays,
         currentDaysOverdue: currentDays,
         amount: amountAsOf,
         currentAmount: amountToday,
+        months: monthEntries.filter(
+          (m) => m.daysOverdue > 0 || m.currentDaysOverdue > 0,
+        ),
       });
     }
 
@@ -799,8 +898,8 @@ export class FeesService {
         const asOfDays = sumFineDays(getFinePeriods(quoteFees, basis, asOfDate));
         const currentDays = sumFineDays(getFinePeriods(quoteFees, basis, today));
         const hasOlder = hasOlderUnpaidDues(pending, collegeDueDate);
-        const calcAsOf = calculateTieredFine(asOfDays, legacyRate, hasOlder);
-        const calcToday = calculateTieredFine(currentDays, legacyRate, hasOlder);
+        const calcAsOf = calculateContinuousFine(asOfDays, legacyRate);
+        const calcToday = calculateContinuousFine(currentDays, legacyRate);
         return {
           asOfDate: asOfDateValue,
           daysOverdue: asOfDays,
@@ -812,7 +911,7 @@ export class FeesService {
             Math.max(0, calcToday.amount - alreadyPaid),
           ),
           hasOlderUnpaidDue: hasOlder,
-          isDoubled: calcAsOf.isDoubled,
+          isDoubled: false,
           fines: [],
           pendingFines: pendingFineRows,
         };
@@ -828,7 +927,6 @@ export class FeesService {
     const typedCurrentAmount = roundMoney(
       fines.reduce((sum, entry) => sum + entry.currentAmount, 0),
     );
-    const hasDoubled = fines.some((entry) => entry.isDoubled);
     const hasOlder = fines.length > 0 ? hasOlderUnpaidDues(pending, collegeDueDate) : false;
 
     return {
@@ -838,14 +936,14 @@ export class FeesService {
         0,
       ),
       dailyFine: roundMoney(
-        fines.reduce((sum, entry) => sum + (entry.isDoubled ? entry.effectiveRate : entry.rate), 0),
+        fines.reduce((sum, entry) => sum + entry.rate, 0),
       ),
       amount: roundMoney(Math.max(0, typedAmount - legacyPaid)),
       currentAmount: roundMoney(
         Math.max(0, typedCurrentAmount - legacyPaid),
       ),
       hasOlderUnpaidDue: hasOlder,
-      isDoubled: hasDoubled,
+      isDoubled: false,
       fines,
       pendingFines: pendingFineRows,
     };
@@ -929,12 +1027,6 @@ export class FeesService {
           entry.label,
           entry.currentDaysOverdue,
           entry.rate,
-          {
-            isDoubled: (entry as any).isDoubled ?? false,
-            regularDays: (entry as any).regularDays ?? 30,
-            doubledDays: (entry as any).doubledDays ?? 0,
-            effectiveRate: (entry as any).effectiveRate ?? entry.rate,
-          },
         );
         await this.prisma.feeTransaction.create({
           data: {
@@ -1185,7 +1277,7 @@ export class FeesService {
     const studentForWhatsapp =
       student ||
       (await this.prisma.student
-        .findUnique({
+        ?.findUnique?.({
           where: { id: studentId },
           select: {
             name: true,
@@ -1196,7 +1288,7 @@ export class FeesService {
             fatherMobileNo: true,
           },
         })
-        .catch(() => null));
+        ?.catch(() => null));
 
     if (studentForWhatsapp) {
       const phone = studentForWhatsapp.mobileNo || studentForWhatsapp.fatherMobileNo;

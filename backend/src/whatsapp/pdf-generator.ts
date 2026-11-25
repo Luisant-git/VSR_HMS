@@ -282,7 +282,12 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
         });
 
         doc.font('Helvetica').fontSize(8.5).fillColor('#444444');
-        doc.text(item.type || 'FEE', margin + col1Width + 8, currentFeeY + 6, {
+        const rawItemType = String(item.type || '').trim().toUpperCase();
+        const displayCategory =
+          rawItemType === 'OUTSTANDING_PAYMENT' || rawItemType === 'OUTSTANDING' || rawItemType === 'BACKLOG'
+            ? 'OLD OUTSTANDING_PAYMENT'
+            : (item.type || 'FEE');
+        doc.text(displayCategory, margin + col1Width + 8, currentFeeY + 6, {
           width: col2Width - 16,
           align: 'center',
         });

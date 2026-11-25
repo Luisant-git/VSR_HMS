@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 /**
@@ -1308,7 +1308,7 @@ export class BiometricAttendanceService {
     const where: string[] = [];
 
     if (tab === 'absent') {
-      where.push(`m.status IN ('ABSENT_NOT_RETURNED', 'OUT_AT_COLLEGE')`);
+      where.push(`m.status = 'ABSENT_NOT_RETURNED'`);
     } else {
       where.push(`m.status = 'LATE_RETURN'`);
     }

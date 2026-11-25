@@ -627,10 +627,10 @@ const CollegeMaster = () => {
                   lineHeight: 1.45,
                 }}>
                   <strong style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#1e3a8a', marginBottom: '2px' }}>
-                    <Info size={14} /> Doubled Late Fine Policy:
+                    <Info size={14} /> Continuous Monthly Late Fine Policy:
                   </strong>
                   <div>
-                    Fine accumulates daily past the due date. If current month dues remain unpaid into the next month (&gt;30 days overdue) or older dues are pending, the fine rate doubles (2× daily rate).
+                    Fine accumulates daily past each month&apos;s due date at the standard 1× daily rate (no doubling). Unpaid months continue accruing separately month by month until settled.
                   </div>
                 </div>
               </div>

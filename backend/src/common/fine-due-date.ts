@@ -38,6 +38,7 @@ export interface FineBasisConfig {
 
 export interface FinePeriod {
   key: string;
+  billingMonth: string;
   dueDate: Date;
   days: number;
 }
@@ -153,6 +154,12 @@ export function getFinePeriods(
   for (const fee of fees || []) {
     const { year, monthIndex } = resolveDueMonth(fee, config, asOfStart);
     const key = `${year}-${pad2(monthIndex + 1)}`;
+    const rawBillingMonth = /^\d{4}-\d{1,2}$/.test(String(fee.billingMonth || '').trim())
+      ? (() => {
+          const [by, bm] = String(fee.billingMonth).trim().split('-').map(Number);
+          return `${by}-${pad2(bm)}`;
+        })()
+      : key;
     const dueDate = getMonthlyDueDate(day, year, monthIndex);
 
     // A fee that has been paid stops accruing on its payment date. Multiple
@@ -164,12 +171,14 @@ export function getFinePeriods(
     const days = daysBetween(dueDate, effectiveAsOf);
     const existing = periods.get(key);
     if (!existing) {
-      periods.set(key, { key, dueDate, days });
+      periods.set(key, { key, billingMonth: rawBillingMonth, dueDate, days });
     } else if (days > existing.days) {
       existing.days = days;
     }
   }
-  return Array.from(periods.values());
+  return Array.from(periods.values()).sort(
+    (a, b) => a.dueDate.getTime() - b.dueDate.getTime(),
+  );
 }
 
 export const sumFineDays = (periods: FinePeriod[]) =>

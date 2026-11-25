@@ -265,7 +265,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         notes: receiptRemarks || undefined,
         items: visibleFeesList.map((item: any) => ({
           description: item.type ? item.type.replace(/_/g, ' ') : 'Fee',
-          type: item.type || 'FEE',
+          type: formatReceiptCategory(item.transactionType || item.type),
           amount: displayAmountFor(item),
         })),
       };
@@ -359,6 +359,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
     razorpayOrderId ||
     '';
 
+  const formatReceiptCategory = (type?: string) => {
+    const upper = String(type || '').trim().toUpperCase();
+    if (upper === 'OUTSTANDING_PAYMENT' || upper === 'OUTSTANDING' || upper === 'BACKLOG') {
+      return 'OLD OUTSTANDING_PAYMENT';
+    }
+    return type || 'FEE';
+  };
+
   const formatPaymentMode = (mode: string) => {
     const upper = mode.toUpperCase();
     if (upper === 'UPI') return 'UPI';
@@ -394,9 +402,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 16px;
             overflow: hidden;
-            background: rgba(0, 0, 0, 0.65);
+            background: rgba(15, 23, 42, 0.65);
             backdrop-filter: blur(4px);
           }
           .receipt-modal {
@@ -404,14 +412,53 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             display: flex;
             flex-direction: column;
             width: 100%;
-            max-width: 850px;
-            max-height: 95vh;
-            max-height: 95dvh;
+            max-width: 820px;
+            max-height: 92vh;
+            max-height: 92dvh;
             overflow: hidden;
-            border-radius: 4px;
+            border-radius: 12px;
             background: #fff;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+          }
+          .receipt-pad {
+            padding: 36px 44px;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            position: relative;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+          }
+          .receipt-spacer {
+            height: 24px;
+            margin-bottom: 10px;
+          }
+          .receipt-action-bar {
+            flex: 0 0 auto;
+            padding: 14px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+          .receipt-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            border: none;
           }
           .receipt-content {
             position: relative;
@@ -660,38 +707,55 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             .no-print, .no-print * { display: none !important; visibility: hidden !important; }
             .print-exact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           }
+          @media (max-width: 900px) {
+            .receipt-overlay { padding: 12px; }
+            .receipt-pad { padding: 24px 24px; }
+            .receipt-meta-split { margin-bottom: 24px; }
+            .receipt-action-bar { padding: 12px 16px; gap: 8px; }
+            .receipt-action-btn { padding: 8px 12px; font-size: 12.5px; }
+          }
           @media (max-width: 640px) {
-            .receipt-overlay { align-items: stretch; padding: 8px; box-sizing: border-box; }
-            .receipt-modal { width: 100%; max-width: none; height: 100%; max-height: none; min-width: 0; border-radius: 12px; }
-            .receipt-pad { flex: 1 1 auto; min-width: 0; min-height: 0 !important; padding: 18px 18px 28px !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
-            .vintage-header .top-text { font-size: 13px; }
-            .vintage-header .subtitle { font-size: 16px; }
-            .vintage-header .address-text { font-size: 11px; padding: 0 10px; }
-            .vintage-header .ornament-line { max-width: 100%; margin: 10px 20px; }
-            .vintage-header .temple-icon { width: 30px; }
+            .receipt-overlay { align-items: center; padding: 8px; box-sizing: border-box; }
+            .receipt-modal { width: 100%; max-width: 100%; height: auto; max-height: 94vh; max-height: 94dvh; min-width: 0; border-radius: 12px; }
+            .receipt-pad { flex: 1 1 auto; min-width: 0; min-height: 0 !important; padding: 16px 14px 20px !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+            .vintage-header .top-text { font-size: 12px; }
+            .vintage-header .subtitle { font-size: 15px; }
+            .vintage-header .address-text { font-size: 11px; padding: 0 6px; }
+            .vintage-header .ornament-line { max-width: 100%; margin: 8px 12px; }
+            .vintage-header .temple-icon { width: 28px; }
+            .receipt-title-text { font-size: 15px; margin: 10px 0; }
             
-            .receipt-meta-split { flex-direction: column; gap: 20px; }
-            .receipt-sub-line.right-align { justify-content: flex-start; }
+            .receipt-meta-split { flex-direction: column; gap: 8px; margin-bottom: 18px; padding: 0; }
+            .receipt-meta-line { font-size: 13px; white-space: normal; }
+            .receipt-meta-line .label { font-size: 14px; }
+            .receipt-meta-line .value { font-size: 13.5px; }
+            .receipt-sub-line.right-align { justify-content: flex-start; font-size: 13px; }
             
-            .receipt-side-by-side { flex-direction: column; gap: 20px; }
+            .receipt-side-by-side { flex-direction: column; gap: 16px; margin-bottom: 18px; }
             .receipt-col-half { width: 100%; }
+            .receipt-spacer { display: none; }
 
-            .receipt-billed-to { flex-direction: column; margin-bottom: 22px !important; }
-            .receipt-fee-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
-            .receipt-fee-table { display: table !important; width: 100% !important; min-width: 520px !important; table-layout: auto; }
-            .receipt-fee-table th, .receipt-fee-table td { padding: 6px !important; font-size: 12px !important; vertical-align: top; }
-            .action-bar { position: relative; z-index: 2; flex: 0 0 auto; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 12px !important; gap: 8px !important; }
-            .action-bar button { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; justify-content: center; padding: 10px 8px !important; font-size: 12px !important; white-space: nowrap; }
-            .action-bar button:last-child { grid-column: 1 / -1; }
+            .receipt-billed-to { flex-direction: column; margin-bottom: 18px !important; }
+            .receipt-fee-scroll { width: 100%; min-width: 0; overflow-x: hidden; }
+            .receipt-fee-table { display: table !important; width: 100% !important; min-width: 0 !important; table-layout: fixed !important; }
+            .receipt-fee-table th, .receipt-fee-table td { padding: 6px 5px !important; font-size: 11.5px !important; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
+            .receipt-fee-table th:nth-child(1) { width: 46%; }
+            .receipt-fee-table th:nth-child(2) { width: 26%; }
+            .receipt-fee-table th:nth-child(3) { width: 28%; }
+            .receipt-total-label { font-size: 11.5px !important; letter-spacing: 0.4px !important; }
+            .receipt-total-amount { font-size: 14px !important; }
+            .receipt-footer { margin-top: 24px !important; padding-top: 14px !important; }
+            .receipt-action-bar { position: relative; z-index: 2; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 12px !important; gap: 8px !important; }
+            .receipt-action-bar .receipt-action-btn { box-sizing: border-box; width: 100%; min-width: 0; min-height: 40px; padding: 8px 6px !important; font-size: 11.5px !important; white-space: normal; text-align: center; line-height: 1.25; }
           }
         `}
       </style>
       <div id="receipt-printable-area" className="receipt-modal" role="dialog" aria-modal="true" aria-label="Fee receipt">
         
-        <div ref={receiptCaptureRef} className="receipt-pad" style={{ padding: '40px 50px', flex: 1, overflowY: 'auto', position: 'relative', minHeight: 0 }}>
+        <div ref={receiptCaptureRef} className="receipt-pad">
           
           {/* PAID Watermark */}
-          <div className="watermark print-exact" style={{ position: 'absolute', top: '88%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: '120px', fontWeight: 900, color: 'rgba(0, 0, 0, 0.04)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
+          <div className="watermark print-exact" style={{ position: 'absolute', top: '88%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: 'clamp(52px, 14vw, 110px)', fontWeight: 900, color: 'rgba(0, 0, 0, 0.04)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
             PAID
           </div>
 
@@ -708,7 +772,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               </svg>
 
               {/* Arched Main Title */}
-              <svg viewBox="0 0 1000 130" style={{ width: '100%', maxWidth: '800px', height: '82px', overflow: 'visible', margin: '0 auto', display: 'block' }}>
+              <svg viewBox="0 0 1000 130" style={{ width: '100%', maxWidth: '800px', height: 'auto', aspectRatio: '1000 / 130', overflow: 'visible', margin: '0 auto', display: 'block' }}>
                 <defs>
                   <path id="curve-title" d="M 50 100 Q 500 0 950 100" />
                 </defs>
@@ -781,7 +845,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
               {/* Right Column: Payment Details */}
               <div className="receipt-col-half">
                 <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', margin: 0 }}>Payment Details</h3>
-                <div style={{ height: '24px', marginBottom: '10px' }}></div> {/* Spacer to align tables */}
+                <div className="receipt-spacer"></div> {/* Spacer to align tables */}
                 <table className="receipt-payment-details">
                   <thead>
                     <tr>
@@ -858,7 +922,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                           })}
                       </td>
                       <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
-                        {f.transactionType}
+                        {formatReceiptCategory(f.transactionType || f.type)}
                       </td>
                       <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
                         ₹{displayAmountFor(f).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -911,41 +975,56 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         </div>
 
         {/* Actions (No Print) */}
-        <div className="action-bar no-print" style={{ padding: '20px 40px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-          <button onClick={onClose} style={{ background: 'white', border: '1px solid #cbd5e1', cursor: 'pointer', padding: '10px 24px', borderRadius: '8px', color: '#475569', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-            <X size={18} /> Close
+        <div className="receipt-action-bar no-print">
+          <button
+            onClick={onClose}
+            className="receipt-action-btn"
+            style={{ background: '#fff', border: '1px solid #cbd5e1', color: '#475569', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+          >
+            <X size={16} /> Close
           </button>
           <button
             onClick={handleWhatsAppSend}
             disabled={sendingWhatsApp}
+            className="receipt-action-btn"
             title="Send exact PDF receipt to student on WhatsApp"
             style={{
               background: '#25D366',
-              border: 'none',
               cursor: sendingWhatsApp ? 'wait' : 'pointer',
               opacity: sendingWhatsApp ? 0.7 : 1,
-              padding: '10px 24px',
-              borderRadius: '8px',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              transition: 'all 0.2s',
+              color: '#fff',
               boxShadow: '0 4px 6px -1px rgba(37, 211, 102, 0.25)',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
               <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
             </svg>
-            {sendingWhatsApp ? 'Sending PDF to WhatsApp...' : 'Send PDF via WhatsApp'}
+            {sendingWhatsApp ? 'Sending PDF...' : 'Send PDF via WhatsApp'}
           </button>
-          <button onClick={handleDownload} disabled={downloading} style={{ background: '#16a34a', border: 'none', cursor: downloading ? 'wait' : 'pointer', opacity: downloading ? 0.7 : 1, padding: '10px 24px', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.2)' }}>
-            <Download size={18} /> {downloading ? 'Preparing PDF...' : 'Download Receipt'}
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="receipt-action-btn"
+            style={{
+              background: '#16a34a',
+              cursor: downloading ? 'wait' : 'pointer',
+              opacity: downloading ? 0.7 : 1,
+              color: '#fff',
+              boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.2)',
+            }}
+          >
+            <Download size={16} /> {downloading ? 'Preparing PDF...' : 'Download Receipt'}
           </button>
-          <button onClick={handlePrint} style={{ background: '#0f172a', border: 'none', cursor: 'pointer', padding: '10px 24px', borderRadius: '8px', color: 'white', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, transition: 'all 0.2s', boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)' }}>
-            <Printer size={18} /> Print Document
+          <button
+            onClick={handlePrint}
+            className="receipt-action-btn"
+            style={{
+              background: '#0f172a',
+              color: '#fff',
+              boxShadow: '0 4px 6px -1px rgba(15, 23, 42, 0.2)',
+            }}
+          >
+            <Printer size={16} /> Print Document
           </button>
         </div>
 

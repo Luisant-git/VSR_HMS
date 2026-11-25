@@ -48,7 +48,7 @@ export function formatFeeTypeName(type?: string): string {
   if (clean === 'RENT') return 'Hostel Room Rent';
   if (clean === 'MESS') return 'Mess Food Charges';
   if (clean === 'FINE' || clean.includes('FINE')) return 'Late Payment Fine';
-  if (clean === 'OUTSTANDING_PAYMENT' || clean.includes('OUTSTANDING')) return 'Previous Dues Payment';
+  if (clean === 'OUTSTANDING_PAYMENT' || clean.includes('OUTSTANDING')) return 'Old Outstanding Payment';
   if (clean === 'ADVANCE') return 'Caution Deposit / Advance';
   return clean.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

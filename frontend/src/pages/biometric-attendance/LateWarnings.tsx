@@ -58,7 +58,10 @@ const BioLateWarnings = () => {
   );
 
   const summary = data?.summary;
-  const rows: LateWarningRow[] = data?.data || [];
+  const rows: LateWarningRow[] =
+    tab === 'absent'
+      ? (data?.data || []).filter((r) => r.status === 'ABSENT_NOT_RETURNED')
+      : data?.data || [];
 
   const handleTabChange = (newTab: ActiveTab) => {
     setTab(newTab);
@@ -104,7 +107,7 @@ const BioLateWarnings = () => {
         Room: r.room_no || '',
         Date: r.punch_date ? formatDate(r.punch_date) : '',
         'College Exit Time (OUT)': r.out_time_formatted || (r.out_time ? formatDateTime(r.out_time) : ''),
-        Status: r.status === 'OUT_AT_COLLEGE' ? 'Out at College (Awaiting Return)' : 'ABSENT (Not Returned After 7 PM)',
+        Status: 'ABSENT (Not Returned After 7 PM)',
         'Parent Mobile': r.father_mobile || '',
         'Father Name': r.father_name || '',
         'Student Mobile': r.student_mobile || '',
@@ -200,7 +203,7 @@ const BioLateWarnings = () => {
                 className={`ui-btn ui-btn-sm ${tab === 'absent' ? 'ui-btn-primary' : 'ui-btn-secondary'}`}
                 onClick={() => handleTabChange('absent')}
               >
-                Absent / Not Returned {summary?.absentNotReturned ? `(${summary.absentNotReturned})` : summary?.collegeOutToday ? `(${summary.collegeOutToday} Outside)` : ''}
+                Absent / Not Returned {summary?.absentNotReturned ? `(${summary.absentNotReturned})` : ''}
               </button>
             </div>
           }
@@ -385,7 +388,6 @@ const BioLateWarnings = () => {
               {rows.map((row, idx) => {
                 const fPhone = cleanPhone(row.father_mobile);
                 const sPhone = cleanPhone(row.student_mobile);
-                const isAbsent = row.status === 'ABSENT_NOT_RETURNED';
                 return (
                   <tr key={`${row.reg_no}-${row.out_time || idx}`}>
                     <td className="bio-strong bio-mono" style={{ whiteSpace: 'nowrap' }}>
@@ -435,15 +437,9 @@ const BioLateWarnings = () => {
                       </>
                     ) : (
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        {isAbsent ? (
-                          <span className="bio-status is-danger" style={{ fontWeight: 700, fontSize: 11 }}>
-                            ABSENT (No Return After 7 PM)
-                          </span>
-                        ) : (
-                          <span className="bio-status is-warning" style={{ fontWeight: 600, fontSize: 11 }}>
-                            Out at College (Awaiting Return)
-                          </span>
-                        )}
+                        <span className="bio-status is-danger" style={{ fontWeight: 700, fontSize: 11 }}>
+                          ABSENT (No Return After 7 PM)
+                        </span>
                       </td>
                     )}
 

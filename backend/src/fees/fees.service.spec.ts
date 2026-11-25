@@ -272,7 +272,7 @@ describe('FeesService - outstanding payment ledger', () => {
       expect(quote.amount).toBe(120);
     });
 
-    it('doubles late fine rate when fee remains unpaid into the next month (>30 days overdue)', async () => {
+    it('calculates continuous 1x daily fine without doubling even past 30 days overdue', async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const dueDate = new Date(today);
@@ -282,35 +282,32 @@ describe('FeesService - outstanding payment ledger', () => {
       const quote = await service.previewFine('student-1', dateInput(today));
 
       expect(quote.daysOverdue).toBe(35);
-      expect(quote.isDoubled).toBe(true);
-      // 30 days @ 25 = 750, 5 days @ 50 (2x) = 250 -> total 1000
-      expect(quote.amount).toBe(1000);
+      expect(quote.isDoubled).toBe(false);
+      // 35 days @ 25 = 875 (never doubled)
+      expect(quote.amount).toBe(875);
       const rentEntry = quote.fines.find((item) => item.key === 'rent');
-      expect(rentEntry?.regularDays).toBe(30);
-      expect(rentEntry?.doubledDays).toBe(5);
-      expect(rentEntry?.isDoubled).toBe(true);
-      expect(rentEntry?.effectiveRate).toBe(50);
+      expect(rentEntry?.regularDays).toBe(35);
+      expect(rentEntry?.doubledDays).toBe(0);
+      expect(rentEntry?.isDoubled).toBe(false);
+      expect(rentEntry?.effectiveRate).toBe(25);
     });
 
-    it('doubles fine rate immediately when older prior dues are unpaid', async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const currentDueDate = new Date(today);
-      currentDueDate.setDate(currentDueDate.getDate() - 10);
-      const olderDueDate = new Date(today);
-      olderDueDate.setDate(olderDueDate.getDate() - 40);
+    it('calculates separate monthly fines continuously at 1x rate (Nov due Dec 5 + Dec due Jan 5)', async () => {
+      const asOfJan10 = new Date(2027, 0, 10);
+      asOfJan10.setHours(0, 0, 0, 0);
 
       const prisma = {
         student: {
-          findUnique: vi.fn().mockResolvedValue({
+          findFirst: vi.fn().mockResolvedValue({
             id: 'student-1',
             college: {
-              dueDate: currentDueDate,
+              dueDate: new Date('2000-01-05T00:00:00.000Z'),
+              billingCycle: 'POSTPAID',
               fineMaster: { rentFine: 50, messFine: 0, ebFine: 10 },
             },
             transactions: [
-              { transactionType: 'RENT', status: 'PENDING', dueDate: currentDueDate, billingMonth: '2026-11' },
-              { transactionType: 'RENT', status: 'PENDING', dueDate: olderDueDate, billingMonth: '2026-10' },
+              { id: 'f-nov', transactionType: 'RENT', status: 'PENDING', billingMonth: '2026-11', amount: 5000, createdAt: new Date(2026, 11, 1) },
+              { id: 'f-dec', transactionType: 'RENT', status: 'PENDING', billingMonth: '2026-12', amount: 5000, createdAt: new Date(2027, 0, 1) },
             ],
           }),
         },
@@ -318,15 +315,37 @@ describe('FeesService - outstanding payment ledger', () => {
       };
 
       const service = new FeesService(prisma as any);
-      const quote = await service.previewFine('student-1', dateInput(today));
+      vi.useFakeTimers();
+      vi.setSystemTime(asOfJan10);
+      try {
+        const quote = await service.previewFine('student-1', '2027-01-10');
 
-      expect(quote.hasOlderUnpaidDue).toBe(true);
-      expect(quote.isDoubled).toBe(true);
-      // Rent: 10 days @ doubled rate (100) = 1000
-      const rentFine = quote.fines.find((item) => item.key === 'rent');
-      expect(rentFine?.amount).toBe(1000);
-      expect(rentFine?.effectiveRate).toBe(100);
-      expect(rentFine?.isDoubled).toBe(true);
+        expect(quote.isDoubled).toBe(false);
+        const rentFine = quote.fines.find((item) => item.key === 'rent');
+        expect(rentFine?.effectiveRate).toBe(50);
+        expect(rentFine?.isDoubled).toBe(false);
+        // Nov 2026 (due Dec 5 -> Jan 10 = 36 days @ 50 = 1800)
+        // Dec 2026 (due Jan 5 -> Jan 10 = 5 days @ 50 = 250)
+        expect(rentFine?.months).toHaveLength(2);
+        expect(rentFine?.months[0]).toMatchObject({
+          billingMonth: '2026-11',
+          monthLabel: 'Nov 2026',
+          dueDate: '2026-12-05',
+          daysOverdue: 36,
+          amount: 1800,
+        });
+        expect(rentFine?.months[1]).toMatchObject({
+          billingMonth: '2026-12',
+          monthLabel: 'Dec 2026',
+          dueDate: '2027-01-05',
+          daysOverdue: 5,
+          amount: 250,
+        });
+        expect(rentFine?.amount).toBe(2050);
+        expect(quote.amount).toBe(2050);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

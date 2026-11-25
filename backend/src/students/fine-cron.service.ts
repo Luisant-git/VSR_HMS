@@ -1,28 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma.service';
-import { getFinePeriods, resolveFineThrough, sumFineDays } from '../common/fine-due-date';
+import { getFinePeriods, resolveFineThrough } from '../common/fine-due-date';
 import {
   FineKey,
-  startOfDay,
   roundMoney,
   fineKeyFromDescription,
-  hasOlderUnpaidDues,
-  calculateTieredFine,
+  calculateContinuousFine,
+  formatBillingMonthShortLabel,
   formatFineDescription,
 } from '../fees/fine-calculator';
 
 const isLateFine = (transaction: any) =>
   String(transaction?.transactionType || '').toUpperCase() === 'FINE' &&
   /late fine accumulation/i.test(String(transaction?.description || ''));
-interface FineInfo {
+
+interface MonthlyFineInfo {
   key: FineKey;
+  billingMonth: string;
+  monthLabel: string;
+  dueDate: Date;
   label: string;
   rate: number;
-  effectiveRate: number;
-  isDoubled: boolean;
-  regularDays: number;
-  doubledDays: number;
   days: number;
   amount: number;
 }
@@ -153,8 +152,9 @@ export class FineCronService {
       (feeRows as any[]).map((row: any, index: number) => [row, fineThroughValues[index]]),
     );
 
-    // Work out how much fine each fee type currently owes on its own.
-    const expected = new Map<FineKey, FineInfo>();
+    // Work out how much fine each (fee type, billing month) owes continuously
+    // at 1x daily rate (no doubling).
+    const expectedByType = new Map<FineKey, MonthlyFineInfo[]>();
     for (const config of configs) {
       if (config.rate <= 0) continue;
 
@@ -163,45 +163,41 @@ export class FineCronService {
         .map((t: any) => ({ ...t, fineThrough: fineThroughByFee.get(t) ?? null }));
       if (parents.length === 0) continue;
 
-      // Fine Master holds a day of month, not a one-off date. Each fee is due
-      // on that day of its own billing month, and counting starts the next
-      // day. Unpaid fees from earlier months keep accruing until paid.
-      const periods = getFinePeriods(parents, {
-        collegeDueDate: college?.dueDate,
-        billingCycle: college?.billingCycle,
-      }, today);
-      const days = sumFineDays(periods);
-      if (days <= 0) continue;
+      const periods = getFinePeriods(
+        parents,
+        {
+          collegeDueDate: college?.dueDate,
+          billingCycle: college?.billingCycle,
+        },
+        today,
+      ).filter((p) => p.days > 0);
+      if (periods.length === 0) continue;
 
-      const collegeDueDate = college?.dueDate;
-      const hasOlderDue = hasOlderUnpaidDues(
-        pending,
-        collegeDueDate ? startOfDay(collegeDueDate) : null,
-      );
-      const calc = calculateTieredFine(days, config.rate, hasOlderDue);
-
-      expected.set(config.key, {
-        key: config.key,
-        label: config.label,
-        rate: config.rate,
-        effectiveRate: calc.effectiveRate,
-        isDoubled: calc.isDoubled,
-        regularDays: calc.regularDays,
-        doubledDays: calc.doubledDays,
-        days,
-        amount: calc.amount,
+      const entries: MonthlyFineInfo[] = periods.map((period) => {
+        const calc = calculateContinuousFine(period.days, config.rate);
+        return {
+          key: config.key,
+          billingMonth: period.billingMonth,
+          monthLabel: formatBillingMonthShortLabel(period.billingMonth) || period.billingMonth,
+          dueDate: period.dueDate,
+          label: config.label,
+          rate: config.rate,
+          days: period.days,
+          amount: calc.amount,
+        };
       });
+      expectedByType.set(config.key, entries);
     }
 
-    if (expected.size === 0) return;
+    if (expectedByType.size === 0) return;
 
     const pendingLate = pending.filter(isLateFine);
     const legacyPending = pendingLate.filter(
       (t: any) => !fineKeyFromDescription(t.description),
     );
 
-    // Older builds stored a single aggregate fine row. Convert it to one row
-    // per fee type, preserving the total already accumulated.
+    // Older builds stored a single aggregate fine row. Convert it to separate
+    // monthly fine rows per fee type, preserving the total already accumulated.
     if (legacyPending.length > 0) {
       const hasTypedRows = pendingLate.some((t: any) => fineKeyFromDescription(t.description));
 
@@ -218,29 +214,28 @@ export class FineCronService {
         });
 
         if (legacyTotal > 0) {
-          const entries = Array.from(expected.entries());
-
-          if (entries.length === 1) {
-            const [key, info] = entries[0];
+          const allEntries = Array.from(expectedByType.values()).flat();
+          if (allEntries.length === 1) {
+            const info = allEntries[0];
             const created = await this.prisma.feeTransaction.create({
-              data: this.fineData(student.id, key, info, Math.max(legacyTotal, info.amount)),
+              data: this.fineData(student.id, info, Math.max(legacyTotal, info.amount)),
             });
             pendingLate.push(created);
           } else {
             const totalExpected = roundMoney(
-              entries.reduce((sum, [, info]) => sum + info.amount, 0),
+              allEntries.reduce((sum, info) => sum + info.amount, 0),
             );
             let allocated = 0;
 
-            for (let index = 0; index < entries.length; index++) {
-              const [key, info] = entries[index];
-              const isLast = index === entries.length - 1;
+            for (let index = 0; index < allEntries.length; index++) {
+              const info = allEntries[index];
+              const isLast = index === allEntries.length - 1;
               const share = isLast
                 ? roundMoney(legacyTotal - allocated)
                 : roundMoney((legacyTotal * info.amount) / (totalExpected || 1));
               allocated = roundMoney(allocated + share);
               if (share > 0) {
-                await this.createTypedFine(student.id, key, info, share, pendingLate);
+                await this.createTypedFine(student.id, info, share, pendingLate);
               }
             }
           }
@@ -251,80 +246,151 @@ export class FineCronService {
     // Re-read pending late fines after any legacy migration.
     const typedPending = pendingLate.filter((t: any) => fineKeyFromDescription(t.description));
 
-    for (const [key, info] of expected.entries()) {
-      const rowsForType = typedPending.filter(
+    for (const [key, entries] of expectedByType.entries()) {
+      const allPendingForType = typedPending.filter(
         (t: any) => fineKeyFromDescription(t.description) === key,
       );
-      const paidForType = roundMoney(
-        completedLateFines
-          .filter((t: any) => fineKeyFromDescription(t.description) === key)
-          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0),
+      const completedForType = completedLateFines.filter(
+        (t: any) => fineKeyFromDescription(t.description) === key,
       );
-      const description = this.fineDescription(info);
-      // Recompute from scratch every run. This lowers stale rows when the due
-      // date or Fine Master rate changes, instead of only ever increasing them.
-      const targetAmount = roundMoney(Math.max(0, info.amount - paidForType));
 
-      if (rowsForType.length > 0) {
-        const primary = rowsForType[0];
-        const currentAmount = roundMoney(Number(primary.amount) || 0);
+      // Separate explicit month-tagged paid fines from untagged legacy paid fines.
+      const paidByMonth = new Map<string, number>();
+      let untaggedPaidPool = 0;
+      for (const paidRow of completedForType) {
+        const amt = Number(paidRow.amount) || 0;
+        const bm = String(paidRow.billingMonth || '').trim();
+        if (/^\d{4}-(0[1-9]|1[0-2])$/.test(bm)) {
+          paidByMonth.set(bm, roundMoney((paidByMonth.get(bm) || 0) + amt));
+        } else {
+          untaggedPaidPool = roundMoney(untaggedPaidPool + amt);
+        }
+      }
 
-        if (currentAmount === targetAmount && primary.description === description) continue;
+      const claimedRowIds = new Set<string>();
 
-        if (targetAmount <= 0) {
-          await this.prisma.feeTransaction.deleteMany({
-            where: { id: { in: rowsForType.map((row: any) => row.id) } },
+      for (const info of entries) {
+        const explicitPaid = paidByMonth.get(info.billingMonth) || 0;
+        const afterExplicit = roundMoney(Math.max(0, info.amount - explicitPaid));
+        const untaggedUsed = roundMoney(Math.min(untaggedPaidPool, afterExplicit));
+        untaggedPaidPool = roundMoney(untaggedPaidPool - untaggedUsed);
+        const targetAmount = roundMoney(Math.max(0, afterExplicit - untaggedUsed));
+
+        const description = this.fineDescription(info);
+
+        // Find matching pending row for this (type, billingMonth). If none has
+        // an explicit billingMonth yet (migrating from pre-monthly rows), reuse
+        // an unclaimed untagged pending row.
+        const matchingRows = allPendingForType.filter((t: any) => {
+          if (claimedRowIds.has(t.id)) return false;
+          if (t.billingMonth) return String(t.billingMonth).trim() === info.billingMonth;
+          if (info.monthLabel && String(t.description || '').includes(`(${info.monthLabel})`)) {
+            return true;
+          }
+          return false;
+        });
+
+        let primary = matchingRows[0];
+        if (!primary) {
+          primary = allPendingForType.find(
+            (t: any) => !claimedRowIds.has(t.id) && !t.billingMonth,
+          );
+        }
+
+        if (primary) {
+          claimedRowIds.add(primary.id);
+          // Claim any duplicates for the exact same month to delete them cleanly
+          for (let i = 1; i < matchingRows.length; i++) {
+            claimedRowIds.add(matchingRows[i].id);
+            await this.prisma.feeTransaction.delete({ where: { id: matchingRows[i].id } });
+          }
+
+          if (targetAmount <= 0) {
+            await this.prisma.feeTransaction.deleteMany({
+              where: { id: { in: [primary.id] } },
+            });
+            this.logger.log(
+              `Removed fully paid ${info.label} (${info.monthLabel}) fine for student ${student.regNo}`,
+            );
+            continue;
+          }
+
+          const currentAmount = roundMoney(Number(primary.amount) || 0);
+          const sameMonth = String(primary.billingMonth || '') === info.billingMonth;
+          if (
+            currentAmount === targetAmount &&
+            primary.description === description &&
+            sameMonth
+          ) {
+            continue;
+          }
+
+          await this.prisma.feeTransaction.update({
+            where: { id: primary.id },
+            data: {
+              amount: targetAmount,
+              description,
+              billingMonth: info.billingMonth,
+              dueDate: info.dueDate,
+            },
           });
           this.logger.log(
-            `Removed fully paid ${info.label} fine for student ${student.regNo}`,
+            `Recalculated ${info.label} (${info.monthLabel}) fine to ₹${targetAmount} for student ${student.regNo}`,
           );
-          continue;
+        } else if (targetAmount > 0) {
+          const created = await this.createTypedFine(
+            student.id,
+            info,
+            targetAmount,
+            typedPending,
+          );
+          if (created?.id) claimedRowIds.add(created.id);
+          this.logger.log(
+            `Added ${info.label} (${info.monthLabel}) fine of ₹${targetAmount} to student ${student.regNo}`,
+          );
         }
+      }
 
-        await this.prisma.feeTransaction.update({
-          where: { id: primary.id },
-          data: { amount: targetAmount, description },
+      // Remove any leftover stale pending rows for this type that aren't claimed
+      const staleIds = allPendingForType
+        .filter((t: any) => t.id && !claimedRowIds.has(t.id))
+        .map((t: any) => t.id);
+      if (staleIds.length > 0) {
+        await this.prisma.feeTransaction.deleteMany({
+          where: { id: { in: staleIds } },
         });
-        for (let i = 1; i < rowsForType.length; i++) {
-          await this.prisma.feeTransaction.delete({ where: { id: rowsForType[i].id } });
-        }
-        this.logger.log(
-          `Recalculated ${info.label} fine to ₹${targetAmount} for student ${student.regNo}`,
-        );
-      } else if (targetAmount > 0) {
-        await this.createTypedFine(student.id, key, info, targetAmount, typedPending);
-        this.logger.log(
-          `Added ${info.label} fine of ₹${targetAmount} to student ${student.regNo}`,
-        );
       }
     }
   }
 
   private async createTypedFine(
     studentId: string,
-    key: FineKey,
-    info: FineInfo,
+    info: MonthlyFineInfo,
     amount: number,
     sink: any[],
   ) {
     const created = await this.prisma.feeTransaction.create({
-      data: this.fineData(studentId, key, info, amount),
+      data: this.fineData(studentId, info, amount),
     });
     sink.push(created);
     return created;
   }
 
-  private fineData(studentId: string, key: FineKey, info: FineInfo, amount: number) {
+  private fineData(studentId: string, info: MonthlyFineInfo, amount: number) {
     return {
       studentId,
       transactionType: 'FINE',
       amount: roundMoney(amount),
       status: 'PENDING',
-      description: this.fineDescription({ ...info, key }),
+      billingMonth: info.billingMonth,
+      dueDate: info.dueDate,
+      description: this.fineDescription(info),
     };
   }
 
-  private fineDescription(info: FineInfo) {
-    return formatFineDescription(info.label, info.days, info.rate, info);
+  private fineDescription(info: MonthlyFineInfo) {
+    return formatFineDescription(info.label, info.days, info.rate, {
+      monthLabel: info.monthLabel,
+    });
   }
 }

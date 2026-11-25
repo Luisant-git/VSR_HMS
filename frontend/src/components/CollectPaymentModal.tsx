@@ -8,7 +8,7 @@ import {
   STUDENT_PORTAL_PAYMENT_RETURN_MOBILE_KEY,
   STUDENT_PORTAL_PAYMENT_RETURN_ORDER_KEY,
 } from '../utils/studentPortalPayment';
-import { getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
+import { getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth, formatBillingMonthShort } from '../utils/billingCycle';
 import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
 
 interface RazorpayCheckoutResponse {
@@ -135,7 +135,10 @@ const getFeeParentType = (fee: any): FineParentType | null => {
 
 const getFeeLabel = (fee: any) => {
   const fineParent = getFineParentType(fee);
-  if (fineParent) return `${fineParent === 'EB' ? 'EB' : fineParent} FINE`;
+  if (fineParent) {
+    const monthLabel = fee?.billingMonth ? formatBillingMonthShort(fee.billingMonth) : '';
+    return `${fineParent === 'EB' ? 'EB' : fineParent} FINE${monthLabel ? ` (${monthLabel})` : ''}`;
+  }
   return fee?.transactionType || 'FEE';
 };
 
@@ -171,6 +174,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       currentDaysOverdue: number;
       amount: number;
       currentAmount: number;
+      months?: Array<{
+        billingMonth: string;
+        monthLabel: string;
+        dueDate: string;
+        daysOverdue: number;
+        currentDaysOverdue: number;
+        rate: number;
+        amount: number;
+        currentAmount: number;
+      }>;
     }>;
     pendingFines: Array<{
       id: string;
@@ -286,15 +299,32 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
     const entry = fineQuoteEntryFor(fee);
     if (entry) {
+      const feeMonth = resolveFeeBillingMonth(fee);
+      const monthMatch =
+        feeMonth && Array.isArray(entry.months) && entry.months.length > 0
+          ? entry.months.find((m) => m.billingMonth === feeMonth)
+          : null;
+
+      if (monthMatch) {
+        return {
+          amount: monthMatch.amount,
+          daysOverdue: monthMatch.daysOverdue,
+          currentAmount: monthMatch.currentAmount,
+          rate: monthMatch.rate,
+          effectiveRate: monthMatch.rate,
+          monthLabel: monthMatch.monthLabel,
+          dueDate: monthMatch.dueDate,
+          isDoubled: false,
+        };
+      }
+
       return {
         amount: entry.amount,
         daysOverdue: entry.daysOverdue,
         currentAmount: entry.currentAmount,
         rate: entry.rate,
-        effectiveRate: entry.effectiveRate ?? entry.rate,
-        isDoubled: entry.isDoubled ?? false,
-        regularDays: entry.regularDays,
-        doubledDays: entry.doubledDays,
+        effectiveRate: entry.rate,
+        isDoubled: false,
       };
     }
     if (getFineParentType(fee) !== null) {
@@ -318,7 +348,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       currentAmount: fineQuote.currentAmount,
       rate: fineQuote.dailyFine,
       effectiveRate: fineQuote.dailyFine,
-      isDoubled: fineQuote.isDoubled ?? false,
+      isDoubled: false,
     };
   };
 
@@ -353,10 +383,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   return isPostpaidPayableFee(f, previousBillingMonth);
 }
 
-    // PREPAID pays current-month rent in advance; EB and fines from the
-    // previous month are collected in the current cycle.
+    // PREPAID pays current-month rent in advance; EB from previous/current
+    // month is collected now; any overdue pending fine remains payable.
+    if (isFine) return true;
     if (isRentLike) return feeMonth === currentBillingMonth;
-    if (isEb || isFine) return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
+    if (isEb) return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
     return feeMonth === previousBillingMonth || feeMonth === currentBillingMonth;
   };
   const filteredPayableItems = payableCurrentItems.filter(isPayableInCycle);
@@ -402,11 +433,20 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const isItemSelected = (f: any) => feeStates[f.id]?.selected !== false;
 
-  // Each typed fine belongs to its parent fee. A fine is only shown while its
-  // parent is selected, so unchecking Rent hides the Rent fine but keeps EB.
+  // Each typed fine belongs to its parent fee (matching billing month first).
   const linkedParentOfFine = (fine: any) => {
     const type = getFineParentType(fine);
     if (!type) return null;
+    const fineMonth = resolveFeeBillingMonth(fine);
+    if (fineMonth) {
+      const exactMatch = filteredPayableItems.find(
+        (f: any) =>
+          !isFineFee(f) &&
+          getFeeParentType(f) === type &&
+          resolveFeeBillingMonth(f) === fineMonth,
+      );
+      if (exactMatch) return exactMatch;
+    }
     return (
       filteredPayableItems.find(
         (f: any) => !isFineFee(f) && getFeeParentType(f) === type,
@@ -430,7 +470,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       const parentType = getFeeParentType(parent);
       if (!parentType) return;
       displayItems
-        .filter((f: any) => isFineFee(f) && getFineParentType(f) === parentType)
+        .filter(
+          (f: any) =>
+            isFineFee(f) &&
+            !placedFineIds.has(f.id) &&
+            linkedParentOfFine(f)?.id === parent.id,
+        )
         .forEach((fine: any) => {
           orderedDisplayItems.push(fine);
           placedFineIds.add(fine.id);
@@ -1171,59 +1216,85 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                       marginTop: allowPaymentDate ? '8px' : 0,
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      background: fineQuote.isDoubled ? '#fff7ed' : '#f8fafc',
-                      border: `1px solid ${fineQuote.isDoubled ? '#fed7aa' : '#e2e8f0'}`,
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '6px',
+                      gap: '8px',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                         <div style={{ fontSize: '13px', color: '#334155' }}>
-                          Late fine on {formatDateDMY(paymentDate)}:{' '}
-                          <strong style={{ color: fineQuote.isDoubled ? '#c2410c' : '#0f172a', fontSize: '14px' }}>
-                            ₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </strong>
+                          Overall Late Fine on {formatDateDMY(paymentDate)}:
                         </div>
-                        {fineQuote.isDoubled && (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            background: '#ffedd5',
-                            color: '#9a3412',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '9999px',
-                            letterSpacing: '0.3px',
-                            textTransform: 'uppercase',
-                          }}>
-                            ⚡ Doubled Fine Active (2× Rate)
-                          </span>
-                        )}
+                        <strong style={{ color: fineQuote.amount > 0 ? '#b45309' : '#0f172a', fontSize: '14.5px' }}>
+                          ₹{fineQuote.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </strong>
                       </div>
                       {fineQuote.fines.length > 0 ? (
-                        <div style={{ fontSize: '12px', color: '#64748b', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {fineQuote.fines.map((entry) => (
-                            <span key={entry.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(0,0,0,0.03)', padding: '2px 6px', borderRadius: '4px' }}>
-                              <strong>{entry.label}:</strong> ₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              <span style={{ color: entry.isDoubled ? '#b45309' : '#64748b', fontSize: '11px' }}>
-                                ({entry.daysOverdue}d @ ₹{entry.isDoubled ? entry.effectiveRate : entry.rate}/d
-                                {entry.isDoubled && (entry.doubledDays && entry.regularDays ? ` · 30d reg + ${entry.doubledDays}d 2×` : ' · 2×')}
-                                )
-                              </span>
-                            </span>
-                          ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {fineQuote.fines.flatMap((entry) => {
+                            if (entry.months && entry.months.length > 0) {
+                              return entry.months.map((m) => (
+                                <div
+                                  key={`${entry.key}-${m.billingMonth}`}
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: '6px',
+                                    fontSize: '12px',
+                                    color: '#475569',
+                                    background: '#ffffff',
+                                    border: '1px solid #e2e8f0',
+                                    padding: '5px 8px',
+                                    borderRadius: '6px',
+                                  }}
+                                >
+                                  <span>
+                                    <strong style={{ color: '#0f172a' }}>{m.monthLabel}</strong> · {entry.label}{' '}
+                                    <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                      (Due {formatDateDMY(m.dueDate)} · {m.daysOverdue}d @ ₹{m.rate}/d)
+                                    </span>
+                                  </span>
+                                  <strong style={{ color: '#0f172a' }}>
+                                    ₹{m.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </strong>
+                                </div>
+                              ));
+                            }
+                            return [
+                              <div
+                                key={entry.key}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: '6px',
+                                  fontSize: '12px',
+                                  color: '#475569',
+                                  background: '#ffffff',
+                                  border: '1px solid #e2e8f0',
+                                  padding: '5px 8px',
+                                  borderRadius: '6px',
+                                }}
+                              >
+                                <span>
+                                  <strong style={{ color: '#0f172a' }}>{entry.label}</strong>{' '}
+                                  <span style={{ color: '#64748b', fontSize: '11px' }}>
+                                    ({entry.daysOverdue}d @ ₹{entry.rate}/d)
+                                  </span>
+                                </span>
+                                <strong style={{ color: '#0f172a' }}>
+                                  ₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </strong>
+                              </div>,
+                            ];
+                          })}
                         </div>
                       ) : (
                         <div style={{ fontSize: '12px', color: '#64748b' }}>— no overdue fine</div>
-                      )}
-                      {fineQuote.isDoubled && (
-                        <div style={{ fontSize: '11.5px', color: '#b45309', lineHeight: 1.4, borderTop: '1px dashed #fed7aa', paddingTop: '4px' }}>
-                          ℹ️ {fineQuote.hasOlderUnpaidDue
-                            ? 'Doubled fine rate applied: Student has prior month dues or backlog unpaid.'
-                            : 'Doubled fine rate applied: Due remains unpaid past the first month (>30 days overdue into next month).'}
-                        </div>
                       )}
                     </div>
                   ) : null}
@@ -1276,18 +1347,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                                 {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
                                 {f.fineQuote && (
                                   <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
-                                    <span style={{ color: f.fineQuote.isDoubled ? '#c2410c' : '#b45309', fontWeight: 600, fontSize: '12.5px' }}>
+                                    <span style={{ color: '#b45309', fontWeight: 600, fontSize: '12.5px' }}>
                                       · As of {formatDateDMY(paymentDate)}:{' '}
-                                      {f.fineQuote.daysOverdue > 0 ? (
-                                        <>
-                                          {f.fineQuote.daysOverdue} overdue day{f.fineQuote.daysOverdue === 1 ? '' : 's'}
-                                          {f.fineQuote.isDoubled && (
-                                            <span style={{ marginLeft: '6px', background: '#ffedd5', color: '#9a3412', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
-                                              2× DOUBLED (₹{f.fineQuote.effectiveRate}/d)
-                                            </span>
-                                          )}
-                                        </>
-                                      ) : 'no fine'}
+                                      {f.fineQuote.daysOverdue > 0
+                                        ? `${f.fineQuote.daysOverdue} overdue day${f.fineQuote.daysOverdue === 1 ? '' : 's'} @ ₹${f.fineQuote.rate}/d`
+                                        : 'no fine'}
                                       {!f.fineMigrated && Number(f.originalAmount) !== Number(f.amount) && (
                                         <span style={{ color: '#64748b', fontWeight: 400 }}> (was ₹{Number(f.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })})</span>
                                       )}
