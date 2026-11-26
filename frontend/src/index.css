@@ -3417,6 +3417,11 @@ textarea.ui-form-control {
   min-width: 82px;
 }
 
+.fees-table .fees-col-advance-rent {
+  width: 74px;
+  min-width: 66px;
+}
+
 .fees-table .fees-col-total {
   width: 82px;
   min-width: 75px;
@@ -3534,7 +3539,8 @@ textarea.ui-form-control {
   line-height: 1.3;
 }
 
-.fees-table th.fees-th-outstanding {
+.fees-table th.fees-th-outstanding,
+.fees-table th.fees-th-advance-rent {
   white-space: normal !important;
   line-height: 1.25;
 }

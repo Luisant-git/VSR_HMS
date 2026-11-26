@@ -117,15 +117,49 @@ export class MonthlyFeeCronService {
         );
 
         if (!alreadyHasRentThisMonth && rentAmount > 0) {
-          transactionsToCreate.push({
-            studentId: student.id,
-            transactionType: 'RENT',
-            amount: rentAmount,
-            status: 'PENDING',
-            description: `Room Rent for ${descriptionMonthYear}`,
-            billingMonth,
-            dueDate,
-          });
+          const balRows = await this.prisma.$queryRaw<Array<{ advanceRentBalance: number }>>`
+            SELECT COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+            FROM "public"."Student"
+            WHERE "id" = ${student.id}
+          `.catch((): Array<{ advanceRentBalance: number }> => []);
+          const advanceCredit = Number(balRows[0]?.advanceRentBalance ?? (student as any).advanceRentBalance ?? 0);
+          if (advanceCredit > 0) {
+            const creditUsed = Math.min(advanceCredit, rentAmount);
+            const remainingRent = Math.max(0, Math.round((rentAmount - creditUsed) * 100) / 100);
+            const nextAdvanceBalance = Math.max(0, Math.round((advanceCredit - creditUsed) * 100) / 100);
+
+            await this.prisma.$executeRaw`
+              UPDATE "public"."Student"
+              SET "advanceRentBalance" = ${nextAdvanceBalance}
+              WHERE "id" = ${student.id}
+            `;
+
+            if (remainingRent > 0) {
+              transactionsToCreate.push({
+                studentId: student.id,
+                transactionType: 'RENT',
+                amount: remainingRent,
+                status: 'PENDING',
+                description: `Room Rent for ${descriptionMonthYear} (₹${creditUsed.toLocaleString('en-IN')} adjusted from Advance Rent)`,
+                billingMonth,
+                dueDate,
+              });
+            } else {
+              this.logger.log(
+                `Skipped pending rent for student ${student.regNo} (${billingMonth}): fully covered by Advance Rent Credit (₹${creditUsed}, remaining ₹${nextAdvanceBalance}).`,
+              );
+            }
+          } else {
+            transactionsToCreate.push({
+              studentId: student.id,
+              transactionType: 'RENT',
+              amount: rentAmount,
+              status: 'PENDING',
+              description: `Room Rent for ${descriptionMonthYear}`,
+              billingMonth,
+              dueDate,
+            });
+          }
         }
 
         if (!alreadyHasMessThisMonth && messAmount > 0) {

@@ -7,6 +7,7 @@ export interface FeeImportRow {
   fine?: number;
   advance?: number;
   outstanding?: number;
+  advanceRent?: number;
 }
 
 export interface FeeImportParseResult {
@@ -17,7 +18,7 @@ export interface FeeImportParseResult {
   errors: string[];
 }
 
-type FeeCategory = 'rent' | 'eb' | 'fine' | 'advance' | 'outstanding';
+type FeeCategory = 'rent' | 'eb' | 'fine' | 'advance' | 'outstanding' | 'advanceRent';
 
 const CATEGORY_LABELS: Record<FeeCategory, string> = {
   rent: 'Rent',
@@ -25,6 +26,7 @@ const CATEGORY_LABELS: Record<FeeCategory, string> = {
   fine: 'Fine',
   advance: 'Advance',
   outstanding: 'Outstanding Balance',
+  advanceRent: 'Advance Rent Amount',
 };
 
 const STUDENT_HEADERS = [
@@ -91,6 +93,15 @@ const AMOUNT_HEADERS: Record<FeeCategory, string[]> = {
   fine: ['FINE', 'FINEAMOUNT', 'LATEFINE', 'PENALTY'],
   advance: ['ADVANCE', 'ADVANCEAMOUNT', 'DEPOSIT', 'CAUTIONDEPOSIT', 'SECURITYDEPOSIT'],
   outstanding: OUTSTANDING_HEADERS,
+  advanceRent: [
+    'ADVANCERENTAMOUNT',
+    'ADVANCERENT',
+    'ADVANCERENTCREDIT',
+    'ADVANCERENTBALANCE',
+    'PREPAIDRENT',
+    'RENTADVANCE',
+    'ADVANCEMONTHLYRENT',
+  ],
 };
 
 const normalizeHeader = (value: string) =>
@@ -253,7 +264,13 @@ export const parseFeeImportWorkbook = (
     // Older exported files have no "Fee Type" column. Their outstanding row
     // shows a balance with all editable category columns at zero.
     if (!feeType && hasOutstandingValue && nonOutstandingTotal === 0) {
-      parsedRows.push({ studentKey, values: { outstanding: values.outstanding } });
+      parsedRows.push({
+        studentKey,
+        values: {
+          outstanding: values.outstanding,
+          ...(values.advanceRent !== undefined ? { advanceRent: values.advanceRent } : {}),
+        },
+      });
       return;
     }
 

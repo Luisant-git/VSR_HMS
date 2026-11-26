@@ -95,9 +95,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const discountAmount = Math.round(
     visibleFeesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Discount')), 0) * 100,
   ) / 100;
+  const advanceRentAppliedAmount = Math.round(
+    visibleFeesList.reduce((sum: number, item: any) => sum + parseMoney(parseDescriptionValue(item, 'Advance Rent Applied')), 0) * 100,
+  ) / 100;
+  const displayPaidAmount =
+    advanceRentAppliedAmount > 0
+      ? Math.max(0, Math.round((grossTotalAmount - discountAmount - advanceRentAppliedAmount) * 100) / 100)
+      : totalAmount;
   // Strip the hidden payment-group token before showing the operator's remarks.
   const rawReceiptRemarks = descriptionValue('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
-  const receiptRemarks = /^(Original Amount|Discount|Pending Balance)\s*:/i.test(rawReceiptRemarks)
+  const receiptRemarks = /^(Original Amount|Discount|Advance Rent Applied|Pending Balance)\s*:/i.test(rawReceiptRemarks)
     ? ''
     : rawReceiptRemarks;
   const billingMonthValue = resolveFeeBillingMonth(detailFee) || '-';
@@ -113,7 +120,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
   const invoiceSource = firstFee || fee;
   const invoiceNo = fee?.invoiceNumber || formatInvoiceNumber(invoiceSource);
-  
+
   // Supports both the new INV-YYYY-0000000001 format and the legacy
   // INV-YYYY-MM-NNN format. The sequence is the receipt number.
   const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
@@ -261,7 +268,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         pendingBalance: displayPendingBalance,
         grossAmount: grossTotalAmount,
         discountAmount: discountAmount,
-        amount: totalAmount,
+        amount: displayPaidAmount,
         notes: receiptRemarks || undefined,
         items: visibleFeesList.map((item: any) => ({
           description: item.type ? item.type.replace(/_/g, ' ') : 'Fee',
@@ -370,6 +377,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
   const formatPaymentMode = (mode: string) => {
     const upper = mode.toUpperCase();
     if (upper === 'UPI') return 'UPI';
+    if (upper === 'ADVANCE_RENT') return 'Advance Rent Credit';
     return mode
       .replace(/_/g, ' ')
       .toLowerCase()
@@ -751,20 +759,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
         `}
       </style>
       <div id="receipt-printable-area" className="receipt-modal" role="dialog" aria-modal="true" aria-label="Fee receipt">
-        
+
         <div ref={receiptCaptureRef} className="receipt-pad">
-          
+
           {/* PAID Watermark */}
           <div className="watermark print-exact" style={{ position: 'absolute', top: '88%', left: '50%', transform: 'translate(-50%, -50%) rotate(-30deg)', fontSize: 'clamp(52px, 14vw, 110px)', fontWeight: 900, color: 'rgba(0, 0, 0, 0.04)', zIndex: 0, pointerEvents: 'none', letterSpacing: '10px' }}>
             PAID
           </div>
 
           <div className="receipt-content">
-            
+
             {/* Vintage Header Section */}
             <div className="vintage-header">
               <div className="top-text">Mayanur Sri Sellandiamman Thunai</div>
-              
+
               <svg className="temple-icon" viewBox="0 0 100 60" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L55 15 L60 15 L60 20 L65 25 L65 30 L70 35 L70 40 L75 45 L75 50 L80 55 L20 55 L25 50 L25 45 L30 40 L30 35 L35 30 L35 25 L40 20 L40 15 L45 15 Z" fill="#222" />
                 <rect x="45" y="25" width="10" height="30" fill="#fff" />
@@ -806,7 +814,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
                   <span className="value value--regular">{invoiceNo}</span>
                 </div>
               </div>
-              
+
               <div className="receipt-meta-col">
                 <div className="receipt-meta-line">
                   <span className="label">Date :</span>
@@ -821,7 +829,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
 
             {/* NEW: Side-by-Side Layout (Student Left, Payment Right) */}
             <div className="receipt-side-by-side">
-              
+
               {/* Left Column: Student Details */}
               <div className="receipt-col-half">
                 <h3 style={{ fontSize: '12px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', margin: 0 }}>Received From</h3>
@@ -878,88 +886,102 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             {/* Fee Breakup Table */}
             <div className="receipt-fee-block" style={{ marginBottom: '20px' }}>
               <div className="receipt-fee-scroll" role="region" aria-label="Fee breakup table, scroll horizontally to see all columns" tabIndex={0}>
-              <table className="receipt-fee-table" aria-label="Fee breakup" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
-                <thead>
-                  <tr className="print-exact" style={{ background: '#f5f5f5' }}>
-                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Description</th>
-                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Category</th>
-                    <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleFeesList.map((f: any) => (
-                    <tr key={f.id}>
-                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
-                        <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
-                          {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
-                        </div>
-                        {f.description?.includes('|') && f.description.split('|').slice(1)
-                          .filter((part: string) => {
-                            const text = part.trim();
-                            return !text.startsWith('Ref:') &&
-                              !text.startsWith('Notes:') &&
-                              !text.startsWith('Original Amount:') &&
-                              !text.startsWith('Discount:') &&
-                              !text.startsWith('Pending Balance:') &&
-                              !text.startsWith('[PAY:');
-                          })
-                          .map((descPart: string, idx: number) => {
-                            const trimmed = descPart.trim();
-                            const match = trimmed.match(/Paid for (\d+) Months/);
-                            let extraText = '';
-                            if (match && f.amount) {
-                              const months = parseInt(match[1], 10);
-                              if (months > 0) {
-                                const originalAmount = f.amount / months;
-                                extraText = ` (@ ₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)`;
-                              }
-                            }
-                            return (
-                              <div key={idx} style={{ fontSize: '12px', color: '#555', fontWeight: 400, marginTop: idx > 0 ? '2px' : '0' }}>
-                                {trimmed}{extraText}
-                              </div>
-                            );
-                          })}
-                      </td>
-                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
-                        {formatReceiptCategory(f.transactionType || f.type)}
-                      </td>
-                      <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
-                        ₹{displayAmountFor(f).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
+                <table className="receipt-fee-table" aria-label="Fee breakup" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000' }}>
+                  <thead>
+                    <tr className="print-exact" style={{ background: '#f5f5f5' }}>
+                      <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'left', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Description</th>
+                      <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Category</th>
+                      <th style={{ border: '1px solid #000', padding: '8px 10px', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#000', textTransform: 'uppercase' }}>Amount</th>
                     </tr>
-                  ))}
-                  {discountAmount > 0 && (
-                    <>
-                      <tr className="print-exact">
-                        <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
-                          Total Before Discount
+                  </thead>
+                  <tbody>
+                    {visibleFeesList.map((f: any) => (
+                      <tr key={f.id}>
+                        <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 500 }}>
+                          <div style={{ marginBottom: f.description?.includes('|') ? '4px' : '0' }}>
+                            {f.description?.split('|')[0]?.trim() || 'Hostel Fee'}
+                          </div>
+                          {f.description?.includes('|') && f.description.split('|').slice(1)
+                            .filter((part: string) => {
+                              const text = part.trim();
+                              return !text.startsWith('Ref:') &&
+                                !text.startsWith('Notes:') &&
+                                !text.startsWith('Original Amount:') &&
+                                !text.startsWith('Discount:') &&
+                                !text.startsWith('Advance Rent Applied:') &&
+                                !text.startsWith('Pending Balance:') &&
+                                !text.startsWith('[PAY:') &&
+                                !text.startsWith('[REQ:');
+                            })
+                            .map((descPart: string, idx: number) => {
+                              const trimmed = descPart.trim();
+                              const match = trimmed.match(/Paid for (\d+) Months/);
+                              let extraText = '';
+                              if (match && f.amount) {
+                                const months = parseInt(match[1], 10);
+                                if (months > 0) {
+                                  const originalAmount = f.amount / months;
+                                  extraText = ` (@ ₹${originalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)`;
+                                }
+                              }
+                              return (
+                                <div key={idx} style={{ fontSize: '12px', color: '#555', fontWeight: 400, marginTop: idx > 0 ? '2px' : '0' }}>
+                                  {trimmed}{extraText}
+                                </div>
+                              );
+                            })}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#555', textAlign: 'center' }}>
+                          {formatReceiptCategory(f.transactionType || f.type)}
                         </td>
                         <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
-                          ₹{grossTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          ₹{displayAmountFor(f).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
-                      <tr className="print-exact">
-                        <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
-                          Discount
-                        </td>
-                        <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#b91c1c', fontWeight: 600, textAlign: 'right' }}>
-                          −₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </td>
-                      </tr>
-                    </>
-                  )}
-                  {/* Total Row */}
-                  <tr className="print-exact" style={{ background: '#f5f5f5' }}>
-                    <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                      Total Amount Paid
-                    </td>
-                    <td className="receipt-total-amount" style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '18px', color: '#000', fontWeight: 800, textAlign: 'right' }}>
-                      ₹{totalAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    ))}
+                    {(discountAmount > 0 || advanceRentAppliedAmount > 0) && (
+                      <>
+                        <tr className="print-exact">
+                          <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                            {discountAmount > 0 && advanceRentAppliedAmount === 0 ? 'Total Before Discount' : 'Total Fees'}
+                          </td>
+                          <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                            ₹{grossTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                        {discountAmount > 0 && (
+                          <tr className="print-exact">
+                            <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                              Discount
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#b91c1c', fontWeight: 600, textAlign: 'right' }}>
+                              −₹{discountAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )}
+                        {advanceRentAppliedAmount > 0 && (
+                          <tr className="print-exact">
+                            <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '13px', color: '#000', fontWeight: 600, textAlign: 'right' }}>
+                              Advance Rent Applied
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#0369a1', fontWeight: 600, textAlign: 'right' }}>
+                              −₹{advanceRentAppliedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )}
+                    {/* Total Row */}
+                    <tr className="print-exact" style={{ background: '#f5f5f5' }}>
+                      <td className="receipt-total-label" colSpan={2} style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '14px', color: '#000', fontWeight: 700, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Total Amount Paid
+                      </td>
+                      <td className="receipt-total-amount" style={{ border: '1px solid #000', padding: '8px 10px', fontSize: '18px', color: '#000', fontWeight: 800, textAlign: 'right' }}>
+                        ₹{displayPaidAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
@@ -997,7 +1019,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ fee, onClose }) => {
             }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
             </svg>
             {sendingWhatsApp ? 'Sending PDF...' : 'Send PDF via WhatsApp'}
           </button>

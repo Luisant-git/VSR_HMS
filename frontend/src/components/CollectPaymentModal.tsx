@@ -213,6 +213,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   // Admin-only concession on the selected fees. The net amount is what the
   // student actually pays and what gets stored on the completed fee rows.
   const [discountInput, setDiscountInput] = useState('');
+  const [advanceRentInput, setAdvanceRentInput] = useState('');
+  const [applyAdvanceCredit, setApplyAdvanceCredit] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ updatedItems: any[], paymentMode: string } | null>(null);
   const onlineRequestId = useRef<string | null>(null);
@@ -273,20 +275,20 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const displayCurrentItems = shouldUseSplitFineRows
     ? [
-        ...selectableCurrentItems.filter(
-          (fee: any) => !legacyLateFineIds.has(fee.id),
-        ),
-        ...fineQuote.pendingFines.map((row) => ({
-          ...legacyLateFineItems[0],
-          id: row.id,
-          amount: Number(row.amount) || 0,
-          description: row.description,
-          status: 'PENDING',
-          billingMonth: row.billingMonth ?? legacyLateFineItems[0].billingMonth,
-          dueDate: row.dueDate ?? legacyLateFineItems[0].dueDate,
-          fineMigrated: true,
-        })),
-      ]
+      ...selectableCurrentItems.filter(
+        (fee: any) => !legacyLateFineIds.has(fee.id),
+      ),
+      ...fineQuote.pendingFines.map((row) => ({
+        ...legacyLateFineItems[0],
+        id: row.id,
+        amount: Number(row.amount) || 0,
+        description: row.description,
+        status: 'PENDING',
+        billingMonth: row.billingMonth ?? legacyLateFineItems[0].billingMonth,
+        dueDate: row.dueDate ?? legacyLateFineItems[0].dueDate,
+        fineMigrated: true,
+      })),
+    ]
     : selectableCurrentItems;
 
   /**
@@ -380,8 +382,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     const isFine = type.includes('FINE');
 
     if (collegeCycle === 'POSTPAID') {
-  return isPostpaidPayableFee(f, previousBillingMonth);
-}
+      return isPostpaidPayableFee(f, previousBillingMonth);
+    }
 
     // PREPAID pays current-month rent in advance; EB from previous/current
     // month is collected now; any overdue pending fine remains payable.
@@ -556,7 +558,22 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       : 0;
 
   const hasOutstandingPayment = outstandingAmount > 0;
-  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount);
+
+  const advanceRentTrimmed = advanceRentInput.trim();
+  let advanceRentError: string | null = null;
+  if (!isStudentMode && advanceRentTrimmed !== '') {
+    const parsed = Number(advanceRentTrimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      advanceRentError = 'Enter a valid advance rent amount (0 or more).';
+    }
+  }
+  const advanceRentAmount =
+    !isStudentMode && !advanceRentError && advanceRentTrimmed !== ''
+      ? roundMoney(Number(advanceRentTrimmed))
+      : 0;
+  const hasAdvanceRentPayment = advanceRentAmount > 0;
+
+  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount + advanceRentAmount);
 
   // Discount is only offered by the admin (offline collection). It reduces the
   // amount actually collected; the original amount is kept in the fee
@@ -575,7 +592,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     !isStudentMode && !discountError && discountInputTrimmed !== ''
       ? roundMoney(Number(discountInputTrimmed))
       : 0;
-  const totalAmount = roundMoney(subTotalAmount - discountAmount);
+  const availableAdvanceCredit = roundMoney(Number(primaryStudent?.advanceRentBalance || 0));
+  const appliedAdvanceCredit =
+    !isStudentMode && applyAdvanceCredit && availableAdvanceCredit > 0 && !hasAdvanceRentPayment
+      ? roundMoney(Math.min(availableAdvanceCredit, Math.max(0, subTotalAmount - discountAmount)))
+      : 0;
+  const totalAmount = roundMoney(Math.max(0, subTotalAmount - discountAmount - appliedAdvanceCredit));
+  const remainingAdvanceCredit = roundMoney(Math.max(0, availableAdvanceCredit - appliedAdvanceCredit));
   const remainingOutstanding = roundMoney(Math.max(0, outstandingBalance - outstandingAmount));
 
   // Dues still left after this payment: unchecked current fees plus whatever
@@ -584,7 +607,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     displayItems
       .filter((f: any) => !isItemSelected(f))
       .reduce((sum: number, f: any) => sum + f.amount * getMultiplier(f.transactionType), 0) +
-      remainingOutstanding,
+    remainingOutstanding,
   );
 
   const getMonthNames = (count: number, startDesc: string) => {
@@ -644,8 +667,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       toast.error(discountError);
       return;
     }
-    if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
-      toast.error('Please select at least one fee or enter an outstanding amount.');
+    if (advanceRentError) {
+      toast.error(advanceRentError);
+      return;
+    }
+    if (activeItemsToPay.length === 0 && !hasOutstandingPayment && !hasAdvanceRentPayment) {
+      toast.error('Please select at least one fee or enter an outstanding / advance rent amount.');
       return;
     }
 
@@ -669,6 +696,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       let studentUpdates: any = {};
       const selectedPaidDate = new Date(`${paymentDate}T12:00:00`).toISOString();
 
+      const effectivePaymentMode =
+        !isStudentMode && totalAmount === 0 && appliedAdvanceCredit > 0
+          ? 'ADVANCE_RENT'
+          : paymentMode;
+
       const effectiveRef = isStudentMode && !referenceNumber
         ? 'TXN' + Math.floor(Math.random() * 10000000000).toString()
         : referenceNumber;
@@ -679,22 +711,36 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       const grossParts = [
         ...activeItemsToPay.map((f: any) => f.amount * getMultiplier(f.transactionType)),
         ...(hasOutstandingPayment ? [outstandingAmount] : []),
+        ...(hasAdvanceRentPayment ? [advanceRentAmount] : []),
       ];
       const grossTotal = roundMoney(grossParts.reduce((sum, value) => sum + value, 0));
-      let allocatedNet = 0;
-      const netParts = grossParts.map((part, index) => {
-        if (index === grossParts.length - 1) {
-          return Math.max(0, roundMoney(totalAmount - allocatedNet));
-        }
-        const net = grossTotal > 0 ? roundMoney((part / grossTotal) * totalAmount) : 0;
-        allocatedNet = roundMoney(allocatedNet + net);
-        return net;
-      });
-      const receiptMeta = (gross: number, net: number) => {
-        const lineDiscount = roundMoney(Math.max(0, gross - net));
+      const allocateAcrossGross = (pool: number) => {
+        if (pool <= 0 || grossTotal <= 0) return grossParts.map(() => 0);
+        let allocated = 0;
+        return grossParts.map((part, index) => {
+          if (index === grossParts.length - 1) {
+            return Math.max(0, roundMoney(pool - allocated));
+          }
+          const share = roundMoney((part / grossTotal) * pool);
+          allocated = roundMoney(allocated + share);
+          return share;
+        });
+      };
+      const discountParts = allocateAcrossGross(discountAmount);
+      const advanceCreditParts = allocateAcrossGross(appliedAdvanceCredit);
+      const netParts = grossParts.map((part, index) =>
+        Math.max(0, roundMoney(part - discountParts[index] - advanceCreditParts[index])),
+      );
+      const receiptMeta = (gross: number, lineDiscount: number, lineAdvanceCredit: number) => {
         // [PAY:...] ties every row of one submission together so separate
         // payments made within the same minute never merge into one receipt.
-        return ` | Original Amount: ${gross} | Discount: ${lineDiscount} | Pending Balance: ${pendingBalance} | [PAY:${requestId}]`;
+        return [
+          `Original Amount: ${gross}`,
+          `Discount: ${lineDiscount}`,
+          ...(lineAdvanceCredit > 0 ? [`Advance Rent Applied: ${lineAdvanceCredit}`] : []),
+          `Pending Balance: ${pendingBalance}`,
+          `[PAY:${requestId}]`,
+        ].join(' | ');
       };
 
       const currentUpdatedItems = await Promise.all(activeItemsToPay.map(async (f: any, index: number) => {
@@ -707,7 +753,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           const coveredMonths = getMonthNames(currentMultiplier, f.description || '');
           finalDesc += ` | Paid for ${currentMultiplier} Months (${coveredMonths})`;
         }
-        finalDesc += receiptMeta(grossParts[index], netParts[index]);
+        finalDesc += ` | ${receiptMeta(grossParts[index], discountParts[index], advanceCreditParts[index])}`;
 
         const tType = (f.transactionType || '').toUpperCase();
         if (tType.includes('RENT') || tType.includes('MESS')) {
@@ -731,16 +777,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           const paidUntil = new Date(endYear, finalEndMonth + 1, 0, 12, 0, 0);
 
           if (tType.includes('RENT')) {
-             studentUpdates.rentPaidUntil = paidUntil;
+            studentUpdates.rentPaidUntil = paidUntil;
           }
           if (tType.includes('MESS')) {
-             studentUpdates.messPaidUntil = paidUntil;
+            studentUpdates.messPaidUntil = paidUntil;
           }
         }
 
         const updated = await FeesAPI.update(f.id, {
           status: 'COMPLETED',
-          paymentMode,
+          paymentMode: effectivePaymentMode,
           paidDate: selectedPaidDate,
           amount: netParts[index],
           description: finalDesc,
@@ -752,22 +798,27 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       // The backend re-validates the amount against the live balance inside a
       // serializable transaction before anything is changed.
       let outstandingRecords: any[] = [];
-      if (hasOutstandingPayment) {
-        const netOutstanding = netParts[netParts.length - 1];
-        const outstandingDiscount = roundMoney(Math.max(0, outstandingAmount - netOutstanding));
+      const settledOutstandingAmount = roundMoney(
+        (netParts[activeItemsToPay.length] || 0) + (advanceCreditParts[activeItemsToPay.length] || 0),
+      );
+      if (hasOutstandingPayment && settledOutstandingAmount > 0) {
+        const outIdx = activeItemsToPay.length;
+        const outstandingDiscount = discountParts[outIdx] || 0;
+        const outstandingAdvanceCredit = advanceCreditParts[outIdx] || 0;
         // The backend appends these as its own "| Notes: ..." segment, so the
         // receipt parser can read them exactly like the current fee rows.
         const outstandingNotes = [
           notes,
           `Original Amount: ${outstandingAmount}`,
           `Discount: ${outstandingDiscount}`,
+          ...(outstandingAdvanceCredit > 0 ? [`Advance Rent Applied: ${outstandingAdvanceCredit}`] : []),
           `Pending Balance: ${pendingBalance}`,
           `[PAY:${requestId}]`,
         ].filter(Boolean).join(' | ');
         const response = await FeesAPI.payOutstanding({
           studentId,
-          amount: netOutstanding,
-          paymentMode,
+          amount: settledOutstandingAmount,
+          paymentMode: effectivePaymentMode,
           referenceNumber: effectiveRef || undefined,
           notes: outstandingNotes,
           requestId,
@@ -792,11 +843,42 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         await StudentAPI.update(targetStudentId, studentUpdates);
       }
 
-      const paidCount = activeItemsToPay.length + (hasOutstandingPayment ? 1 : 0);
+      if (appliedAdvanceCredit > 0 && studentId) {
+        await FeesAPI.consumeAdvanceRent({
+          studentId,
+          amount: appliedAdvanceCredit,
+        });
+      }
+
+      let advanceRentRecords: any[] = [];
+      if (hasAdvanceRentPayment && studentId) {
+        const netAdvanceRent = netParts[netParts.length - 1];
+        const createdAdvanceRent = await FeesAPI.addAdvanceRent({
+          studentId,
+          amount: netAdvanceRent,
+          paymentMode,
+          referenceNumber: effectiveRef || undefined,
+          notes: [notes, `[PAY:${requestId}]`].filter(Boolean).join(' | '),
+          paidDate: selectedPaidDate,
+          invoiceNumber: currentUpdatedItems[0]?.invoiceNumber || outstandingRecords[0]?.invoiceNumber || undefined,
+        });
+        if (createdAdvanceRent) {
+          const studentForReceipt = primaryStudent || itemsToPay[0]?.student;
+          advanceRentRecords = [{ ...createdAdvanceRent, student: createdAdvanceRent.student || studentForReceipt }];
+        }
+      }
+
+      const paidCount =
+        activeItemsToPay.length +
+        (hasOutstandingPayment ? 1 : 0) +
+        (hasAdvanceRentPayment ? 1 : 0);
       toast.success(`Payment collected successfully for ${paidCount} item(s)!`);
 
       // Instead of calling onSuccess immediately, we show the success confirmation state
-      setPaymentSuccessData({ updatedItems: [...currentUpdatedItems, ...outstandingRecords], paymentMode });
+      setPaymentSuccessData({
+        updatedItems: [...currentUpdatedItems, ...outstandingRecords, ...advanceRentRecords],
+        paymentMode: effectivePaymentMode,
+      });
     } catch (e: any) {
       toast.error('Failed to collect payment: ' + e.message);
     }
@@ -1131,7 +1213,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                 title="Send receipt to student or parent on WhatsApp"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
                 </svg>
                 Send via WhatsApp
               </button>
@@ -1423,7 +1505,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                             <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                               Enter any amount up to ₹{outstandingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </span>
-                            
+
                           </div>
 
                           {outstandingError ? (
@@ -1440,6 +1522,84 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Apply Existing Advance Rent Credit */}
+                {!isStudentMode && availableAdvanceCredit > 0 && !hasAdvanceRentPayment && (
+                  <div
+                    onClick={() => setApplyAdvanceCredit((prev) => !prev)}
+                    style={{
+                      marginTop: '12px',
+                      border: '1px solid #86efac',
+                      borderRadius: '8px',
+                      background: applyAdvanceCredit ? '#f0fdf4' : '#f8fafc',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13.5px', color: '#166534', margin: 0 }}>
+                        <input
+                          type="checkbox"
+                          checked={applyAdvanceCredit}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setApplyAdvanceCredit(e.target.checked);
+                          }}
+                          style={{ width: '17px', height: '17px', accentColor: '#16a34a', cursor: 'pointer' }}
+                        />
+                        <span>Apply Advance Rent Credit (Available: ₹{availableAdvanceCredit.toLocaleString('en-IN')})</span>
+                      </label>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: applyAdvanceCredit ? '#15803d' : '#64748b' }}>
+                        {applyAdvanceCredit ? `-₹${appliedAdvanceCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00'}
+                      </span>
+                    </div>
+                    <div style={{ marginTop: '4px', marginLeft: '27px', fontSize: '12px', color: '#475569' }}>
+                      {applyAdvanceCredit
+                        ? `Credit remaining after this payment: ₹${remainingAdvanceCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                        : 'Check to deduct your available advance rent credit from this payment.'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Advance Rent Credit (Optional extra amount for upcoming months) */}
+                {!isStudentMode && (
+                  <div style={{ marginTop: '12px', border: '1px solid #bae6fd', borderRadius: '8px', background: '#f0f9ff', padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
+                        Extra Advance Rent (Upcoming Months)
+                      </label>
+                      {Number(primaryStudent?.advanceRentBalance || 0) > 0 && (
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '10px' }}>
+                          Existing Credit: ₹{Number(primaryStudent.advanceRentBalance).toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: '15px' }}>₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={advanceRentInput}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setAdvanceRentInput(v);
+                        }}
+                        placeholder="0.00 (Optional e.g. 7000)"
+                        style={{ width: '100%', padding: '10px 12px 10px 28px', border: `1px solid ${advanceRentError ? '#f87171' : '#bae6fd'}`, borderRadius: '8px', outline: 'none', fontSize: '14px', fontWeight: 600, color: '#0f172a', background: '#ffffff', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
+                      Any extra amount paid here is saved as Advance Rent Credit and automatically deducted from upcoming monthly rent.
+                    </div>
+                    {advanceRentError && (
+                      <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#dc2626', fontWeight: 600 }}>
+                        {advanceRentError}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Payment Details */}
@@ -1447,7 +1607,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                 {!isStudentMode && (
                   <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Mode <span style={{color: '#ef4444'}}>*</span></label>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Payment Mode <span style={{ color: '#ef4444' }}>*</span></label>
                       <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', outline: 'none', fontSize: '14px', color: '#1e293b' }}>
                         <option value="UPI">UPI / QR (GPay / PhonePe / Paytm)</option>
                         <option value="CASH">Cash</option>
@@ -1456,12 +1616,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         <option value="BANK_TRANSFER">Bank Transfer</option>
                       </select>
                     </div>
-                  {!isStudentMode && (
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
-                      <input type="text" placeholder="UPI Ref ID or Cheque #" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px' }} />
-                    </div>
-                  )}
+                    {!isStudentMode && (
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Reference #</label>
+                        <input type="text" placeholder="UPI Ref ID or Cheque #" value={referenceNumber} onChange={e => setReferenceNumber(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', outline: 'none', fontSize: '14px' }} />
+                      </div>
+                    )}
                   </div>
                 )}
 

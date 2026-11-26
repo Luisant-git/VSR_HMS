@@ -646,6 +646,16 @@ export class StudentsService {
       this.prisma.student.count({ where })
     ]);
 
+    const advanceRows = await this.prisma.$queryRaw<Array<{ id: string; advanceRentBalance: number }>>`
+      SELECT "id", COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+      FROM "public"."Student"
+      WHERE COALESCE("advanceRentBalance", 0) > 0
+    `.catch((): Array<{ id: string; advanceRentBalance: number }> => []);
+    const advanceMap = new Map(advanceRows.map((r) => [r.id, Number(r.advanceRentBalance || 0)]));
+    for (const student of data as any[]) {
+      student.advanceRentBalance = advanceMap.get(student.id) || 0;
+    }
+
     return {
       data,
       total,

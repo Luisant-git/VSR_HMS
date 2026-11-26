@@ -148,6 +148,40 @@ export const FeesAPI = {
     return res.json();
   },
 
+  async addAdvanceRent(data: {
+    studentId: string;
+    amount: number;
+    paymentMode?: string;
+    referenceNumber?: string;
+    notes?: string;
+    paidDate?: string;
+    invoiceNumber?: string;
+  }) {
+    const res = await fetch(`${API_URL}/fees/advance-rent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to process advance rent payment');
+    }
+    return res.json();
+  },
+
+  async consumeAdvanceRent(data: { studentId: string; amount: number }) {
+    const res = await fetch(`${API_URL}/fees/consume-advance-rent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to apply advance rent credit');
+    }
+    return res.json();
+  },
+
   async createRazorpayOrder(data: {
     studentId: string;
     feeItems: Array<{ feeId: string; months: number }>;

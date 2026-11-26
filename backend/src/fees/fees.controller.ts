@@ -33,6 +33,27 @@ export class FeesController {
     return this.feesService.payOutstanding(payOutstandingDto);
   }
 
+  @Post('advance-rent')
+  addAdvanceRent(
+    @Body()
+    body: {
+      studentId: string;
+      amount: number;
+      paymentMode?: string;
+      referenceNumber?: string;
+      notes?: string;
+      paidDate?: string;
+      invoiceNumber?: string;
+    },
+  ) {
+    return this.feesService.addAdvanceRent(body);
+  }
+
+  @Post('consume-advance-rent')
+  consumeAdvanceRent(@Body() body: { studentId: string; amount: number }) {
+    return this.feesService.consumeAdvanceRent(body);
+  }
+
   @Post('razorpay/order')
   createRazorpayOrder(@Body() dto: CreateRazorpayOrderDto) {
     return this.razorpayPaymentService.createOrder(dto);

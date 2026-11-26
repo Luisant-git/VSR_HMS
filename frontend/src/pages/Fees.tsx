@@ -36,7 +36,10 @@ import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
 
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
-const formatPaymentMode = (mode?: string) => (mode || '').split(/[/(]/)[0].trim();
+const formatPaymentMode = (mode?: string) => {
+  const clean = (mode || '').split(/[/(]/)[0].trim();
+  return clean === 'ADVANCE_RENT' ? 'Advance Rent' : clean;
+};
 
 const getSimpleFeeName = (fee: any): string => {
   const type = String(fee?.transactionType || '').toUpperCase();
@@ -360,13 +363,13 @@ const Fees = () => {
           !feeMonth ||
           (collegeCycle === 'POSTPAID'
             ? (feeType.includes('FINE')
-                ? isPostpaidPayableFee(fee, previousMonthStr)
-                : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
+              ? isPostpaidPayableFee(fee, previousMonthStr)
+              : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
             : (feeType.includes('RENT') || feeType.includes('ADVANCE')
-                ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
-                : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
-                  ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
-                  : feeMonth === currentMonthStr || feeMonth === previousMonthStr));
+              ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
+              : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
+                ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
+                : feeMonth === currentMonthStr || feeMonth === previousMonthStr));
 
         if (!isCycleRelevantPending) {
           toast.error('This fee is not part of the current payable billing cycle.');
@@ -433,13 +436,13 @@ const Fees = () => {
       (!feeMonth ||
         (collegeCycleForFilter === 'POSTPAID'
           ? (feeType.includes('FINE')
-              ? isPostpaidPayableFee(fee, previousMonthStr)
-              : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
+            ? isPostpaidPayableFee(fee, previousMonthStr)
+            : feeMonth === previousMonthStr || feeMonth === currentMonthStr)
           : (feeType.includes('RENT') || feeType.includes('ADVANCE')
-              ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
-              : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
-                ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
-                : feeMonth === currentMonthStr || feeMonth === previousMonthStr)));
+            ? feeMonth === currentMonthStr || feeMonth === previousMonthStr
+            : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
+              ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
+              : feeMonth === currentMonthStr || feeMonth === previousMonthStr)));
     if (isPreviousSettledFee(fee) && !isPostpaidPayableNow) return false;
 
     let match = true;
@@ -547,6 +550,7 @@ const Fees = () => {
       // either.
       let category = 'other';
       if (isOutstandingDescription(f) || isOutstandingPayment(f)) category = 'other';
+      else if (type === 'ADVANCE_RENT') category = 'advanceRent';
       else if (type.includes('RENT')) category = 'rent';
       else if (type.includes('EB') || type.includes('ELECTRIC')) category = 'eb';
       else if (type.includes('MESS')) category = 'mess';
@@ -598,7 +602,7 @@ const Fees = () => {
               displayBalance: 0,
               displayStatus: 'Not Due',
               invoiceFee: null,
-              rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+              rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, advanceRent: 0, other: 0,
               feesList: []
             });
           }
@@ -626,7 +630,7 @@ const Fees = () => {
             displayBalance: 0,
             displayStatus: 'Unpaid',
             invoiceFee: null,
-            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, advanceRent: 0, other: 0,
             feesList: []
           });
         }
@@ -674,7 +678,7 @@ const Fees = () => {
             displayBalance: 0,
             displayStatus: 'Paid',
             invoiceFee: null,
-            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, other: 0,
+            rent: 0, eb: 0, mess: 0, fine: 0, advance: 0, advanceRent: 0, other: 0,
             feesList: []
           });
         }
@@ -820,7 +824,14 @@ const Fees = () => {
 
         // One receipt: show the whole amount paid in this submission, not just
         // the outstanding-payment row.
-        group.displayPaid = roundMoney(group.totalAmount);
+        const usedOutstandingCredit = roundMoney(
+          group.feesList.reduce((sum: number, item: any) => {
+            if (!isOutstandingPayment(item)) return sum;
+            const m = String(item?.description || '').match(/Advance Rent Applied:\s*([0-9.,]+)/i);
+            return sum + (m ? Number(m[1].replace(/,/g, '')) || 0 : 0);
+          }, 0),
+        );
+        group.displayPaid = roundMoney(Math.max(0, group.totalAmount - usedOutstandingCredit));
         group.displayBalance = remaining;
         // A combined current + outstanding payment is a completed receipt.
         // Only standalone outstanding payments can be Partial.
@@ -1030,6 +1041,34 @@ const Fees = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Outstanding_Template");
     XLSX.writeFile(workbook, "Student_Outstanding_Import_Template.xlsx");
     toast.success("Downloaded Outstanding Template. Enter amounts in 'Outstanding Balance' column and upload via Import Excel.");
+  };
+
+  const handleDownloadAdvanceRentTemplate = () => {
+    const uniqueStudents = new Map<string, any>();
+    fees.forEach(f => {
+      if (f.student && !uniqueStudents.has(f.student.id)) {
+        uniqueStudents.set(f.student.id, f.student);
+      }
+    });
+
+    const rows = Array.from(uniqueStudents.values())
+      .filter((s: any) => s.status !== 'Vacated')
+      .sort((a: any, b: any) => (a.roomNo || '').localeCompare(b.roomNo || '', undefined, { numeric: true }))
+      .map(s => ({
+        'Reg No': s.manualRegsiName || s.regNo || '',
+        'Student Name': s.name || '',
+        'Room No': s.roomNo || '',
+        'Mobile No': s.mobileNo || '',
+        'College': typeof s.college === 'string' ? s.college : s.college?.name || '',
+        'Current Advance Rent': Number(s.advanceRentBalance || 0),
+        'Advance Rent Amount': '',
+      }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Advance_Rent_Template");
+    XLSX.writeFile(workbook, "Student_Advance_Rent_Import_Template.xlsx");
+    toast.success("Downloaded Advance Rent Template. Enter amounts in 'Advance Rent Amount' column and upload via Import Excel.");
   };
 
   const handleImportClick = () => {
@@ -1301,6 +1340,13 @@ const Fees = () => {
               title="Download Excel template for bulk importing student outstanding balances"
             >
               <Download size={14} /> Outstanding Template
+            </button>
+            <button
+              onClick={handleDownloadAdvanceRentTemplate}
+              className="ui-btn ui-btn-secondary fees-action-btn"
+              title="Download Excel template for bulk importing student advance rent credit"
+            >
+              <Download size={14} /> Advance Rent Template
             </button>
             <button onClick={handleExportExcel} className="ui-btn ui-btn-success fees-action-btn">
               <FileSpreadsheet size={14} /> Export Excel
@@ -1575,6 +1621,7 @@ const Fees = () => {
               {/* <col className="fees-col-mess" /> */}
               <col className="fees-col-fine" />
               <col className="fees-col-outstanding" />
+              <col className="fees-col-advance-rent" />
               <col className="fees-col-total" />
               <col className="fees-col-method" />
               <col className="fees-col-status" />
@@ -1595,6 +1642,9 @@ const Fees = () => {
                 <th className="num fees-th-outstanding" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
                   Outstanding<br />Balance
                 </th>
+                <th className="num fees-th-advance-rent" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
+                  Advance<br />Rent
+                </th>
                 <th className="num fees-total">Total Paid</th>
                 <th className="fees-method">Payment Method</th>
                 <th className="fees-status">Status</th>
@@ -1603,14 +1653,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading && fees.length === 0 ? (
-                <LoadingRow colSpan={14} />
+                <LoadingRow colSpan={15} />
               ) : error ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={15} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={15} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -1784,6 +1834,42 @@ const Fees = () => {
                         </button>
                       </td>
 
+                      {(() => {
+                        const isPaidRow = fee.status === 'COMPLETED';
+                        const usedCredit = isPaidRow
+                          ? roundMoney(
+                            (fee.feesList || []).reduce((sum: number, item: any) => {
+                              const m = String(item?.description || '').match(/Advance Rent Applied:\s*([0-9.,]+)/i);
+                              return sum + (m ? Number(m[1].replace(/,/g, '')) || 0 : 0);
+                            }, 0),
+                          )
+                          : 0;
+                        const displayAdvanceRent = isPaidRow
+                          ? roundMoney(Number(fee.advanceRent || 0))
+                          : roundMoney(Number(fee.student?.advanceRentBalance || 0));
+                        return (
+                          <td
+                            className="num"
+                            style={{
+                              fontWeight: displayAdvanceRent > 0 ? 700 : 500,
+                              color: displayAdvanceRent > 0 ? '#0284c7' : '#64748b',
+                            }}
+                            title={
+                              isPaidRow
+                                ? 'Advance Rent collected in this receipt'
+                                : 'Available Advance Rent Credit (can be applied in Pay Now or next month)'
+                            }
+                          >
+                            <div>₹{displayAdvanceRent.toLocaleString('en-IN')}</div>
+                            {isPaidRow && usedCredit > 0 && (
+                              <div className="fees-note" style={{ color: '#0369a1', fontWeight: 600 }}>
+                                Used: ₹{usedCredit.toLocaleString('en-IN')}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })()}
+
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
                         ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
                       </td>
@@ -1793,16 +1879,16 @@ const Fees = () => {
                         title={
                           fee.status === 'COMPLETED'
                             ? [
-                                fee.paymentMode,
-                                fee.feesList?.find((item: any) => item.razorpayOrderId)?.razorpayOrderId &&
-                                  `Order: ${fee.feesList.find((item: any) => item.razorpayOrderId).razorpayOrderId}`,
-                                fee.feesList?.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId &&
-                                  `Payment: ${fee.feesList.find((item: any) => item.razorpayPaymentId).razorpayPaymentId}`,
-                                fee.feesList?.find((item: any) => item.paymentMethod)?.paymentMethod &&
-                                  `Gateway method: ${fee.feesList.find((item: any) => item.paymentMethod).paymentMethod}`,
-                              ]
-                                .filter(Boolean)
-                                .join(' | ')
+                              fee.paymentMode,
+                              fee.feesList?.find((item: any) => item.razorpayOrderId)?.razorpayOrderId &&
+                              `Order: ${fee.feesList.find((item: any) => item.razorpayOrderId).razorpayOrderId}`,
+                              fee.feesList?.find((item: any) => item.razorpayPaymentId)?.razorpayPaymentId &&
+                              `Payment: ${fee.feesList.find((item: any) => item.razorpayPaymentId).razorpayPaymentId}`,
+                              fee.feesList?.find((item: any) => item.paymentMethod)?.paymentMethod &&
+                              `Gateway method: ${fee.feesList.find((item: any) => item.paymentMethod).paymentMethod}`,
+                            ]
+                              .filter(Boolean)
+                              .join(' | ')
                             : undefined
                         }
                       >
@@ -1868,7 +1954,7 @@ const Fees = () => {
                                 title="Send official PDF Receipt on WhatsApp"
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+                                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
                                 </svg>
                               </button>
                             </>

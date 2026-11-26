@@ -100,6 +100,128 @@ export class FeesService {
     });
   }
 
+  async addAdvanceRent(dto: {
+    studentId: string;
+    amount: number;
+    paymentMode?: string;
+    referenceNumber?: string;
+    notes?: string;
+    paidDate?: string;
+    invoiceNumber?: string;
+  }) {
+    const amount = roundMoney(Number(dto?.amount || 0));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Advance rent amount must be greater than 0.');
+    }
+
+    const key = String(dto?.studentId || '').trim();
+    if (!key) {
+      throw new BadRequestException('Student ID is required.');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [{ id: key }, { regNo: key }, { manualRegsiName: key }],
+      },
+      select: { id: true },
+    });
+    if (!student) {
+      throw new NotFoundException('Student not found.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const date = dto.paidDate ? this.validatedPaymentDate(dto.paidDate) || new Date() : new Date();
+      const invoiceNumber = dto.invoiceNumber?.trim() || (await this.allocateInvoiceNumber(tx, date));
+      const descParts = ['Advance Rent Credit (Upcoming Months)'];
+      if (dto.referenceNumber?.trim()) descParts.push(`Ref: ${dto.referenceNumber.trim()}`);
+      if (dto.notes?.trim()) descParts.push(`Notes: ${dto.notes.trim()}`);
+
+      const created = await tx.feeTransaction.create({
+        data: {
+          studentId: student.id,
+          transactionType: 'ADVANCE_RENT',
+          amount,
+          status: 'COMPLETED',
+          paymentMode: dto.paymentMode || 'Cash',
+          paidDate: date,
+          invoiceNumber,
+          description: descParts.join(' | '),
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              regNo: true,
+              manualRegsiName: true,
+              roomNo: true,
+              mobileNo: true,
+              fatherMobileNo: true,
+            },
+          },
+        },
+      });
+
+      const updatedBalRows: Array<{ advanceRentBalance: number }> = await tx.$queryRaw`
+        UPDATE "public"."Student"
+        SET "advanceRentBalance" = COALESCE("advanceRentBalance", 0) + ${amount}
+        WHERE "id" = ${student.id}
+        RETURNING COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+      `;
+      if (created.student) {
+        (created.student as any).advanceRentBalance = Number(
+          updatedBalRows[0]?.advanceRentBalance || amount,
+        );
+      }
+
+      return created;
+    });
+  }
+
+  async consumeAdvanceRent(dto: { studentId: string; amount: number }) {
+    const requested = roundMoney(Number(dto?.amount || 0));
+    if (!Number.isFinite(requested) || requested <= 0) {
+      return { applied: 0, remaining: 0 };
+    }
+
+    const key = String(dto?.studentId || '').trim();
+    if (!key) {
+      throw new BadRequestException('Student ID is required.');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [{ id: key }, { regNo: key }, { manualRegsiName: key }],
+      },
+      select: { id: true },
+    });
+    if (!student) {
+      throw new NotFoundException('Student not found.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const balRows = await tx.$queryRaw<Array<{ advanceRentBalance: number }>>`
+        SELECT COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+        FROM "public"."Student"
+        WHERE "id" = ${student.id}
+        FOR UPDATE
+      `;
+      const current = roundMoney(Number(balRows[0]?.advanceRentBalance || 0));
+      const applied = roundMoney(Math.min(current, requested));
+      const remaining = roundMoney(Math.max(0, current - applied));
+
+      if (applied > 0) {
+        await tx.$executeRaw`
+          UPDATE "public"."Student"
+          SET "advanceRentBalance" = ${remaining}
+          WHERE "id" = ${student.id}
+        `;
+      }
+
+      return { applied, remaining };
+    });
+  }
+
   async findAll() {
     const rows = await this.prisma.feeTransaction.findMany({
       where: { deletedAt: null },
@@ -124,6 +246,20 @@ export class FeesService {
         },
       },
     });
+    const advanceRows =
+      await this.prisma.$queryRaw<Array<{ id: string; advanceRentBalance: number }>>`
+        SELECT "id", COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+        FROM "public"."Student"
+        WHERE COALESCE("advanceRentBalance", 0) > 0
+      `.catch((): Array<{ id: string; advanceRentBalance: number }> => []);
+    const advanceMap = new Map(
+      advanceRows.map((r) => [r.id, Number(r.advanceRentBalance || 0)]),
+    );
+    for (const row of rows as any[]) {
+      if (row?.student?.id) {
+        row.student.advanceRentBalance = advanceMap.get(row.student.id) || 0;
+      }
+    }
     return this.ensureInvoiceNumbers(rows);
   }
 
@@ -1404,7 +1540,7 @@ export class FeesService {
       const parts = dto.notes.split('|').map((p) => p.trim()).filter(Boolean);
       const userParts: string[] = [];
       for (const part of parts) {
-        if (/^(Original Amount|Discount|Pending Balance):/i.test(part) || /^\[PAY:[^\]]+\]$/i.test(part)) {
+        if (/^(Original Amount|Discount|Advance Rent Applied|Pending Balance):/i.test(part) || /^\[PAY:[^\]]+\]$/i.test(part)) {
           suffix += ` | ${part}`;
         } else {
           userParts.push(part);
@@ -1442,7 +1578,7 @@ export class FeesService {
       studentName: string;
       roomNo: string | null;
       items: Array<{
-        category: ImportCategory | 'outstanding';
+        category: ImportCategory | 'outstanding' | 'advanceRent';
         label: string;
         from: number;
         to: number;
@@ -1475,11 +1611,15 @@ export class FeesService {
         errors.push({ studentKey, message: parsed.error });
         continue;
       }
-      if (Object.keys(parsed.amounts).length === 0 && parsed.outstanding === undefined) {
+      if (
+        Object.keys(parsed.amounts).length === 0 &&
+        parsed.outstanding === undefined &&
+        parsed.advanceRent === undefined
+      ) {
         errors.push({
           studentKey,
           message:
-            'No editable fee amount found (Rent / EB / Fine / Advance / Outstanding Balance).',
+            'No editable fee amount found (Rent / EB / Fine / Advance / Outstanding Balance / Advance Rent).',
         });
         continue;
       }
@@ -1489,6 +1629,7 @@ export class FeesService {
           studentKey,
           parsed.amounts,
           parsed.outstanding,
+          parsed.advanceRent,
           dryRun,
         );
         if (result.items.length > 0) {
@@ -1516,10 +1657,12 @@ export class FeesService {
   private parseImportAmounts(row: ImportFeeRowInput): {
     amounts: Partial<Record<ImportCategory, number>>;
     outstanding?: number;
+    advanceRent?: number;
     error?: string;
   } {
     const amounts: Partial<Record<ImportCategory, number>> = {};
     let outstanding: number | undefined;
+    let advanceRent: number | undefined;
 
     for (const category of IMPORTABLE_CATEGORIES) {
       const raw = row?.[category];
@@ -1556,13 +1699,33 @@ export class FeesService {
       outstanding = roundMoney(numeric);
     }
 
-    return { amounts, outstanding };
+    const advanceRentRaw = row?.advanceRent;
+    if (
+      advanceRentRaw !== undefined &&
+      advanceRentRaw !== null &&
+      !(typeof advanceRentRaw === 'string' && advanceRentRaw.trim() === '')
+    ) {
+      const numeric =
+        typeof advanceRentRaw === 'number'
+          ? advanceRentRaw
+          : Number(String(advanceRentRaw).replace(/[₹,\s]/g, ''));
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        return {
+          amounts,
+          error: 'Advance Rent Amount must be a number greater than or equal to 0.',
+        };
+      }
+      advanceRent = roundMoney(numeric);
+    }
+
+    return { amounts, outstanding, advanceRent };
   }
 
   private async applyFeeImportRow(
     studentKey: string,
     amounts: Partial<Record<ImportCategory, number>>,
     outstanding: number | undefined,
+    advanceRent: number | undefined,
     dryRun: boolean,
   ) {
     const cleanKey = studentKey.trim();
@@ -1634,7 +1797,7 @@ export class FeesService {
       );
 
       const items: Array<{
-        category: ImportCategory | 'outstanding';
+        category: ImportCategory | 'outstanding' | 'advanceRent';
         label: string;
         from: number;
         to: number;
@@ -1726,6 +1889,32 @@ export class FeesService {
             from: currentRemaining,
             to: targetRemaining,
             delta,
+          });
+        }
+      }
+
+      if (advanceRent !== undefined) {
+        const balRows: Array<{ advanceRentBalance: number }> = await tx.$queryRaw`
+          SELECT COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
+          FROM "public"."Student"
+          WHERE "id" = ${student.id}
+        `;
+        const currentAdvanceRent = roundMoney(Number(balRows[0]?.advanceRentBalance || 0));
+        const targetAdvanceRent = roundMoney(advanceRent);
+        if (Math.abs(targetAdvanceRent - currentAdvanceRent) >= MONEY_EPSILON) {
+          if (!dryRun) {
+            await tx.$executeRaw`
+              UPDATE "public"."Student"
+              SET "advanceRentBalance" = ${targetAdvanceRent}
+              WHERE "id" = ${student.id}
+            `;
+          }
+          items.push({
+            category: 'advanceRent',
+            label: 'Advance Rent Credit',
+            from: currentAdvanceRent,
+            to: targetAdvanceRent,
+            delta: roundMoney(targetAdvanceRent - currentAdvanceRent),
           });
         }
       }

@@ -220,6 +220,7 @@ const Hostellers = () => {
           college: h.college?.name ? h.college.name.trim() : typeof h.college === 'string' ? h.college.trim() : 'N/A',
           dept: h.educationalQua ? h.educationalQua.trim() : 'N/A',
           advance: `₹${h.advance || 0}`,
+          advanceRentBalance: Number(h.advanceRentBalance || 0),
           pending: `₹${currentPending}`,
           currentPendingAmount: currentPending,
           outstandingRemaining,
@@ -862,6 +863,7 @@ const Hostellers = () => {
                 <col className="hostellers-col-fee" />
                 <col className="hostellers-col-pending" />
                 <col className="hostellers-col-outstanding" />
+                <col className="hostellers-col-advance" />
                 <col className="hostellers-col-date" />
                 <col className="hostellers-col-actions" />
               </colgroup>
@@ -876,22 +878,23 @@ const Hostellers = () => {
                   <th>Fee Status</th>
                   <th>Pending Fees</th>
                   <th>Outstanding Fee</th>
+                  <th>Advance Rent</th>
                   <th>Joining Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && hostellers.length === 0 ? (
-                  <LoadingRow colSpan={10} />
+                  <LoadingRow colSpan={11} />
                 ) : error ? (
                   <tr>
-                    <td colSpan={10} className="ui-empty ui-empty-danger">
+                    <td colSpan={11} className="ui-empty ui-empty-danger">
                       {error}
                     </td>
                   </tr>
                 ) : filteredHostellers.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="ui-empty">
+                    <td colSpan={11} className="ui-empty">
                       No enrolled students found.
                     </td>
                   </tr>
@@ -964,6 +967,11 @@ const Hostellers = () => {
                           <span>₹{Number(h.pendingFeesAmount || 0).toLocaleString('en-IN')}</span>
                           <Eye size={12} />
                         </button>
+                      </td>
+                      <td title={`Advance Rent Credit: ₹${Number(h.advanceRentBalance || 0).toLocaleString('en-IN')}`}>
+                        <span className={`ui-badge ${h.advanceRentBalance > 0 ? 'ui-badge-blue' : 'ui-badge-slate'}`}>
+                          ₹{Number(h.advanceRentBalance || 0).toLocaleString('en-IN')}
+                        </span>
                       </td>
                       <td title={h.date}>{h.date}</td>
                       <td className="hostellers-actions">

@@ -16,6 +16,7 @@ export interface ImportFeeRowInput {
   fine?: number | string | null;
   advance?: number | string | null;
   outstanding?: number | string | null;
+  advanceRent?: number | string | null;
 }
 
 export class ImportFeesDto {
