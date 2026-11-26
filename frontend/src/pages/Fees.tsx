@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, Download, CheckCircle2, AlertTriangle, Trash2, RotateCcw } from 'lucide-react';
+import { IndianRupee, Search, FileText, Wallet, FileSpreadsheet, X, Upload, Download, CheckCircle2, AlertTriangle, Trash2, RotateCcw, Eye } from 'lucide-react';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
@@ -16,8 +16,10 @@ import { RoomAPI } from '../api/room.api';
 import { parseFeeImportFile, type FeeImportRow } from '../utils/feeImport';
 import { isWardenStudent } from '../utils/warden';
 import {
+  buildOutstandingSummary,
   buildOutstandingTotals,
   getStudentKey,
+  isCurrentCycleFee,
   isImportedInvoice,
   isMessFee,
   isOutstandingDescription,
@@ -27,7 +29,7 @@ import {
   roundMoney,
 } from '../utils/outstanding';
 import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { formatBillingMonth, formatBillingMonthOnly, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
+import { formatBillingMonth, formatBillingMonthOnly, formatBillingMonthShort, getBillingMonths, isPostpaidPayableFee, resolveFeeBillingMonth } from '../utils/billingCycle';
 import { getOverdueDays } from '../utils/dueDate';
 import { buildFeeReconciliation } from '../utils/feeReconciliation';
 import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
@@ -35,6 +37,22 @@ import { sendReceiptViaWhatsApp } from '../utils/whatsappReceipt';
 // Keep the compact table readable: show "UPI / QR" and put the full
 // provider list in the cell's tooltip.
 const formatPaymentMode = (mode?: string) => (mode || '').split(/[/(]/)[0].trim();
+
+const getSimpleFeeName = (fee: any): string => {
+  const type = String(fee?.transactionType || '').toUpperCase();
+  const desc = String(fee?.description || '').toLowerCase();
+  if (type === 'FINE') {
+    if (desc.includes('rent')) return 'Rent Fine';
+    if (desc.includes('eb')) return 'EB Fine';
+    if (desc.includes('mess')) return 'Mess Fine';
+    return 'Late Fine';
+  }
+  if (type === 'RENT') return 'Room Rent';
+  if (type === 'EB_BILL') return 'EB Bill';
+  if (type === 'MESS') return 'Mess Fee';
+  if (type === 'ADVANCE') return 'Advance';
+  return type ? type.replace(/_/g, ' ') : 'Pending Fee';
+};
 
 // Extra report categories added on top of the existing college list.
 // SSM stays on its own; every other college is reported as Seasindhu.
@@ -83,6 +101,7 @@ const Fees = () => {
   const [feeToCollect, setFeeToCollect] = useState<any>(null);
   const [feesToCollect, setFeesToCollect] = useState<any[]>([]);
   const [activeFeeId, setActiveFeeId] = useState<string | null>(null);
+  const [outstandingModalData, setOutstandingModalData] = useState<any>(null);
 
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [importRows, setImportRows] = useState<FeeImportRow[] | null>(null);
@@ -859,6 +878,33 @@ const Fees = () => {
         ? (fee.paidOutstanding || 0)
         : (fee.displayBalance || 0),
     );
+
+  const openOutstandingModal = (fee: any) => {
+    const studentKey = getStudentKey(fee);
+    const studentFees = fees.filter((f) => getStudentKey(f) === studentKey);
+    const summary = buildOutstandingSummary(studentFees);
+    const billingCycle = fee.student?.college?.billingCycle;
+    const currentPendingItems = studentFees.filter((item) =>
+      isCurrentCycleFee(item, billingCycle),
+    );
+    const currentPendingAmount = roundMoney(
+      currentPendingItems.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0),
+    );
+    const outstandingRemaining = summary.remaining;
+    const pendingFeesAmount = roundMoney(currentPendingAmount + outstandingRemaining);
+    const regNo = fee.student?.manualRegsiName || fee.student?.regNo || 'N/A';
+
+    setOutstandingModalData({
+      fee,
+      studentId: regNo,
+      studentName: fee.student?.name || 'Unknown',
+      roomNo: fee.student?.roomNo || 'N/A',
+      currentPendingItems,
+      currentPendingAmount,
+      outstandingRemaining,
+      pendingFeesAmount,
+    });
+  };
 
   const paginatedFees = useMemo(() => {
     return displayFees.slice((page - 1) * limit, page * limit);
@@ -1727,7 +1773,15 @@ const Fees = () => {
                       </td>
 
                       <td className={`num fees-outstanding${outstandingColumnValue > 0 && fee.status !== 'COMPLETED' ? ' fees-outstanding--due' : ' fees-outstanding--clear'}`}>
-                        ₹{outstandingColumnValue.toLocaleString('en-IN')}
+                        <button
+                          type="button"
+                          onClick={() => openOutstandingModal(fee)}
+                          className={`hostellers-outstanding-btn ${outstandingColumnValue > 0 && fee.status !== 'COMPLETED' ? 'is-due' : ''}`}
+                          title={`Outstanding: ₹${outstandingColumnValue.toLocaleString('en-IN')} (Click to view details)`}
+                        >
+                          <span>₹{outstandingColumnValue.toLocaleString('en-IN')}</span>
+                          <Eye size={12} />
+                        </button>
                       </td>
 
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
@@ -2142,6 +2196,150 @@ const Fees = () => {
           rooms={allRoomsData}
           billingMonthFilter={billingMonthFilter.value}
         />
+      )}
+
+      {/* Outstanding Fee Details Modal */}
+      {outstandingModalData && (
+        <div className="ui-modal-overlay" onClick={() => setOutstandingModalData(null)}>
+          <div className="ui-modal ui-modal-sm hostellers-outstanding-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ui-modal-head">
+              <div>
+                <h3 className="ui-modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wallet size={17} color="#d97706" /> Outstanding Fee Details
+                </h3>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  {outstandingModalData.studentName} ({outstandingModalData.studentId}) • Room {outstandingModalData.roomNo}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOutstandingModalData(null)}
+                className="ui-modal-close"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="ui-modal-body" style={{ gap: '14px' }}>
+              <div className="hostellers-out-summary">
+                <div className="hostellers-out-stat">
+                  <div className="hostellers-out-stat-label">Current Pending</div>
+                  <div
+                    className="hostellers-out-stat-val"
+                    style={{ color: outstandingModalData.currentPendingAmount > 0 ? '#0284c7' : '#16a34a' }}
+                  >
+                    ₹{Number(outstandingModalData.currentPendingAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="hostellers-out-stat">
+                  <div className="hostellers-out-stat-label">Old Outstanding</div>
+                  <div
+                    className="hostellers-out-stat-val"
+                    style={{ color: outstandingModalData.outstandingRemaining > 0 ? '#d97706' : '#16a34a' }}
+                  >
+                    ₹{Number(outstandingModalData.outstandingRemaining || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+                <div className="hostellers-out-stat is-total">
+                  <div className="hostellers-out-stat-label">Total Outstanding</div>
+                  <div
+                    className="hostellers-out-stat-val"
+                    style={{ color: outstandingModalData.pendingFeesAmount > 0 ? '#dc2626' : '#16a34a' }}
+                  >
+                    ₹{Number(outstandingModalData.pendingFeesAmount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+              </div>
+
+              {outstandingModalData.pendingFeesAmount <= 0.005 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '18px 12px',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '8px',
+                    color: '#15803d',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  All dues are cleared. No outstanding fees pending.
+                </div>
+              ) : (
+                <div className="hostellers-out-list">
+                  {outstandingModalData.currentPendingItems?.map((item: any) => {
+                    const m = resolveFeeBillingMonth(item);
+                    const monthLabel = m ? formatBillingMonthShort(m) : 'Current';
+                    return (
+                      <div key={item.id} className="hostellers-out-item">
+                        <div className="hostellers-out-item-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className="hostellers-out-item-title" style={{ marginBottom: 0 }}>
+                            {getSimpleFeeName(item)}
+                          </span>
+                          <span className="ui-badge ui-badge-blue">{monthLabel}</span>
+                        </div>
+                        <div className="hostellers-out-item-amt">
+                          ₹{Number(item.amount || 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {outstandingModalData.outstandingRemaining > 0.005 && (
+                    <div className="hostellers-out-item">
+                      <div className="hostellers-out-item-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className="hostellers-out-item-title" style={{ marginBottom: 0 }}>
+                          Old Outstanding
+                        </span>
+                        <span className="ui-badge ui-badge-warning">Previous Due</span>
+                      </div>
+                      <div className="hostellers-out-item-amt is-amber">
+                        ₹{Number(outstandingModalData.outstandingRemaining || 0).toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="ui-modal-footer">
+              <button
+                type="button"
+                onClick={() => setOutstandingModalData(null)}
+                className="ui-btn ui-btn-secondary ui-btn-sm"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const sid = outstandingModalData.studentId;
+                  setOutstandingModalData(null);
+                  navigate(`/hostellers/profile/${sid}?tab=fees`);
+                }}
+                className="ui-btn ui-btn-outline-primary ui-btn-sm"
+              >
+                View Profile
+              </button>
+              {outstandingModalData.pendingFeesAmount > 0 && outstandingModalData.fee?.displayStatus === 'Unpaid' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetFee = outstandingModalData.fee;
+                    setOutstandingModalData(null);
+                    setActiveFeeId(targetFee.id);
+                    setFeesToCollect(targetFee.feesList);
+                  }}
+                  className="ui-btn ui-btn-primary ui-btn-sm"
+                >
+                  <Wallet size={14} /> Pay Now
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
