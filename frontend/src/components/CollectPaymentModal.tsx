@@ -1255,7 +1255,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
               {(hasCurrentRentItem || canPayUpcomingRent) && (
                 <div style={{ marginBottom: '24px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {hasCurrentRentItem ? 'Select Duration' : 'Select Duration (Upcoming Rent)'}
+                    Select Duration
                   </label>
                   <div style={{ position: 'relative' }}>
                     <select
@@ -1269,7 +1269,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         ))
                       ) : (
                         <>
-                          <option value={0}>0 Months (Current rent already paid)</option>
+                          <option value={0}>Select months (Optional)</option>
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
                             <option key={m} value={m}>
                               {m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(nextUpcomingMonthStr, m)}) — ₹{(studentMonthlyRent * m).toLocaleString('en-IN')}
@@ -1282,15 +1282,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                       <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5l3 3 3-3" /></svg>
                     </div>
                   </div>
-                  <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
-                    {hasCurrentRentItem ? (
-                      <>Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{coveredPeriodStr}</span></>
-                    ) : upcomingMonths > 0 ? (
-                      <>Upcoming Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{formatCyclePeriod(nextUpcomingMonthStr, upcomingMonths)}</span> (₹{studentMonthlyRent.toLocaleString('en-IN')}/month)</>
-                    ) : (
-                      <>Current rent already paid. Select months above if paying upcoming rent in advance.</>
-                    )}
-                  </div>
+                  {(hasCurrentRentItem || upcomingMonths > 0) && (
+                    <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
+                      {hasCurrentRentItem ? (
+                        <>Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{coveredPeriodStr}</span></>
+                      ) : (
+                        <>Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{formatCyclePeriod(nextUpcomingMonthStr, upcomingMonths)}</span> (₹{studentMonthlyRent.toLocaleString('en-IN')}/month)</>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
