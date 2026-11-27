@@ -730,7 +730,14 @@ const Fees = () => {
 
       // Apply active filters
       if (filter === 'PAID') return;
-      if (selectedStudent.value !== 'ALL' && studentKey !== selectedStudent.value) return;
+      const studentDisplayId =
+        studentObj?.manualRegsiName || studentObj?.regNo || studentKey;
+      if (
+        selectedStudent.value !== 'ALL' &&
+        studentKey !== selectedStudent.value &&
+        studentDisplayId !== selectedStudent.value &&
+        studentObj?.regNo !== selectedStudent.value
+      ) return;
       if (collegeFilter.value !== 'ALL') {
         const c = typeof studentObj?.college === 'string' ? studentObj.college : studentObj?.college?.name;
         if (c !== collegeFilter.value) return;
