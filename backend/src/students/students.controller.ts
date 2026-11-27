@@ -58,6 +58,16 @@ export class StudentsController {
     return this.studentsService.findByMobile(mobileNo);
   }
 
+  @Post('portal-otp/send')
+  sendPortalOtp(@Body() body: { mobileNo: string }) {
+    return this.studentsService.sendPortalOtp(body?.mobileNo);
+  }
+
+  @Post('portal-otp/verify')
+  verifyPortalOtp(@Body() body: { mobileNo: string; otp: string }) {
+    return this.studentsService.verifyPortalOtp(body?.mobileNo, body?.otp);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.studentsService.findOne(id);

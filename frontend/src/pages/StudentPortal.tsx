@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, Wallet, IdCard, Building, GraduationCap, Phone, AlertCircle } from 'lucide-react';
 import { StudentAPI } from '../api/student.api';
@@ -28,6 +28,11 @@ export default function StudentPortal() {
     new URLSearchParams(location.search).get('fromPolicy') === '1' ||
     sessionStorage.getItem('student_portal_return_from_policy') === '1';
   const [mobileNo, setMobileNo] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpNotice, setOtpNotice] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const [student, setStudent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [feesToPay, setFeesToPay] = useState<any[]>([]);
@@ -42,6 +47,14 @@ export default function StudentPortal() {
   useEffect(() => {
     setDocumentTitle(BRAND_NAME);
   }, []);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const showPaymentReceipt = (
     payments: any[],
@@ -217,6 +230,23 @@ export default function StudentPortal() {
     }
   }, []);
 
+  const handleSendOtp = async (cleanMobile: string) => {
+    setLoading(true);
+    setError('');
+    setOtpNotice('');
+    try {
+      const res = await StudentAPI.sendPortalOtp(cleanMobile);
+      setOtpSent(true);
+      setOtp('');
+      setResendCooldown(30);
+      setOtpNotice(res?.message || 'OTP sent to your registered WhatsApp number.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to send WhatsApp OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -235,7 +265,29 @@ export default function StudentPortal() {
       return;
     }
 
-    await loadStudent(cleanMobile);
+    if (!otpSent) {
+      await handleSendOtp(cleanMobile);
+      return;
+    }
+
+    const cleanOtp = otp.trim();
+    if (!/^\d{4}$/.test(cleanOtp)) {
+      setError('Please enter the 4-digit OTP sent to your WhatsApp.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await StudentAPI.verifyPortalOtp(cleanMobile, cleanOtp);
+      setOtp('');
+      setOtpSent(false);
+      setOtpNotice('');
+      setResendCooldown(0);
+      await loadStudent(cleanMobile);
+    } catch (err: any) {
+      setError(err.message || 'Invalid OTP. Please try again.');
+      setLoading(false);
+    }
   };
 
   const handlePaymentSuccess = (paidItems?: any[], paymentMode?: string) => {
@@ -439,22 +491,139 @@ export default function StudentPortal() {
 
             <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ color: '#334155', fontSize: '14px', fontWeight: 600 }}>Registered Mobile Number</label>
+                  {otpSent && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtp('');
+                        setOtpNotice('');
+                        setError('');
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                    >
+                      Change Number
+                    </button>
+                  )}
+                </div>
                 <div style={{ position: 'relative' }}>
                   <Phone size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input
                     type="text"
                     value={mobileNo}
+                    disabled={otpSent}
                     onChange={(e) => setMobileNo(e.target.value)}
                     placeholder="e.g. 9876543210"
                     style={{
-                      width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: '#f8fafc', color: '#1e293b', boxSizing: 'border-box'
+                      width: '100%', padding: '14px 16px 14px 48px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '16px', outline: 'none', transition: 'all 0.2s ease', background: otpSent ? '#f1f5f9' : '#f8fafc', color: otpSent ? '#64748b' : '#1e293b', boxSizing: 'border-box'
                     }}
-                    onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; }}
-                    onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; }}
+                    onFocus={(e) => { if (!otpSent) { e.target.style.borderColor = '#3b82f6'; e.target.style.background = 'white'; e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)'; } }}
+                    onBlur={(e) => { if (!otpSent) { e.target.style.borderColor = '#e2e8f0'; e.target.style.background = '#f8fafc'; e.target.style.boxShadow = 'none'; } }}
                   />
                 </div>
               </div>
+
+              {otpSent && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ color: '#334155', fontSize: '14px', fontWeight: 600 }}>WhatsApp OTP</label>
+                    <button
+                      type="button"
+                      disabled={resendCooldown > 0 || loading}
+                      onClick={() => handleSendOtp(mobileNo.trim().replace(/\D/g, ''))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: resendCooldown > 0 ? '#94a3b8' : '#2563eb',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {resendCooldown > 0 ? `Resend OTP (${resendCooldown}s)` : 'Resend OTP'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                    {[0, 1, 2, 3].map((idx) => {
+                      const digit = otp[idx] || '';
+                      return (
+                        <input
+                          key={idx}
+                          ref={(el) => { otpInputRefs.current[idx] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          aria-label={`OTP digit ${idx + 1}`}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            if (!val) {
+                              const next = otp.split('');
+                              next[idx] = '';
+                              setOtp(next.join(''));
+                              return;
+                            }
+                            const char = val.slice(-1);
+                            const next = [0, 1, 2, 3].map((i) => otp[i] || '');
+                            next[idx] = char;
+                            setOtp(next.join(''));
+                            if (idx < 3) {
+                              otpInputRefs.current[idx + 1]?.focus();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Backspace' && !digit && idx > 0) {
+                              otpInputRefs.current[idx - 1]?.focus();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+                            if (pasted) {
+                              e.preventDefault();
+                              setOtp(pasted);
+                              const focusIdx = Math.min(pasted.length, 4) - 1;
+                              if (focusIdx >= 0) otpInputRefs.current[focusIdx]?.focus();
+                            }
+                          }}
+                          style={{
+                            width: '56px',
+                            height: '56px',
+                            textAlign: 'center',
+                            borderRadius: '12px',
+                            border: '2px solid #e2e8f0',
+                            fontSize: '22px',
+                            fontWeight: 700,
+                            outline: 'none',
+                            transition: 'all 0.2s ease',
+                            background: '#f8fafc',
+                            color: '#1e293b',
+                            boxSizing: 'border-box',
+                          }}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = '#3b82f6';
+                            e.target.style.background = 'white';
+                            e.target.style.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.1)';
+                            e.target.select();
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = '#e2e8f0';
+                            e.target.style.background = '#f8fafc';
+                            e.target.style.boxShadow = 'none';
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  {otpNotice && (
+                    <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#15803d', fontWeight: 500 }}>
+                      {otpNotice}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                 <input
@@ -486,7 +655,9 @@ export default function StudentPortal() {
                 onMouseOver={(e) => { if (!loading) { e.currentTarget.style.background = '#1d4ed8'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(37, 99, 235, 0.4)'; } }}
                 onMouseOut={(e) => { if (!loading) { e.currentTarget.style.background = '#2563eb'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
               >
-                {loading ? 'Searching...' : 'Continue to Payment Portal →'}
+                {loading
+                  ? (otpSent ? 'Verifying OTP...' : 'Sending OTP...')
+                  : (otpSent ? 'Verify OTP & Continue →' : 'Send OTP on WhatsApp →')}
               </button>
             </form>
           </div>
@@ -533,6 +704,14 @@ export default function StudentPortal() {
           onBack={() => {
             setStudent(null);
             setMobileNo('');
+            setOtp('');
+            setOtpSent(false);
+            setOtpNotice('');
+            setResendCooldown(0);
+            setAgreedToTerms(false);
+            setError('');
+            setFeesToPay([]);
+            setReceiptToShow(null);
             sessionStorage.removeItem('student_portal_mobile');
           }}
         />

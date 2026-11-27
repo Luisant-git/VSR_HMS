@@ -366,4 +366,37 @@ export class WhatsappService implements OnModuleInit, OnModuleDestroy {
       return false;
     }
   }
+
+  /**
+   * Sends a plain text message directly to a phone number on WhatsApp.
+   */
+  async sendTextMessage(phone: string, text: string): Promise<boolean> {
+    const jid = this.formatJid(phone);
+    if (!jid) {
+      this.logger.warn(`Cannot send WhatsApp message: phone number "${phone}" is invalid.`);
+      return false;
+    }
+
+    if (!this.sock || !this.isReady) {
+      this.logger.warn(
+        `WhatsApp service is not linked yet. Scan the terminal QR code to activate WhatsApp sending.`,
+      );
+      return false;
+    }
+
+    try {
+      const lookup = await this.sock.onWhatsApp(jid).catch(() => null);
+      const targetJid = Array.isArray(lookup) && lookup[0]?.exists ? lookup[0].jid : null;
+      if (Array.isArray(lookup) && lookup.length > 0 && !lookup[0]?.exists) {
+        this.logger.warn(`Phone number ${phone} (${jid}) is not registered on WhatsApp.`);
+        return false;
+      }
+      await this.sock.sendMessage(targetJid || jid, { text });
+      this.logger.log(`WhatsApp text message sent to ${phone} (${targetJid || jid})`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send WhatsApp message to ${phone}:`, error);
+      return false;
+    }
+  }
 }

@@ -1,9 +1,25 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 
+interface PortalOtpRecord {
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  lastSentAt: number;
+}
+
 @Injectable()
 export class StudentsService {
+  private readonly portalOtpStore = new Map<string, PortalOtpRecord>();
+
   constructor(
     private prisma: PrismaService,
     private whatsappService: WhatsappService,
@@ -720,6 +736,97 @@ export class StudentsService {
       where: { mobileNo },
       include: { transactions: { where: { deletedAt: null } }, room: true, college: true }
     });
+  }
+
+  async sendPortalOtp(mobileNo: string) {
+    const cleanMobile = String(mobileNo || '').trim().replace(/\D/g, '');
+    if (cleanMobile.length !== 10) {
+      throw new BadRequestException('Please enter a valid 10-digit mobile number.');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: { mobileNo: cleanMobile },
+      select: { id: true, name: true, status: true, mobileNo: true },
+    });
+    if (!student) {
+      throw new NotFoundException(
+        'No student registered with this mobile number. Please check the number and try again.',
+      );
+    }
+    if (student.status === 'Vacated') {
+      throw new ForbiddenException(
+        'This student account is inactive. Please contact the hostel office for assistance.',
+      );
+    }
+
+    const existing = this.portalOtpStore.get(cleanMobile);
+    if (existing && Date.now() - existing.lastSentAt < 25 * 1000) {
+      const waitSec = Math.ceil((25 * 1000 - (Date.now() - existing.lastSentAt)) / 1000);
+      throw new BadRequestException(`Please wait ${waitSec}s before requesting another OTP.`);
+    }
+
+    const otp = String(randomInt(1000, 10000));
+    this.portalOtpStore.set(cleanMobile, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000,
+      attempts: 0,
+      lastSentAt: Date.now(),
+    });
+
+    const message = [
+      `*SEA SINDHU QUEEN'S PARADISE*`,
+      `Hello ${student.name || 'Student'},`,
+      `Your Student Payment Portal login OTP is: *${otp}*`,
+      ``,
+      `This OTP is valid for 5 minutes. Do not share it with anyone.`,
+    ].join('\n');
+
+    const sent = await this.whatsappService.sendTextMessage(cleanMobile, message);
+    if (!sent) {
+      this.portalOtpStore.delete(cleanMobile);
+      throw new ServiceUnavailableException(
+        'Could not send WhatsApp OTP right now. Please ensure WhatsApp is connected or contact the hostel office.',
+      );
+    }
+
+    return {
+      success: true,
+      message: 'OTP sent to your registered WhatsApp number.',
+    };
+  }
+
+  async verifyPortalOtp(mobileNo: string, otp: string) {
+    const cleanMobile = String(mobileNo || '').trim().replace(/\D/g, '');
+    const cleanOtp = String(otp || '').trim();
+    if (cleanMobile.length !== 10) {
+      throw new BadRequestException('Please enter a valid 10-digit mobile number.');
+    }
+    if (!/^\d{4}$/.test(cleanOtp)) {
+      throw new BadRequestException('Please enter a valid 4-digit OTP.');
+    }
+
+    const record = this.portalOtpStore.get(cleanMobile);
+    if (!record || Date.now() > record.expiresAt) {
+      this.portalOtpStore.delete(cleanMobile);
+      throw new BadRequestException('OTP has expired or was not requested. Please request a new OTP.');
+    }
+
+    if (record.attempts >= 5) {
+      this.portalOtpStore.delete(cleanMobile);
+      throw new BadRequestException('Too many invalid OTP attempts. Please request a new OTP.');
+    }
+
+    if (record.otp !== cleanOtp) {
+      record.attempts += 1;
+      throw new BadRequestException('Invalid OTP. Please check your WhatsApp message and try again.');
+    }
+
+    this.portalOtpStore.delete(cleanMobile);
+    const student = await this.findByMobile(cleanMobile);
+    if (!student) {
+      throw new NotFoundException('Student not found.');
+    }
+    return student;
   }
 
   async findOne(id: string) {

@@ -61,6 +61,28 @@ export const StudentAPI = {
     return text ? JSON.parse(text) : null;
   },
 
+  async sendPortalOtp(mobileNo: string) {
+    const res = await fetch(`${API_URL}/students/portal-otp/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobileNo }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Failed to send WhatsApp OTP');
+    return data;
+  },
+
+  async verifyPortalOtp(mobileNo: string, otp: string) {
+    const res = await fetch(`${API_URL}/students/portal-otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mobileNo, otp }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Invalid OTP');
+    return data;
+  },
+
   async getNextRegsiName() {
     const res = await fetch(`${API_URL}/students/next-regsi`);
     if (!res.ok) throw new Error('Failed to fetch next regsi name');
