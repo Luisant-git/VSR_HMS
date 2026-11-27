@@ -609,6 +609,19 @@ export class FeesService {
       },
     });
 
+    if (
+      data.status === 'COMPLETED' &&
+      existing.status !== 'COMPLETED' &&
+      String(existing.transactionType || '').toUpperCase() === 'ADVANCE' &&
+      updated?.studentId &&
+      Number(updated.amount) > 0
+    ) {
+      await this.prisma.student.update({
+        where: { id: updated.studentId },
+        data: { advance: { increment: roundMoney(Number(updated.amount)) } },
+      });
+    }
+
     if (data.status === 'COMPLETED' && updated?.student) {
       const student = updated.student;
       const phone = student.mobileNo || student.fatherMobileNo;

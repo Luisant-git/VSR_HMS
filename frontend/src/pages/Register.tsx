@@ -760,21 +760,8 @@ const Register = () => {
                 <label className="ui-label">Advance Amount (₹)</label>
                 <input type="number" value={formData.advance} onChange={(e) => setFormData({ ...formData, advance: e.target.value })} disabled={!!editId} className="ui-input" />
                 <div className="register-note">
-                  {editId ? <span className="register-note-danger">Advance amounts cannot be modified here. Please use the Fees module.</span> : 'Refundable upon exit/discontinuation settlement.'}
+                  {editId ? <span className="register-note-danger">Advance amounts cannot be modified here. Please use the Fees module.</span> : 'Refundable upon exit/discontinuation settlement. Payable via Fees / Student Portal to generate a bill receipt.'}
                 </div>
-              </div>
-              <div>
-                <label className="ui-label">Payment Mode</label>
-                <select disabled={!!editId} className="ui-select">
-                  <option>UPI / GPay / PhonePe</option>
-                  <option>Cash</option>
-                  <option>Bank Transfer / NEFT</option>
-                  <option>Card</option>
-                </select>
-              </div>
-              <div>
-                <label className="ui-label">Advance Receipt #</label>
-                <input type="text" defaultValue="REC-ADV-20260925-211" readOnly className="ui-input register-input-muted" />
               </div>
             </div>
           </div>

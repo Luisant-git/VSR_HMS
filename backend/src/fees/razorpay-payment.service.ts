@@ -616,6 +616,12 @@ export class RazorpayPaymentService {
                   paidDate,
                 );
               }
+              if (String(fee.transactionType).toUpperCase() === 'ADVANCE' && finalAmount > 0) {
+                await tx.student.update({
+                  where: { id: order.studentId },
+                  data: { advance: { increment: finalAmount } },
+                });
+              }
               return tx.feeTransaction.findUnique({ where: { id: fee.id } });
             }),
           );

@@ -423,15 +423,21 @@ export class StudentsService {
     }
 
     if (student.advance && student.advance > 0) {
+      const now = new Date();
+      const currentBillingMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       await this.prisma.feeTransaction.create({
         data: {
           studentId: student.id,
           transactionType: 'ADVANCE',
           amount: student.advance,
-          status: isImport ? 'PENDING' : 'COMPLETED',
-          paymentMode: isImport ? undefined : 'UPI',
-          description: isImport ? 'Security Deposit (Imported)' : 'Initial Security Deposit Paid',
-        }
+          status: 'PENDING',
+          billingMonth: currentBillingMonth,
+          description: isImport ? 'Security Deposit (Imported)' : 'Security Deposit (Advance)',
+        },
+      });
+      await this.prisma.student.update({
+        where: { id: student.id },
+        data: { advance: 0 },
       });
     }
 

@@ -197,34 +197,38 @@ export const buildOutstandingSummary = (fees: any[]) => {
  * (Paid charges are COMPLETED rows, so only unpaid Rent/EB/Fine rows are
  * counted here.)
  */
-const CURRENT_FEE_TYPES = new Set(['RENT', 'EB_BILL', 'FINE']);
+const CURRENT_FEE_TYPES = new Set(['RENT', 'EB_BILL', 'FINE', 'ADVANCE']);
 
-/** A current-cycle pending fee (Rent / EB / Fine) counted in Pending Fees.
+/** A current-cycle pending fee (Rent / EB / Fine / Advance) counted in Pending Fees.
  *  Excludes outstanding invoices, imported/legacy rows, pre-Nov-2026 settled
- *  rows, and non-payable categories such as mess and advance.
+ *  rows, and non-payable categories such as mess.
  *
  *  POSTPAID colleges bill the previous month, so current-month fees are not
- *  payable yet and must not be counted as pending dues. Fines on overdue dues
- *  remain payable. Pass the billing cycle when the fee rows themselves do not
- *  include `fee.student.college`. */
+ *  payable yet and must not be counted as pending dues. Fines and Security
+ *  Deposit (ADVANCE) remain payable immediately. */
 export const isCurrentCycleFee = (fee: any, billingCycle?: string): boolean => {
+  const txType = String(fee?.transactionType || '').toUpperCase();
   if (
     !fee ||
     fee.status !== 'PENDING' ||
-    !CURRENT_FEE_TYPES.has(String(fee.transactionType || '').toUpperCase()) ||
+    !CURRENT_FEE_TYPES.has(txType) ||
     isOutstandingInvoice(fee)
   ) {
     return false;
+  }
+
+  if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {
+    return false;
+  }
+
+  if (txType === 'ADVANCE') {
+    return true;
   }
 
   const cycle = billingCycle || fee?.student?.college?.billingCycle || 'PREPAID';
   if (cycle === 'POSTPAID') {
     const { previousMonthStr } = getBillingMonths();
     return isPostpaidPayableFee(fee, previousMonthStr);
-  }
-
-  if (isImportedInvoice(fee) || isPreviousSettledFee(fee)) {
-    return false;
   }
 
   return true;

@@ -112,11 +112,11 @@ const Dashboard = () => {
   const safeFees = Array.isArray(fees) ? fees : ((fees as any).data || []);
   // Net confirmed outstanding payments so historical dues are not counted twice.
   const totalPendingFees = calculatePendingDues(safeFees);
-  const totalAdvanceHeld = safeFees.filter((f: any) => f.transactionType === 'ADVANCE' && f.status === 'COMPLETED').reduce((sum: number, f: any) => sum + f.amount, 0);
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const wardens = safeStudents.filter((s: any) => s.status !== 'Vacated' && isWardenStudent(s));
   const activeStudents = safeStudents.filter((s: any) => s.status !== 'Vacated' && !isWardenStudent(s));
+  const totalAdvanceHeld = activeStudents.reduce((sum: number, s: any) => sum + (Number(s.advance) || 0), 0);
   const totalRegistered = activeStudents.length + wardens.length;
   const dashboardMissingLogs = Array.isArray(missingLogs) ? missingLogs : ((missingLogs as any).data || []);
 

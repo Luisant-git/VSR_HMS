@@ -377,6 +377,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     const feeMonth = resolveFeeBillingMonth(f);
     if (!feeMonth) return true;
     const type = String(f?.transactionType || '').toUpperCase();
+    if (type === 'ADVANCE') return true;
     const isRentLike = type.includes('RENT') || type.includes('ADVANCE');
     const isEb = type.includes('EB') || type.includes('ELECTRIC');
     const isFine = type.includes('FINE');
