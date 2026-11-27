@@ -1090,60 +1090,20 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const uniqueTypes = Array.from(new Set(selectedTypes));
   const summaryText = uniqueTypes.length > 0 ? `Selected: ${uniqueTypes.join(' + ')}` : 'No fees selected';
 
-  const toggleFee = (f: any) => {
-    const nextSelected = !isItemSelected(f);
-    setFeeStates(prev => {
-      const next: Record<string, { selected: boolean }> = {
-        ...prev,
-        [f.id]: { selected: nextSelected },
-      };
+  const allCurrentSelected =
+    filteredPayableItems.length > 0 &&
+    filteredPayableItems.every((item: any) => isItemSelected(item));
 
-      // Selecting/unselecting a parent fee also selects/unselects its fine.
-      if (!isFineFee(f)) {
-        const parentType = getFeeParentType(f);
-        if (parentType) {
-          filteredPayableItems
-            .filter(
-              (item: any) =>
-                isFineFee(item) && getFineParentType(item) === parentType,
-            )
-            .forEach((fine: any) => {
-              next[fine.id] = { selected: nextSelected };
-            });
-        }
-      }
-
+  const toggleAllCurrentFees = () => {
+    const nextSelected = !allCurrentSelected;
+    setFeeStates(() => {
+      const next: Record<string, { selected: boolean }> = {};
+      filteredPayableItems.forEach((item: any) => {
+        next[item.id] = { selected: nextSelected };
+      });
       return next;
     });
   };
-
-  const selectAll = () => setFeeStates(() => {
-    const next: Record<string, { selected: boolean }> = {};
-    filteredPayableItems.forEach((item) => {
-      next[item.id] = { selected: true };
-    });
-    return next;
-  });
-
-  const selectRentOnly = () => setFeeStates(() => {
-    const next: Record<string, { selected: boolean }> = {};
-    filteredPayableItems.forEach((f) => {
-      const isRent =
-        getFeeParentType(f) === 'RENT' || getFineParentType(f) === 'RENT';
-      next[f.id] = { selected: isRent };
-    });
-    return next;
-  });
-
-  /*
-  const selectMessOnly = () => setFeeStates(prev => {
-    const next = { ...prev };
-    currentItems.forEach(f => {
-      next[f.id] = { selected: (f.transactionType || '').toUpperCase().includes('MESS') };
-    });
-    return next;
-  });
-  */
 
   const outstandingInvalid = outstandingSelected && outstandingInputTrimmed !== '' && outstandingError !== null;
   const discountInvalid = !isStudentMode && discountInputTrimmed !== '' && discountError !== null;
@@ -1389,17 +1349,41 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                 {filteredPayableItems.length > 0 && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '8px' }}>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Fees to Pay</label>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={selectAll} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[All]</button>
-                        <button onClick={selectRentOnly} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[Rent Only]</button>
-                        {/*
-                        <button onClick={selectMessOnly} style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: 0 }}>[Mess]</button>
-                        */}
-                      </div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fees to Pay</label>
                     </div>
 
                     <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div
+                        onClick={toggleAllCurrentFees}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          background: allCurrentSelected ? '#eff6ff' : '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          cursor: 'pointer',
+                          transition: 'background 0.2s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <input
+                            type="checkbox"
+                            checked={allCurrentSelected}
+                            onChange={(e) => { e.stopPropagation(); toggleAllCurrentFees(); }}
+                            style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                          />
+                          <span style={{ fontWeight: 700, color: allCurrentSelected ? '#1e3a8a' : '#64748b', fontSize: '14px' }}>
+                            Pay All Current Fees {allCurrentSelected ? '' : <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Unchecked)</span>}
+                          </span>
+                        </div>
+                        <span style={{ fontWeight: 700, color: allCurrentSelected ? '#1e3a8a' : '#94a3b8', fontSize: '14px', textDecoration: allCurrentSelected ? 'none' : 'line-through' }}>
+                          ₹{orderedDisplayItems
+                            .reduce((sum: number, item: any) => sum + item.amount * getMultiplier(item.transactionType), 0)
+                            .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+
                       {orderedDisplayItems.map((f, index) => {
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
@@ -1408,19 +1392,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         const fineParent = getFineParentType(f);
 
                         return (
-                          <div key={f.id} onClick={() => toggleFee(f)} style={{ display: 'flex', padding: '12px 16px', paddingLeft: fineParent ? '40px' : '16px', borderBottom: isLast ? 'none' : '1px solid #e2e8f0', background: state.selected ? '#ffffff' : '#f8fafc', cursor: 'pointer', transition: 'background 0.2s', alignItems: 'flex-start' }}>
-                            <div style={{ marginRight: '12px', marginTop: '2px' }}>
-                              <input
-                                type="checkbox"
-                                checked={state.selected}
-                                onChange={(e) => { e.stopPropagation(); toggleFee(f); }}
-                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
-                              />
-                            </div>
+                          <div key={f.id} style={{ display: 'flex', padding: '12px 16px', paddingLeft: fineParent ? '40px' : '16px', borderBottom: isLast ? 'none' : '1px solid #e2e8f0', background: state.selected ? '#ffffff' : '#f8fafc', transition: 'background 0.2s', alignItems: 'flex-start' }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                                 <span style={{ fontWeight: 600, color: state.selected ? '#0f172a' : '#64748b', fontSize: '14px' }}>
-                                  {getFeeLabel(f)} {state.selected ? '' : <span style={{ fontWeight: 400, color: '#94a3b8' }}>(Unchecked)</span>}
+                                  {getFeeLabel(f)}
                                 </span>
                                 <span style={{ fontWeight: 700, color: state.selected ? '#0f172a' : '#94a3b8', fontSize: '14px', textDecoration: state.selected ? 'none' : 'line-through' }}>
                                   ₹{calculatedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
