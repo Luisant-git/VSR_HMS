@@ -1,60 +1,47 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Wind, Users, Bed, Filter } from 'lucide-react';
+import { RoomAPI } from '../api/room.api';
+import { blockLabel, normalizeBlock } from '../utils/roomBlock';
 
 const RoomDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
+  const [dbRooms, setDbRooms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const getRoomsForBlock = (blockId: string) => {
-    if (!blockId) return [];
-    const prefix = blockId[0];
-    
-    if (blockId === 'Dormitory') {
-      return [{ id: 'Dorm', capacity: 28, occupied: 10, isAC: false }];
-    }
-    
-    if (prefix === 'A' || prefix === 'C') {
-      return Array.from({ length: 12 }, (_, i) => ({
-        id: `${prefix}${i + 1}`,
-        capacity: 5,
-        occupied: Math.floor(Math.random() * 6),
-        isAC: [7, 8, 9].includes(i + 1)
+  useEffect(() => {
+    setLoading(true);
+    RoomAPI.findAll()
+      .then((data) => setDbRooms(Array.isArray(data) ? data : []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const targetBlockKey = useMemo(() => {
+    const raw = decodeURIComponent(id || '').replace(/-/g, ' ').trim();
+    return normalizeBlock(raw);
+  }, [id]);
+
+  const blockTitle = blockLabel(targetBlockKey);
+
+  const rooms = useMemo(() => {
+    return dbRooms
+      .filter((r) => normalizeBlock(r.block, r.id) === targetBlockKey)
+      .sort((a, b) =>
+        String(a.id || '').localeCompare(String(b.id || ''), undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        }),
+      )
+      .map((r) => ({
+        id: r.id,
+        capacity: Number(r.capacity) || 0,
+        occupied: Number(r.occupiedCount) || 0,
+        isAC: /ac\b/i.test(String(r.amenities || '')) || /\bac\b/i.test(String(r.type || '')),
       }));
-    }
-    
-    if (prefix === 'B' || prefix === 'D') {
-      return Array.from({ length: 12 }, (_, i) => ({
-        id: `${prefix}${i + 1}`,
-        capacity: 6,
-        occupied: Math.floor(Math.random() * 7),
-        isAC: false
-      }));
-    }
-
-    if (prefix === 'E') {
-      return Array.from({ length: 5 }, (_, i) => ({
-        id: `${prefix}${i + 1}`,
-        capacity: i === 0 ? 1 : 5, // E1 is Warden (single), others 5
-        occupied: i === 0 ? 1 : Math.floor(Math.random() * 6),
-        isAC: i === 0 // Assuming Warden has AC
-      }));
-    }
-
-    if (prefix === 'W') {
-      return Array.from({ length: 3 }, (_, i) => ({
-        id: `${prefix}${i + 1}`,
-        capacity: 1,
-        occupied: Math.floor(Math.random() * 2),
-        isAC: true
-      }));
-    }
-
-    return [];
-  };
-
-  const rooms = getRoomsForBlock(id || '');
+  }, [dbRooms, targetBlockKey]);
 
   return (
     <div>
@@ -80,7 +67,7 @@ const RoomDetails = () => {
             <ArrowLeft size={18} /> Back
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-heading" style={{ fontSize: '24px', fontWeight: 700, margin: 0 }}>{id?.replace('-', ' ')} Details</h1>
+            <h1 className="text-2xl font-bold text-heading" style={{ fontSize: '24px', fontWeight: 700, margin: 0 }}>{blockTitle} Details</h1>
             <p className="text-muted" style={{ fontSize: '14px', margin: '4px 0 0 0' }}>Individual room occupancy and management.</p>
           </div>
         </div>
@@ -112,6 +99,9 @@ const RoomDetails = () => {
         </div>
       </div>
 
+      {loading ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading rooms...</div>
+      ) : (
       <div className="grid grid-cols-4">
         {rooms.filter(room => {
           if (filter === 'Available') return room.occupied < room.capacity;
@@ -192,6 +182,7 @@ const RoomDetails = () => {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

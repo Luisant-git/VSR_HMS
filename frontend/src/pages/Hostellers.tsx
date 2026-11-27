@@ -19,6 +19,7 @@ import {
 import { formatBillingMonthShort, resolveFeeBillingMonth } from '../utils/billingCycle';
 import { toast } from 'react-toastify';
 import { isWardenStudent } from '../utils/warden';
+import { blockLabel, blockRank, normalizeBlock } from '../utils/roomBlock';
 const MENU_WIDTH = 232;
 const MENU_GAP = 6;
 const MENU_EDGE = 8;
@@ -32,29 +33,6 @@ type MenuPosition = {
   maxHeight: number;
   width: number;
 };
-
-const BLOCK_ORDER = ['A', 'B', 'C', 'CD', 'D', 'E', 'Dormitory', 'Single Rooms', 'W'];
-const blockRank = (block: string) => {
-  const index = BLOCK_ORDER.findIndex(b => b.toLowerCase() === String(block).toLowerCase());
-  return index === -1 ? BLOCK_ORDER.length : index;
-};
-
-// Blocks are stored on rooms ("A", "Block A", ...). Fall back to the room
-// number (A1, B3, W2 ...) when the room relation is missing.
-const normalizeBlock = (rawBlock: any, roomNo?: any) => {
-  const room = String(roomNo || '').trim();
-  const raw = String(rawBlock || '').trim();
-  const letter = room.match(/^([A-E])\d+/i)?.[1]?.toUpperCase();
-  if (letter || /^block\s*[a-e]$/i.test(raw) || /^[a-e]$/i.test(raw)) {
-    return letter || raw.replace(/^block\s*/i, '').trim().toUpperCase();
-  }
-  if (/dorm/i.test(raw) || /^dorm/i.test(room)) return 'Dormitory';
-  if (/single/i.test(raw) || /^w\d+/i.test(room)) return 'Single Rooms';
-  return raw.replace(/^block\s*/i, '').trim() || 'Other';
-};
-
-const blockLabel = (block: string) =>
-  /^[A-E]$/i.test(block) ? `Block ${block.toUpperCase()}` : block;
 
 const getSimpleFeeName = (fee: any): string => {
   const type = String(fee?.transactionType || '').toUpperCase();

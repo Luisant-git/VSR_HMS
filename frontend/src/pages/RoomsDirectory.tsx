@@ -7,6 +7,7 @@ import { RoomAPI } from '../api/room.api';
 import { StudentAPI } from '../api/student.api';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { isWardenStudent } from '../utils/warden';
+import { blockLabel, blockRank, normalizeBlock } from '../utils/roomBlock';
 import { toast } from 'react-toastify';
 
 const RoomsDirectory = () => {
@@ -127,29 +128,12 @@ const RoomsDirectory = () => {
 
   // Blocks come from the live room list. Normalise values like "Block A" / "A"
   // and fall back to the room number (A1, B2 ...) so every block is listed once.
-  const normalizeBlock = (rawBlock: any, roomId?: any) => {
-    const room = String(roomId || '').trim();
-    const b = String(rawBlock || '').trim();
-    const letter = room.match(/^([A-E])\d+/i)?.[1]?.toUpperCase();
-    if (letter || /^block\s*[a-e]$/i.test(b) || /^[a-e]$/i.test(b)) {
-      return letter || b.replace(/^block\s*/i, '').trim().toUpperCase();
-    }
-    if (/dorm/i.test(b) || /^dorm/i.test(room)) return 'Dormitory';
-    if (/single/i.test(b) || /^w\d+/i.test(room)) return 'Single Rooms';
-    return b.replace(/^block\s*/i, '').trim() || 'Other';
-  };
   const roomBlock = (r: any) => normalizeBlock(r.block, r.id);
-  const BLOCK_ORDER = ['A', 'B', 'C', 'CD', 'D', 'E', 'Dormitory', 'Single Rooms', 'W'];
-  const blockRank = (block: string) => {
-    const index = BLOCK_ORDER.findIndex(b => b.toLowerCase() === String(block).toLowerCase());
-    return index === -1 ? BLOCK_ORDER.length : index;
-  };
   const blockOptions = Array.from(new Set(dbRooms.map(roomBlock).filter(Boolean)))
     .sort((a, b) => blockRank(a) - blockRank(b) || a.localeCompare(b, undefined, { numeric: true }));
   const blockCounts: Record<string, number> = Object.fromEntries(
     blockOptions.map(block => [block, dbRooms.filter(r => roomBlock(r) === block).length]),
   );
-  const blockLabel = (block: string) => /^[A-E]$/i.test(block) ? `Block ${block.toUpperCase()}` : block;
 
   // Searchable block dropdown (same react-select style used on Fees / Hostellers).
   const selectStyles = {
