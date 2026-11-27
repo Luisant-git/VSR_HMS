@@ -97,3 +97,12 @@ export const getOverdueDays = (
   if (asOf.getTime() <= due.getTime()) return 0;
   return Math.floor((asOf.getTime() - due.getTime()) / 86_400_000);
 };
+
+/** Returns true only when a college has at least one positive daily fine rate. */
+export const hasActiveFineRule = (college: any): boolean =>
+  Boolean(
+    college?.fineMaster &&
+      ((Number(college.fineMaster.rentFine) || 0) > 0 ||
+        (Number(college.fineMaster.messFine) || 0) > 0 ||
+        (Number(college.fineMaster.ebFine) || 0) > 0),
+  );
