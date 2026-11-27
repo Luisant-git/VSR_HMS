@@ -25,6 +25,7 @@ interface StudentFeeRow {
   rentMonthLabel: string; // e.g. "SEP 26" or "OCT 26"
   rentAmount: number;
   rentDisplay: string;
+  rentPaidUntilLabel?: string | null;
   rentPaidDate: string | null;
   ebMonthLabel: string;   // e.g. "SEP 26"
   ebAmount: number;
@@ -52,6 +53,12 @@ const formatPaymentDate = (d?: string | Date | null): string => {
   const month = date.getMonth() + 1;
   const year = String(date.getFullYear()).slice(-2);
   return `${day}/${month}/${year}`;
+};
+
+/** Rounds to 2 decimal places and strips floating-point artifacts like 107.05999999999949 */
+const formatAmount = (val: number): string => {
+  const rounded = Math.round((Number(val) || 0) * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : String(Number(rounded.toFixed(2)));
 };
 
 /** Formats "2026-09" to "SEP 26" */
@@ -314,6 +321,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
 
         let rentAmount = 0;
         let rentPaidDate: string | null = null;
+        let rentPaidUntilLabel: string | null = null;
 
         // Prioritize active PENDING invoice for this cycle (means UNPAID!)
         const pendingRent = rentFees.find((f) => {
@@ -330,12 +338,49 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           return m === targetRentMonth || m === selectedMonth;
         });
 
+        const extractPaidUntilLabel = (tx?: any): string | null => {
+          const match = String(tx?.description || '').match(/Paid for \d+ Months \(([^)]+)\)/i);
+          if (match) {
+            const parts = match[1].split('-');
+            return parts[parts.length - 1].trim();
+          }
+          if (student.rentPaidUntil) {
+            const d = new Date(student.rentPaidUntil);
+            if (!isNaN(d.getTime())) {
+              const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+              return formatShortMonth(ym);
+            }
+          }
+          return null;
+        };
+
+        const paidUntilDate = student.rentPaidUntil ? new Date(student.rentPaidUntil) : null;
+        const paidUntilYM =
+          paidUntilDate && !isNaN(paidUntilDate.getTime())
+            ? `${paidUntilDate.getFullYear()}-${String(paidUntilDate.getMonth() + 1).padStart(2, '0')}`
+            : null;
+        const isCoveredByAdvanceRent = paidUntilYM !== null && paidUntilYM >= targetRentMonth;
+
         if (pendingRent) {
           rentAmount = Number(pendingRent.amount) || Number(student.rent) || Number(room.rent) || 0;
           rentPaidDate = null; // Unpaid! Must leave blank!
         } else if (completedRent) {
           rentAmount = Number(completedRent.amount) || Number(student.rent) || Number(room.rent) || 0;
           rentPaidDate = completedRent.paidDate || null;
+          if (/Paid for \d+ Months/i.test(String(completedRent.description || ''))) {
+            rentPaidUntilLabel = extractPaidUntilLabel(completedRent);
+          }
+        } else if (isCoveredByAdvanceRent) {
+          // Upcoming month covered by an earlier multi-month rent payment
+          const multiMonthTx = studentFees.find(
+            (f: any) =>
+              String(f.transactionType || '').toUpperCase().includes('RENT') &&
+              f.status === 'COMPLETED' &&
+              /Paid for \d+ Months/i.test(String(f.description || '')),
+          );
+          rentAmount = Number(multiMonthTx?.amount) || Number(student.rent) || Number(room.rent) || 0;
+          rentPaidDate = multiMonthTx?.paidDate || student.rentPaidUntil || null;
+          rentPaidUntilLabel = extractPaidUntilLabel(multiMonthTx);
         } else {
           // No transaction in fees array, fallback to student profile rent or room rent
           rentAmount = Number(student.rent) || Number(room.rent) || 0;
@@ -448,9 +493,9 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           }
         }
 
-        const rentDisplay = rentAmount > 0 ? `${rentAmount} (${rentMonthLabel})` : '';
-        const ebDisplay = ebAmount > 0 ? ebAmount.toString() : '';
-        const outstandingDisplay = outstandingAmount > 0 ? outstandingAmount.toString() : '';
+        const rentDisplay = rentAmount > 0 ? `${formatAmount(rentAmount)} (${rentMonthLabel})` : '';
+        const ebDisplay = ebAmount > 0 ? formatAmount(ebAmount) : '';
+        const outstandingDisplay = outstandingAmount > 0 ? formatAmount(outstandingAmount) : '';
 
         return {
           studentId,
@@ -462,6 +507,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           rentMonthLabel,
           rentAmount,
           rentDisplay,
+          rentPaidUntilLabel,
           rentPaidDate,
           ebMonthLabel,
           ebAmount,
@@ -652,11 +698,11 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         group.students.forEach((s) => {
           tableBody.push([
             s.mobileNo ? `${s.name}\n${s.mobileNo}` : s.name,
-            s.rentDisplay || '',
+            s.rentDisplay ? (s.rentPaidUntilLabel ? `${s.rentDisplay}\nPaid till ${s.rentPaidUntilLabel}` : s.rentDisplay) : '',
             s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
             s.ebDisplay || '',
             s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
-            s.fineAmount > 0 ? s.fineAmount.toString() : '',
+            s.fineAmount > 0 ? formatAmount(s.fineAmount) : '',
             s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
             s.outstandingDisplay || '',
             s.outstandingPaidDate ? formatPaymentDate(s.outstandingPaidDate) : '',
@@ -766,11 +812,11 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
           'Room': s.roomNo,
           'Student Name': s.name, // ONLY student name!
           'Mobile No': s.mobileNo || '',
-          'Room Rent': s.rentDisplay || '',
+          'Room Rent': s.rentDisplay ? (s.rentPaidUntilLabel ? `${s.rentDisplay} (Paid till ${s.rentPaidUntilLabel})` : s.rentDisplay) : '',
           'Rent Payment Date': s.rentPaidDate ? formatPaymentDate(s.rentPaidDate) : '',
           'EB Charge': s.ebDisplay || '',
           'EB Payment Date': s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : '',
-          'Fine': s.fineAmount > 0 ? s.fineAmount : '',
+          'Fine': s.fineAmount > 0 ? Number(formatAmount(s.fineAmount)) : '',
           'Fine Payment Date': s.finePaidDate ? formatPaymentDate(s.finePaidDate) : '',
           'Outstanding Balance': s.outstandingDisplay || '',
           'Outstanding Payment Date': s.outstandingPaidDate ? formatPaymentDate(s.outstandingPaidDate) : '',
@@ -1149,7 +1195,12 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                             )}
                           </td>
                           <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
-                            {s.rentDisplay}
+                            <div>{s.rentDisplay}</div>
+                            {s.rentPaidUntilLabel && (
+                              <div style={{ fontSize: '11px', color: '#0369a1', fontWeight: 600, marginTop: '2px' }}>
+                                Paid till {s.rentPaidUntilLabel}
+                              </div>
+                            )}
                           </td>
                           <td
                             style={{
@@ -1177,7 +1228,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                             {s.ebPaidDate ? formatPaymentDate(s.ebPaidDate) : ''}
                           </td>
                           <td style={{ border: '1.5px solid #000', padding: '8px 6px', textAlign: 'center', fontSize: '13px' }}>
-                            {s.fineAmount > 0 ? s.fineAmount.toString() : ''}
+                            {s.fineAmount > 0 ? formatAmount(s.fineAmount) : ''}
                           </td>
                           <td
                             style={{
