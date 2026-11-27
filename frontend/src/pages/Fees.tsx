@@ -407,7 +407,8 @@ const Fees = () => {
   const statusOptions = [
     { value: 'ALL', label: '-- All Status --' },
     { value: 'PAID', label: 'Paid' },
-    { value: 'UNPAID', label: 'Unpaid' }
+    { value: 'UNPAID', label: 'Unpaid' },
+    { value: 'OUTSTANDING', label: 'Outstanding Balance' },
   ];
 
   const billingMonthOptions = useMemo(() => {
@@ -446,7 +447,7 @@ const Fees = () => {
     if (isPreviousSettledFee(fee) && !isPostpaidPayableNow) return false;
 
     let match = true;
-    if (filter === 'UNPAID') {
+    if (filter === 'UNPAID' || filter === 'OUTSTANDING') {
       match =
         fee.status === 'PENDING' &&
         (!isImportedInvoice(fee) || isPostpaidPayableNow);
@@ -864,8 +865,13 @@ const Fees = () => {
       return bTime - aTime || String(b.id).localeCompare(String(a.id));
     });
 
-    return result;
-  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, billingMonthFilter, collegeCategoryFilter]);
+    const finalResult =
+      filter === 'OUTSTANDING'
+        ? result.filter((row) => row.status !== 'COMPLETED' && Number(row.displayBalance || 0) > 0.005)
+        : result;
+
+    return finalResult;
+  }, [filteredFees, outstandingTotals, outstandingInvoicesByStudent, billingMonthFilter, collegeCategoryFilter, filter]);
 
   // Single ledger for all three cards and the reconciliation breakdown. It is
   // built from transactions (not grouped display rows) so every invoice amount

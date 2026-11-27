@@ -780,9 +780,13 @@ const Hostellers = () => {
               { value: '-- All Fee Status --', label: '-- All Fee Status --' },
               { value: 'Un-Paid', label: 'Un-Paid' },
               { value: 'Paid', label: 'Paid' },
-              { value: 'No Dues', label: 'No Dues' }
+              { value: 'No Dues', label: 'No Dues' },
+              { value: 'Outstanding', label: 'Outstanding Balance' }
             ]}
-            value={{ value: feeStatusFilter, label: feeStatusFilter }}
+            value={{
+              value: feeStatusFilter,
+              label: feeStatusFilter === 'Outstanding' ? 'Outstanding Balance' : feeStatusFilter,
+            }}
             onChange={(opt) => { setFeeStatusFilter(opt?.value || '-- All Fee Status --'); setPage(1); }}
             styles={selectStyles}
             isSearchable={false}

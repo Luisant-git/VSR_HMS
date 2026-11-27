@@ -626,6 +626,15 @@ export class StudentsService {
         };
       } else if (params.feeFilter === 'No Dues') {
         where.transactions = { none: { deletedAt: null } };
+      } else if (params.feeFilter === 'Outstanding') {
+        where.transactions = {
+          some: {
+            status: 'PENDING',
+            deletedAt: null,
+            transactionType: { notIn: ['MESS', 'MESS DEDUCTION'] },
+            description: { startsWith: 'Outstanding', mode: 'insensitive' },
+          },
+        };
       }
     }
 
@@ -635,16 +644,51 @@ export class StudentsService {
       orderBy = { profileUpdatedAt: 'desc' };
     }
 
-    const [data, total] = await Promise.all([
-      this.prisma.student.findMany({
-        where,
-        skip,
-        take,
-        orderBy,
-        include: { transactions: { where: { deletedAt: null } }, room: true, college: true }
-      }),
-      this.prisma.student.count({ where })
-    ]);
+    const isOutstandingFilter = params?.feeFilter === 'Outstanding';
+
+    let [data, total] = isOutstandingFilter
+      ? [
+          await this.prisma.student.findMany({
+            where,
+            orderBy,
+            include: { transactions: { where: { deletedAt: null } }, room: true, college: true },
+          }),
+          0,
+        ]
+      : await Promise.all([
+          this.prisma.student.findMany({
+            where,
+            skip,
+            take,
+            orderBy,
+            include: { transactions: { where: { deletedAt: null } }, room: true, college: true },
+          }),
+          this.prisma.student.count({ where }),
+        ]);
+
+    if (isOutstandingFilter) {
+      const withRemaining = data.filter((student: any) => {
+        const txns = Array.isArray(student.transactions) ? student.transactions : [];
+        const original = txns
+          .filter(
+            (t: any) =>
+              t.status === 'PENDING' &&
+              !['MESS', 'MESS DEDUCTION'].includes(String(t.transactionType || '').toUpperCase()) &&
+              /^\s*outstanding\b/i.test(String(t.description || '')),
+          )
+          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+        const paid = txns
+          .filter(
+            (t: any) =>
+              t.status === 'COMPLETED' &&
+              String(t.transactionType || '').toUpperCase() === 'OUTSTANDING_PAYMENT',
+          )
+          .reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
+        return original - paid > 0.005;
+      });
+      total = withRemaining.length;
+      data = hasPagination ? withRemaining.slice(skip || 0, (skip || 0) + limit) : withRemaining;
+    }
 
     const advanceRows = await this.prisma.$queryRaw<Array<{ id: string; advanceRentBalance: number }>>`
       SELECT "id", COALESCE("advanceRentBalance", 0) AS "advanceRentBalance"
