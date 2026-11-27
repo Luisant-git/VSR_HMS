@@ -641,6 +641,16 @@ export class FeesService {
         const pendingStr = parseDesc('Pending Balance');
         const pendingBalance = pendingStr ? parseFloat(pendingStr) || 0 : 0;
         const baseDescription = descRaw.split('|')[0]?.trim() || `${updated.transactionType} for ${updated.billingMonth || ''}`;
+        const itemGross = grossAmount > 0 ? grossAmount : Number(updated.amount || 0);
+        const multiMonthMatch = descRaw.match(/Paid for (\d+) Months\s*(?:\(([^)]+)\))?/i);
+        let itemDescription = baseDescription;
+        if (multiMonthMatch) {
+          const monthsCount = parseInt(multiMonthMatch[1], 10);
+          const periodPart = multiMonthMatch[2] ? ` (${multiMonthMatch[2]})` : '';
+          const perMonth = monthsCount > 0 ? Math.round((itemGross / monthsCount) * 100) / 100 : 0;
+          const ratePart = perMonth > 0 ? ` (@ Rs. ${perMonth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)` : '';
+          itemDescription = `${baseDescription}\nPaid for ${monthsCount} Months${periodPart}${ratePart}`;
+        }
 
         const invoiceNo = updated.invoiceNumber || '';
         const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
@@ -660,7 +670,7 @@ export class FeesService {
               ? new Date(updated.paidDate).toLocaleDateString('en-GB')
               : undefined,
             amount: Number(updated.amount || 0),
-            grossAmount: grossAmount > 0 ? grossAmount : Number(updated.amount || 0),
+            grossAmount: itemGross,
             discountAmount: discount,
             paymentMode: updated.paymentMode || 'Cash',
             gatewayMethod: updated.paymentMode && updated.paymentMode.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual',
@@ -669,9 +679,9 @@ export class FeesService {
             notes: notes || undefined,
             items: [
               {
-                description: baseDescription,
+                description: itemDescription,
                 type: updated.transactionType || 'Fee',
-                amount: grossAmount > 0 ? grossAmount : Number(updated.amount || 0),
+                amount: itemGross,
               },
             ],
           })

@@ -759,7 +759,8 @@ const Hostellers = () => {
               { value: 'Un-Paid', label: 'Un-Paid' },
               { value: 'Paid', label: 'Paid' },
               { value: 'No Dues', label: 'No Dues' },
-              { value: 'Outstanding', label: 'Outstanding Balance' }
+              { value: 'Outstanding', label: 'Outstanding Balance' },
+              { value: 'Multi-Month Rent Paid', label: 'Multi-Month Rent Paid' },
             ]}
             value={{
               value: feeStatusFilter,

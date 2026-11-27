@@ -409,6 +409,7 @@ const Fees = () => {
     { value: 'PAID', label: 'Paid' },
     { value: 'UNPAID', label: 'Unpaid' },
     { value: 'OUTSTANDING', label: 'Outstanding Balance' },
+    { value: 'MULTI_MONTH_RENT', label: 'Multi-Month Rent Paid' },
   ];
 
   const billingMonthOptions = useMemo(() => {
@@ -453,6 +454,9 @@ const Fees = () => {
         (!isImportedInvoice(fee) || isPostpaidPayableNow);
     }
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
+    if (filter === 'MULTI_MONTH_RENT') {
+      match = fee.status === 'COMPLETED' && /Paid for \d+ Months/i.test(String(fee.description || ''));
+    }
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
 
     if (selectedStudent.value !== 'ALL' && (fee.student?.manualRegsiName || fee.student?.regNo) !== selectedStudent.value) match = false;
@@ -729,7 +733,7 @@ const Fees = () => {
       const studentObj = firstInvoice?.student || fees.find(f => getStudentKey(f) === studentKey)?.student;
 
       // Apply active filters
-      if (filter === 'PAID') return;
+      if (filter === 'PAID' || filter === 'MULTI_MONTH_RENT') return;
       const studentDisplayId =
         studentObj?.manualRegsiName || studentObj?.regNo || studentKey;
       if (

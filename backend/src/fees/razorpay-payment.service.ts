@@ -687,10 +687,25 @@ export class RazorpayPaymentService {
                       amount: totalPaid,
                       paymentMode: 'RAZORPAY ONLINE',
                       receiptDate: new Date().toLocaleDateString('en-GB'),
-                      items: paidItems.map((p: any) => ({
-                        type: p.transactionType || 'Fee',
-                        amount: Number(p.amount || 0),
-                      })),
+                      items: paidItems.map((p: any) => {
+                        const rawDesc = String(p.description || '');
+                        const baseDesc = rawDesc.split('|')[0]?.trim() || p.transactionType || 'Fee';
+                        const itemAmt = Number(p.amount || 0);
+                        const mMatch = rawDesc.match(/Paid for (\d+) Months\s*(?:\(([^)]+)\))?/i);
+                        let desc = baseDesc;
+                        if (mMatch) {
+                          const cnt = parseInt(mMatch[1], 10);
+                          const period = mMatch[2] ? ` (${mMatch[2]})` : '';
+                          const perMonth = cnt > 0 ? Math.round((itemAmt / cnt) * 100) / 100 : 0;
+                          const rate = perMonth > 0 ? ` (@ Rs. ${perMonth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)` : '';
+                          desc = `${baseDesc}\nPaid for ${cnt} Months${period}${rate}`;
+                        }
+                        return {
+                          description: desc,
+                          type: p.transactionType || 'Fee',
+                          amount: itemAmt,
+                        };
+                      }),
                     })
                     .catch((err) => console.error('Automated WhatsApp dispatch error:', err));
                 }

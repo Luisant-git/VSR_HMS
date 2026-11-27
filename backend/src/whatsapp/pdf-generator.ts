@@ -272,11 +272,14 @@ export function generateReceiptPdfBuffer(data: FeeReceiptNotification): Promise<
           : [{ description: 'Hostel Fee', type: 'FEE', amount: data.amount }];
 
       for (const item of items) {
-        const itemH = 22;
+        const descText = item.description || formatFeeTypeName(item.type);
+        doc.font('Helvetica').fontSize(9).fillColor('#000000');
+        const descHeight = doc.heightOfString(descText, { width: col1Width - 16 });
+        const itemH = Math.max(22, Math.ceil(descHeight) + 12);
         doc.strokeColor('#000000').lineWidth(0.5).rect(margin, currentFeeY, contentWidth, itemH).stroke();
 
         doc.font('Helvetica').fontSize(9).fillColor('#000000');
-        doc.text(item.description || formatFeeTypeName(item.type), margin + 8, currentFeeY + 6, {
+        doc.text(descText, margin + 8, currentFeeY + 6, {
           width: col1Width - 16,
           align: 'left',
         });

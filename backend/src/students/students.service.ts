@@ -657,6 +657,15 @@ export class StudentsService {
             description: { startsWith: 'Outstanding', mode: 'insensitive' },
           },
         };
+      } else if (params.feeFilter === 'Multi-Month Rent Paid') {
+        where.transactions = {
+          some: {
+            status: 'COMPLETED',
+            deletedAt: null,
+            transactionType: 'RENT',
+            description: { contains: 'Paid for ', mode: 'insensitive' },
+          },
+        };
       }
     }
 
