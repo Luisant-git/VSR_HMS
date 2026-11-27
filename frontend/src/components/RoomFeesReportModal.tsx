@@ -138,6 +138,15 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
   // Filter states
   const [selectedBlock, setSelectedBlock] = useState<string>('ALL');
   const [selectedRoom, setSelectedRoom] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+
+  const statusOptions = [
+    { value: 'ALL', label: 'All (Paid & Unpaid)' },
+    { value: 'PAID', label: 'Paid Only' },
+    { value: 'UNPAID', label: 'Unpaid Only' },
+  ];
 
   // Filtered rooms list for room selector
   const roomsInSelectedBlock = useMemo(() => {
@@ -466,15 +475,73 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
         };
       });
 
-      // Default: skip rooms with 0 active students
-      if (studentRows.length === 0) {
+      const isWithinDateRange = (dateVal?: string | Date | null) => {
+        if (!fromDate && !toDate) return true;
+        if (!dateVal) return false;
+        const parsed = new Date(dateVal);
+        if (isNaN(parsed.getTime())) return false;
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        const ymd = `${y}-${m}-${d}`;
+        if (fromDate && ymd < fromDate) return false;
+        if (toDate && ymd > toDate) return false;
+        return true;
+      };
+
+      const filteredRows = studentRows.filter((row) => {
+        const hasUnpaid =
+          (row.rentAmount > 0 && !row.rentPaidDate) ||
+          (row.ebAmount > 0 && !row.ebPaidDate) ||
+          (row.fineAmount > 0 && !row.finePaidDate) ||
+          (row.outstandingAmount > 0 && !row.outstandingPaidDate);
+        const hasPaid = Boolean(
+          row.rentPaidDate || row.ebPaidDate || row.finePaidDate || row.outstandingPaidDate,
+        );
+
+        if (statusFilter === 'PAID' && (hasUnpaid || !hasPaid)) return false;
+        if (statusFilter === 'UNPAID' && !hasUnpaid) return false;
+
+        if (fromDate || toDate) {
+          const paidDates = [
+            row.rentPaidDate,
+            row.ebPaidDate,
+            row.finePaidDate,
+            row.outstandingPaidDate,
+          ].filter(Boolean);
+
+          if (statusFilter === 'UNPAID') {
+            const sFees = fees.filter((f: any) => {
+              const s = f.student;
+              if (!s) return false;
+              const fId = s.id || s.regNo || s.manualRegsiName;
+              return fId && fId === row.studentId;
+            });
+            const hasPendingInRange = sFees.some(
+              (f: any) =>
+                f.status === 'PENDING' &&
+                (isWithinDateRange(f.dueDate) || isWithinDateRange(f.createdAt)),
+            );
+            if (!hasPendingInRange && !paidDates.some((d) => isWithinDateRange(d))) {
+              return false;
+            }
+          } else {
+            if (!paidDates.some((d) => isWithinDateRange(d))) return false;
+          }
+        }
+
+        return true;
+      });
+
+      // Default: skip rooms with 0 matching students
+      if (filteredRows.length === 0) {
         return;
       }
 
       groups.push({
         roomId,
         block: blockName,
-        students: studentRows,
+        students: filteredRows,
       });
     });
 
@@ -483,7 +550,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
       if (blockCmp !== 0) return blockCmp;
       return a.roomId.localeCompare(b.roomId, undefined, { numeric: true });
     });
-  }, [rooms, fees, selectedMonth, previousMonthStr, selectedBlock, selectedRoom]);
+  }, [rooms, fees, selectedMonth, previousMonthStr, selectedBlock, selectedRoom, statusFilter, fromDate, toDate]);
 
   // Generate and Download PDF with the EXACT SAME LOOK as the user's reference image
   const handleDownloadPDF = () => {
@@ -833,7 +900,7 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
             </div>
 
             {/* Searchable Room Dropdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '160px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
                 ROOM
               </label>
@@ -846,6 +913,86 @@ export const RoomFeesReportModal: React.FC<RoomFeesReportModalProps> = ({
                 placeholder="Search Room..."
               />
             </div>
+
+            {/* Paid / Unpaid Status Filter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '165px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                STATUS
+              </label>
+              <Select
+                value={statusOptions.find((opt) => opt.value === statusFilter) || statusOptions[0]}
+                onChange={(opt: any) => setStatusFilter((opt?.value as 'ALL' | 'PAID' | 'UNPAID') || 'ALL')}
+                options={statusOptions}
+                styles={customSelectStyles}
+              />
+            </div>
+
+            {/* From Date */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                FROM DATE
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  color: '#1e293b',
+                  background: '#fff',
+                }}
+              />
+            </div>
+
+            {/* To Date */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', letterSpacing: '0.5px' }}>
+                TO DATE
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{
+                  height: '36px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '13px',
+                  color: '#1e293b',
+                  background: '#fff',
+                }}
+              />
+            </div>
+
+            {(statusFilter !== 'ALL' || fromDate || toDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter('ALL');
+                  setFromDate('');
+                  setToDate('');
+                }}
+                style={{
+                  alignSelf: 'flex-end',
+                  height: '36px',
+                  padding: '0 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#475569',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Clear
+              </button>
+            )}
           </div>
 
           {/* Action Buttons */}
