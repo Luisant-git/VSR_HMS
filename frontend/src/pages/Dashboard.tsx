@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { LoadingBlock } from '../components/LoadingSpinner';
 import { calculatePendingDues } from '../utils/outstanding';
 import { isWardenStudent } from '../utils/warden';
+import { blockLabel, blockRank, normalizeBlock } from '../utils/roomBlock';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const Dashboard = () => {
     id: r.id,
     type: r.type,
     ac: r.amenities ? r.amenities.includes('AC') : false,
-    block: r.block,
+    block: normalizeBlock(r.block) || r.block,
     floor: `Room ${r.id ? r.id.replace(/^[a-zA-Z\s_-]+/, '') : ''}`,
     rent: Number(r.rent || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
     mess: Number(r.messFee || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
@@ -83,7 +84,15 @@ const Dashboard = () => {
   const vacantBeds = totalBeds - occupiedBeds;
 
 
-  const allBlocks = ['All', ...Array.from(new Set(dbRooms.map(r => r.block).filter(Boolean))).sort()];
+  const allBlocks = [
+    'All',
+    ...Array.from(
+      new Set(dbRooms.map(r => normalizeBlock(r.block)).filter(Boolean)),
+    ).sort((a, b) => {
+      const rankDiff = blockRank(a) - blockRank(b);
+      return rankDiff !== 0 ? rankDiff : a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    }),
+  ];
   // "FullyVacant" = rooms with zero occupants (all beds empty), matching the
   // Rooms Directory vocabulary. It is NOT the same as the "Vacant Beds" metric,
   // which counts free beds (capacity - occupied).
@@ -325,7 +334,7 @@ const Dashboard = () => {
                 value={blockFilter}
                 onChange={(e) => setBlockFilter(e.target.value)}
               >
-                {allBlocks.map(b => <option key={b} value={b}>{b === 'All' ? 'All Blocks' : `Block ${b}`}</option>)}
+                {allBlocks.map(b => <option key={b} value={b}>{b === 'All' ? 'All Blocks' : blockLabel(b)}</option>)}
               </select>
               {(roomSearch || blockFilter !== 'All') && (
                 <button
