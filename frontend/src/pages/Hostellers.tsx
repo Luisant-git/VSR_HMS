@@ -860,23 +860,22 @@ const Hostellers = () => {
                   <th>Fee Status</th>
                   <th>Pending Fees</th>
                   <th>Outstanding Fee</th>
-                  <th>Advance Rent</th>
                   <th>Joining Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && hostellers.length === 0 ? (
-                  <LoadingRow colSpan={11} />
+                  <LoadingRow colSpan={10} />
                 ) : error ? (
                   <tr>
-                    <td colSpan={11} className="ui-empty ui-empty-danger">
+                    <td colSpan={10} className="ui-empty ui-empty-danger">
                       {error}
                     </td>
                   </tr>
                 ) : filteredHostellers.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="ui-empty">
+                    <td colSpan={10} className="ui-empty">
                       No enrolled students found.
                     </td>
                   </tr>
@@ -949,11 +948,6 @@ const Hostellers = () => {
                           <span>₹{Number(h.pendingFeesAmount || 0).toLocaleString('en-IN')}</span>
                           <Eye size={12} />
                         </button>
-                      </td>
-                      <td title={`Advance Rent Credit: ₹${Number(h.advanceRentBalance || 0).toLocaleString('en-IN')}`}>
-                        <span className={`ui-badge ${h.advanceRentBalance > 0 ? 'ui-badge-blue' : 'ui-badge-slate'}`}>
-                          ₹{Number(h.advanceRentBalance || 0).toLocaleString('en-IN')}
-                        </span>
                       </td>
                       <td title={h.date}>{h.date}</td>
                       <td className="hostellers-actions">

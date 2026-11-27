@@ -1055,34 +1055,6 @@ const Fees = () => {
     toast.success("Downloaded Outstanding Template. Enter amounts in 'Outstanding Balance' column and upload via Import Excel.");
   };
 
-  const handleDownloadAdvanceRentTemplate = () => {
-    const uniqueStudents = new Map<string, any>();
-    fees.forEach(f => {
-      if (f.student && !uniqueStudents.has(f.student.id)) {
-        uniqueStudents.set(f.student.id, f.student);
-      }
-    });
-
-    const rows = Array.from(uniqueStudents.values())
-      .filter((s: any) => s.status !== 'Vacated')
-      .sort((a: any, b: any) => (a.roomNo || '').localeCompare(b.roomNo || '', undefined, { numeric: true }))
-      .map(s => ({
-        'Reg No': s.manualRegsiName || s.regNo || '',
-        'Student Name': s.name || '',
-        'Room No': s.roomNo || '',
-        'Mobile No': s.mobileNo || '',
-        'College': typeof s.college === 'string' ? s.college : s.college?.name || '',
-        'Current Advance Rent': Number(s.advanceRentBalance || 0),
-        'Advance Rent Amount': '',
-      }));
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Advance_Rent_Template");
-    XLSX.writeFile(workbook, "Student_Advance_Rent_Import_Template.xlsx");
-    toast.success("Downloaded Advance Rent Template. Enter amounts in 'Advance Rent Amount' column and upload via Import Excel.");
-  };
-
   const handleImportClick = () => {
     importInputRef.current?.click();
   };
@@ -1352,13 +1324,6 @@ const Fees = () => {
               title="Download Excel template for bulk importing student outstanding balances"
             >
               <Download size={14} /> Outstanding Template
-            </button>
-            <button
-              onClick={handleDownloadAdvanceRentTemplate}
-              className="ui-btn ui-btn-secondary fees-action-btn"
-              title="Download Excel template for bulk importing student advance rent credit"
-            >
-              <Download size={14} /> Advance Rent Template
             </button>
             <button onClick={handleExportExcel} className="ui-btn ui-btn-success fees-action-btn">
               <FileSpreadsheet size={14} /> Export Excel
@@ -1633,7 +1598,6 @@ const Fees = () => {
               {/* <col className="fees-col-mess" /> */}
               <col className="fees-col-fine" />
               <col className="fees-col-outstanding" />
-              <col className="fees-col-advance-rent" />
               <col className="fees-col-total" />
               <col className="fees-col-method" />
               <col className="fees-col-status" />
@@ -1654,9 +1618,6 @@ const Fees = () => {
                 <th className="num fees-th-outstanding" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
                   Outstanding<br />Balance
                 </th>
-                <th className="num fees-th-advance-rent" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
-                  Advance<br />Rent
-                </th>
                 <th className="num fees-total">Total Paid</th>
                 <th className="fees-method">Payment Method</th>
                 <th className="fees-status">Status</th>
@@ -1665,14 +1626,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading && fees.length === 0 ? (
-                <LoadingRow colSpan={15} />
+                <LoadingRow colSpan={14} />
               ) : error ? (
                 <tr>
-                  <td colSpan={15} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -1845,42 +1806,6 @@ const Fees = () => {
                           <Eye size={12} />
                         </button>
                       </td>
-
-                      {(() => {
-                        const isPaidRow = fee.status === 'COMPLETED';
-                        const usedCredit = isPaidRow
-                          ? roundMoney(
-                            (fee.feesList || []).reduce((sum: number, item: any) => {
-                              const m = String(item?.description || '').match(/Advance Rent Applied:\s*([0-9.,]+)/i);
-                              return sum + (m ? Number(m[1].replace(/,/g, '')) || 0 : 0);
-                            }, 0),
-                          )
-                          : 0;
-                        const displayAdvanceRent = isPaidRow
-                          ? roundMoney(Number(fee.advanceRent || 0))
-                          : roundMoney(Number(fee.student?.advanceRentBalance || 0));
-                        return (
-                          <td
-                            className="num"
-                            style={{
-                              fontWeight: displayAdvanceRent > 0 ? 700 : 500,
-                              color: displayAdvanceRent > 0 ? '#0284c7' : '#64748b',
-                            }}
-                            title={
-                              isPaidRow
-                                ? 'Advance Rent collected in this receipt'
-                                : 'Available Advance Rent Credit (can be applied in Pay Now or next month)'
-                            }
-                          >
-                            <div>₹{displayAdvanceRent.toLocaleString('en-IN')}</div>
-                            {isPaidRow && usedCredit > 0 && (
-                              <div className="fees-note" style={{ color: '#0369a1', fontWeight: 600 }}>
-                                Used: ₹{usedCredit.toLocaleString('en-IN')}
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })()}
 
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
                         ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
