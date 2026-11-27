@@ -1,8 +1,8 @@
 export const BRAND_NAME = "SEA SINDHU QUEEN'S PARADISE";
 
 export const CONTACT_ADDRESS =
-  'No. 358/1, Sea Sindu Bharat Gas Services, Vadugapalayam Pirivu, Gobichettypalayam Road, Tirupur Main Road, Gobichettypalayam, Erode, Tamil Nadu - 638476';
+  '291/2G2, KATHERI VILLAGE, KOMARAPALAYAM, SALEM DT-638183';
 
 export const CONTACT_PHONE = '9443866666';
 
-export const CONTACT_EMAIL = 'seasindubharatgas@gmail.com';
+export const CONTACT_EMAIL = 'seasinduqueensparadise@gmail.com';
