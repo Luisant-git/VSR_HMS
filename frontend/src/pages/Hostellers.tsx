@@ -845,7 +845,6 @@ const Hostellers = () => {
                 <col className="hostellers-col-fee" />
                 <col className="hostellers-col-pending" />
                 <col className="hostellers-col-outstanding" />
-                <col className="hostellers-col-advance" />
                 <col className="hostellers-col-date" />
                 <col className="hostellers-col-actions" />
               </colgroup>
