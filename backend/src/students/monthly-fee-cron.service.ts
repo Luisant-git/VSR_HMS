@@ -108,10 +108,20 @@ export class MonthlyFeeCronService {
 
         const transactionsToCreate = [];
 
-        // Avoid creating duplicate invoices using billingMonth + studentId + transactionType
-        const alreadyHasRentThisMonth = student.transactions.some(
-          t => t.transactionType === 'RENT' && t.billingMonth === billingMonth
-        );
+        // Avoid creating duplicate invoices using billingMonth + studentId + transactionType,
+        // and skip generating RENT if the student already paid in advance for this billingMonth.
+        const paidUntilDate = (student as any).rentPaidUntil ? new Date((student as any).rentPaidUntil) : null;
+        const paidUntilYM =
+          paidUntilDate && !Number.isNaN(paidUntilDate.getTime())
+            ? `${paidUntilDate.getFullYear()}-${String(paidUntilDate.getMonth() + 1).padStart(2, '0')}`
+            : null;
+        const isRentCoveredByPaidUntil = paidUntilYM !== null && paidUntilYM >= billingMonth;
+
+        const alreadyHasRentThisMonth =
+          isRentCoveredByPaidUntil ||
+          student.transactions.some(
+            t => t.transactionType === 'RENT' && t.billingMonth === billingMonth
+          );
         const alreadyHasMessThisMonth = student.transactions.some(
           t => t.transactionType === 'MESS' && t.billingMonth === billingMonth
         );

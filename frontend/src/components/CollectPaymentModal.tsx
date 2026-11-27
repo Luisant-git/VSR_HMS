@@ -213,8 +213,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   // Admin-only concession on the selected fees. The net amount is what the
   // student actually pays and what gets stored on the completed fee rows.
   const [discountInput, setDiscountInput] = useState('');
-  const [advanceRentInput, setAdvanceRentInput] = useState('');
-  const [applyAdvanceCredit, setApplyAdvanceCredit] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentSuccessData, setPaymentSuccessData] = useState<{ updatedItems: any[], paymentMode: string } | null>(null);
   const onlineRequestId = useRef<string | null>(null);
@@ -560,21 +558,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const hasOutstandingPayment = outstandingAmount > 0;
 
-  const advanceRentTrimmed = advanceRentInput.trim();
-  let advanceRentError: string | null = null;
-  if (!isStudentMode && advanceRentTrimmed !== '') {
-    const parsed = Number(advanceRentTrimmed);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      advanceRentError = 'Enter a valid advance rent amount (0 or more).';
-    }
-  }
-  const advanceRentAmount =
-    !isStudentMode && !advanceRentError && advanceRentTrimmed !== ''
-      ? roundMoney(Number(advanceRentTrimmed))
-      : 0;
-  const hasAdvanceRentPayment = advanceRentAmount > 0;
-
-  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount + advanceRentAmount);
+  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount);
 
   // Discount is only offered by the admin (offline collection). It reduces the
   // amount actually collected; the original amount is kept in the fee
@@ -593,13 +577,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     !isStudentMode && !discountError && discountInputTrimmed !== ''
       ? roundMoney(Number(discountInputTrimmed))
       : 0;
-  const availableAdvanceCredit = roundMoney(Number(primaryStudent?.advanceRentBalance || 0));
-  const appliedAdvanceCredit =
-    !isStudentMode && applyAdvanceCredit && availableAdvanceCredit > 0 && !hasAdvanceRentPayment
-      ? roundMoney(Math.min(availableAdvanceCredit, Math.max(0, subTotalAmount - discountAmount)))
-      : 0;
-  const totalAmount = roundMoney(Math.max(0, subTotalAmount - discountAmount - appliedAdvanceCredit));
-  const remainingAdvanceCredit = roundMoney(Math.max(0, availableAdvanceCredit - appliedAdvanceCredit));
+  const totalAmount = roundMoney(Math.max(0, subTotalAmount - discountAmount));
   const remainingOutstanding = roundMoney(Math.max(0, outstandingBalance - outstandingAmount));
 
   // Dues still left after this payment: unchecked current fees plus whatever
@@ -611,8 +589,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     remainingOutstanding,
   );
 
-  const getMonthNames = (count: number, startDesc: string) => {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const getStartMonthYear = (startDesc: string, billingMonth?: string | null) => {
+    const bmMatch = String(billingMonth || '').trim().match(/^(\d{4})-(\d{1,2})$/);
+    if (bmMatch) {
+      return {
+        startYear: parseInt(bmMatch[1], 10),
+        startMonthIndex: Math.max(0, Math.min(11, parseInt(bmMatch[2], 10) - 1)),
+      };
+    }
+
     let startMonthIndex = new Date().getMonth();
     let startYear = new Date().getFullYear();
 
@@ -628,6 +613,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         break;
       }
     }
+
+    return { startYear, startMonthIndex };
+  };
+
+  const getMonthNames = (count: number, startDesc: string, billingMonth?: string | null) => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const { startYear, startMonthIndex } = getStartMonthYear(startDesc, billingMonth);
 
     if (count === 1) {
       return `${monthNames[startMonthIndex]} ${startYear}`;
@@ -668,12 +660,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       toast.error(discountError);
       return;
     }
-    if (advanceRentError) {
-      toast.error(advanceRentError);
-      return;
-    }
-    if (activeItemsToPay.length === 0 && !hasOutstandingPayment && !hasAdvanceRentPayment) {
-      toast.error('Please select at least one fee or enter an outstanding / advance rent amount.');
+    if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
+      toast.error('Please select at least one fee or enter an outstanding amount.');
       return;
     }
 
@@ -697,10 +685,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       let studentUpdates: any = {};
       const selectedPaidDate = new Date(`${paymentDate}T12:00:00`).toISOString();
 
-      const effectivePaymentMode =
-        !isStudentMode && totalAmount === 0 && appliedAdvanceCredit > 0
-          ? 'ADVANCE_RENT'
-          : paymentMode;
+      const effectivePaymentMode = paymentMode;
 
       const effectiveRef = isStudentMode && !referenceNumber
         ? 'TXN' + Math.floor(Math.random() * 10000000000).toString()
@@ -712,7 +697,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       const grossParts = [
         ...activeItemsToPay.map((f: any) => f.amount * getMultiplier(f.transactionType)),
         ...(hasOutstandingPayment ? [outstandingAmount] : []),
-        ...(hasAdvanceRentPayment ? [advanceRentAmount] : []),
       ];
       const grossTotal = roundMoney(grossParts.reduce((sum, value) => sum + value, 0));
       const allocateAcrossGross = (pool: number) => {
@@ -728,17 +712,15 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         });
       };
       const discountParts = allocateAcrossGross(discountAmount);
-      const advanceCreditParts = allocateAcrossGross(appliedAdvanceCredit);
       const netParts = grossParts.map((part, index) =>
-        Math.max(0, roundMoney(part - discountParts[index] - advanceCreditParts[index])),
+        Math.max(0, roundMoney(part - discountParts[index])),
       );
-      const receiptMeta = (gross: number, lineDiscount: number, lineAdvanceCredit: number) => {
+      const receiptMeta = (gross: number, lineDiscount: number) => {
         // [PAY:...] ties every row of one submission together so separate
         // payments made within the same minute never merge into one receipt.
         return [
           `Original Amount: ${gross}`,
           `Discount: ${lineDiscount}`,
-          ...(lineAdvanceCredit > 0 ? [`Advance Rent Applied: ${lineAdvanceCredit}`] : []),
           `Pending Balance: ${pendingBalance}`,
           `[PAY:${requestId}]`,
         ].join(' | ');
@@ -751,24 +733,17 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         if (notes) finalDesc += ` | Notes: ${notes}`;
         const currentMultiplier = getMultiplier(f.transactionType);
         if (currentMultiplier > 1) {
-          const coveredMonths = getMonthNames(currentMultiplier, f.description || '');
+          const coveredMonths = getMonthNames(currentMultiplier, f.description || '', resolveFeeBillingMonth(f));
           finalDesc += ` | Paid for ${currentMultiplier} Months (${coveredMonths})`;
         }
-        finalDesc += ` | ${receiptMeta(grossParts[index], discountParts[index], advanceCreditParts[index])}`;
+        finalDesc += ` | ${receiptMeta(grossParts[index], discountParts[index])}`;
 
         const tType = (f.transactionType || '').toUpperCase();
         if (tType.includes('RENT') || tType.includes('MESS')) {
-          let startMonthIndex = new Date().getMonth();
-          let startYear = new Date().getFullYear();
-          const yearMatch = (f.description || '').match(/\b(20\d{2})\b/);
-          if (yearMatch) startYear = parseInt(yearMatch[1], 10);
-          const fullMonthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-          for (let i = 0; i < fullMonthNames.length; i++) {
-            if ((f.description || '').includes(fullMonthNames[i])) {
-              startMonthIndex = i;
-              break;
-            }
-          }
+          const { startYear, startMonthIndex } = getStartMonthYear(
+            f.description || '',
+            resolveFeeBillingMonth(f),
+          );
 
           const endMonthIndex = startMonthIndex + currentMultiplier - 1;
           const endYear = startYear + Math.floor(endMonthIndex / 12);
@@ -800,19 +775,17 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       // serializable transaction before anything is changed.
       let outstandingRecords: any[] = [];
       const settledOutstandingAmount = roundMoney(
-        (netParts[activeItemsToPay.length] || 0) + (advanceCreditParts[activeItemsToPay.length] || 0),
+        netParts[activeItemsToPay.length] || 0,
       );
       if (hasOutstandingPayment && settledOutstandingAmount > 0) {
         const outIdx = activeItemsToPay.length;
         const outstandingDiscount = discountParts[outIdx] || 0;
-        const outstandingAdvanceCredit = advanceCreditParts[outIdx] || 0;
         // The backend appends these as its own "| Notes: ..." segment, so the
         // receipt parser can read them exactly like the current fee rows.
         const outstandingNotes = [
           notes,
           `Original Amount: ${outstandingAmount}`,
           `Discount: ${outstandingDiscount}`,
-          ...(outstandingAdvanceCredit > 0 ? [`Advance Rent Applied: ${outstandingAdvanceCredit}`] : []),
           `Pending Balance: ${pendingBalance}`,
           `[PAY:${requestId}]`,
         ].filter(Boolean).join(' | ');
@@ -844,40 +817,14 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         await StudentAPI.update(targetStudentId, studentUpdates);
       }
 
-      if (appliedAdvanceCredit > 0 && studentId) {
-        await FeesAPI.consumeAdvanceRent({
-          studentId,
-          amount: appliedAdvanceCredit,
-        });
-      }
-
-      let advanceRentRecords: any[] = [];
-      if (hasAdvanceRentPayment && studentId) {
-        const netAdvanceRent = netParts[netParts.length - 1];
-        const createdAdvanceRent = await FeesAPI.addAdvanceRent({
-          studentId,
-          amount: netAdvanceRent,
-          paymentMode,
-          referenceNumber: effectiveRef || undefined,
-          notes: [notes, `[PAY:${requestId}]`].filter(Boolean).join(' | '),
-          paidDate: selectedPaidDate,
-          invoiceNumber: currentUpdatedItems[0]?.invoiceNumber || outstandingRecords[0]?.invoiceNumber || undefined,
-        });
-        if (createdAdvanceRent) {
-          const studentForReceipt = primaryStudent || itemsToPay[0]?.student;
-          advanceRentRecords = [{ ...createdAdvanceRent, student: createdAdvanceRent.student || studentForReceipt }];
-        }
-      }
-
       const paidCount =
         activeItemsToPay.length +
-        (hasOutstandingPayment ? 1 : 0) +
-        (hasAdvanceRentPayment ? 1 : 0);
+        (hasOutstandingPayment ? 1 : 0);
       toast.success(`Payment collected successfully for ${paidCount} item(s)!`);
 
       // Instead of calling onSuccess immediately, we show the success confirmation state
       setPaymentSuccessData({
-        updatedItems: [...currentUpdatedItems, ...outstandingRecords, ...advanceRentRecords],
+        updatedItems: [...currentUpdatedItems, ...outstandingRecords],
         paymentMode: effectivePaymentMode,
       });
     } catch (e: any) {
@@ -1497,84 +1444,6 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {/* Apply Existing Advance Rent Credit */}
-                {!isStudentMode && availableAdvanceCredit > 0 && !hasAdvanceRentPayment && (
-                  <div
-                    onClick={() => setApplyAdvanceCredit((prev) => !prev)}
-                    style={{
-                      marginTop: '12px',
-                      border: '1px solid #86efac',
-                      borderRadius: '8px',
-                      background: applyAdvanceCredit ? '#f0fdf4' : '#f8fafc',
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '13.5px', color: '#166534', margin: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={applyAdvanceCredit}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            setApplyAdvanceCredit(e.target.checked);
-                          }}
-                          style={{ width: '17px', height: '17px', accentColor: '#16a34a', cursor: 'pointer' }}
-                        />
-                        <span>Apply Advance Rent Credit (Available: ₹{availableAdvanceCredit.toLocaleString('en-IN')})</span>
-                      </label>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: applyAdvanceCredit ? '#15803d' : '#64748b' }}>
-                        {applyAdvanceCredit ? `-₹${appliedAdvanceCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00'}
-                      </span>
-                    </div>
-                    <div style={{ marginTop: '4px', marginLeft: '27px', fontSize: '12px', color: '#475569' }}>
-                      {applyAdvanceCredit
-                        ? `Credit remaining after this payment: ₹${remainingAdvanceCredit.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                        : 'Check to deduct your available advance rent credit from this payment.'}
-                    </div>
-                  </div>
-                )}
-
-                {/* Advance Rent Credit (Optional extra amount for upcoming months) */}
-                {!isStudentMode && (
-                  <div style={{ marginTop: '12px', border: '1px solid #bae6fd', borderRadius: '8px', background: '#f0f9ff', padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>
-                        Extra Advance Rent (Upcoming Months)
-                      </label>
-                      {Number(primaryStudent?.advanceRentBalance || 0) > 0 && (
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284c7', background: '#e0f2fe', padding: '2px 8px', borderRadius: '10px' }}>
-                          Existing Credit: ₹{Number(primaryStudent.advanceRentBalance).toLocaleString('en-IN')}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: '15px' }}>₹</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        value={advanceRentInput}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setAdvanceRentInput(v);
-                        }}
-                        placeholder="0.00 (Optional e.g. 7000)"
-                        style={{ width: '100%', padding: '10px 12px 10px 28px', border: `1px solid ${advanceRentError ? '#f87171' : '#bae6fd'}`, borderRadius: '8px', outline: 'none', fontSize: '14px', fontWeight: 600, color: '#0f172a', background: '#ffffff', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                    <div style={{ marginTop: '6px', fontSize: '12px', color: '#475569' }}>
-                      Any extra amount paid here is saved as Advance Rent Credit and automatically deducted from upcoming monthly rent.
-                    </div>
-                    {advanceRentError && (
-                      <div style={{ marginTop: '6px', fontSize: '12.5px', color: '#dc2626', fontWeight: 600 }}>
-                        {advanceRentError}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

@@ -42,7 +42,7 @@ export class RazorpayPaymentService {
     private readonly prisma: PrismaService,
     private readonly feesService: FeesService,
     private readonly whatsapp: WhatsappService,
-  ) {}
+  ) { }
 
   async createOrder(dto: CreateRazorpayOrderDto) {
     const feeItems = this.normalizeFeeItems(dto.feeItems || []);
@@ -61,7 +61,7 @@ export class RazorpayPaymentService {
       if (
         existing.studentId !== dto.studentId ||
         existing.outstandingAmountPaise !==
-          Math.round(outstandingAmount * 100) ||
+        Math.round(outstandingAmount * 100) ||
         JSON.stringify(previousItems) !== JSON.stringify(feeItems)
       ) {
         throw new ConflictException(
@@ -105,13 +105,13 @@ export class RazorpayPaymentService {
 
     const fees = selectedIds.length
       ? await this.prisma.feeTransaction.findMany({
-          where: {
-            id: { in: selectedIds },
-            studentId: student.id,
-            status: 'PENDING',
-            deletedAt: null,
-          },
-        })
+        where: {
+          id: { in: selectedIds },
+          studentId: student.id,
+          status: 'PENDING',
+          deletedAt: null,
+        },
+      })
       : [];
     if (fees.length !== selectedIds.length) {
       throw new ConflictException(
@@ -163,7 +163,7 @@ export class RazorpayPaymentService {
             (sum, row) => sum + Number(row.amount),
             0,
           ) -
-            confirmedPayments.reduce((sum, row) => sum + Number(row.amount), 0),
+          confirmedPayments.reduce((sum, row) => sum + Number(row.amount), 0),
         ),
       );
       if (outstandingAmount > remaining + 0.001) {
@@ -535,13 +535,13 @@ export class RazorpayPaymentService {
           const feeIds = selections.map((item) => item.feeId);
           const fees = feeIds.length
             ? await tx.feeTransaction.findMany({
-                where: {
-                  id: { in: feeIds },
-                  studentId: order.studentId,
-                  status: 'PENDING',
-                  deletedAt: null,
-                },
-              })
+              where: {
+                id: { in: feeIds },
+                studentId: order.studentId,
+                status: 'PENDING',
+                deletedAt: null,
+              },
+            })
             : [];
           if (fees.length !== feeIds.length) {
             await tx.razorpayOrder.update({
@@ -614,6 +614,7 @@ export class RazorpayPaymentService {
                   fee.description || '',
                   selection.months,
                   paidDate,
+                  fee.billingMonth,
                 );
               }
               if (String(fee.transactionType).toUpperCase() === 'ADVANCE' && finalAmount > 0) {
@@ -695,7 +696,7 @@ export class RazorpayPaymentService {
                 }
               }
             })
-            .catch(() => {});
+            .catch(() => { });
 
           return { duplicate: false, orderId, paymentId, payments: paidItems };
         },
@@ -758,27 +759,40 @@ export class RazorpayPaymentService {
     return result;
   }
 
-  private getPaidUntil(description: string, months: number, paidDate: Date) {
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    const yearMatch = description.match(/\b(20\d{2})\b/);
-    const startYear = yearMatch ? Number(yearMatch[1]) : paidDate.getFullYear();
-    const startMonth = monthNames.findIndex((name) =>
-      description.toLowerCase().includes(name.toLowerCase()),
-    );
-    const monthIndex = startMonth >= 0 ? startMonth : paidDate.getMonth();
+  private getPaidUntil(
+    description: string,
+    months: number,
+    paidDate: Date,
+    billingMonth?: string | null,
+  ) {
+    const bmMatch = String(billingMonth || '').trim().match(/^(\d{4})-(\d{1,2})$/);
+    let startYear: number;
+    let monthIndex: number;
+    if (bmMatch) {
+      startYear = Number(bmMatch[1]);
+      monthIndex = Math.max(0, Math.min(11, Number(bmMatch[2]) - 1));
+    } else {
+      const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      const yearMatch = description.match(/\b(20\d{2})\b/);
+      startYear = yearMatch ? Number(yearMatch[1]) : paidDate.getFullYear();
+      const startMonth = monthNames.findIndex((name) =>
+        description.toLowerCase().includes(name.toLowerCase()),
+      );
+      monthIndex = startMonth >= 0 ? startMonth : paidDate.getMonth();
+    }
     const lastMonthIndex = monthIndex + months - 1;
     return new Date(
       startYear + Math.floor(lastMonthIndex / 12),
