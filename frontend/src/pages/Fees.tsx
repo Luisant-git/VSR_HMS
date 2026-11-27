@@ -1861,6 +1861,55 @@ const Fees = () => {
                               >
                                 View Receipt
                               </button>
+                              {fee.student?.status !== 'Vacated' && (Number(fee.student?.rent || fee.student?.room?.rent || 0) > 0 || Number(fee.rent || 0) > 0) && (
+                                <button
+                                  onClick={() => {
+                                    const student = fee.student;
+                                    const { currentMonthStr } = getBillingMonths();
+                                    let latestPaidYM = currentMonthStr;
+                                    if (student?.rentPaidUntil) {
+                                      const d = new Date(student.rentPaidUntil);
+                                      if (!isNaN(d.getTime())) {
+                                        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                                        if (ym > latestPaidYM) latestPaidYM = ym;
+                                      }
+                                    }
+                                    const [yStr, mStr] = latestPaidYM.split('-');
+                                    const y = Number(yStr);
+                                    const m = Number(mStr);
+                                    const nextY = m === 12 ? y + 1 : y;
+                                    const nextM = m === 12 ? 1 : m + 1;
+                                    const nextUnpaidYM = `${nextY}-${String(nextM).padStart(2, '0')}`;
+                                    const nextMonthLabel = formatBillingMonth(nextUnpaidYM) || nextUnpaidYM;
+                                    let rentAmt = Number(student?.rent || student?.room?.rent || 0);
+                                    if (rentAmt <= 0 && Number(fee.rent || 0) > 0) {
+                                      const rentTx = fee.feesList?.find((x: any) => String(x.transactionType || '').toUpperCase().includes('RENT'));
+                                      const mMatch = String(rentTx?.description || '').match(/Paid for (\d+) Months/i);
+                                      const mCount = mMatch ? parseInt(mMatch[1], 10) : 1;
+                                      rentAmt = mCount > 1 ? Math.round((Number(fee.rent) / mCount) * 100) / 100 : Number(fee.rent);
+                                    }
+                                    setFeesToCollect([
+                                      {
+                                        id: `__UPCOMING_RENT__${student.id}`,
+                                        isUpcomingAdvanceRent: true,
+                                        studentId: student.id,
+                                        student,
+                                        transactionType: 'RENT',
+                                        amount: rentAmt,
+                                        billingMonth: nextUnpaidYM,
+                                        description: `Room Rent for ${nextMonthLabel}`,
+                                        status: 'PENDING',
+                                      },
+                                    ]);
+                                  }}
+                                  className="ui-btn ui-btn-primary ui-btn-sm"
+                                  style={{ padding: '6px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                  title="Pay Upcoming Rent (Advance)"
+                                  aria-label={`Pay upcoming rent for ${fee.student?.name || 'student'}`}
+                                >
+                                  <Wallet size={14} />
+                                </button>
+                              )}
                               <button
                                 onClick={() => {
                                   const student = fee.student;

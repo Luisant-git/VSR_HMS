@@ -87,7 +87,7 @@ export class FeesService {
   ) {}
 
   async create(data: CreateFeeDto) {
-    return this.prisma.$transaction(async tx => {
+    const created = await this.prisma.$transaction(async tx => {
       const date = this.validatedPaymentDate(data.paidDate) || new Date();
       const invoiceNumber = await this.allocateInvoiceNumber(tx, date);
       return tx.feeTransaction.create({
@@ -96,8 +96,93 @@ export class FeesService {
           paidDate: data.paidDate ? date : undefined,
           invoiceNumber,
         },
+        include: {
+          student: {
+            select: {
+              name: true,
+              regNo: true,
+              manualRegsiName: true,
+              roomNo: true,
+              mobileNo: true,
+              fatherMobileNo: true,
+            },
+          },
+        },
       });
     });
+
+    if (created.status === 'COMPLETED' && created.student) {
+      this.dispatchWhatsappReceiptForTransaction(created);
+    }
+
+    return created;
+  }
+
+  private dispatchWhatsappReceiptForTransaction(updated: any) {
+    const student = updated?.student;
+    const phone = student?.mobileNo || student?.fatherMobileNo;
+    if (!student || !phone) return;
+
+    const descRaw = String(updated.description || '');
+    const parseDesc = (key: string) => {
+      const match = descRaw.match(new RegExp(`(?:^|\\|)\\s*${key}:\\s*([^|]+)`, 'i'));
+      return match && match[1].trim() ? match[1].trim() : '';
+    };
+
+    const rawNotes = parseDesc('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
+    const notes = /^(Original Amount|Discount|Pending Balance)\s*:/i.test(rawNotes) ? '' : rawNotes;
+    const discountStr = parseDesc('Discount');
+    const discount = discountStr ? parseFloat(discountStr) || 0 : 0;
+    const origStr = parseDesc('Original Amount');
+    const grossAmount = origStr ? parseFloat(origStr) || (Number(updated.amount || 0) + discount) : (Number(updated.amount || 0) + discount);
+    const pendingStr = parseDesc('Pending Balance');
+    const pendingBalance = pendingStr ? parseFloat(pendingStr) || 0 : 0;
+    const baseDescription = descRaw.split('|')[0]?.trim() || `${updated.transactionType} for ${updated.billingMonth || ''}`;
+    const itemGross = grossAmount > 0 ? grossAmount : Number(updated.amount || 0);
+    const multiMonthMatch = descRaw.match(/Paid for (\d+) Months\s*(?:\(([^)]+)\))?/i);
+    let itemDescription = baseDescription;
+    if (multiMonthMatch) {
+      const monthsCount = parseInt(multiMonthMatch[1], 10);
+      const periodPart = multiMonthMatch[2] ? ` (${multiMonthMatch[2]})` : '';
+      const perMonth = monthsCount > 0 ? Math.round((itemGross / monthsCount) * 100) / 100 : 0;
+      const ratePart = perMonth > 0 ? ` (@ Rs. ${perMonth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)` : '';
+      itemDescription = `${baseDescription}\nPaid for ${monthsCount} Months${periodPart}${ratePart}`;
+    }
+
+    const invoiceNo = updated.invoiceNumber || '';
+    const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
+    const invoiceSerial = invoiceParts?.[2] ?? invoiceParts?.[1];
+    const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
+
+    this.whatsapp
+      .sendFeeReceipt(phone, {
+        studentName: student.name,
+        regNo: student.manualRegsiName || student.regNo,
+        roomNo: student.roomNo || undefined,
+        billingMonth: updated.billingMonth || undefined,
+        dueDate: updated.dueDate ? new Date(updated.dueDate).toLocaleDateString('en-GB') : undefined,
+        invoiceNo: invoiceNo || undefined,
+        receiptNo: receiptNo,
+        receiptDate: updated.paidDate
+          ? new Date(updated.paidDate).toLocaleDateString('en-GB')
+          : undefined,
+        amount: Number(updated.amount || 0),
+        grossAmount: itemGross,
+        discountAmount: discount,
+        paymentMode: updated.paymentMode || 'Cash',
+        gatewayMethod: updated.paymentMode && updated.paymentMode.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual',
+        paymentStatus: 'PAID',
+        pendingBalance: pendingBalance,
+        notes: notes || undefined,
+        items: [
+          {
+            description: itemDescription,
+            type: updated.transactionType || 'Fee',
+            amount: itemGross,
+          },
+        ],
+      })
+      .catch((err) => console.error('Automated WhatsApp send error:', err));
   }
 
   async addAdvanceRent(dto: {
@@ -233,8 +318,16 @@ export class FeesService {
             regNo: true,
             manualRegsiName: true,
             roomNo: true,
+            rent: true,
+            rentPaidUntil: true,
+            status: true,
             mobileNo: true,
             fatherMobileNo: true,
+            room: {
+              select: {
+                rent: true,
+              },
+            },
             college: {
               select: {
                 name: true,
@@ -623,70 +716,7 @@ export class FeesService {
     }
 
     if (data.status === 'COMPLETED' && updated?.student) {
-      const student = updated.student;
-      const phone = student.mobileNo || student.fatherMobileNo;
-      if (phone) {
-        const descRaw = String(updated.description || '');
-        const parseDesc = (key: string) => {
-          const match = descRaw.match(new RegExp(`(?:^|\\|)\\s*${key}:\\s*([^|]+)`, 'i'));
-          return match && match[1].trim() ? match[1].trim() : '';
-        };
-
-        const rawNotes = parseDesc('Notes').replace(/\s*\[PAY:[^\]]+\]/g, '').trim();
-        const notes = /^(Original Amount|Discount|Pending Balance)\s*:/i.test(rawNotes) ? '' : rawNotes;
-        const discountStr = parseDesc('Discount');
-        const discount = discountStr ? parseFloat(discountStr) || 0 : 0;
-        const origStr = parseDesc('Original Amount');
-        const grossAmount = origStr ? parseFloat(origStr) || (Number(updated.amount || 0) + discount) : (Number(updated.amount || 0) + discount);
-        const pendingStr = parseDesc('Pending Balance');
-        const pendingBalance = pendingStr ? parseFloat(pendingStr) || 0 : 0;
-        const baseDescription = descRaw.split('|')[0]?.trim() || `${updated.transactionType} for ${updated.billingMonth || ''}`;
-        const itemGross = grossAmount > 0 ? grossAmount : Number(updated.amount || 0);
-        const multiMonthMatch = descRaw.match(/Paid for (\d+) Months\s*(?:\(([^)]+)\))?/i);
-        let itemDescription = baseDescription;
-        if (multiMonthMatch) {
-          const monthsCount = parseInt(multiMonthMatch[1], 10);
-          const periodPart = multiMonthMatch[2] ? ` (${multiMonthMatch[2]})` : '';
-          const perMonth = monthsCount > 0 ? Math.round((itemGross / monthsCount) * 100) / 100 : 0;
-          const ratePart = perMonth > 0 ? ` (@ Rs. ${perMonth.toLocaleString('en-IN', { minimumFractionDigits: 2 })}/month)` : '';
-          itemDescription = `${baseDescription}\nPaid for ${monthsCount} Months${periodPart}${ratePart}`;
-        }
-
-        const invoiceNo = updated.invoiceNumber || '';
-        const invoiceParts = /^INV-\d{4}-(?:(\d{2})-)?(\d+)$/.exec(invoiceNo);
-        const invoiceSerial = invoiceParts?.[2] ?? invoiceParts?.[1];
-        const receiptNo = invoiceSerial ? String(Number(invoiceSerial)) : '1';
-
-        this.whatsapp
-          .sendFeeReceipt(phone, {
-            studentName: student.name,
-            regNo: student.manualRegsiName || student.regNo,
-            roomNo: student.roomNo || undefined,
-            billingMonth: updated.billingMonth || undefined,
-            dueDate: updated.dueDate ? new Date(updated.dueDate).toLocaleDateString('en-GB') : undefined,
-            invoiceNo: invoiceNo || undefined,
-            receiptNo: receiptNo,
-            receiptDate: updated.paidDate
-              ? new Date(updated.paidDate).toLocaleDateString('en-GB')
-              : undefined,
-            amount: Number(updated.amount || 0),
-            grossAmount: itemGross,
-            discountAmount: discount,
-            paymentMode: updated.paymentMode || 'Cash',
-            gatewayMethod: updated.paymentMode && updated.paymentMode.toUpperCase() === 'RAZORPAY' ? 'Online' : 'Manual',
-            paymentStatus: 'PAID',
-            pendingBalance: pendingBalance,
-            notes: notes || undefined,
-            items: [
-              {
-                description: itemDescription,
-                type: updated.transactionType || 'Fee',
-                amount: itemGross,
-              },
-            ],
-          })
-          .catch((err) => console.error('Automated WhatsApp send error:', err));
-      }
+      this.dispatchWhatsappReceiptForTransaction(updated);
     }
 
     return updated;

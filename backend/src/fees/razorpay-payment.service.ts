@@ -16,7 +16,7 @@ import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { CreateRazorpayOrderDto } from './dto/create-razorpay-order.dto';
 import { VerifyRazorpayPaymentDto } from './dto/verify-razorpay-payment.dto';
 
-type StoredFeeItem = { feeId: string; months: number };
+type StoredFeeItem = { feeId: string; months: number; billingMonth?: string };
 type GatewayOrderRequest = {
   amount: number;
   currency: 'INR';
@@ -94,11 +94,15 @@ export class RazorpayPaymentService {
         name: true,
         mobileNo: true,
         emailId: true,
+        rent: true,
+        room: { select: { rent: true } },
       },
     });
     if (!student) throw new NotFoundException('Active student was not found.');
 
-    const selectedIds = feeItems.map((item) => item.feeId);
+    const selectedIds = feeItems
+      .map((item) => item.feeId)
+      .filter((id) => id !== '__UPCOMING_RENT__');
     if (new Set(selectedIds).size !== selectedIds.length) {
       throw new BadRequestException('A fee cannot be selected more than once.');
     }
@@ -122,6 +126,14 @@ export class RazorpayPaymentService {
     const feeById = new Map(fees.map((fee) => [fee.id, fee]));
     let totalPaise = 0;
     for (const item of feeItems) {
+      if (item.feeId === '__UPCOMING_RENT__') {
+        const monthlyRent = Number(student.rent || student.room?.rent || 0);
+        if (monthlyRent <= 0) {
+          throw new BadRequestException('Monthly rent is not configured for this student.');
+        }
+        totalPaise += Math.round(monthlyRent * 100) * item.months;
+        continue;
+      }
       const fee = feeById.get(item.feeId);
       if (
         !fee ||
@@ -532,7 +544,9 @@ export class RazorpayPaymentService {
           }
 
           const selections = this.readFeeItems(order.feeItems);
-          const feeIds = selections.map((item) => item.feeId);
+          const feeIds = selections
+            .map((item) => item.feeId)
+            .filter((id) => id !== '__UPCOMING_RENT__');
           const fees = feeIds.length
             ? await tx.feeTransaction.findMany({
               where: {
@@ -566,8 +580,52 @@ export class RazorpayPaymentService {
           const feeById = new Map(fees.map((fee) => [fee.id, fee]));
           const paidItems: any[] = [];
           let rentPaidUntil: Date | undefined;
+          const studentForRent = selections.some((s) => s.feeId === '__UPCOMING_RENT__')
+            ? await tx.student.findUnique({
+                where: { id: order.studentId },
+                select: { rent: true, room: { select: { rent: true } } },
+              })
+            : null;
           const feeUpdates = await Promise.all(
             selections.map(async (selection) => {
+              if (selection.feeId === '__UPCOMING_RENT__') {
+                const monthlyRent = Number(studentForRent?.rent || studentForRent?.room?.rent || 0);
+                const finalAmount = (Math.round(monthlyRent * 100) * selection.months) / 100;
+                const billingMonth = selection.billingMonth || undefined;
+                const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const bmMatch = String(billingMonth || '').match(/^(\d{4})-(\d{1,2})$/);
+                const startLabel = bmMatch
+                  ? `${monthNamesFull[Number(bmMatch[2]) - 1] || ''} ${bmMatch[1]}`
+                  : monthNamesFull[paidDate.getMonth()] + ' ' + paidDate.getFullYear();
+                const baseDesc = `Room Rent for ${startLabel}`;
+                const description = this.buildPaidDescription(
+                  baseDesc,
+                  selection.months,
+                  paymentId,
+                );
+                rentPaidUntil = this.getPaidUntil(
+                  baseDesc,
+                  selection.months,
+                  paidDate,
+                  billingMonth,
+                );
+                return tx.feeTransaction.create({
+                  data: {
+                    studentId: order.studentId,
+                    transactionType: 'RENT',
+                    amount: finalAmount,
+                    status: 'COMPLETED',
+                    billingMonth,
+                    description,
+                    paymentMode: 'RAZORPAY',
+                    paidDate,
+                    razorpayOrderId: orderId,
+                    razorpayPaymentId: paymentId,
+                    paymentStatus,
+                    paymentMethod,
+                  },
+                });
+              }
               const fee = feeById.get(selection.feeId);
               if (
                 !fee ||
@@ -850,7 +908,13 @@ export class RazorpayPaymentService {
           'Stored Razorpay order fee details are invalid.',
         );
       }
-      return { feeId: item.feeId, months: item.months };
+      return {
+        feeId: item.feeId,
+        months: item.months,
+        ...(typeof (item as any).billingMonth === 'string'
+          ? { billingMonth: (item as any).billingMonth }
+          : {}),
+      };
     });
   }
 

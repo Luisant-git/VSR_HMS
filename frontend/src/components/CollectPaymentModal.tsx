@@ -372,6 +372,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const currentBillingMonth = billingMonths.currentMonthStr;
   const previousBillingMonth = billingMonths.previousMonthStr;
   const isPayableInCycle = (f: any) => {
+    if (f?.isUpcomingAdvanceRent) return true;
     const feeMonth = resolveFeeBillingMonth(f);
     if (!feeMonth) return true;
     const type = String(f?.transactionType || '').toUpperCase();
@@ -416,6 +417,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   );
 
   const [months, setMonths] = useState(1);
+  const [upcomingMonths, setUpcomingMonths] = useState(0);
   // When previous outstanding dues exist, start on the OUTSTANDING item and
   // leave current-month rent / mess / EB unchecked. Paying an outstanding
   // amount must not mark current invoices as paid.
@@ -558,7 +560,38 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
   const hasOutstandingPayment = outstandingAmount > 0;
 
-  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount);
+  const hasCurrentRentItem = selectableCurrentItems.some(
+    (f: any) => (f.transactionType || '').toUpperCase().trim() === 'RENT',
+  );
+  const studentMonthlyRent = roundMoney(
+    Number(primaryStudent?.rent || primaryStudent?.room?.rent || 0),
+  );
+  const basePayableMonthStr =
+    collegeCycle === 'POSTPAID' ? previousBillingMonth : currentBillingMonth;
+  const nextUpcomingMonthStr = (() => {
+    let latestYM = basePayableMonthStr;
+    if (primaryStudent?.rentPaidUntil) {
+      const d = new Date(primaryStudent.rentPaidUntil);
+      if (!Number.isNaN(d.getTime())) {
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (ym > latestYM) latestYM = ym;
+      }
+    }
+    const [yStr, mStr] = latestYM.split('-');
+    const y = Number(yStr);
+    const m = Number(mStr);
+    const nextY = m === 12 ? y + 1 : y;
+    const nextM = m === 12 ? 1 : m + 1;
+    return `${nextY}-${String(nextM).padStart(2, '0')}`;
+  })();
+  const canPayUpcomingRent = !hasCurrentRentItem && studentMonthlyRent > 0;
+  const upcomingRentAmount =
+    canPayUpcomingRent && upcomingMonths > 0
+      ? roundMoney(studentMonthlyRent * upcomingMonths)
+      : 0;
+  const hasUpcomingRentPayment = upcomingRentAmount > 0;
+
+  const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount + upcomingRentAmount);
 
   // Discount is only offered by the admin (offline collection). It reduces the
   // amount actually collected; the original amount is kept in the fee
@@ -660,8 +693,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       toast.error(discountError);
       return;
     }
-    if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
-      toast.error('Please select at least one fee or enter an outstanding amount.');
+    if (activeItemsToPay.length === 0 && !hasOutstandingPayment && !hasUpcomingRentPayment) {
+      toast.error('Please select at least one fee, an outstanding amount, or upcoming rent months.');
       return;
     }
 
@@ -697,6 +730,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       const grossParts = [
         ...activeItemsToPay.map((f: any) => f.amount * getMultiplier(f.transactionType)),
         ...(hasOutstandingPayment ? [outstandingAmount] : []),
+        ...(hasUpcomingRentPayment ? [upcomingRentAmount] : []),
       ];
       const grossTotal = roundMoney(grossParts.reduce((sum, value) => sum + value, 0));
       const allocateAcrossGross = (pool: number) => {
@@ -760,13 +794,24 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           }
         }
 
-        const updated = await FeesAPI.update(f.id, {
-          status: 'COMPLETED',
-          paymentMode: effectivePaymentMode,
-          paidDate: selectedPaidDate,
-          amount: netParts[index],
-          description: finalDesc,
-        });
+        const updated = f.isUpcomingAdvanceRent
+          ? await FeesAPI.create({
+              studentId: f.studentId || primaryStudent?.uuid || primaryStudent?.id,
+              transactionType: 'RENT',
+              amount: netParts[index],
+              status: 'COMPLETED',
+              paymentMode: effectivePaymentMode,
+              paidDate: selectedPaidDate,
+              billingMonth: f.billingMonth,
+              description: finalDesc,
+            })
+          : await FeesAPI.update(f.id, {
+              status: 'COMPLETED',
+              paymentMode: effectivePaymentMode,
+              paidDate: selectedPaidDate,
+              amount: netParts[index],
+              description: finalDesc,
+            });
         return { ...updated, student: updated.student || f.student };
       }));
 
@@ -813,18 +858,59 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
         itemsToPay[0]?.student?.id ||
         primaryStudent?.id;
 
+      let upcomingRentRecords: any[] = [];
+      if (hasUpcomingRentPayment && targetStudentId) {
+        const upIdx = activeItemsToPay.length + (hasOutstandingPayment ? 1 : 0);
+        const upGross = grossParts[upIdx] || upcomingRentAmount;
+        const upDiscount = discountParts[upIdx] || 0;
+        const upNet = netParts[upIdx] ?? upGross;
+        const coveredMonthsLabel = getMonthNames(upcomingMonths, '', nextUpcomingMonthStr);
+        const startMonthLong = formatCyclePeriod(nextUpcomingMonthStr, 1);
+        const [syStr, smStr] = nextUpcomingMonthStr.split('-');
+        const startY = Number(syStr);
+        const startM = Number(smStr) - 1;
+        const endMonthIdx = startM + upcomingMonths - 1;
+        const endY = startY + Math.floor(endMonthIdx / 12);
+        const endM = endMonthIdx % 12;
+        studentUpdates.rentPaidUntil = new Date(endY, endM + 1, 0, 12, 0, 0);
+
+        const upDescParts = [
+          `Room Rent for ${startMonthLong}`,
+          ...(effectiveRef ? [`Ref: ${effectiveRef}`] : []),
+          ...(notes ? [`Notes: ${notes}`] : []),
+          ...(upcomingMonths > 1 ? [`Paid for ${upcomingMonths} Months (${coveredMonthsLabel})`] : []),
+          receiptMeta(upGross, upDiscount),
+        ];
+
+        const createdUpcoming = await FeesAPI.create({
+          studentId: targetStudentId,
+          transactionType: 'RENT',
+          amount: upNet,
+          status: 'COMPLETED',
+          paymentMode: effectivePaymentMode,
+          paidDate: selectedPaidDate,
+          billingMonth: nextUpcomingMonthStr,
+          description: upDescParts.join(' | '),
+        });
+        if (createdUpcoming) {
+          const studentForReceipt = primaryStudent || itemsToPay[0]?.student;
+          upcomingRentRecords = [{ ...createdUpcoming, student: createdUpcoming.student || studentForReceipt }];
+        }
+      }
+
       if (targetStudentId && Object.keys(studentUpdates).length > 0) {
         await StudentAPI.update(targetStudentId, studentUpdates);
       }
 
       const paidCount =
         activeItemsToPay.length +
-        (hasOutstandingPayment ? 1 : 0);
+        (hasOutstandingPayment ? 1 : 0) +
+        (hasUpcomingRentPayment ? 1 : 0);
       toast.success(`Payment collected successfully for ${paidCount} item(s)!`);
 
       // Instead of calling onSuccess immediately, we show the success confirmation state
       setPaymentSuccessData({
-        updatedItems: [...currentUpdatedItems, ...outstandingRecords],
+        updatedItems: [...currentUpdatedItems, ...outstandingRecords, ...upcomingRentRecords],
         paymentMode: effectivePaymentMode,
       });
     } catch (e: any) {
@@ -903,8 +989,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       toast.error(outstandingError);
       return;
     }
-    if (activeItemsToPay.length === 0 && !hasOutstandingPayment) {
-      toast.error('Please select at least one fee or enter an outstanding amount.');
+    if (activeItemsToPay.length === 0 && !hasOutstandingPayment && !hasUpcomingRentPayment) {
+      toast.error('Please select at least one fee, an outstanding amount, or upcoming rent months.');
       return;
     }
 
@@ -928,10 +1014,16 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
       const order = await FeesAPI.createRazorpayOrder({
         studentId,
-        feeItems: activeItemsToPay.map(item => ({
-          feeId: item.id,
-          months: getMultiplier(item.transactionType),
-        })),
+        feeItems: [
+          ...activeItemsToPay.map(item => ({
+            feeId: item.isUpcomingAdvanceRent ? '__UPCOMING_RENT__' : item.id,
+            months: getMultiplier(item.transactionType),
+            ...(item.isUpcomingAdvanceRent && item.billingMonth ? { billingMonth: item.billingMonth } : {}),
+          })),
+          ...(hasUpcomingRentPayment
+            ? [{ feeId: '__UPCOMING_RENT__', months: upcomingMonths, billingMonth: nextUpcomingMonthStr }]
+            : []),
+        ],
         outstandingAmount: hasOutstandingPayment ? outstandingAmount : 0,
         requestId:
           onlineRequestId.current ||
@@ -1003,10 +1095,13 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   };
 
   // The month shown in the modal must match the payable cycle:
+  //   Upcoming advance rent -> starts from the next unpaid month
   //   PREPAID  -> current month
   //   POSTPAID -> previous month
-  const payableMonthStr =
-    collegeCycle === 'POSTPAID' ? previousBillingMonth : currentBillingMonth;
+  const upcomingRentItem = itemsToPay.find((f: any) => f?.isUpcomingAdvanceRent);
+  const payableMonthStr = upcomingRentItem?.billingMonth
+    ? upcomingRentItem.billingMonth
+    : (collegeCycle === 'POSTPAID' ? previousBillingMonth : currentBillingMonth);
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const formatCyclePeriod = (startMonth: string, count: number) => {
     const match = String(startMonth || '').match(/^(\d{4})-(\d{2})$/);
@@ -1034,6 +1129,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     return f.transactionType;
   });
   if (hasOutstandingPayment) selectedTypes.push('Outstanding');
+  if (hasUpcomingRentPayment) selectedTypes.push(`Upcoming Rent (${upcomingMonths}M)`);
   const uniqueTypes = Array.from(new Set(selectedTypes));
   const summaryText = uniqueTypes.length > 0 ? `Selected: ${uniqueTypes.join(' + ')}` : 'No fees selected';
 
@@ -1065,7 +1161,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     !fineQuoteBlocked &&
     !outstandingInvalid &&
     !discountInvalid &&
-    (activeItemsToPay.length > 0 || hasOutstandingPayment);
+    (activeItemsToPay.length > 0 || hasOutstandingPayment || hasUpcomingRentPayment);
 
   if (itemsToPay.length === 0) return null;
 
@@ -1156,25 +1252,44 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
             <div style={{ padding: '24px', overflowY: 'auto' }}>
 
               {/* Duration Section */}
-              {selectableCurrentItems.some(f => (f.transactionType || '').toUpperCase().trim() === 'RENT') && (
+              {(hasCurrentRentItem || canPayUpcomingRent) && (
                 <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Select Duration</label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {hasCurrentRentItem ? 'Select Duration' : 'Select Duration (Upcoming Rent)'}
+                  </label>
                   <div style={{ position: 'relative' }}>
                     <select
-                      value={months}
-                      onChange={e => setMonths(Number(e.target.value))}
+                      value={hasCurrentRentItem ? months : upcomingMonths}
+                      onChange={e => (hasCurrentRentItem ? setMonths(Number(e.target.value)) : setUpcomingMonths(Number(e.target.value)))}
                       style={{ width: '100%', padding: '12px 16px', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', outline: 'none', fontSize: '15px', fontWeight: 500, color: '#1e293b', appearance: 'none', cursor: 'pointer', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}
                     >
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                        <option key={m} value={m}>{m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(payableMonthStr, m)})</option>
-                      ))}
+                      {hasCurrentRentItem ? (
+                        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                          <option key={m} value={m}>{m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(payableMonthStr, m)})</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value={0}>0 Months (Current rent already paid)</option>
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                            <option key={m} value={m}>
+                              {m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(nextUpcomingMonthStr, m)}) — ₹{(studentMonthlyRent * m).toLocaleString('en-IN')}
+                            </option>
+                          ))}
+                        </>
+                      )}
                     </select>
                     <div style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }}>
                       <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5l3 3 3-3" /></svg>
                     </div>
                   </div>
                   <div style={{ marginTop: '8px', fontSize: '13px', color: '#475569', fontWeight: 500 }}>
-                    Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{coveredPeriodStr}</span>
+                    {hasCurrentRentItem ? (
+                      <>Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{coveredPeriodStr}</span></>
+                    ) : upcomingMonths > 0 ? (
+                      <>Upcoming Period: <span style={{ color: '#0f172a', fontWeight: 600 }}>{formatCyclePeriod(nextUpcomingMonthStr, upcomingMonths)}</span> (₹{studentMonthlyRent.toLocaleString('en-IN')}/month)</>
+                    ) : (
+                      <>Current rent already paid. Select months above if paying upcoming rent in advance.</>
+                    )}
                   </div>
                 </div>
               )}

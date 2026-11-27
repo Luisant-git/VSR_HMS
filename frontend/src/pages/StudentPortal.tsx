@@ -21,6 +21,7 @@ import {
   isCurrentCycleFee,
   roundMoney,
 } from '../utils/outstanding';
+import { formatBillingMonth, getBillingMonths } from '../utils/billingCycle';
 
 export default function StudentPortal() {
   const location = useLocation();
@@ -862,7 +863,48 @@ export default function StudentPortal() {
             <div style={{ background: 'white', borderRadius: '16px', padding: '40px', textAlign: 'center', color: '#64748b', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '40px' }}>
               <CheckCircle size={40} color="#10b981" style={{ margin: '0 auto 12px' }} />
               <div style={{ fontSize: '16px', fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>You're all caught up!</div>
-              <div style={{ fontSize: '14px' }}>There are no outstanding fees to be paid at the moment.</div>
+              <div style={{ fontSize: '14px', marginBottom: Number(student?.rent || student?.room?.rent || 0) > 0 ? '20px' : '0' }}>
+                There are no outstanding fees to be paid at the moment.
+              </div>
+              {Number(student?.rent || student?.room?.rent || 0) > 0 && (
+                <button
+                  onClick={() => {
+                    const { currentMonthStr } = getBillingMonths();
+                    let latestPaidYM = currentMonthStr;
+                    if (student?.rentPaidUntil) {
+                      const d = new Date(student.rentPaidUntil);
+                      if (!Number.isNaN(d.getTime())) {
+                        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        if (ym > latestPaidYM) latestPaidYM = ym;
+                      }
+                    }
+                    const [yStr, mStr] = latestPaidYM.split('-');
+                    const y = Number(yStr);
+                    const m = Number(mStr);
+                    const nextY = m === 12 ? y + 1 : y;
+                    const nextM = m === 12 ? 1 : m + 1;
+                    const nextUnpaidYM = `${nextY}-${String(nextM).padStart(2, '0')}`;
+                    const nextMonthLabel = formatBillingMonth(nextUnpaidYM) || nextUnpaidYM;
+                    const rentAmt = Number(student?.rent || student?.room?.rent || 0);
+                    setFeesToPay([
+                      {
+                        id: '__UPCOMING_RENT__',
+                        isUpcomingAdvanceRent: true,
+                        studentId: student.id,
+                        student,
+                        transactionType: 'RENT',
+                        amount: rentAmt,
+                        billingMonth: nextUnpaidYM,
+                        description: `Room Rent for ${nextMonthLabel}`,
+                        status: 'PENDING',
+                      },
+                    ]);
+                  }}
+                  style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 22px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px -1px rgba(37,99,235,0.2)' }}
+                >
+                  <Wallet size={16} /> Pay Upcoming Rent →
+                </button>
+              )}
             </div>
           )}
 
