@@ -95,11 +95,35 @@ export class CollegesService {
       ];
     }
 
-    // A fine rule is "configured" when the college has a FineMaster record.
+    // A fine rule is active only when at least one daily fine rate is > 0.
     if (ruleStatus === 'set') {
-      where.fineMaster = { isNot: null };
+      where.fineMaster = {
+        is: {
+          OR: [
+            { rentFine: { gt: 0 } },
+            { messFine: { gt: 0 } },
+            { ebFine: { gt: 0 } },
+          ],
+        },
+      };
     } else if (ruleStatus === 'not-set') {
-      where.fineMaster = { is: null };
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { fineMaster: { is: null } },
+            {
+              fineMaster: {
+                is: {
+                  rentFine: { lte: 0 },
+                  messFine: { lte: 0 },
+                  ebFine: { lte: 0 },
+                },
+              },
+            },
+          ],
+        },
+      ];
     }
 
     // Due dates are now day-of-month values, so range filters are applied to
@@ -184,22 +208,47 @@ export class CollegesService {
       formattedBillingCycle = billingCycle;
     }
 
+    const hasAnyFineUpdate =
+      rentFine !== undefined || messFine !== undefined || ebFine !== undefined;
+    let clearFineRule = false;
+    let fineMasterMutation: any = undefined;
+
+    if (hasAnyFineUpdate) {
+      const existingFine =
+        rentFine !== undefined && messFine !== undefined && ebFine !== undefined
+          ? null
+          : await this.prisma.fineMaster.findUnique({ where: { collegeId: id } });
+      const resolvedRent = Number(rentFine ?? existingFine?.rentFine ?? 0) || 0;
+      const resolvedMess = Number(messFine ?? existingFine?.messFine ?? 0) || 0;
+      const resolvedEb = Number(ebFine ?? existingFine?.ebFine ?? 0) || 0;
+
+      if (resolvedRent <= 0 && resolvedMess <= 0 && resolvedEb <= 0) {
+        clearFineRule = true;
+      } else {
+        fineMasterMutation = {
+          upsert: {
+            create: { rentFine: resolvedRent, messFine: resolvedMess, ebFine: resolvedEb },
+            update: {
+              ...(rentFine !== undefined && { rentFine: resolvedRent }),
+              ...(messFine !== undefined && { messFine: resolvedMess }),
+              ...(ebFine !== undefined && { ebFine: resolvedEb }),
+            },
+          },
+        };
+      }
+    }
+
+    if (clearFineRule) {
+      await this.prisma.fineMaster.deleteMany({ where: { collegeId: id } });
+    }
+
     return this.prisma.college.update({
       where: { id },
       data: {
         ...collegeData,
         ...(formattedDueDate !== undefined && { dueDate: formattedDueDate }),
         ...(formattedBillingCycle !== undefined && { billingCycle: formattedBillingCycle }),
-        fineMaster: (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) ? {
-          upsert: {
-            create: { rentFine: rentFine || 0, messFine: messFine || 0, ebFine: ebFine || 0 },
-            update: { 
-              ...(rentFine !== undefined && { rentFine }),
-              ...(messFine !== undefined && { messFine }),
-              ...(ebFine !== undefined && { ebFine })
-            }
-          }
-        } : undefined
+        ...(fineMasterMutation ? { fineMaster: fineMasterMutation } : {}),
       },
       include: { fineMaster: true }
     });
@@ -224,23 +273,43 @@ export class CollegesService {
     }
 
     if (rentFine !== undefined || messFine !== undefined || ebFine !== undefined) {
-      const colleges = await this.prisma.college.findMany({ select: { id: true } });
-      
-      for (const college of colleges) {
-        await this.prisma.fineMaster.upsert({
-          where: { collegeId: college.id },
-          create: {
-            collegeId: college.id,
-            rentFine: rentFine || 0,
-            messFine: messFine || 0,
-            ebFine: ebFine || 0
-          },
-          update: {
-            ...(rentFine !== undefined && { rentFine }),
-            ...(messFine !== undefined && { messFine }),
-            ...(ebFine !== undefined && { ebFine })
-          }
+      const clearAllFines =
+        (Number(rentFine) || 0) <= 0 &&
+        (Number(messFine) || 0) <= 0 &&
+        (Number(ebFine) || 0) <= 0;
+
+      if (clearAllFines && rentFine !== undefined && messFine !== undefined && ebFine !== undefined) {
+        await this.prisma.fineMaster.deleteMany({});
+      } else {
+        const colleges = await this.prisma.college.findMany({
+          select: { id: true, fineMaster: true },
         });
+
+        for (const college of colleges) {
+          const resolvedRent = Number(rentFine ?? college.fineMaster?.rentFine ?? 0) || 0;
+          const resolvedMess = Number(messFine ?? college.fineMaster?.messFine ?? 0) || 0;
+          const resolvedEb = Number(ebFine ?? college.fineMaster?.ebFine ?? 0) || 0;
+
+          if (resolvedRent <= 0 && resolvedMess <= 0 && resolvedEb <= 0) {
+            await this.prisma.fineMaster.deleteMany({ where: { collegeId: college.id } });
+            continue;
+          }
+
+          await this.prisma.fineMaster.upsert({
+            where: { collegeId: college.id },
+            create: {
+              collegeId: college.id,
+              rentFine: resolvedRent,
+              messFine: resolvedMess,
+              ebFine: resolvedEb,
+            },
+            update: {
+              ...(rentFine !== undefined && { rentFine: resolvedRent }),
+              ...(messFine !== undefined && { messFine: resolvedMess }),
+              ...(ebFine !== undefined && { ebFine: resolvedEb }),
+            },
+          });
+        }
       }
     }
     

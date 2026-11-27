@@ -4,7 +4,7 @@ import { PageHeader } from '../components/PageHeader';
 import { LoadingRow } from '../components/LoadingSpinner';
 import { CollegeAPI } from '../api/college.api';
 import { rowBadgeVariant } from '../utils/badge';
-import { formatDueDay, getDueDay } from '../utils/dueDate';
+import { formatDueDay, getDueDay, hasActiveFineRule } from '../utils/dueDate';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import Select from 'react-select';
@@ -123,11 +123,16 @@ const CollegeMaster = () => {
     }
   };
 
-  const handleFineSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const finalRentFine = isRentFineEnabled ? rentFine : 0;
-    const finalMessFine = isMessFineEnabled ? messFine : 0;
-    const finalEbFine = isEbFineEnabled ? ebFine : 0;
+  const saveFineConfiguration = async (clearFines = false) => {
+    const finalRentFine = clearFines ? 0 : (isRentFineEnabled ? rentFine : 0);
+    const finalMessFine = clearFines ? 0 : (isMessFineEnabled ? messFine : 0);
+    const finalEbFine = clearFines ? 0 : (isEbFineEnabled ? ebFine : 0);
+
+    if (clearFines) {
+      setIsRentFineEnabled(false); setRentFine(0);
+      setIsMessFineEnabled(false); setMessFine(0);
+      setIsEbFineEnabled(false); setEbFine(0);
+    }
 
     try {
       const dueDayValue = fineDueDay === '' ? null : Number(fineDueDay);
@@ -135,7 +140,7 @@ const CollegeMaster = () => {
         await CollegeAPI.updateBulk({
           rentFine: finalRentFine, messFine: finalMessFine, ebFine: finalEbFine, dueDay: dueDayValue
         });
-        toast.success('Bulk fine configuration updated');
+        toast.success(clearFines ? 'Fine rule cleared (Not Set) for all colleges' : 'Bulk fine configuration updated');
       } else {
         await Promise.all(fineTargetColleges.map(id => 
           CollegeAPI.update(id, { 
@@ -143,13 +148,18 @@ const CollegeMaster = () => {
             dueDay: dueDayValue
           })
         ));
-        toast.success('Fine configuration updated for selected colleges');
+        toast.success(clearFines ? 'Fine rule set to Not Set for selected colleges' : 'Fine configuration updated for selected colleges');
       }
       setIsFineModalOpen(false);
       fetchColleges();
     } catch (err: any) {
       toast.error(err.message || 'Operation failed');
     }
+  };
+
+  const handleFineSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveFineConfiguration(false);
   };
 
   const openFineModal = (college?: any) => {
@@ -392,7 +402,7 @@ const CollegeMaster = () => {
                     </span>
                   </td>
                   <td>
-                    {c.fineMaster ? (
+                    {hasActiveFineRule(c) ? (
                       <span className="ui-badge ui-badge-success">Active</span>
                     ) : (
                       <span className="ui-badge ui-badge-danger">Not Set</span>
@@ -583,6 +593,27 @@ const CollegeMaster = () => {
                   />
                 </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                    Configured Rule
+                  </span>
+                  <span
+                    className={`ui-badge ${
+                      ((isRentFineEnabled && rentFine > 0) ||
+                        (isMessFineEnabled && messFine > 0) ||
+                        (isEbFineEnabled && ebFine > 0))
+                        ? 'ui-badge-success'
+                        : 'ui-badge-danger'
+                    }`}
+                  >
+                    {((isRentFineEnabled && rentFine > 0) ||
+                      (isMessFineEnabled && messFine > 0) ||
+                      (isEbFineEnabled && ebFine > 0))
+                      ? 'Active'
+                      : 'Not Set'}
+                  </span>
+                </div>
+
                 <div className="cm-fine-toggles">
                   <div className={`cm-toggle-row ${isRentFineEnabled ? 'is-on' : ''}`}>
                     <label className="cm-fine-check">
@@ -637,6 +668,15 @@ const CollegeMaster = () => {
 
               <div className="ui-modal-footer">
                 <button type="button" onClick={() => setIsFineModalOpen(false)} className="ui-btn ui-btn-secondary">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => void saveFineConfiguration(true)}
+                  className="ui-btn"
+                  style={{ border: '1px solid #fca5a5', color: '#dc2626', background: '#fff5f5' }}
+                  title="Remove fine amounts and show Configured Rule as Not Set (keeps Due Day)"
+                >
+                  Not Set
+                </button>
                 <button type="submit" className="ui-btn ui-btn-primary">
                   Save Configuration
                 </button>
