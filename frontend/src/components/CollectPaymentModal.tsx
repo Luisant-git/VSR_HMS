@@ -982,14 +982,21 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       const result = await FeesAPI.reconcileRazorpayOrder({ orderId });
       if (applyOnlinePaymentResult(result, studentId)) return;
 
-      if (result.paymentStatus === 'failed') {
+      if (
+        result.paymentStatus === 'failed' ||
+        result.paymentStatus === 'abandoned' ||
+        (result.attemptCount !== undefined && Number(result.attemptCount) === 0)
+      ) {
         sessionStorage.removeItem(`razorpay_pending_order_${studentId}`);
         clearStudentPortalPaymentReturn();
         onlineOrderId.current = null;
         onlineRequestId.current = null;
         setOnlineConfirmationPending(false);
         toast.info(
-          failureMessage || 'No successful payment was found. You can try the payment again.',
+          failureMessage ||
+            (result.paymentStatus === 'abandoned' || Number(result.attemptCount) === 0
+              ? 'Payment was cancelled. You can try again or close this window.'
+              : 'No successful payment was found. You can try the payment again.'),
         );
         return;
       }
@@ -1266,9 +1273,9 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
               </div>
               <button
                 onClick={onClose}
-                disabled={isStudentMode && onlineConfirmationPending}
-                title={onlineConfirmationPending ? 'Check payment status before closing' : 'Close'}
-                style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: isStudentMode && onlineConfirmationPending ? 'not-allowed' : 'pointer', opacity: isStudentMode && onlineConfirmationPending ? 0.5 : 1, padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                disabled={isSubmitting}
+                title={isSubmitting ? 'Please wait...' : 'Close'}
+                style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.5 : 1, padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <X size={18} />
               </button>
