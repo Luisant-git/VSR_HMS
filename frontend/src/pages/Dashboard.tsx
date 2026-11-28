@@ -8,7 +8,8 @@ import { BiometricAttendanceAPI } from '../api/biometricAttendance.api';
 import { Users, UserRound, Bed, LogOut, AlertTriangle, CreditCard, ShieldCheck, List, FileText, LogIn, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingBlock } from '../components/LoadingSpinner';
-import { calculatePendingDues } from '../utils/outstanding';
+import { roundMoney } from '../utils/outstanding';
+import { buildFeeReconciliation } from '../utils/feeReconciliation';
 import { isWardenStudent } from '../utils/warden';
 import { blockLabel, blockRank, normalizeBlock } from '../utils/roomBlock';
 
@@ -119,8 +120,9 @@ const Dashboard = () => {
   });
 
   const safeFees = Array.isArray(fees) ? fees : ((fees as any).data || []);
-  // Net confirmed outstanding payments so historical dues are not counted twice.
-  const totalPendingFees = calculatePendingDues(safeFees);
+  // Use the same reconciliation ledger as the Fees page so Pending Fees matches.
+  const feeReconciliation = buildFeeReconciliation({ allFees: safeFees, filteredFees: safeFees });
+  const totalPendingFees = roundMoney(feeReconciliation.pendingUnpaid + feeReconciliation.partialBalance);
 
   const safeStudents = Array.isArray(students) ? students : ((students as any).data || []);
   const wardens = safeStudents.filter((s: any) => s.status !== 'Vacated' && isWardenStudent(s));
