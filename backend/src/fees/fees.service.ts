@@ -715,6 +715,47 @@ export class FeesService {
       });
     }
 
+    if (
+      data.status === 'COMPLETED' &&
+      existing.status !== 'COMPLETED' &&
+      String(existing.transactionType || '').toUpperCase() === 'RENT' &&
+      updated?.studentId &&
+      existing.billingMonth
+    ) {
+      const mMatch = String(updated.description || '').match(/Paid for (\d+) Months/i);
+      const monthsCount = mMatch ? parseInt(mMatch[1], 10) : 1;
+      if (monthsCount > 1) {
+        const bmMatch = String(existing.billingMonth).match(/^(\d{4})-(\d{1,2})$/);
+        if (bmMatch) {
+          const sy = Number(bmMatch[1]);
+          const sm = Number(bmMatch[2]);
+          const coveredMonths: string[] = [];
+          for (let k = 1; k < monthsCount; k++) {
+            const tot = sm - 1 + k;
+            const cy = sy + Math.floor(tot / 12);
+            const cm = (tot % 12) + 1;
+            coveredMonths.push(`${cy}-${String(cm).padStart(2, '0')}`);
+          }
+          if (coveredMonths.length > 0) {
+            await this.prisma.feeTransaction.updateMany({
+              where: {
+                studentId: updated.studentId,
+                id: { not: updated.id },
+                transactionType: 'RENT',
+                status: 'PENDING',
+                deletedAt: null,
+                billingMonth: { in: coveredMonths },
+              },
+              data: {
+                deletedAt: new Date(),
+                deletedBy: 'COVERED_BY_MULTI_MONTH_RENT',
+              },
+            });
+          }
+        }
+      }
+    }
+
     if (data.status === 'COMPLETED' && updated?.student) {
       this.dispatchWhatsappReceiptForTransaction(updated);
     }

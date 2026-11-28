@@ -660,14 +660,24 @@ export class StudentsService {
           },
         };
       } else if (params.feeFilter === 'Multi-Month Rent Paid') {
-        where.transactions = {
-          some: {
-            status: 'COMPLETED',
-            deletedAt: null,
-            transactionType: 'RENT',
-            description: { contains: 'Paid for ', mode: 'insensitive' },
+        const now = new Date();
+        const endOfCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        const startOfFreshCycle = new Date('2026-11-01T00:00:00');
+        where.OR = [
+          { rentPaidUntil: { gt: endOfCurrentMonth } },
+          { advanceRentBalance: { gt: 0 } },
+          {
+            transactions: {
+              some: {
+                status: 'COMPLETED',
+                deletedAt: null,
+                transactionType: 'RENT',
+                paidDate: { gte: startOfFreshCycle },
+                description: { contains: 'Paid for ', mode: 'insensitive' },
+              },
+            },
           },
-        };
+        ];
       }
     }
 

@@ -445,7 +445,19 @@ const Fees = () => {
             : (feeType.includes('EB') || feeType.includes('ELECTRIC') || feeType.includes('FINE'))
               ? feeMonth === previousMonthStr || feeMonth === currentMonthStr
               : feeMonth === currentMonthStr || feeMonth === previousMonthStr)));
-    if (isPreviousSettledFee(fee) && !isPostpaidPayableNow) return false;
+    const paidUntilYM = (() => {
+      if (!fee.student?.rentPaidUntil) return null;
+      const d = new Date(fee.student.rentPaidUntil);
+      return Number.isNaN(d.getTime())
+        ? null
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+    const hasFutureRentPaidUntil = paidUntilYM !== null && paidUntilYM > currentMonthStr;
+    const hasMultiMonthAdvance =
+      hasFutureRentPaidUntil ||
+      Number(fee.student?.advanceRentBalance || 0) > 0 ||
+      (!isPreviousSettledFee(fee) && /Paid for \d+ Months/i.test(String(fee.description || '')));
+    if (isPreviousSettledFee(fee) && !isPostpaidPayableNow && !(filter === 'MULTI_MONTH_RENT' && fee.status === 'COMPLETED' && hasMultiMonthAdvance)) return false;
 
     let match = true;
     if (filter === 'UNPAID' || filter === 'OUTSTANDING') {
@@ -455,7 +467,10 @@ const Fees = () => {
     }
     if (filter === 'PAID') match = fee.status === 'COMPLETED';
     if (filter === 'MULTI_MONTH_RENT') {
-      match = fee.status === 'COMPLETED' && /Paid for \d+ Months/i.test(String(fee.description || ''));
+      match =
+        fee.status === 'COMPLETED' &&
+        (fee.transactionType === 'RENT' || /Paid for \d+ Months/i.test(String(fee.description || ''))) &&
+        hasMultiMonthAdvance;
     }
     if (filter === 'PARTIAL') match = fee.status === 'PARTIAL';
 
@@ -814,7 +829,10 @@ const Fees = () => {
     paidByBatch.forEach((group: any) => {
       // Do not display previous paid receipts prior to November 1, 2026
       const isPreNov = new Date(group.paidDate || group.createdAt) < new Date('2026-11-01T00:00:00');
-      if (isPreNov) return;
+      if (isPreNov && filter !== 'MULTI_MONTH_RENT') return;
+      if (isPreNov && filter === 'MULTI_MONTH_RENT') {
+        group.isImportedAdvanceOnly = true;
+      }
 
       const studentKey = getStudentKey(group.feesList[0]);
       const totals = outstandingTotals.get(studentKey);
@@ -1657,10 +1675,10 @@ const Fees = () => {
                       className={[activeFeeId === fee.id ? 'fees-row-active' : '', isWarden ? 'fees-row-warden' : ''].filter(Boolean).join(' ') || undefined}
                     >
                       <td
-                        className={fee.displayStatus !== 'Unpaid' ? "ui-cell-link fees-invoice" : "fees-invoice"}
-                        title={fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : undefined)) : undefined}
+                        className={!fee.isImportedAdvanceOnly && fee.displayStatus !== 'Unpaid' ? "ui-cell-link fees-invoice" : "fees-invoice"}
+                        title={!fee.isImportedAdvanceOnly && fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : undefined)) : undefined}
                       >
-                        {fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')) : '—'}
+                        {!fee.isImportedAdvanceOnly && fee.displayStatus !== 'Unpaid' ? (fee.invoiceNumber || (fee.invoiceFee ? formatInvoiceNumber(fee.invoiceFee) : '—')) : '—'}
                       </td>
                       <td>
                         <div className="fees-person">
@@ -1728,17 +1746,27 @@ const Fees = () => {
                           })()}
                         </span>
                       </td>
-                      <td>{fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
+                      <td>{!fee.isImportedAdvanceOnly && fee.status === 'COMPLETED' ? new Date(fee.paidDate || fee.createdAt).toLocaleDateString('en-GB') : '—'}</td>
 
                       <td className="num fees-credit">₹{fee.advance.toLocaleString('en-IN')}</td>
                       <td className="num">
-                        <div>₹{fee.rent.toLocaleString('en-IN')}</div>
-                        {fee.status === 'COMPLETED' && (() => {
+                        {!fee.isImportedAdvanceOnly && <div>₹{fee.rent.toLocaleString('en-IN')}</div>}
+                        {(() => {
                           const rentFee = fee.feesList?.find((x: any) => (x.transactionType || '').toUpperCase().includes('RENT'));
                           const match = rentFee?.description?.match(/Paid for \d+ Months \(([^)]+)\)/);
                           if (match) {
                             const parts = match[1].split('-');
                             return <div className="fees-note" title={`Paid till ${parts[parts.length - 1].trim()}`}>Paid till {parts[parts.length - 1].trim()}</div>;
+                          }
+                          if (fee.student?.rentPaidUntil) {
+                            const d = new Date(fee.student.rentPaidUntil);
+                            if (!Number.isNaN(d.getTime())) {
+                              const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                              const label = formatBillingMonthShort(ym);
+                              if (label) {
+                                return <div className="fees-note" title={`Paid till ${label}`}>Paid till {label}</div>;
+                              }
+                            }
                           }
                           return null;
                         })()}
@@ -1834,13 +1862,13 @@ const Fees = () => {
                       })()}
 
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
-                        ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
+                        {fee.isImportedAdvanceOnly ? '—' : `₹${Number(fee.displayPaid || 0).toLocaleString('en-IN')}`}
                       </td>
 
                       <td
                         className="fees-method"
                         title={
-                          fee.status === 'COMPLETED'
+                          !fee.isImportedAdvanceOnly && fee.status === 'COMPLETED'
                             ? [
                               fee.paymentMode,
                               fee.feesList?.find((item: any) => item.razorpayOrderId)?.razorpayOrderId &&
@@ -1855,7 +1883,7 @@ const Fees = () => {
                             : undefined
                         }
                       >
-                        {fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
+                        {!fee.isImportedAdvanceOnly && fee.status === 'COMPLETED' ? formatPaymentMode(fee.paymentMode) : '—'}
                       </td>
                       <td className="fees-status">
                         <span className={`ui-badge ${fee.displayStatus === 'Paid' ? 'ui-badge-green' : fee.displayStatus === 'Not Due' ? 'ui-badge-blue' : fee.displayStatus === 'Partial' ? 'ui-badge-warning' : 'ui-badge-red'}`}>
@@ -1877,6 +1905,10 @@ const Fees = () => {
                           ) : fee.displayStatus === 'Not Due' ? (
                             <span className="fees-note" title="This month's fees are billed in the next postpaid cycle">
                               Not due yet
+                            </span>
+                          ) : fee.isImportedAdvanceOnly ? (
+                            <span className="fees-note" title="Advance rent imported without receipt details">
+                              Imported advance
                             </span>
                           ) : (
                             <>

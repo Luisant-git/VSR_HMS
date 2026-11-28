@@ -66,6 +66,28 @@ async function main() {
       },
     });
 
+    const existingRentTx = await prisma.feeTransaction.findFirst({
+      where: {
+        studentId: student.id,
+        transactionType: 'RENT',
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!existingRentTx) {
+      await prisma.feeTransaction.create({
+        data: {
+          studentId: student.id,
+          transactionType: 'RENT',
+          amount: 0,
+          status: 'COMPLETED',
+          paidDate: new Date('2026-10-31T12:00:00'),
+          description: 'Advance Rent Coverage (Imported)',
+        },
+      });
+      console.log(`  -> Added imported advance coverage marker row for ${student.name}`);
+    }
+
     console.log(
       `UPDATED: ${student.name} (${student.manualRegsiName || student.mobileNo}) -> rentPaidUntil=${item.paidThroughFullMonth} (${rentPaidUntil.toISOString().slice(0, 10)}), advanceRentBalance=₹${item.advanceRentBalance}`,
     );

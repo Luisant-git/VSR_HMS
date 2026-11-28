@@ -151,6 +151,39 @@ export class RazorpayPaymentService {
           'The selected fee is not payable online.',
         );
       }
+      if (String(fee.transactionType).toUpperCase() === 'RENT' && item.months > 1) {
+        const bmMatch = String(fee.billingMonth || '').match(/^(\d{4})-(\d{1,2})$/);
+        if (bmMatch) {
+          const sy = Number(bmMatch[1]);
+          const sm = Number(bmMatch[2]);
+          const futureMonths: string[] = [];
+          for (let k = 1; k < item.months; k++) {
+            const tot = sm - 1 + k;
+            futureMonths.push(`${sy + Math.floor(tot / 12)}-${String((tot % 12) + 1).padStart(2, '0')}`);
+          }
+          const futurePending = futureMonths.length
+            ? await this.prisma.feeTransaction.findMany({
+                where: {
+                  studentId: student.id,
+                  id: { not: fee.id },
+                  transactionType: 'RENT',
+                  status: 'PENDING',
+                  deletedAt: null,
+                  billingMonth: { in: futureMonths },
+                },
+                select: { billingMonth: true, amount: true },
+              })
+            : [];
+          const futureByMonth = new Map(futurePending.map((r) => [r.billingMonth, Number(r.amount)]));
+          const fallbackRent = Number(student.rent || student.room?.rent || fee.amount || 0);
+          totalPaise += Math.round(Number(fee.amount) * 100);
+          for (const fm of futureMonths) {
+            const amt = futureByMonth.has(fm) ? futureByMonth.get(fm)! : fallbackRent;
+            totalPaise += Math.round(amt * 100);
+          }
+          continue;
+        }
+      }
       totalPaise += Math.round(Number(fee.amount) * 100) * item.months;
     }
 
@@ -664,8 +697,51 @@ export class RazorpayPaymentService {
                   'A selected fee is no longer eligible for online payment.',
                 );
               }
-              const finalAmount =
+              let finalAmount =
                 (Math.round(Number(fee.amount) * 100) * selection.months) / 100;
+              if (String(fee.transactionType).toUpperCase() === 'RENT' && selection.months > 1) {
+                const bmMatch = String(fee.billingMonth || '').match(/^(\d{4})-(\d{1,2})$/);
+                if (bmMatch) {
+                  const sy = Number(bmMatch[1]);
+                  const sm = Number(bmMatch[2]);
+                  const futureMonths: string[] = [];
+                  for (let k = 1; k < selection.months; k++) {
+                    const tot = sm - 1 + k;
+                    futureMonths.push(`${sy + Math.floor(tot / 12)}-${String((tot % 12) + 1).padStart(2, '0')}`);
+                  }
+                  const futurePending = futureMonths.length
+                    ? await tx.feeTransaction.findMany({
+                        where: {
+                          studentId: order.studentId,
+                          id: { not: fee.id },
+                          transactionType: 'RENT',
+                          status: 'PENDING',
+                          deletedAt: null,
+                          billingMonth: { in: futureMonths },
+                        },
+                        select: { id: true, billingMonth: true, amount: true },
+                      })
+                    : [];
+                  const futureByMonth = new Map(futurePending.map((r) => [r.billingMonth, Number(r.amount)]));
+                  const stRentRow = await tx.student.findUnique({
+                    where: { id: order.studentId },
+                    select: { rent: true, room: { select: { rent: true } } },
+                  });
+                  const fallbackRent = Number(stRentRow?.rent || stRentRow?.room?.rent || fee.amount || 0);
+                  let sumPaise = Math.round(Number(fee.amount) * 100);
+                  for (const fm of futureMonths) {
+                    const amt = futureByMonth.has(fm) ? futureByMonth.get(fm)! : fallbackRent;
+                    sumPaise += Math.round(amt * 100);
+                  }
+                  finalAmount = sumPaise / 100;
+                  if (futurePending.length > 0) {
+                    await tx.feeTransaction.updateMany({
+                      where: { id: { in: futurePending.map((r) => r.id) } },
+                      data: { deletedAt: paidDate, deletedBy: 'COVERED_BY_MULTI_MONTH_RENT' },
+                    });
+                  }
+                }
+              }
               const description = this.buildPaidDescription(
                 fee.description || '',
                 selection.months,

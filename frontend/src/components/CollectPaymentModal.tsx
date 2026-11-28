@@ -234,7 +234,8 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       rawPrimaryStudent?.id;
     const hasRent = Number(rawPrimaryStudent?.rent || rawPrimaryStudent?.room?.rent || 0) > 0;
     const hasPaidUntil = rawPrimaryStudent?.rentPaidUntil !== undefined;
-    if (!sid || (hasRent && hasPaidUntil)) return;
+    const hasTransactions = Array.isArray(rawPrimaryStudent?.transactions);
+    if (!sid || (hasRent && hasPaidUntil && hasTransactions)) return;
 
     let active = true;
     StudentAPI.findOne(sid)
@@ -569,7 +570,38 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   );
 
   const getItemCalculatedAmount = (f: any) => {
-    const gross = roundMoney(Number(f.amount || 0) * getMultiplier(f.transactionType));
+    const t = String(f?.transactionType || '').toUpperCase().trim();
+    const mult = getMultiplier(t);
+    if (t === 'RENT' && !f?.isUpcomingAdvanceRent && mult > 1) {
+      const startYm = resolveFeeBillingMonth(f) || (collegeCycle === 'POSTPAID' ? previousBillingMonth : currentBillingMonth);
+      const match = String(startYm || '').match(/^(\d{4})-(\d{1,2})$/);
+      const startY = match ? Number(match[1]) : new Date().getFullYear();
+      const startM = match ? Number(match[2]) : new Date().getMonth() + 1;
+      const allTxs = Array.isArray(primaryStudent?.transactions) ? primaryStudent.transactions : [];
+      const fallbackRent = roundMoney(Number(primaryStudent?.rent || primaryStudent?.room?.rent || f.amount || 0));
+      let total = 0;
+      for (let k = 0; k < mult; k++) {
+        if (k === 0) {
+          total += Number(f.amount || 0);
+          continue;
+        }
+        const totalMonths = startM - 1 + k;
+        const y = startY + Math.floor(totalMonths / 12);
+        const m = (totalMonths % 12) + 1;
+        const ym = `${y}-${String(m).padStart(2, '0')}`;
+        const futurePending = allTxs.find(
+          (tx: any) =>
+            tx &&
+            tx.id !== f.id &&
+            tx.status === 'PENDING' &&
+            String(tx.transactionType || '').toUpperCase().trim() === 'RENT' &&
+            resolveFeeBillingMonth(tx) === ym,
+        );
+        total += futurePending ? Number(futurePending.amount || 0) : fallbackRent;
+      }
+      return roundMoney(total);
+    }
+    const gross = roundMoney(Number(f.amount || 0) * mult);
     if (f?.isUpcomingAdvanceRent && availableAdvanceBalance > 0) {
       return roundMoney(Math.max(0, gross - Math.min(availableAdvanceBalance, gross)));
     }
@@ -1524,7 +1556,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                                 </span>
                               </div>
                               <div style={{ color: '#64748b', fontSize: '13px' }}>
-                                {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
+                                {currentMultiplier > 1
+                                  ? (Math.abs(calculatedAmount - Number(f.amount || 0) * currentMultiplier) > 0.01
+                                      ? `${currentMultiplier} months (${getMonthNames(currentMultiplier, f.description || '', resolveFeeBillingMonth(f))})`
+                                      : `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}`)
+                                  : (f.description || 'One-time fee')}
                                 {upcomingAdvAdjusted > 0 && (
                                   <div style={{ marginTop: '3px', color: '#0284c7', fontWeight: 600, fontSize: '12.5px' }}>
                                     · ₹{upcomingAdvAdjusted.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Advance Rent Balance adjusted from ₹{grossItemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
