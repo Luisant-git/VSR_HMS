@@ -112,22 +112,28 @@ export default function StudentPortal() {
           let recoveredPayments: any[] = [];
           let recoveredPaymentFound = false;
           if (returningOrderId) {
-            const orderResult = await FeesAPI.reconcileRazorpayOrder({
-              orderId: returningOrderId,
-            });
-            if (
-              orderResult.status === 'PAID' ||
-              orderResult.payments?.length > 0
-            ) {
-              recoveredPayments = orderResult.payments || [];
-              recoveredPaymentFound = true;
-              data = await StudentAPI.findByMobile(searchMobile);
-              sessionStorage.removeItem(orderStorageKey);
-              clearStudentPortalPaymentReturn();
-              setPaymentStatusNotice('Payment received successfully. Your receipt is ready to download.');
-              setUnconfirmedPaymentOrderId(null);
-              setPaymentCheckRequired(false);
-            } else if (orderResult.paymentStatus === 'failed') {
+            try {
+              const orderResult = await FeesAPI.reconcileRazorpayOrder({
+                orderId: returningOrderId,
+              });
+              if (
+                orderResult.status === 'PAID' ||
+                orderResult.payments?.length > 0
+              ) {
+                recoveredPayments = orderResult.payments || [];
+                recoveredPaymentFound = true;
+                data = await StudentAPI.findByMobile(searchMobile);
+                sessionStorage.removeItem(orderStorageKey);
+                clearStudentPortalPaymentReturn();
+                setPaymentStatusNotice('Payment received successfully. Your receipt is ready to download.');
+                setUnconfirmedPaymentOrderId(null);
+                setPaymentCheckRequired(false);
+              } else if (orderResult.paymentStatus === 'failed' || orderResult.paymentStatus === 'abandoned') {
+                sessionStorage.removeItem(orderStorageKey);
+                clearStudentPortalPaymentReturn();
+              }
+            } catch {
+              // Stale order ID from another environment or already removed
               sessionStorage.removeItem(orderStorageKey);
               clearStudentPortalPaymentReturn();
             }
@@ -339,23 +345,28 @@ export default function StudentPortal() {
         sessionStorage.getItem(`razorpay_pending_order_${student.id}`);
       let recoveredPaymentFound = false;
       if (returnOrderId) {
-        const orderResult = await FeesAPI.reconcileRazorpayOrder({
-          orderId: returnOrderId,
-        });
-        if (
-          orderResult.status === 'PAID' ||
-          orderResult.payments?.length > 0
-        ) {
-          const paidItems = orderResult.payments || [];
-          const refreshedStudent = await StudentAPI.findByMobile(student.mobileNo);
-          if (refreshedStudent) {
-            setStudent(refreshedStudent);
-            showPaymentReceipt(paidItems, refreshedStudent);
+        try {
+          const orderResult = await FeesAPI.reconcileRazorpayOrder({
+            orderId: returnOrderId,
+          });
+          if (
+            orderResult.status === 'PAID' ||
+            orderResult.payments?.length > 0
+          ) {
+            const paidItems = orderResult.payments || [];
+            const refreshedStudent = await StudentAPI.findByMobile(student.mobileNo);
+            if (refreshedStudent) {
+              setStudent(refreshedStudent);
+              showPaymentReceipt(paidItems, refreshedStudent);
+            }
+            sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+            clearStudentPortalPaymentReturn();
+            recoveredPaymentFound = true;
+          } else if (orderResult.paymentStatus === 'failed' || orderResult.paymentStatus === 'abandoned') {
+            sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
+            clearStudentPortalPaymentReturn();
           }
-          sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
-          clearStudentPortalPaymentReturn();
-          recoveredPaymentFound = true;
-        } else if (orderResult.paymentStatus === 'failed') {
+        } catch {
           sessionStorage.removeItem(`razorpay_pending_order_${student.id}`);
           clearStudentPortalPaymentReturn();
         }
