@@ -322,13 +322,17 @@ export class RazorpayPaymentService {
         payment.captured,
     );
     if (!capturedPayment) {
+      const attemptCount = gatewayPayments.items?.length ?? gatewayPayments.count ?? 0;
       return {
         duplicate: false,
         orderId,
         paymentId: null,
         status: order.status,
-        paymentStatus: latestPayment?.status || order.paymentStatus || 'pending',
-        attemptCount: gatewayPayments.count,
+        paymentStatus:
+          attemptCount === 0
+            ? 'abandoned'
+            : (latestPayment?.status || order.paymentStatus || 'pending'),
+        attemptCount,
         payments: [],
       };
     }
@@ -374,7 +378,10 @@ export class RazorpayPaymentService {
       ) {
         paymentApplied = true;
       } else if (
-        (!('paymentStatus' in result) || result.paymentStatus !== 'failed') &&
+        'attemptCount' in result &&
+        Number(result.attemptCount || 0) > 0 &&
+        result.paymentStatus !== 'failed' &&
+        result.paymentStatus !== 'abandoned' &&
         !pendingOrderId
       ) {
         pendingOrderId = order.orderId;
