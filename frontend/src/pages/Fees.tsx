@@ -1602,6 +1602,7 @@ const Fees = () => {
               {/* <col className="fees-col-mess" /> */}
               <col className="fees-col-fine" />
               <col className="fees-col-outstanding" />
+              <col className="fees-col-advance-rent" />
               <col className="fees-col-total" />
               <col className="fees-col-method" />
               <col className="fees-col-status" />
@@ -1622,6 +1623,9 @@ const Fees = () => {
                 <th className="num fees-th-outstanding" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
                   Outstanding<br />Balance
                 </th>
+                <th className="num fees-th-advance-rent" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
+                  Advance<br />Balance
+                </th>
                 <th className="num fees-total">Total Paid</th>
                 <th className="fees-method">Payment Method</th>
                 <th className="fees-status">Status</th>
@@ -1630,14 +1634,14 @@ const Fees = () => {
             </thead>
             <tbody>
               {loading && fees.length === 0 ? (
-                <LoadingRow colSpan={14} />
+                <LoadingRow colSpan={15} />
               ) : error ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty ui-empty-danger">{error}</td>
+                  <td colSpan={15} className="ui-empty ui-empty-danger">{error}</td>
                 </tr>
               ) : paginatedFees.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="ui-empty">No fee transactions found.</td>
+                  <td colSpan={15} className="ui-empty">No fee transactions found.</td>
                 </tr>
               ) : (
                 paginatedFees.map((fee: any) => {
@@ -1810,6 +1814,22 @@ const Fees = () => {
                           <Eye size={12} />
                         </button>
                       </td>
+
+                      {(() => {
+                        const bal = roundMoney(Number(fee.student?.advanceRentBalance || 0));
+                        return (
+                          <td
+                            className="num"
+                            style={{
+                              fontWeight: bal > 0 ? 700 : 500,
+                              color: bal > 0 ? '#0284c7' : '#64748b',
+                            }}
+                            title="Advance Rent Balance (auto-adjusted on next monthly rent)"
+                          >
+                            ₹{bal.toLocaleString('en-IN')}
+                          </td>
+                        );
+                      })()}
 
                       <td className={`num fees-total${fee.displayStatus === 'Unpaid' ? ' fees-total--pending' : ''}`}>
                         ₹{Number(fee.displayPaid || 0).toLocaleString('en-IN')}
