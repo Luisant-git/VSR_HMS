@@ -906,7 +906,7 @@ const Fees = () => {
 
   const totalInvoiced = reconciliation.totalInvoiced;
   const totalCollected = reconciliation.totalCollected;
-  const pendingFeesAmt = reconciliation.pendingUnpaid;
+  const pendingFeesAmt = roundMoney(reconciliation.pendingUnpaid + reconciliation.partialBalance);
 
   const modalOutstandingPaid = useMemo(() => {
     const first = feesToCollect[0] || feeToCollect;
@@ -1696,14 +1696,17 @@ const Fees = () => {
                       <td>
                         <span
                           title={(() => {
-                            const billingCycle = (fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
+                            const primaryFee = fee.feesList?.[0] || fee;
+                            const primaryMonth = resolveFeeBillingMonth(primaryFee) || fee.billingMonth || '';
                             if (fee.displayStatus === 'Unpaid' || fee.displayStatus === 'Not Due') {
+                              if (primaryMonth) {
+                                return formatBillingMonth(primaryMonth) || primaryMonth;
+                              }
+                              const billingCycle = (fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
                               const { currentMonthStr, previousMonthStr } = getBillingMonths();
                               const payableMonth = billingCycle === 'POSTPAID' ? previousMonthStr : currentMonthStr;
                               return formatBillingMonth(payableMonth) || payableMonth;
                             }
-                            const primaryFee = fee.feesList?.[0] || fee;
-                            const primaryMonth = resolveFeeBillingMonth(primaryFee) || fee.billingMonth || '';
                             return formatBillingMonth(primaryMonth) || primaryMonth || undefined;
                           })()}
                           style={{
@@ -1721,11 +1724,19 @@ const Fees = () => {
                           }}
                         >
                           {(() => {
-                            // POSTPAID dues are paid for the previous month, so
-                            // show that payable month on the unpaid/not-due row.
-                            const billingCycle =
-                              (fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
+                            const primaryFee = fee.feesList?.[0] || fee;
+                            const primaryMonth =
+                              resolveFeeBillingMonth(primaryFee) ||
+                              fee.billingMonth ||
+                              '';
                             if (fee.displayStatus === 'Unpaid' || fee.displayStatus === 'Not Due') {
+                              if (primaryMonth) {
+                                return formatBillingMonthOnly(primaryMonth) || primaryMonth;
+                              }
+                              // POSTPAID dues are paid for the previous month, so
+                              // show that payable month on the unpaid/not-due row.
+                              const billingCycle =
+                                (fee.student?.college?.billingCycle || 'PREPAID').toUpperCase();
                               // Show the month the current cycle actually bills:
                               // PREPAID -> current month, POSTPAID -> previous month.
                               const { currentMonthStr, previousMonthStr } = getBillingMonths();
@@ -1737,11 +1748,6 @@ const Fees = () => {
                             // of its primary fee only. Joining every month in a
                             // group produced labels like "October 2026 / November
                             // 2026" when two separate payments were merged.
-                            const primaryFee = fee.feesList?.[0] || fee;
-                            const primaryMonth =
-                              resolveFeeBillingMonth(primaryFee) ||
-                              fee.billingMonth ||
-                              '';
                             return formatBillingMonthOnly(primaryMonth) || primaryMonth || '—';
                           })()}
                         </span>

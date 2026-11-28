@@ -210,12 +210,12 @@ export const buildFeeReconciliation = ({
 
     if (fee.status !== 'PENDING' && fee.status !== 'COMPLETED') return;
 
-    totalInvoiced = roundMoney(totalInvoiced + amount);
-
     if (fee.status === 'COMPLETED') {
+      totalInvoiced = roundMoney(totalInvoiced + amount);
       totalCollected = roundMoney(totalCollected + amount);
       counts.completedInvoices += 1;
     } else if (isFeePayableNow(fee, currentMonthStr, previousMonthStr)) {
+      totalInvoiced = roundMoney(totalInvoiced + amount);
       pendingUnpaid = roundMoney(pendingUnpaid + amount);
       counts.pendingInvoices += 1;
     } else {
@@ -256,7 +256,7 @@ export const buildFeeReconciliation = ({
     });
   });
 
-  const accounted = roundMoney(totalCollected + pendingUnpaid + notDue + partialBalance);
+  const accounted = roundMoney(totalCollected + pendingUnpaid + partialBalance);
   const unreconciled = roundMoney(totalInvoiced - accounted);
 
   return {
