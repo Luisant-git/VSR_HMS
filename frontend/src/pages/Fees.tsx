@@ -1624,7 +1624,7 @@ const Fees = () => {
                   Outstanding<br />Balance
                 </th>
                 <th className="num fees-th-advance-rent" style={{ whiteSpace: 'normal', lineHeight: 1.25 }}>
-                  Advance<br />Balance
+                  Advance<br />Rent Balance
                 </th>
                 <th className="num fees-total">Total Paid</th>
                 <th className="fees-method">Payment Method</th>

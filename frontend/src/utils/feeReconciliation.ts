@@ -164,6 +164,8 @@ export const buildFeeReconciliation = ({
     outstandingPayments: 0,
   };
 
+  const visibleStudents = new Set<string>();
+
   // 1) Regular invoices and their receipts.
   filteredFees.forEach(fee => {
     if (!fee) return;
@@ -177,7 +179,10 @@ export const buildFeeReconciliation = ({
     }
     // Both outstanding invoices and outstanding receipts belong to the
     // historical ledger below; counting them here would duplicate the money.
-    if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) return;
+    if (isOutstandingDescription(fee) || isOutstandingPayment(fee)) {
+      visibleStudents.add(getStudentKey(fee));
+      return;
+    }
     if (!isFreshCycleApplicable(fee, currentMonthStr, previousMonthStr)) return;
 
     // The Paid table hides receipts settled before 2026-11-01. Keep the
@@ -188,6 +193,8 @@ export const buildFeeReconciliation = ({
       const paidTime = fee.paidDate || fee.createdAt || fee.updatedAt;
       if (paidTime && new Date(paidTime) < new Date('2026-11-01T00:00:00')) return;
     }
+
+    visibleStudents.add(getStudentKey(fee));
 
     const amount = roundMoney(Number(fee.amount) || 0);
     if (!Number.isFinite(amount) || amount === 0) return;
@@ -220,7 +227,6 @@ export const buildFeeReconciliation = ({
   // 2) Historical outstanding ledger. The page filters decide which students
   // are visible; once a student is visible we net their complete outstanding
   // ledger so a hidden invoice/payment can never produce a false balance.
-  const visibleStudents = new Set(filteredFees.map(getStudentKey));
   const outstandingByStudent = new Map<string, any[]>();
 
   allFees.forEach(fee => {
