@@ -490,6 +490,8 @@ const Fees = () => {
         fee.transactionType.toLowerCase().includes(q) ||
         (fee.student?.name || '').toLowerCase().includes(q) ||
         (fee.student?.manualRegsiName || fee.student?.regNo || '').toLowerCase().includes(q) ||
+        (fee.student?.mobileNo || '').toLowerCase().includes(q) ||
+        (fee.student?.fatherMobileNo || '').toLowerCase().includes(q) ||
         (fee.referenceNumber || '').toLowerCase().includes(q) ||
         (fee.id || '').toLowerCase().includes(q)
       );
@@ -1412,7 +1414,7 @@ const Fees = () => {
           <input
             type="text"
             className="ui-input"
-            placeholder="Search by invoice, student, reg no..."
+            placeholder="Search by invoice, student, reg no, mobile..."
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
           />

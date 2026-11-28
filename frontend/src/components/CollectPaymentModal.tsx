@@ -564,7 +564,19 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     return months;
   };
 
-  const currentMonthTotal = activeItemsToPay.reduce((acc: number, f: any) => acc + f.amount * getMultiplier(f.transactionType), 0);
+  const availableAdvanceBalance = roundMoney(
+    Number(primaryStudent?.advanceRentBalance || 0),
+  );
+
+  const getItemCalculatedAmount = (f: any) => {
+    const gross = roundMoney(Number(f.amount || 0) * getMultiplier(f.transactionType));
+    if (f?.isUpcomingAdvanceRent && availableAdvanceBalance > 0) {
+      return roundMoney(Math.max(0, gross - Math.min(availableAdvanceBalance, gross)));
+    }
+    return gross;
+  };
+
+  const currentMonthTotal = activeItemsToPay.reduce((acc: number, f: any) => acc + getItemCalculatedAmount(f), 0);
 
   // Outstanding amount validation
   const outstandingInputTrimmed = outstandingAmountInput.trim();
@@ -610,10 +622,17 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
     return `${nextY}-${String(nextM).padStart(2, '0')}`;
   })();
   const canPayUpcomingRent = !hasCurrentRentItem && studentMonthlyRent > 0;
-  const upcomingRentAmount =
+  const grossUpcomingRentAmount =
     canPayUpcomingRent && upcomingMonths > 0
       ? roundMoney(studentMonthlyRent * upcomingMonths)
       : 0;
+  const upcomingAdvanceCreditUsed =
+    canPayUpcomingRent && upcomingMonths > 0
+      ? roundMoney(Math.min(availableAdvanceBalance, grossUpcomingRentAmount))
+      : 0;
+  const upcomingRentAmount = roundMoney(
+    Math.max(0, grossUpcomingRentAmount - upcomingAdvanceCreditUsed),
+  );
   const hasUpcomingRentPayment = upcomingRentAmount > 0;
 
   const subTotalAmount = roundMoney(currentMonthTotal + outstandingAmount + upcomingRentAmount);
@@ -753,7 +772,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
       // amount and the concession are kept in the description so the receipt
       // can print both, while the stored amount stays the real money received.
       const grossParts = [
-        ...activeItemsToPay.map((f: any) => f.amount * getMultiplier(f.transactionType)),
+        ...activeItemsToPay.map((f: any) => getItemCalculatedAmount(f)),
         ...(hasOutstandingPayment ? [outstandingAmount] : []),
         ...(hasUpcomingRentPayment ? [upcomingRentAmount] : []),
       ];
@@ -1302,11 +1321,14 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                       ) : (
                         <>
                           <option value={0}>Select months (Optional)</option>
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                            <option key={m} value={m}>
-                              {m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(nextUpcomingMonthStr, m)}) — ₹{(studentMonthlyRent * m).toLocaleString('en-IN')}
-                            </option>
-                          ))}
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => {
+                            const netM = Math.max(0, roundMoney(studentMonthlyRent * m - availableAdvanceBalance));
+                            return (
+                              <option key={m} value={m}>
+                                {m} Month{m > 1 ? 's' : ''} ({formatCyclePeriod(nextUpcomingMonthStr, m)}) — ₹{netM.toLocaleString('en-IN')}
+                              </option>
+                            );
+                          })}
                         </>
                       )}
                     </select>
@@ -1473,7 +1495,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         </div>
                         <span style={{ fontWeight: 700, color: allCurrentSelected ? '#1e3a8a' : '#94a3b8', fontSize: '14px', textDecoration: allCurrentSelected ? 'none' : 'line-through' }}>
                           ₹{orderedDisplayItems
-                            .reduce((sum: number, item: any) => sum + item.amount * getMultiplier(item.transactionType), 0)
+                            .reduce((sum: number, item: any) => sum + getItemCalculatedAmount(item), 0)
                             .toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
@@ -1482,7 +1504,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                         const state = feeStates[f.id] || { selected: true };
                         const currentMultiplier = getMultiplier(f.transactionType);
                         const isLast = index === orderedDisplayItems.length - 1;
-                        const calculatedAmount = f.amount * currentMultiplier;
+                        const calculatedAmount = getItemCalculatedAmount(f);
+                        const grossItemAmount = roundMoney(Number(f.amount || 0) * currentMultiplier);
+                        const upcomingAdvAdjusted =
+                          f?.isUpcomingAdvanceRent && availableAdvanceBalance > 0
+                            ? roundMoney(Math.min(availableAdvanceBalance, grossItemAmount))
+                            : 0;
                         const fineParent = getFineParentType(f);
 
                         return (
@@ -1498,6 +1525,11 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
                               </div>
                               <div style={{ color: '#64748b', fontSize: '13px' }}>
                                 {currentMultiplier > 1 ? `${currentMultiplier} months × ₹${f.amount.toLocaleString('en-IN')}` : (f.description || 'One-time fee')}
+                                {upcomingAdvAdjusted > 0 && (
+                                  <div style={{ marginTop: '3px', color: '#0284c7', fontWeight: 600, fontSize: '12.5px' }}>
+                                    · ₹{upcomingAdvAdjusted.toLocaleString('en-IN', { minimumFractionDigits: 2 })} Advance Rent Balance adjusted from ₹{grossItemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </div>
+                                )}
                                 {f.fineQuote && (
                                   <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
                                     <span style={{ color: '#b45309', fontWeight: 600, fontSize: '12.5px' }}>

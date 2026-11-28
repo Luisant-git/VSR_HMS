@@ -95,6 +95,7 @@ export class RazorpayPaymentService {
         mobileNo: true,
         emailId: true,
         rent: true,
+        advanceRentBalance: true,
         room: { select: { rent: true } },
       },
     });
@@ -131,7 +132,12 @@ export class RazorpayPaymentService {
         if (monthlyRent <= 0) {
           throw new BadRequestException('Monthly rent is not configured for this student.');
         }
-        totalPaise += Math.round(monthlyRent * 100) * item.months;
+        const grossPaise = Math.round(monthlyRent * 100) * item.months;
+        const creditPaise = Math.min(
+          Math.round(Number(student.advanceRentBalance || 0) * 100),
+          grossPaise,
+        );
+        totalPaise += Math.max(0, grossPaise - creditPaise);
         continue;
       }
       const fee = feeById.get(item.feeId);
@@ -590,21 +596,36 @@ export class RazorpayPaymentService {
           const studentForRent = selections.some((s) => s.feeId === '__UPCOMING_RENT__')
             ? await tx.student.findUnique({
                 where: { id: order.studentId },
-                select: { rent: true, room: { select: { rent: true } } },
+                select: { rent: true, advanceRentBalance: true, room: { select: { rent: true } } },
               })
             : null;
           const feeUpdates = await Promise.all(
             selections.map(async (selection) => {
               if (selection.feeId === '__UPCOMING_RENT__') {
                 const monthlyRent = Number(studentForRent?.rent || studentForRent?.room?.rent || 0);
-                const finalAmount = (Math.round(monthlyRent * 100) * selection.months) / 100;
+                const grossPaise = Math.round(monthlyRent * 100) * selection.months;
+                const advBalance = Number(studentForRent?.advanceRentBalance || 0);
+                const creditPaise = Math.min(Math.round(advBalance * 100), grossPaise);
+                const creditUsed = creditPaise / 100;
+                const finalAmount = Math.max(0, grossPaise - creditPaise) / 100;
+                if (creditUsed > 0) {
+                  const nextBal = Math.max(0, Math.round((advBalance - creditUsed) * 100) / 100);
+                  await tx.student.update({
+                    where: { id: order.studentId },
+                    data: { advanceRentBalance: nextBal },
+                  });
+                }
                 const billingMonth = selection.billingMonth || undefined;
                 const monthNamesFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
                 const bmMatch = String(billingMonth || '').match(/^(\d{4})-(\d{1,2})$/);
                 const startLabel = bmMatch
                   ? `${monthNamesFull[Number(bmMatch[2]) - 1] || ''} ${bmMatch[1]}`
                   : monthNamesFull[paidDate.getMonth()] + ' ' + paidDate.getFullYear();
-                const baseDesc = `Room Rent for ${startLabel}`;
+                const creditSuffix =
+                  creditUsed > 0
+                    ? ` (₹${creditUsed.toLocaleString('en-IN')} adjusted from Advance Rent)`
+                    : '';
+                const baseDesc = `Room Rent for ${startLabel}${creditSuffix}`;
                 const description = this.buildPaidDescription(
                   baseDesc,
                   selection.months,
