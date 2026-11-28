@@ -218,9 +218,34 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   const onlineRequestId = useRef<string | null>(null);
   const onlineOrderId = useRef<string | null>(null);
   const [onlineConfirmationPending, setOnlineConfirmationPending] = useState(false);
+  const [fetchedStudentDetails, setFetchedStudentDetails] = useState<any>(null);
 
   const itemsToPay = fees && fees.length > 0 ? fees : fee ? [fee] : [];
-  const primaryStudent = itemsToPay.length > 0 ? itemsToPay[0].student : null;
+  const rawPrimaryStudent = itemsToPay.length > 0 ? itemsToPay[0].student : null;
+  const primaryStudent =
+    rawPrimaryStudent && fetchedStudentDetails
+      ? { ...rawPrimaryStudent, ...fetchedStudentDetails }
+      : fetchedStudentDetails || rawPrimaryStudent;
+
+  useEffect(() => {
+    const sid =
+      rawPrimaryStudent?.uuid ||
+      itemsToPay[0]?.studentId ||
+      rawPrimaryStudent?.id;
+    const hasRent = Number(rawPrimaryStudent?.rent || rawPrimaryStudent?.room?.rent || 0) > 0;
+    const hasPaidUntil = rawPrimaryStudent?.rentPaidUntil !== undefined;
+    if (!sid || (hasRent && hasPaidUntil)) return;
+
+    let active = true;
+    StudentAPI.findOne(sid)
+      .then((data) => {
+        if (active && data) setFetchedStudentDetails(data);
+      })
+      .catch(() => { });
+    return () => {
+      active = false;
+    };
+  }, [rawPrimaryStudent?.id, rawPrimaryStudent?.uuid, itemsToPay[0]?.studentId]);
 
   // Current-month invoices stay exactly as before. Previous outstanding
   // invoices are consolidated into a single OUTSTANDING item.
@@ -796,22 +821,22 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
         const updated = f.isUpcomingAdvanceRent
           ? await FeesAPI.create({
-              studentId: f.studentId || primaryStudent?.uuid || primaryStudent?.id,
-              transactionType: 'RENT',
-              amount: netParts[index],
-              status: 'COMPLETED',
-              paymentMode: effectivePaymentMode,
-              paidDate: selectedPaidDate,
-              billingMonth: f.billingMonth,
-              description: finalDesc,
-            })
+            studentId: f.studentId || primaryStudent?.uuid || primaryStudent?.id,
+            transactionType: 'RENT',
+            amount: netParts[index],
+            status: 'COMPLETED',
+            paymentMode: effectivePaymentMode,
+            paidDate: selectedPaidDate,
+            billingMonth: f.billingMonth,
+            description: finalDesc,
+          })
           : await FeesAPI.update(f.id, {
-              status: 'COMPLETED',
-              paymentMode: effectivePaymentMode,
-              paidDate: selectedPaidDate,
-              amount: netParts[index],
-              description: finalDesc,
-            });
+            status: 'COMPLETED',
+            paymentMode: effectivePaymentMode,
+            paidDate: selectedPaidDate,
+            amount: netParts[index],
+            description: finalDesc,
+          });
         return { ...updated, student: updated.student || f.student };
       }));
 
