@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   BadRequestException,
   NotFoundException,
   ForbiddenException,
@@ -18,6 +19,7 @@ interface PortalOtpRecord {
 
 @Injectable()
 export class StudentsService {
+  private readonly logger = new Logger(StudentsService.name);
   private readonly portalOtpStore = new Map<string, PortalOtpRecord>();
 
   constructor(
@@ -775,6 +777,7 @@ export class StudentsService {
     }
 
     const otp = String(randomInt(1000, 10000));
+    this.logger.log(`[PORTAL OTP] Student: ${student.name || 'Student'} | Mobile: ${cleanMobile} | OTP: ${otp}`);
     this.portalOtpStore.set(cleanMobile, {
       otp,
       expiresAt: Date.now() + 5 * 60 * 1000,
